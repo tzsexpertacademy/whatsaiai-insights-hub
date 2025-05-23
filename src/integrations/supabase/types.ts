@@ -9,7 +9,187 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      client_configs: {
+        Row: {
+          created_at: string | null
+          firebase_config: Json | null
+          id: string
+          openai_config: Json | null
+          updated_at: string | null
+          user_id: string | null
+          whatsapp_config: Json | null
+        }
+        Insert: {
+          created_at?: string | null
+          firebase_config?: Json | null
+          id?: string
+          openai_config?: Json | null
+          updated_at?: string | null
+          user_id?: string | null
+          whatsapp_config?: Json | null
+        }
+        Update: {
+          created_at?: string | null
+          firebase_config?: Json | null
+          id?: string
+          openai_config?: Json | null
+          updated_at?: string | null
+          user_id?: string | null
+          whatsapp_config?: Json | null
+        }
+        Relationships: []
+      }
+      insights: {
+        Row: {
+          conversation_id: string | null
+          created_at: string | null
+          description: string
+          id: string
+          insight_type: string
+          priority: string | null
+          status: string | null
+          title: string
+          user_id: string | null
+        }
+        Insert: {
+          conversation_id?: string | null
+          created_at?: string | null
+          description: string
+          id?: string
+          insight_type: string
+          priority?: string | null
+          status?: string | null
+          title: string
+          user_id?: string | null
+        }
+        Update: {
+          conversation_id?: string | null
+          created_at?: string | null
+          description?: string
+          id?: string
+          insight_type?: string
+          priority?: string | null
+          status?: string | null
+          title?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "insights_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          company_name: string | null
+          created_at: string | null
+          full_name: string | null
+          id: string
+          plan: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          company_name?: string | null
+          created_at?: string | null
+          full_name?: string | null
+          id: string
+          plan?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          company_name?: string | null
+          created_at?: string | null
+          full_name?: string | null
+          id?: string
+          plan?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      whatsapp_conversations: {
+        Row: {
+          contact_name: string
+          contact_phone: string
+          created_at: string | null
+          emotional_analysis: Json | null
+          id: string
+          messages: Json | null
+          psychological_profile: Json | null
+          session_id: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          contact_name: string
+          contact_phone: string
+          created_at?: string | null
+          emotional_analysis?: Json | null
+          id?: string
+          messages?: Json | null
+          psychological_profile?: Json | null
+          session_id?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          contact_name?: string
+          contact_phone?: string
+          created_at?: string | null
+          emotional_analysis?: Json | null
+          id?: string
+          messages?: Json | null
+          psychological_profile?: Json | null
+          session_id?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      whatsapp_messages: {
+        Row: {
+          ai_generated: boolean | null
+          conversation_id: string | null
+          id: string
+          message_text: string
+          sender_type: string | null
+          sentiment_analysis: Json | null
+          timestamp: string | null
+          user_id: string | null
+        }
+        Insert: {
+          ai_generated?: boolean | null
+          conversation_id?: string | null
+          id?: string
+          message_text: string
+          sender_type?: string | null
+          sentiment_analysis?: Json | null
+          timestamp?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          ai_generated?: boolean | null
+          conversation_id?: string | null
+          id?: string
+          message_text?: string
+          sender_type?: string | null
+          sentiment_analysis?: Json | null
+          timestamp?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

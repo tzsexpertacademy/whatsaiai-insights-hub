@@ -1,108 +1,131 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { User, Session } from '@supabase/supabase-js';
 
-interface User {
+interface UserProfile {
   id: string;
   email: string;
   name: string;
+  companyName?: string;
   plan: 'basic' | 'premium' | 'enterprise';
   createdAt: Date;
   isActive: boolean;
 }
 
 interface AuthContextType {
-  user: User | null;
+  user: UserProfile | null;
+  session: Session | null;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
-  logout: () => void;
+  signup: (email: string, password: string, metadata?: { fullName?: string; companyName?: string }) => Promise<void>;
+  logout: () => Promise<void>;
   isLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Mock de usuários para demonstração
-const mockUsers: User[] = [
-  {
-    id: '1',
-    email: 'demo@cliente.com',
-    name: 'Cliente Demonstração',
-    plan: 'premium',
-    createdAt: new Date('2024-01-15'),
-    isActive: true
-  },
-  {
-    id: '2',
-    email: 'test@empresa.com',
-    name: 'Empresa Teste',
-    plan: 'enterprise',
-    createdAt: new Date('2024-01-10'),
-    isActive: true
-  }
-];
-
-// Função auxiliar para preservar as datas durante serialização/deserialização
-const parseUserWithDates = (userData: any): User => {
-  if (!userData) return userData;
-  
-  return {
-    ...userData,
-    createdAt: userData.createdAt ? new Date(userData.createdAt) : new Date()
-  };
-};
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Verificar se há um usuário logado no localStorage
-    const savedUser = localStorage.getItem('user');
-    if (savedUser) {
-      try {
-        // Converter o savedUser em objeto e garantir que createdAt seja um Date
-        const parsedUser = parseUserWithDates(JSON.parse(savedUser));
-        setUser(parsedUser);
-      } catch (error) {
-        console.error("Erro ao carregar usuário:", error);
-        localStorage.removeItem('user');
+    // Configurar listener de mudanças de autenticação
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('Auth state changed:', event, session?.user?.id);
+        setSession(session);
+        
+        if (session?.user) {
+          // Buscar perfil do usuário
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+
+          if (profile) {
+            setUser({
+              id: profile.id,
+              email: session.user.email!,
+              name: profile.full_name || 'Usuário',
+              companyName: profile.company_name,
+              plan: profile.plan as 'basic' | 'premium' | 'enterprise',
+              createdAt: new Date(profile.created_at),
+              isActive: true
+            });
+          }
+        } else {
+          setUser(null);
+        }
+        
+        setIsLoading(false);
       }
-    }
-    setIsLoading(false);
+    );
+
+    // Verificar sessão existente
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('Initial session check:', session?.user?.id);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const login = async (email: string, password: string): Promise<void> => {
     setIsLoading(true);
-    
-    // Simular API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    const foundUser = mockUsers.find(u => u.email === email);
-    
-    if (!foundUser || password !== 'senha123') {
-      throw new Error('Credenciais inválidas');
-    }
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
 
-    if (!foundUser.isActive) {
-      throw new Error('Conta inativa. Entre em contato com o suporte.');
+      if (error) throw error;
+    } catch (error) {
+      console.error('Login error:', error);
+      throw error;
+    } finally {
+      setIsLoading(false);
     }
-
-    setUser(foundUser);
-    localStorage.setItem('user', JSON.stringify(foundUser));
-    setIsLoading(false);
   };
 
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem('user');
+  const signup = async (email: string, password: string, metadata?: { fullName?: string; companyName?: string }): Promise<void> => {
+    setIsLoading(true);
+    try {
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: metadata?.fullName || '',
+            company_name: metadata?.companyName || ''
+          }
+        }
+      });
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Signup error:', error);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const isAuthenticated = !!user;
+  const logout = async (): Promise<void> => {
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
+  };
+
+  const isAuthenticated = !!user && !!session;
 
   return (
     <AuthContext.Provider value={{
       user,
+      session,
       isAuthenticated,
       login,
+      signup,
       logout,
       isLoading
     }}>

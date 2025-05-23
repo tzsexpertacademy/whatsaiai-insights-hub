@@ -1,53 +1,43 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
+import { useToast } from '@/hooks/use-toast';
+
+interface WhatsAppConfig {
+  isConnected: boolean;
+  authorizedNumber: string;
+  qrCode: string;
+  platform: string;
+  autoSync: boolean;
+  syncInterval: string;
+}
+
+interface OpenAIConfig {
+  apiKey: string;
+  model: string;
+  temperature: number;
+  maxTokens: number;
+}
+
+interface FirebaseConfig {
+  apiKey: string;
+  authDomain: string;
+  projectId: string;
+  storageBucket: string;
+  messagingSenderId: string;
+  appId: string;
+}
 
 interface ClientConfig {
-  whatsapp: {
-    isConnected: boolean;
-    authorizedNumber?: string;
-    qrCode: string;
-    autoReply: boolean;
-    lastImport?: string;  // Data da última importação de conversas
-    autoSync?: boolean;   // Nova propriedade para sincronização automática
-    syncInterval?: string; // 'hourly', 'daily', 'weekly'
-    nextSyncTime?: string; // Próxima sincronização agendada
-  };
-  firebase: {
-    isConnected: boolean;
-    projectId: string;
-    apiKey: string;
-    authDomain: string;
-    databaseUrl: string;
-    storageBucket: string;
-  };
-  openai: {
-    isConnected: boolean;
-    apiKey: string;
-    defaultModel: string;
-    maxTokens: string;
-    temperature: string;
-    organization: string;
-  };
-  assistants: {
-    principal: {
-      name: string;
-      prompt: string;
-      model: string;
-      isActive: boolean;
-    };
-    others: Array<{
-      id: string;
-      name: string;
-      prompt: string;
-      model: string;
-      isActive: boolean;
-    }>;
-  };
+  whatsapp: WhatsAppConfig;
+  openai: OpenAIConfig;
+  firebase: FirebaseConfig;
 }
 
 interface ClientConfigContextType {
   config: ClientConfig;
-  updateConfig: (section: keyof ClientConfig, data: any) => void;
+  updateConfig: (section: keyof ClientConfig, updates: Partial<ClientConfig[keyof ClientConfig]>) => void;
   saveConfig: () => Promise<void>;
   isLoading: boolean;
 }
@@ -57,166 +47,110 @@ const defaultConfig: ClientConfig = {
     isConnected: false,
     authorizedNumber: '',
     qrCode: '',
-    autoReply: false,
-    lastImport: '',
+    platform: 'atendechat',
     autoSync: false,
-    syncInterval: 'daily',
-    nextSyncTime: ''
-  },
-  firebase: {
-    isConnected: false,
-    projectId: '',
-    apiKey: '',
-    authDomain: '',
-    databaseUrl: '',
-    storageBucket: ''
+    syncInterval: 'daily'
   },
   openai: {
-    isConnected: false,
     apiKey: '',
-    defaultModel: 'gpt-4o-mini',
-    maxTokens: '4000',
-    temperature: '0.7',
-    organization: ''
+    model: 'gpt-4',
+    temperature: 0.7,
+    maxTokens: 1000
   },
-  assistants: {
-    principal: {
-      name: 'Conselheiro Principal',
-      prompt: 'Você é um conselheiro especializado em análise comportamental e psicológica. Sua função é fornecer insights valiosos baseados nas conversas analisadas.',
-      model: 'gpt-4o-mini',
-      isActive: true
-    },
-    others: []
+  firebase: {
+    apiKey: '',
+    authDomain: '',
+    projectId: '',
+    storageBucket: '',
+    messagingSenderId: '',
+    appId: ''
   }
 };
 
 const ClientConfigContext = createContext<ClientConfigContextType | undefined>(undefined);
 
 export function ClientConfigProvider({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
   const [config, setConfig] = useState<ClientConfig>(defaultConfig);
   const [isLoading, setIsLoading] = useState(false);
+  const { user, isAuthenticated } = useAuth();
+  const { toast } = useToast();
 
+  // Carregar configurações do Supabase
   useEffect(() => {
-    if (user) {
+    if (isAuthenticated && user) {
       loadConfig();
     }
-  }, [user]);
-
-  useEffect(() => {
-    if (config.whatsapp.autoSync) {
-      setupAutoSync();
-    }
-    
-    return () => {
-      // Limpar qualquer timer de sincronização quando o componente é desmontado
-      if (window.syncTimer) {
-        clearTimeout(window.syncTimer);
-      }
-    };
-  }, [config.whatsapp.autoSync, config.whatsapp.syncInterval]);
+  }, [isAuthenticated, user]);
 
   const loadConfig = async () => {
-    setIsLoading(true);
     try {
-      // Simular carregamento das configurações do cliente
-      const savedConfig = localStorage.getItem(`config_${user?.id}`);
-      if (savedConfig) {
-        setConfig(JSON.parse(savedConfig));
+      setIsLoading(true);
+      const { data, error } = await supabase
+        .from('client_configs')
+        .select('*')
+        .eq('user_id', user?.id)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error loading config:', error);
+        return;
+      }
+
+      if (data) {
+        setConfig({
+          whatsapp: { ...defaultConfig.whatsapp, ...(data.whatsapp_config || {}) },
+          openai: { ...defaultConfig.openai, ...(data.openai_config || {}) },
+          firebase: { ...defaultConfig.firebase, ...(data.firebase_config || {}) }
+        });
       }
     } catch (error) {
-      console.error('Erro ao carregar configurações:', error);
+      console.error('Error loading config:', error);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const updateConfig = (section: keyof ClientConfig, data: any) => {
+  const updateConfig = (section: keyof ClientConfig, updates: Partial<ClientConfig[keyof ClientConfig]>) => {
     setConfig(prev => ({
       ...prev,
-      [section]: { ...prev[section], ...data }
+      [section]: { ...prev[section], ...updates }
     }));
   };
 
   const saveConfig = async (): Promise<void> => {
-    if (!user) return;
-    
-    setIsLoading(true);
+    if (!isAuthenticated || !user) {
+      throw new Error('Usuário não autenticado');
+    }
+
     try {
-      // Simular salvamento no banco de dados
-      await new Promise(resolve => setTimeout(resolve, 500));
-      localStorage.setItem(`config_${user.id}`, JSON.stringify(config));
+      setIsLoading(true);
+      
+      const { error } = await supabase
+        .from('client_configs')
+        .upsert({
+          user_id: user.id,
+          whatsapp_config: config.whatsapp,
+          openai_config: config.openai,
+          firebase_config: config.firebase,
+          updated_at: new Date().toISOString()
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "Configurações salvas",
+        description: "Suas configurações foram salvas com sucesso"
+      });
     } catch (error) {
-      console.error('Erro ao salvar configurações:', error);
+      console.error('Error saving config:', error);
+      toast({
+        title: "Erro ao salvar",
+        description: "Não foi possível salvar as configurações",
+        variant: "destructive"
+      });
       throw error;
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const setupAutoSync = () => {
-    // Limpar qualquer timer existente
-    if (window.syncTimer) {
-      clearTimeout(window.syncTimer);
-    }
-    
-    // Calcular próximo horário de sincronização
-    const calculateNextSync = () => {
-      const now = new Date();
-      let nextSync: Date;
-      
-      switch (config.whatsapp.syncInterval) {
-        case 'hourly':
-          nextSync = new Date(now.getTime() + 60 * 60 * 1000); // 1 hora
-          break;
-        case 'weekly':
-          nextSync = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 dias
-          break;
-        case 'daily':
-        default:
-          nextSync = new Date(now.getTime() + 24 * 60 * 60 * 1000); // 1 dia
-      }
-      
-      return nextSync;
-    };
-    
-    const nextSync = calculateNextSync();
-    
-    // Atualizar próxima sincronização no config
-    updateConfig('whatsapp', { nextSyncTime: nextSync.toISOString() });
-    
-    // Definir timer para sincronização
-    const timeUntilSync = nextSync.getTime() - new Date().getTime();
-    
-    // Armazenar o timer em uma propriedade global para poder limpá-lo depois
-    window.syncTimer = setTimeout(() => {
-      performSync();
-    }, timeUntilSync);
-    
-    console.log(`Próxima sincronização agendada para: ${nextSync.toLocaleString()}`);
-  };
-
-  const performSync = async () => {
-    console.log('Executando sincronização automática...');
-    
-    try {
-      // Aqui você implementaria a lógica de sincronização
-      // Por exemplo, importar novas conversas do WhatsApp
-      
-      // Atualizar último horário de importação
-      updateConfig('whatsapp', { 
-        lastImport: new Date().toISOString(),
-      });
-      
-      // Salvar configuração
-      await saveConfig();
-      
-      console.log('Sincronização automática concluída com sucesso');
-    } catch (error) {
-      console.error('Erro na sincronização automática:', error);
-    } finally {
-      // Agendar próxima sincronização
-      setupAutoSync();
     }
   };
 
@@ -238,11 +172,4 @@ export function useClientConfig() {
     throw new Error('useClientConfig deve ser usado dentro de um ClientConfigProvider');
   }
   return context;
-}
-
-// Adicionando a definição do timer ao tipo Window
-declare global {
-  interface Window {
-    syncTimer?: NodeJS.Timeout;
-  }
 }
