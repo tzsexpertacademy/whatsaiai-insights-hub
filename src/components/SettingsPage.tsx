@@ -3,59 +3,11 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Settings, Database, Bot, MessageSquare, Users } from 'lucide-react';
-
-// Importações condicionais com logs
-let FirebaseConfig, WhatsAppConfig, OpenAIConfig, AssistantsConfig, ClientConfig;
-
-try {
-  console.log('SettingsPage - Tentando importar FirebaseConfig...');
-  const firebaseModule = await import('@/components/settings/FirebaseConfig');
-  FirebaseConfig = firebaseModule.FirebaseConfig;
-  console.log('SettingsPage - FirebaseConfig importado com sucesso');
-} catch (error) {
-  console.error('SettingsPage - Erro ao importar FirebaseConfig:', error);
-  FirebaseConfig = () => <div>Erro ao carregar FirebaseConfig</div>;
-}
-
-try {
-  console.log('SettingsPage - Tentando importar WhatsAppConfig...');
-  const whatsappModule = await import('@/components/settings/WhatsAppConfig');
-  WhatsAppConfig = whatsappModule.WhatsAppConfig;
-  console.log('SettingsPage - WhatsAppConfig importado com sucesso');
-} catch (error) {
-  console.error('SettingsPage - Erro ao importar WhatsAppConfig:', error);
-  WhatsAppConfig = () => <div>Erro ao carregar WhatsAppConfig</div>;
-}
-
-try {
-  console.log('SettingsPage - Tentando importar OpenAIConfig...');
-  const openaiModule = await import('@/components/settings/OpenAIConfig');
-  OpenAIConfig = openaiModule.OpenAIConfig;
-  console.log('SettingsPage - OpenAIConfig importado com sucesso');
-} catch (error) {
-  console.error('SettingsPage - Erro ao importar OpenAIConfig:', error);
-  OpenAIConfig = () => <div>Erro ao carregar OpenAIConfig</div>;
-}
-
-try {
-  console.log('SettingsPage - Tentando importar AssistantsConfig...');
-  const assistantsModule = await import('@/components/settings/AssistantsConfig');
-  AssistantsConfig = assistantsModule.AssistantsConfig;
-  console.log('SettingsPage - AssistantsConfig importado com sucesso');
-} catch (error) {
-  console.error('SettingsPage - Erro ao importar AssistantsConfig:', error);
-  AssistantsConfig = () => <div>Erro ao carregar AssistantsConfig</div>;
-}
-
-try {
-  console.log('SettingsPage - Tentando importar ClientConfig...');
-  const clientModule = await import('@/components/settings/ClientConfig');
-  ClientConfig = clientModule.ClientConfig;
-  console.log('SettingsPage - ClientConfig importado com sucesso');
-} catch (error) {
-  console.error('SettingsPage - Erro ao importar ClientConfig:', error);
-  ClientConfig = () => <div>Erro ao carregar ClientConfig</div>;
-}
+import { FirebaseConfig } from '@/components/settings/FirebaseConfig';
+import { WhatsAppConfig } from '@/components/settings/WhatsAppConfig';
+import { OpenAIConfig } from '@/components/settings/OpenAIConfig';
+import { AssistantsConfig } from '@/components/settings/AssistantsConfig';
+import { ClientConfig } from '@/components/settings/ClientConfig';
 
 export function SettingsPage() {
   console.log('SettingsPage - Componente sendo renderizado');
@@ -93,23 +45,23 @@ export function SettingsPage() {
           </TabsList>
 
           <TabsContent value="whatsapp">
-            {WhatsAppConfig ? <WhatsAppConfig /> : <div>Carregando WhatsApp Config...</div>}
+            <WhatsAppConfig />
           </TabsContent>
 
           <TabsContent value="firebase">
-            {FirebaseConfig ? <FirebaseConfig /> : <div>Carregando Firebase Config...</div>}
+            <FirebaseConfig />
           </TabsContent>
 
           <TabsContent value="openai">
-            {OpenAIConfig ? <OpenAIConfig /> : <div>Carregando OpenAI Config...</div>}
+            <OpenAIConfig />
           </TabsContent>
 
           <TabsContent value="assistants">
-            {AssistantsConfig ? <AssistantsConfig /> : <div>Carregando Assistants Config...</div>}
+            <AssistantsConfig />
           </TabsContent>
 
           <TabsContent value="clients">
-            {ClientConfig ? <ClientConfig /> : <div>Carregando Client Config...</div>}
+            <ClientConfig />
           </TabsContent>
         </Tabs>
       </div>
