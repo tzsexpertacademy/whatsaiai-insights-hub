@@ -11,6 +11,8 @@ interface WhatsAppConfig {
   platform: string;
   autoSync: boolean;
   syncInterval: string;
+  autoReply: boolean;
+  lastImport: string;
 }
 
 interface OpenAIConfig {
@@ -49,11 +51,13 @@ const defaultConfig: ClientConfig = {
     qrCode: '',
     platform: 'atendechat',
     autoSync: false,
-    syncInterval: 'daily'
+    syncInterval: 'daily',
+    autoReply: false,
+    lastImport: ''
   },
   openai: {
     apiKey: '',
-    model: 'gpt-4',
+    model: 'gpt-4o-mini',
     temperature: 0.7,
     maxTokens: 1000
   },
@@ -75,7 +79,6 @@ export function ClientConfigProvider({ children }: { children: React.ReactNode }
   const { user, isAuthenticated } = useAuth();
   const { toast } = useToast();
 
-  // Carregar configurações do Supabase
   useEffect(() => {
     if (isAuthenticated && user) {
       loadConfig();
@@ -98,9 +101,9 @@ export function ClientConfigProvider({ children }: { children: React.ReactNode }
 
       if (data) {
         setConfig({
-          whatsapp: { ...defaultConfig.whatsapp, ...(data.whatsapp_config || {}) },
-          openai: { ...defaultConfig.openai, ...(data.openai_config || {}) },
-          firebase: { ...defaultConfig.firebase, ...(data.firebase_config || {}) }
+          whatsapp: { ...defaultConfig.whatsapp, ...(data.whatsapp_config as Partial<WhatsAppConfig> || {}) },
+          openai: { ...defaultConfig.openai, ...(data.openai_config as Partial<OpenAIConfig> || {}) },
+          firebase: { ...defaultConfig.firebase, ...(data.firebase_config as Partial<FirebaseConfig> || {}) }
         });
       }
     } catch (error) {
