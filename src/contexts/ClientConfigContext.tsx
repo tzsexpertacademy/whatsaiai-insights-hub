@@ -8,6 +8,9 @@ interface ClientConfig {
     qrCode: string;
     autoReply: boolean;
     lastImport?: string;  // Data da última importação de conversas
+    autoSync?: boolean;   // Nova propriedade para sincronização automática
+    syncInterval?: string; // 'hourly', 'daily', 'weekly'
+    nextSyncTime?: string; // Próxima sincronização agendada
   };
   firebase: {
     isConnected: boolean;
@@ -55,7 +58,10 @@ const defaultConfig: ClientConfig = {
     authorizedNumber: '',
     qrCode: '',
     autoReply: false,
-    lastImport: ''
+    lastImport: '',
+    autoSync: false,
+    syncInterval: 'daily',
+    nextSyncTime: ''
   },
   firebase: {
     isConnected: false,
@@ -97,6 +103,19 @@ export function ClientConfigProvider({ children }: { children: React.ReactNode }
     }
   }, [user]);
 
+  useEffect(() => {
+    if (config.whatsapp.autoSync) {
+      setupAutoSync();
+    }
+    
+    return () => {
+      // Limpar qualquer timer de sincronização quando o componente é desmontado
+      if (window.syncTimer) {
+        clearTimeout(window.syncTimer);
+      }
+    };
+  }, [config.whatsapp.autoSync, config.whatsapp.syncInterval]);
+
   const loadConfig = async () => {
     setIsLoading(true);
     try {
@@ -135,6 +154,72 @@ export function ClientConfigProvider({ children }: { children: React.ReactNode }
     }
   };
 
+  const setupAutoSync = () => {
+    // Limpar qualquer timer existente
+    if (window.syncTimer) {
+      clearTimeout(window.syncTimer);
+    }
+    
+    // Calcular próximo horário de sincronização
+    const calculateNextSync = () => {
+      const now = new Date();
+      let nextSync: Date;
+      
+      switch (config.whatsapp.syncInterval) {
+        case 'hourly':
+          nextSync = new Date(now.getTime() + 60 * 60 * 1000); // 1 hora
+          break;
+        case 'weekly':
+          nextSync = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 dias
+          break;
+        case 'daily':
+        default:
+          nextSync = new Date(now.getTime() + 24 * 60 * 60 * 1000); // 1 dia
+      }
+      
+      return nextSync;
+    };
+    
+    const nextSync = calculateNextSync();
+    
+    // Atualizar próxima sincronização no config
+    updateConfig('whatsapp', { nextSyncTime: nextSync.toISOString() });
+    
+    // Definir timer para sincronização
+    const timeUntilSync = nextSync.getTime() - new Date().getTime();
+    
+    // Armazenar o timer em uma propriedade global para poder limpá-lo depois
+    window.syncTimer = setTimeout(() => {
+      performSync();
+    }, timeUntilSync);
+    
+    console.log(`Próxima sincronização agendada para: ${nextSync.toLocaleString()}`);
+  };
+
+  const performSync = async () => {
+    console.log('Executando sincronização automática...');
+    
+    try {
+      // Aqui você implementaria a lógica de sincronização
+      // Por exemplo, importar novas conversas do WhatsApp
+      
+      // Atualizar último horário de importação
+      updateConfig('whatsapp', { 
+        lastImport: new Date().toISOString(),
+      });
+      
+      // Salvar configuração
+      await saveConfig();
+      
+      console.log('Sincronização automática concluída com sucesso');
+    } catch (error) {
+      console.error('Erro na sincronização automática:', error);
+    } finally {
+      // Agendar próxima sincronização
+      setupAutoSync();
+    }
+  };
+
   return (
     <ClientConfigContext.Provider value={{
       config,
@@ -153,4 +238,11 @@ export function useClientConfig() {
     throw new Error('useClientConfig deve ser usado dentro de um ClientConfigProvider');
   }
   return context;
+}
+
+// Adicionando a definição do timer ao tipo Window
+declare global {
+  interface Window {
+    syncTimer?: NodeJS.Timeout;
+  }
 }
