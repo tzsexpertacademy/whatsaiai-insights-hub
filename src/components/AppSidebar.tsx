@@ -6,8 +6,13 @@ import {
   BarChart3, 
   Zap, 
   Bot,
-  Settings,
-  Home
+  Home,
+  Brain,
+  User,
+  Heart,
+  Timer,
+  FileText,
+  Settings
 } from 'lucide-react';
 import {
   Sidebar,
@@ -24,25 +29,27 @@ import {
 
 const navigationItems = [
   { title: "Dashboard", url: "/", icon: Home },
-  { title: "Conexão WhatsApp", url: "/connection", icon: Zap },
-  { title: "Chat", url: "/chat", icon: MessageCircle },
-  { title: "Analytics", url: "/analytics", icon: BarChart3 },
+  { title: "Áreas da Vida", url: "/areas", icon: Heart },
+  { title: "Perfil Comportamental", url: "/profile", icon: User },
+  { title: "Termômetro Emocional", url: "/emotions", icon: Timer },
+  { title: "Conselhos e Recomendações", url: "/recommendations", icon: FileText },
+  { title: "Configurações", url: "/settings", icon: Settings },
 ];
 
 export function AppSidebar() {
-  const { collapsed } = useSidebar();
+  const sidebar = useSidebar();
   const location = useLocation();
   const currentPath = location.pathname;
 
   const isActive = (path: string) => currentPath === path;
 
   return (
-    <Sidebar className={`${collapsed ? "w-14" : "w-64"} border-r border-white/20 bg-gradient-to-b from-indigo-900 via-blue-900 to-slate-900 backdrop-blur-xl`}>
+    <Sidebar className={`${sidebar.open ? "w-64" : "w-14"} border-r border-white/20 bg-gradient-to-b from-indigo-900 via-blue-900 to-slate-900 backdrop-blur-xl`}>
       <div className="p-4">
         <div className="flex items-center gap-2 mb-6">
-          <Bot className="h-8 w-8 text-indigo-400" />
-          {!collapsed && (
-            <h2 className="text-xl font-bold text-white">WhatsApp AI</h2>
+          <Brain className="h-8 w-8 text-indigo-400" />
+          {sidebar.open && (
+            <h2 className="text-xl font-bold text-white">Observatório</h2>
           )}
         </div>
         <SidebarTrigger className="text-white hover:bg-white/10 self-end mb-4" />
@@ -51,7 +58,7 @@ export function AppSidebar() {
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel className="text-indigo-300 font-medium">
-            {!collapsed && "Navegação"}
+            {sidebar.open && "Navegação"}
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
@@ -67,7 +74,7 @@ export function AppSidebar() {
                       }`}
                     >
                       <item.icon className="h-5 w-5" />
-                      {!collapsed && <span className="font-medium">{item.title}</span>}
+                      {sidebar.open && <span className="font-medium">{item.title}</span>}
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

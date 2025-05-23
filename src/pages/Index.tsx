@@ -4,10 +4,11 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from '@/components/AppSidebar';
 import { DashboardHeader } from '@/components/DashboardHeader';
-import { WhatsAppConnection } from '@/components/WhatsAppConnection';
-import { ChatInterface } from '@/components/ChatInterface';
 import { InsightsDashboard } from '@/components/InsightsDashboard';
-import { AnalyticsPage } from '@/components/AnalyticsPage';
+import { AreasOfLife } from '@/components/AreasOfLife';
+import { BehavioralProfile } from '@/components/BehavioralProfile';
+import { EmotionalThermometer } from '@/components/EmotionalThermometer';
+import { Recommendations } from '@/components/Recommendations';
 
 const Index = () => {
   return (
@@ -20,9 +21,10 @@ const Index = () => {
             <main className="flex-1 p-6">
               <Routes>
                 <Route path="/" element={<InsightsDashboard />} />
-                <Route path="/connection" element={<WhatsAppConnection />} />
-                <Route path="/chat" element={<ChatInterface />} />
-                <Route path="/analytics" element={<AnalyticsPage />} />
+                <Route path="/areas" element={<AreasOfLife />} />
+                <Route path="/profile" element={<BehavioralProfile />} />
+                <Route path="/emotions" element={<EmotionalThermometer />} />
+                <Route path="/recommendations" element={<Recommendations />} />
               </Routes>
             </main>
           </div>
