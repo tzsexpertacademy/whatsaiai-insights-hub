@@ -26,8 +26,8 @@ export function SidebarNavItem({ title, url, icon: Icon }: SidebarNavItemProps) 
           className={({ isActive }) => `
             flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group w-full
             ${isActive 
-              ? "bg-primary text-primary-foreground shadow-lg shadow-primary/25 scale-[1.02] font-medium" 
-              : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:scale-[1.01] hover:shadow-md"
+              ? "bg-primary text-primary-foreground shadow-lg font-semibold" 
+              : "text-foreground hover:bg-accent hover:text-accent-foreground"
             }
           `}
         >

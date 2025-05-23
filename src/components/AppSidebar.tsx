@@ -47,27 +47,27 @@ export function AppSidebar() {
   
   return (
     <Sidebar 
-      className={`${sidebar.open ? "w-64" : "w-16"} transition-all duration-300 border-r border-sidebar-border bg-sidebar shadow-lg`}
+      className={`${sidebar.open ? "w-64" : "w-16"} transition-all duration-300 border-r bg-background shadow-lg`}
       collapsible="icon"
     >
-      <div className="p-4 border-b border-sidebar-border">
+      <div className="p-4 border-b">
         <div className="flex items-center gap-3 mb-4">
           <div className="p-2 bg-primary/10 rounded-lg">
             <Brain className="h-6 w-6 text-primary" />
           </div>
           {sidebar.open && (
             <div>
-              <h2 className="text-lg font-bold text-sidebar-foreground">Observatório</h2>
-              <p className="text-xs text-sidebar-foreground/70">Insights Pessoais</p>
+              <h2 className="text-lg font-bold text-foreground">Observatório</h2>
+              <p className="text-xs text-muted-foreground">Insights Pessoais</p>
             </div>
           )}
         </div>
-        <SidebarTrigger className="text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground w-8 h-8 rounded-md transition-colors" />
+        <SidebarTrigger className="text-foreground hover:bg-accent hover:text-accent-foreground w-8 h-8 rounded-md transition-colors" />
       </div>
 
       <SidebarContent className="px-3 py-4 space-y-6">
         <SidebarGroup>
-          <SidebarGroupLabel className="text-sidebar-primary font-semibold text-sm mb-3 px-2">
+          <SidebarGroupLabel className="text-foreground font-semibold text-sm mb-3 px-2">
             {sidebar.open ? "Principal" : ""}
           </SidebarGroupLabel>
           <SidebarGroupContent>
@@ -85,7 +85,7 @@ export function AppSidebar() {
         </SidebarGroup>
 
         <SidebarGroup>
-          <SidebarGroupLabel className="text-sidebar-primary font-semibold text-sm mb-3 px-2">
+          <SidebarGroupLabel className="text-foreground font-semibold text-sm mb-3 px-2">
             {sidebar.open ? "WhatsApp" : ""}
           </SidebarGroupLabel>
           <SidebarGroupContent>
@@ -103,7 +103,7 @@ export function AppSidebar() {
         </SidebarGroup>
 
         <SidebarGroup>
-          <SidebarGroupLabel className="text-sidebar-primary font-semibold text-sm mb-3 px-2">
+          <SidebarGroupLabel className="text-foreground font-semibold text-sm mb-3 px-2">
             {sidebar.open ? "Sistema" : ""}
           </SidebarGroupLabel>
           <SidebarGroupContent>
