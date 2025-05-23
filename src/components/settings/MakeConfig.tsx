@@ -4,7 +4,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { ExternalLink, Zap, CheckCircle, AlertCircle } from 'lucide-react';
 import { useWhatsAppConnection } from "@/hooks/useWhatsAppConnection";
 import { useToast } from "@/hooks/use-toast";
@@ -75,7 +74,7 @@ export function MakeConfig() {
           Configuração Make.com
         </CardTitle>
         <CardDescription>
-          Configure os webhooks do Make.com para conectar com WhatsApp Business API
+          Configure os webhooks para espelhamento do WhatsApp Web
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -89,13 +88,13 @@ export function MakeConfig() {
             <AlertCircle className="h-5 w-5" />
           )}
           <span className="font-medium">
-            {isConfigured ? 'Todos os webhooks configurados' : 'Configure os webhooks abaixo'}
+            {isConfigured ? 'Webhooks configurados' : 'Configure os webhooks abaixo'}
           </span>
         </div>
 
-        {/* Webhook para gerar QR Code */}
+        {/* Webhook para espelhar QR Code */}
         <div className="space-y-2">
-          <Label htmlFor="qrWebhook">Webhook - Gerar QR Code</Label>
+          <Label htmlFor="qrWebhook">Webhook - QR Code</Label>
           <div className="flex gap-2">
             <Input
               id="qrWebhook"
@@ -111,11 +110,12 @@ export function MakeConfig() {
               Testar
             </Button>
           </div>
+          <p className="text-xs text-gray-500">Este webhook deve gerar o QR Code para fazer login no WhatsApp Web</p>
         </div>
 
         {/* Webhook para verificar status */}
         <div className="space-y-2">
-          <Label htmlFor="statusWebhook">Webhook - Verificar Status</Label>
+          <Label htmlFor="statusWebhook">Webhook - Status</Label>
           <div className="flex gap-2">
             <Input
               id="statusWebhook"
@@ -131,11 +131,12 @@ export function MakeConfig() {
               Testar
             </Button>
           </div>
+          <p className="text-xs text-gray-500">Verifica se o WhatsApp Web está conectado</p>
         </div>
 
         {/* Webhook para enviar mensagens */}
         <div className="space-y-2">
-          <Label htmlFor="sendWebhook">Webhook - Enviar Mensagens</Label>
+          <Label htmlFor="sendWebhook">Webhook - Enviar</Label>
           <div className="flex gap-2">
             <Input
               id="sendWebhook"
@@ -151,6 +152,7 @@ export function MakeConfig() {
               Testar
             </Button>
           </div>
+          <p className="text-xs text-gray-500">Envia mensagens para o WhatsApp Web</p>
         </div>
 
         {/* Webhook para desconectar */}
@@ -171,6 +173,7 @@ export function MakeConfig() {
               Testar
             </Button>
           </div>
+          <p className="text-xs text-gray-500">Encerra a sessão do WhatsApp Web</p>
         </div>
 
         <Button onClick={handleSave} disabled={isLoading} className="w-full">
@@ -181,11 +184,11 @@ export function MakeConfig() {
         <div className="bg-blue-50 p-4 rounded-lg">
           <h4 className="font-medium text-blue-900 mb-2">Como configurar no Make.com:</h4>
           <ol className="text-sm text-blue-700 space-y-1 list-decimal list-inside">
-            <li>Crie um novo cenário no Make.com</li>
-            <li>Adicione um trigger "Webhook" para cada ação</li>
-            <li>Configure a integração com WhatsApp Business API</li>
-            <li>Copie as URLs dos webhooks e cole aqui</li>
-            <li>Ative o cenário no Make.com</li>
+            <li>Crie cenários no Make.com utilizando o módulo "WhatsApp" ou "Puppeteer"</li>
+            <li>Configure cada cenário para controlar o WhatsApp Web (login, envio de mensagens, etc)</li>
+            <li>Adicione um webhook HTTP como trigger em cada cenário</li>
+            <li>Copie as URLs dos webhooks e cole nos campos acima</li>
+            <li>Salve e ative os cenários no Make.com</li>
           </ol>
           <div className="mt-3">
             <Button variant="outline" size="sm" asChild>

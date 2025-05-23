@@ -6,7 +6,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Send, Bot, User, Phone, Wifi, WifiOff, AlertCircle } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { useClientConfig } from "@/contexts/ClientConfigContext";
-import { useWhatsAppConnection } from "@/hooks/use-whatsapp-connection";
+import { useWhatsAppConnection } from "@/hooks/useWhatsAppConnection";
 
 interface Message {
   id: string;
