@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { ConnectionStatus } from './ConnectionStatus';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useClientConfig } from '@/contexts/ClientConfigContext';
 import { useToast } from '@/hooks/use-toast';
-import { MakeConfig } from './MakeConfig';
+import { WhatsAppPlatformConfig } from './WhatsAppPlatformConfig';
 import { QRCodeGenerator } from './QRCodeGenerator';
 
 export function WhatsAppConfig() {
@@ -57,7 +56,7 @@ export function WhatsAppConfig() {
         <QRCodeGenerator />
       </div>
       
-      <MakeConfig />
+      <WhatsAppPlatformConfig />
       
       <Card className="bg-white/70 backdrop-blur-sm border-white/50">
         <CardHeader>
