@@ -1,13 +1,9 @@
 
 import React from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { 
-  MessageCircle, 
-  BarChart3, 
-  Zap, 
-  Bot,
-  Home,
   Brain,
+  Home,
   User,
   Heart,
   Timer,
@@ -21,11 +17,10 @@ import {
   SidebarGroupContent,
   SidebarGroupLabel,
   SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { SidebarNavItem } from "@/components/SidebarNavItem";
 
 const navigationItems = [
   { title: "Dashboard", url: "/", icon: Home },
@@ -39,10 +34,7 @@ const navigationItems = [
 export function AppSidebar() {
   const sidebar = useSidebar();
   const location = useLocation();
-  const currentPath = location.pathname;
-
-  const isActive = (path: string) => currentPath === path;
-
+  
   return (
     <Sidebar className={`${sidebar.open ? "w-64" : "w-14"} border-r border-white/20 bg-gradient-to-b from-indigo-900 via-blue-900 to-slate-900 backdrop-blur-xl`}>
       <div className="p-4">
@@ -63,21 +55,12 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {navigationItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <NavLink 
-                      to={item.url} 
-                      className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 ${
-                        isActive(item.url) 
-                          ? "bg-indigo-500/30 text-white border border-indigo-400/30" 
-                          : "text-indigo-200 hover:bg-white/10 hover:text-white"
-                      }`}
-                    >
-                      <item.icon className="h-5 w-5" />
-                      {sidebar.open && <span className="font-medium">{item.title}</span>}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
+                <SidebarNavItem 
+                  key={item.title}
+                  title={item.title} 
+                  url={item.url} 
+                  icon={item.icon} 
+                />
               ))}
             </SidebarMenu>
           </SidebarGroupContent>
