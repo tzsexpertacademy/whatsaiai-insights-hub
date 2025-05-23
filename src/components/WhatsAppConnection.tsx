@@ -1,48 +1,23 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Smartphone, Wifi, WifiOff, QrCode } from 'lucide-react';
-import { useToast } from "@/hooks/use-toast";
+import { useClientConfig } from "@/contexts/ClientConfigContext";
 
 export function WhatsAppConnection() {
-  const [isConnected, setIsConnected] = useState(false);
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const [apiKey, setApiKey] = useState('');
-  const { toast } = useToast();
+  const { config } = useClientConfig();
+  const whatsappConfig = config.whatsapp;
 
-  const handleConnect = () => {
-    if (!phoneNumber || !apiKey) {
-      toast({
-        title: "Erro",
-        description: "Por favor, preencha todos os campos",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsConnected(true);
-    toast({
-      title: "Conectado!",
-      description: "WhatsApp conectado com sucesso",
-    });
-  };
-
-  const handleDisconnect = () => {
-    setIsConnected(false);
-    toast({
-      title: "Desconectado",
-      description: "WhatsApp desconectado",
-    });
+  const navigateToSettings = () => {
+    window.location.href = '/settings';
   };
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-slate-800 mb-2">Conexão WhatsApp</h1>
-        <p className="text-slate-600">Configure sua conexão com a API do WhatsApp</p>
+        <p className="text-slate-600">Configure sua conexão com o WhatsApp Business</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -58,7 +33,7 @@ export function WhatsAppConnection() {
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-3 mb-4">
-              {isConnected ? (
+              {whatsappConfig.isConnected ? (
                 <>
                   <Wifi className="h-6 w-6 text-green-500" />
                   <span className="text-green-600 font-medium">Conectado</span>
@@ -71,13 +46,22 @@ export function WhatsAppConnection() {
               )}
             </div>
             
-            {isConnected && (
+            {whatsappConfig.isConnected && (
               <div className="bg-green-50 p-3 rounded-lg border border-green-200">
                 <p className="text-sm text-green-700">
-                  Conectado ao número: {phoneNumber}
+                  Conectado ao número: {whatsappConfig.authorizedNumber}
                 </p>
               </div>
             )}
+            
+            <div className="mt-4">
+              <Button 
+                onClick={navigateToSettings} 
+                className="w-full"
+              >
+                {whatsappConfig.isConnected ? 'Gerenciar Conexão' : 'Configurar WhatsApp'}
+              </Button>
+            </div>
           </CardContent>
         </Card>
 
@@ -85,47 +69,38 @@ export function WhatsAppConnection() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <QrCode className="h-5 w-5 text-blue-600" />
-              Configuração
+              QR Code WhatsApp
             </CardTitle>
             <CardDescription>
-              Configure os dados de conexão
+              {whatsappConfig.isConnected 
+                ? 'Seu WhatsApp está conectado' 
+                : 'Escaneie com o app WhatsApp Business'}
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="phone">Número do WhatsApp</Label>
-              <Input
-                id="phone"
-                placeholder="+55 11 99999-9999"
-                value={phoneNumber}
-                onChange={(e) => setPhoneNumber(e.target.value)}
-                disabled={isConnected}
-              />
-            </div>
-            
-            <div>
-              <Label htmlFor="apikey">Chave da API OpenAI</Label>
-              <Input
-                id="apikey"
-                type="password"
-                placeholder="sk-..."
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                disabled={isConnected}
-              />
-            </div>
-
-            <div className="flex gap-2">
-              {!isConnected ? (
-                <Button onClick={handleConnect} className="flex-1">
-                  Conectar WhatsApp
+          <CardContent className="text-center">
+            {whatsappConfig.qrCode ? (
+              <div className="bg-white p-4 rounded-lg border-2 border-dashed border-gray-300 mb-4">
+                <div className="w-48 h-48 mx-auto rounded-lg flex items-center justify-center overflow-hidden">
+                  <img 
+                    src={whatsappConfig.qrCode} 
+                    alt="QR Code para WhatsApp" 
+                    className="max-w-full max-h-full"
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="py-8">
+                <QrCode className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-500 mb-4">
+                  {whatsappConfig.isConnected 
+                    ? 'WhatsApp já conectado'
+                    : 'Vá para as configurações para gerar o QR Code'}
+                </p>
+                <Button onClick={navigateToSettings}>
+                  Ir para Configurações
                 </Button>
-              ) : (
-                <Button onClick={handleDisconnect} variant="destructive" className="flex-1">
-                  Desconectar
-                </Button>
-              )}
-            </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -141,20 +116,20 @@ export function WhatsAppConnection() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="text-center p-4 bg-blue-50 rounded-lg">
               <div className="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center mx-auto mb-2">1</div>
-              <h3 className="font-medium text-blue-900 mb-1">API WhatsApp</h3>
-              <p className="text-sm text-blue-700">Configure sua API do WhatsApp Business</p>
+              <h3 className="font-medium text-blue-900 mb-1">Aplicativo</h3>
+              <p className="text-sm text-blue-700">Instale o WhatsApp Business no seu celular</p>
             </div>
             
             <div className="text-center p-4 bg-green-50 rounded-lg">
               <div className="w-8 h-8 bg-green-500 text-white rounded-full flex items-center justify-center mx-auto mb-2">2</div>
-              <h3 className="font-medium text-green-900 mb-1">OpenAI API</h3>
-              <p className="text-sm text-green-700">Insira sua chave da API OpenAI</p>
+              <h3 className="font-medium text-green-900 mb-1">QR Code</h3>
+              <p className="text-sm text-green-700">Escaneie o QR code nas configurações</p>
             </div>
             
             <div className="text-center p-4 bg-purple-50 rounded-lg">
               <div className="w-8 h-8 bg-purple-500 text-white rounded-full flex items-center justify-center mx-auto mb-2">3</div>
-              <h3 className="font-medium text-purple-900 mb-1">Conectar</h3>
-              <p className="text-sm text-purple-700">Clique em conectar e comece a usar</p>
+              <h3 className="font-medium text-purple-900 mb-1">Conversas</h3>
+              <p className="text-sm text-purple-700">Acesse e responda mensagens na aba Chat</p>
             </div>
           </div>
         </CardContent>

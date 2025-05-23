@@ -14,6 +14,21 @@ import { ChatInterface } from '@/components/ChatInterface';
 import { SettingsPage } from '@/components/SettingsPage';
 import { ClientManagement } from '@/components/admin/ClientManagement';
 
+// Criamos um componente wrapper para carregar componentes dinâmicos que usam bibliotecas externas
+const DynamicComponentLoader = ({ Component }) => {
+  const [isClient, setIsClient] = React.useState(false);
+  
+  React.useEffect(() => {
+    setIsClient(true);
+  }, []);
+  
+  if (!isClient) {
+    return <div className="p-8 text-center">Carregando...</div>;
+  }
+  
+  return <Component />;
+};
+
 const Index = () => {
   console.log('Index component rendering - current path:', window.location.pathname);
   
@@ -68,13 +83,13 @@ const Index = () => {
                     <Route path="/chat" element={
                       <>
                         {console.log('Index - Rendering ChatInterface')}
-                        <ChatInterface />
+                        <DynamicComponentLoader Component={ChatInterface} />
                       </>
                     } />
                     <Route path="/settings" element={
                       <>
                         {console.log('Index - Rendering SettingsPage')}
-                        <SettingsPage />
+                        <DynamicComponentLoader Component={SettingsPage} />
                       </>
                     } />
                     <Route path="/admin/clients" element={
