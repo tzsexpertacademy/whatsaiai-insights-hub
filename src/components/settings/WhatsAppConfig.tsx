@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { ConnectionStatus } from './ConnectionStatus';
-import { QRCodeGenerator } from './QRCodeGenerator';
+import { RealQRCodeGenerator } from './RealQRCodeGenerator';
 import { WhatsAppConnectionStatus } from './WhatsAppConnectionStatus';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Bot, Clock, MessageSquare } from 'lucide-react';
@@ -53,9 +53,9 @@ export function WhatsAppConfig() {
   
   return (
     <div className="space-y-6">
-      {/* Grid principal com QR Code e Status */}
+      {/* Grid principal com QR Code Real e Status */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <QRCodeGenerator />
+        <RealQRCodeGenerator />
         <WhatsAppConnectionStatus />
       </div>
       
@@ -133,10 +133,10 @@ export function WhatsAppConfig() {
               <h4 className="font-medium text-green-900 mb-2">✅ Funcionamento:</h4>
               <ol className="text-sm text-green-700 space-y-1 list-decimal list-inside">
                 <li>Cliente envia mensagem no WhatsApp Business</li>
-                <li>Sistema detecta nova mensagem automaticamente</li>
-                <li>IA analisa o contexto e histórico do cliente</li>
-                <li>Gera resposta personalizada como conselheiro</li>
-                <li>Envia resposta automática instantaneamente</li>
+                <li>Make.com recebe a mensagem via webhook</li>
+                <li>Sistema analisa contexto e histórico do cliente</li>
+                <li>IA gera resposta personalizada como conselheiro</li>
+                <li>Resposta é enviada automaticamente via WhatsApp</li>
               </ol>
             </div>
             
@@ -157,10 +157,10 @@ export function WhatsAppConfig() {
                 Próximos Passos:
               </h4>
               <ol className="text-sm text-purple-700 space-y-1 list-decimal list-inside">
-                <li>Conecte seu WhatsApp Business usando o QR Code</li>
+                <li>Configure os webhooks do Make.com acima</li>
+                <li>Conecte seu WhatsApp Business real</li>
                 <li>Configure suas credenciais OpenAI abaixo</li>
                 <li>Teste o sistema enviando uma mensagem</li>
-                <li>Importe conversas antigas para melhor contexto</li>
               </ol>
             </div>
           </div>

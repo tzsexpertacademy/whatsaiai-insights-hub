@@ -49,7 +49,7 @@ const defaultConfig: ClientConfig = {
     isConnected: false,
     authorizedNumber: '',
     qrCode: '',
-    platform: 'atendechat',
+    platform: 'make',
     autoSync: false,
     syncInterval: 'daily',
     autoReply: false,
@@ -91,7 +91,7 @@ export function ClientConfigProvider({ children }: { children: React.ReactNode }
       const { data, error } = await supabase
         .from('client_configs')
         .select('*')
-        .eq('id', user?.id)
+        .eq('user_id', user?.id)
         .single();
 
       if (error && error.code !== 'PGRST116') {
@@ -131,7 +131,7 @@ export function ClientConfigProvider({ children }: { children: React.ReactNode }
       const { error } = await supabase
         .from('client_configs')
         .upsert({
-          id: user.id,
+          user_id: user.id,
           whatsapp_config: config.whatsapp,
           openai_config: config.openai,
           firebase_config: config.firebase,
