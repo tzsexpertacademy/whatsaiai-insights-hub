@@ -9,22 +9,6 @@ import { QrCode, Smartphone, Wifi, WifiOff, Phone, CheckCircle, Loader2 } from '
 import { useToast } from "@/hooks/use-toast";
 import { useClientConfig } from "@/contexts/ClientConfigContext";
 
-// Baileys é importado apenas no lado do cliente para evitar erros de SSR
-const BaileysImport = () => {
-  if (typeof window !== 'undefined') {
-    return import('@whiskeysockets/baileys');
-  }
-  return Promise.resolve(null);
-};
-
-// QRCode é importado apenas no lado do cliente
-const QRCodeImport = () => {
-  if (typeof window !== 'undefined') {
-    return import('qrcode');
-  }
-  return Promise.resolve(null);
-};
-
 export function WhatsAppConfig() {
   const { config, updateConfig, saveConfig } = useClientConfig();
   const [isGeneratingQr, setIsGeneratingQr] = useState(false);
@@ -54,13 +38,13 @@ export function WhatsAppConfig() {
     setQrCodeData(null);
     
     try {
-      // Importar Baileys dinamicamente
-      const { default: makeWASocket, DisconnectReason, useMultiFileAuthState } = await BaileysImport();
-      const QRCode = await QRCodeImport();
+      // Importar dependências dinamicamente para evitar erros de SSR
+      const [{ default: makeWASocket, DisconnectReason, useMultiFileAuthState }, QRCode] = await Promise.all([
+        import('@whiskeysockets/baileys'),
+        import('qrcode')
+      ]);
       
-      if (!makeWASocket || !QRCode) {
-        throw new Error('Falha ao carregar dependências');
-      }
+      console.log('Dependências carregadas com sucesso');
       
       // Configurar estado de autenticação
       const { state, saveCreds } = await useMultiFileAuthState('auth_info_baileys');
@@ -72,12 +56,16 @@ export function WhatsAppConfig() {
         browser: ['Observatório WhatsApp', 'Chrome', '1.0.0'],
       });
       
+      console.log('Socket WhatsApp criado');
+      
       // Definir socket para uso posterior
       setSocket(waSocket);
       
       // Gerenciar eventos de conexão
       waSocket.ev.on('connection.update', async (update: any) => {
         const { connection, lastDisconnect, qr } = update;
+        
+        console.log('Status da conexão:', connection);
         
         if (connection === 'connecting') {
           setConnectionStatus('connecting');
@@ -86,6 +74,7 @@ export function WhatsAppConfig() {
         // Quando receber QR code, converter para URL de imagem data
         if (qr) {
           try {
+            console.log('QR Code recebido, gerando imagem...');
             const qrUrl = await QRCode.toDataURL(qr, { 
               margin: 3,
               scale: 8,
@@ -93,6 +82,7 @@ export function WhatsAppConfig() {
             });
             setQrCodeData(qrUrl);
             updateConfig('whatsapp', { qrCode: qrUrl });
+            console.log('QR Code gerado com sucesso');
           } catch (err) {
             console.error('Erro ao gerar QR code:', err);
             toast({
@@ -104,6 +94,7 @@ export function WhatsAppConfig() {
         }
         
         if (connection === 'open') {
+          console.log('WhatsApp conectado com sucesso!');
           setConnectionStatus('connected');
           updateConfig('whatsapp', { isConnected: true });
           saveConfig();
@@ -115,6 +106,7 @@ export function WhatsAppConfig() {
         }
         
         if (connection === 'close') {
+          console.log('Conexão WhatsApp fechada');
           setConnectionStatus('disconnected');
           const statusCode = lastDisconnect?.error?.output?.statusCode;
           
@@ -160,10 +152,11 @@ export function WhatsAppConfig() {
       console.error('Erro ao conectar WhatsApp:', error);
       toast({
         title: "Erro de Conexão",
-        description: "Falha ao inicializar conexão do WhatsApp",
+        description: `Falha ao inicializar conexão: ${error.message}`,
         variant: "destructive",
       });
       setIsGeneratingQr(false);
+      setConnectionStatus('disconnected');
     }
   };
 
