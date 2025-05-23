@@ -6,9 +6,10 @@ import { MakeConfig } from './MakeConfig';
 import { WAWebJSConfig } from './whatsapp/WAWebJSConfig';
 import { WhatsAppWebConfig } from './whatsapp/WhatsAppWebConfig';
 import { AtendechatConfig } from './whatsapp/AtendechatConfig';
+import { ChatwootConfig } from './whatsapp/ChatwootConfig';
 
 export function WhatsAppPlatformConfig() {
-  const [selectedPlatform, setSelectedPlatform] = useState('atendechat');
+  const [selectedPlatform, setSelectedPlatform] = useState('chatwoot');
   
   // Configurações para cada plataforma
   const [watiConfig, setWatiConfig] = useState({
@@ -42,6 +43,14 @@ export function WhatsAppPlatformConfig() {
     password: localStorage.getItem('atendechat_password') || '',
     sessionId: localStorage.getItem('atendechat_session_id') || '',
     isConnected: localStorage.getItem('atendechat_is_connected') === 'true'
+  });
+
+  const [chatwootConfig, setChatwootConfig] = useState({
+    serverUrl: localStorage.getItem('chatwoot_server_url') || '',
+    apiKey: localStorage.getItem('chatwoot_api_key') || '',
+    accountId: localStorage.getItem('chatwoot_account_id') || '',
+    inboxId: localStorage.getItem('chatwoot_inbox_id') || '',
+    isConnected: localStorage.getItem('chatwoot_is_connected') === 'true'
   });
 
   const updateWatiConfig = (config: Partial<typeof watiConfig>) => {
@@ -94,8 +103,20 @@ export function WhatsAppPlatformConfig() {
     });
   };
 
+  const updateChatwootConfig = (config: Partial<typeof chatwootConfig>) => {
+    const newConfig = { ...chatwootConfig, ...config };
+    setChatwootConfig(newConfig);
+    
+    // Salvar no localStorage
+    Object.entries(newConfig).forEach(([key, value]) => {
+      localStorage.setItem(`chatwoot_${key}`, typeof value === 'boolean' ? String(value) : value);
+    });
+  };
+
   const renderPlatformConfig = () => {
     switch (selectedPlatform) {
+      case 'chatwoot':
+        return <ChatwootConfig />;
       case 'atendechat':
         return (
           <AtendechatConfig 

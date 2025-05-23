@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Zap, MessageSquare, Globe, Settings, Code, QrCode } from 'lucide-react';
+import { Zap, MessageSquare, Globe, Settings, Code, QrCode, Building2 } from 'lucide-react';
 
 interface PlatformSelectorProps {
   selectedPlatform: string;
@@ -20,6 +20,22 @@ export function PlatformSelector({ selectedPlatform, onPlatformChange }: Platfor
       icon: <QrCode className="h-5 w-5" />,
       pros: ['Super fácil de usar', '100% gratuito', 'Sem programação', 'Conecta em 2 minutos'],
       cons: ['Precisa manter navegador aberto', 'Celular deve estar online']
+    },
+    {
+      id: 'chatwoot',
+      name: 'Chatwoot (Self-hosted)',
+      description: '🚀 RECOMENDADO - Plataforma completa open-source',
+      icon: <Building2 className="h-5 w-5" />,
+      pros: ['Open-source gratuito', 'Muito estável', 'Interface completa', 'API robusta', 'Self-hosted'],
+      cons: ['Requer servidor próprio', 'Configuração inicial mais complexa']
+    },
+    {
+      id: 'atendechat',
+      name: 'Atendechat',
+      description: 'Plataforma brasileira especializada',
+      icon: <MessageSquare className="h-5 w-5" />,
+      pros: ['Suporte em português', 'Integração simples', 'Foco no mercado brasileiro'],
+      cons: ['Serviço pago', 'Menos customizável']
     },
     {
       id: 'make',
@@ -89,24 +105,24 @@ export function PlatformSelector({ selectedPlatform, onPlatformChange }: Platfor
         </div>
 
         {selectedPlatformData && (
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3">
             {platforms.map(platform => (
               <div 
                 key={platform.id}
-                className={`p-4 rounded-lg border-2 transition-all cursor-pointer ${
+                className={`p-3 rounded-lg border-2 transition-all cursor-pointer ${
                   platform.id === selectedPlatform 
                     ? 'border-blue-500 bg-blue-50' 
                     : 'border-gray-200 bg-gray-50 hover:border-gray-300'
-                } ${platform.id === 'whatsappweb' ? 'ring-2 ring-green-200' : ''}`}
+                } ${platform.id === 'chatwoot' ? 'ring-2 ring-green-200' : ''}`}
                 onClick={() => onPlatformChange(platform.id)}
               >
                 <div className="flex items-center gap-2 mb-2">
                   {platform.icon}
-                  <h3 className="font-medium text-sm">{platform.name}</h3>
+                  <h3 className="font-medium text-xs">{platform.name}</h3>
                 </div>
-                <p className="text-xs text-gray-600 mb-3">{platform.description}</p>
+                <p className="text-xs text-gray-600 mb-2">{platform.description}</p>
                 
-                <div className="space-y-2">
+                <div className="space-y-1">
                   <div>
                     <p className="text-xs font-medium text-green-700">Vantagens:</p>
                     <ul className="text-xs text-green-600 list-disc list-inside">
