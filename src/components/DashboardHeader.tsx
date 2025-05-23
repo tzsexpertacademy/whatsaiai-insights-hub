@@ -6,6 +6,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Bell, LogOut, Settings, User } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 export function DashboardHeader() {
   const { user, logout } = useAuth();
@@ -16,43 +17,48 @@ export function DashboardHeader() {
 
   const getPlanColor = (plan: string) => {
     switch (plan) {
-      case 'basic': return 'text-blue-600 bg-blue-100';
-      case 'premium': return 'text-purple-600 bg-purple-100';
-      case 'enterprise': return 'text-orange-600 bg-orange-100';
-      default: return 'text-gray-600 bg-gray-100';
+      case 'basic': return 'text-blue-600 bg-blue-100 dark:text-blue-400 dark:bg-blue-900/50';
+      case 'premium': return 'text-purple-600 bg-purple-100 dark:text-purple-400 dark:bg-purple-900/50';
+      case 'enterprise': return 'text-orange-600 bg-orange-100 dark:text-orange-400 dark:bg-orange-900/50';
+      default: return 'text-gray-600 bg-gray-100 dark:text-gray-400 dark:bg-gray-800';
     }
   };
 
   return (
-    <header className="bg-white/80 backdrop-blur-sm border-b border-white/50 p-4">
+    <header className="bg-background/80 backdrop-blur-sm border-b border-border/50 p-4 shadow-sm">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <SidebarTrigger />
+          <SidebarTrigger className="lg:hidden" />
           <div>
-            <h2 className="text-xl font-semibold text-slate-800">
+            <h2 className="text-xl font-semibold text-foreground">
               Bem-vindo, {user?.name}
             </h2>
-            <div className="flex items-center gap-2">
-              <span className={`text-xs px-2 py-1 rounded-full ${getPlanColor(user?.plan || 'basic')}`}>
+            <div className="flex items-center gap-2 mt-1">
+              <span className={`text-xs px-2 py-1 rounded-full font-medium ${getPlanColor(user?.plan || 'basic')}`}>
                 Plano {user?.plan?.toUpperCase()}
               </span>
-              <span className="text-xs text-slate-500">
+              <span className="text-xs text-muted-foreground">
                 Cliente desde {user?.createdAt.toLocaleDateString('pt-BR')}
               </span>
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon">
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          
+          <Button variant="ghost" size="icon" className="relative">
             <Bell className="h-5 w-5" />
+            <span className="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full text-xs flex items-center justify-center text-white">
+              3
+            </span>
           </Button>
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                <Avatar className="h-8 w-8">
-                  <AvatarFallback>
+              <Button variant="ghost" className="relative h-9 w-9 rounded-full">
+                <Avatar className="h-9 w-9">
+                  <AvatarFallback className="bg-primary text-primary-foreground font-medium">
                     {getInitials(user?.name || 'U')}
                   </AvatarFallback>
                 </Avatar>
@@ -68,16 +74,16 @@ export function DashboardHeader() {
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>
+              <DropdownMenuItem className="cursor-pointer">
                 <User className="mr-2 h-4 w-4" />
                 <span>Perfil</span>
               </DropdownMenuItem>
-              <DropdownMenuItem>
+              <DropdownMenuItem className="cursor-pointer">
                 <Settings className="mr-2 h-4 w-4" />
                 <span>Configurações</span>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={logout}>
+              <DropdownMenuItem onClick={logout} className="cursor-pointer text-red-600 dark:text-red-400">
                 <LogOut className="mr-2 h-4 w-4" />
                 <span>Sair</span>
               </DropdownMenuItem>

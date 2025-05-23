@@ -46,24 +46,29 @@ export function AppSidebar() {
   const location = useLocation();
   
   return (
-    <Sidebar className={`${sidebar.open ? "w-64" : "w-14"} border-r border-white/20 bg-gradient-to-b from-indigo-900 via-blue-900 to-slate-900 backdrop-blur-xl`}>
-      <div className="p-4">
-        <div className="flex items-center gap-2 mb-6">
-          <Brain className="h-8 w-8 text-indigo-400" />
+    <Sidebar className={`${sidebar.open ? "w-64" : "w-16"} transition-all duration-300 border-r border-border/50 bg-gradient-to-b from-background via-background/95 to-background/90 backdrop-blur-xl shadow-lg`}>
+      <div className="p-4 border-b border-border/50">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="p-2 bg-primary/10 rounded-lg">
+            <Brain className="h-6 w-6 text-primary" />
+          </div>
           {sidebar.open && (
-            <h2 className="text-xl font-bold text-white">Observatório</h2>
+            <div>
+              <h2 className="text-lg font-bold text-foreground">Observatório</h2>
+              <p className="text-xs text-muted-foreground">Insights Pessoais</p>
+            </div>
           )}
         </div>
-        <SidebarTrigger className="text-white hover:bg-white/10 self-end mb-4" />
+        <SidebarTrigger className="text-foreground hover:bg-accent hover:text-accent-foreground w-8 h-8 rounded-md transition-colors" />
       </div>
 
-      <SidebarContent>
+      <SidebarContent className="px-3 py-4 space-y-6">
         <SidebarGroup>
-          <SidebarGroupLabel className="text-indigo-300 font-medium">
-            {sidebar.open && "Dashboard"}
+          <SidebarGroupLabel className="text-primary font-semibold text-sm mb-3 px-2">
+            {sidebar.open ? "Principal" : ""}
           </SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
+            <SidebarMenu className="space-y-1">
               {navigationItems.map((item) => (
                 <SidebarNavItem 
                   key={item.title}
@@ -77,11 +82,11 @@ export function AppSidebar() {
         </SidebarGroup>
 
         <SidebarGroup>
-          <SidebarGroupLabel className="text-indigo-300 font-medium">
-            {sidebar.open && "WhatsApp"}
+          <SidebarGroupLabel className="text-primary font-semibold text-sm mb-3 px-2">
+            {sidebar.open ? "WhatsApp" : ""}
           </SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
+            <SidebarMenu className="space-y-1">
               {whatsappItems.map((item) => (
                 <SidebarNavItem 
                   key={item.title}
@@ -95,11 +100,11 @@ export function AppSidebar() {
         </SidebarGroup>
 
         <SidebarGroup>
-          <SidebarGroupLabel className="text-indigo-300 font-medium">
-            {sidebar.open && "Sistema"}
+          <SidebarGroupLabel className="text-primary font-semibold text-sm mb-3 px-2">
+            {sidebar.open ? "Sistema" : ""}
           </SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
+            <SidebarMenu className="space-y-1">
               {configItems.map((item) => (
                 <SidebarNavItem 
                   key={item.title}

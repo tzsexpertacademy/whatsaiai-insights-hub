@@ -19,18 +19,22 @@ export function SidebarNavItem({ title, url, icon: Icon }: SidebarNavItemProps) 
   const isOpen = sidebar.open;
 
   return (
-    <SidebarMenuItem key={title}>
+    <SidebarMenuItem>
       <SidebarMenuButton asChild>
         <NavLink 
           to={url} 
-          className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 ${
-            isActive 
-              ? "bg-indigo-500/30 text-white border border-indigo-400/30" 
-              : "text-indigo-200 hover:bg-white/10 hover:text-white"
-          }`}
+          className={({ isActive }) => `
+            flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group
+            ${isActive 
+              ? "bg-primary text-primary-foreground shadow-lg shadow-primary/25 scale-[1.02]" 
+              : "text-foreground hover:bg-accent hover:text-accent-foreground hover:scale-[1.01] hover:shadow-md"
+            }
+          `}
         >
-          <Icon className="h-5 w-5" />
-          {isOpen && <span className="font-medium">{title}</span>}
+          <Icon className="h-5 w-5 shrink-0" />
+          {isOpen && (
+            <span className="font-medium text-sm truncate">{title}</span>
+          )}
         </NavLink>
       </SidebarMenuButton>
     </SidebarMenuItem>
