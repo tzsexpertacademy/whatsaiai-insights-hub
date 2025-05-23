@@ -10,7 +10,8 @@ import {
   FileText,
   Settings,
   MessageCircle,
-  Smartphone
+  Smartphone,
+  Shield
 } from 'lucide-react';
 import {
   Sidebar,
@@ -39,6 +40,7 @@ const whatsappItems = [
 
 const configItems = [
   { title: "Configurações", url: "/settings", icon: Settings },
+  { title: "Painel Admin", url: "/admin/clients", icon: Shield },
 ];
 
 export function AppSidebar() {

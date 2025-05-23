@@ -12,6 +12,7 @@ import { Recommendations } from '@/components/Recommendations';
 import { WhatsAppConnection } from '@/components/WhatsAppConnection';
 import { ChatInterface } from '@/components/ChatInterface';
 import { SettingsPage } from '@/components/SettingsPage';
+import { ClientManagement } from '@/components/admin/ClientManagement';
 
 const Index = () => {
   console.log('Index component rendering - current path:', window.location.pathname);
@@ -74,6 +75,12 @@ const Index = () => {
                       <>
                         {console.log('Index - Rendering SettingsPage')}
                         <SettingsPage />
+                      </>
+                    } />
+                    <Route path="/admin/clients" element={
+                      <>
+                        {console.log('Index - Rendering ClientManagement')}
+                        <ClientManagement />
                       </>
                     } />
                   </Routes>
