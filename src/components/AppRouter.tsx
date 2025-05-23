@@ -10,6 +10,7 @@ export function AppRouter() {
   console.log('AppRouter - isAuthenticated:', isAuthenticated, 'isLoading:', isLoading);
 
   if (isLoading) {
+    console.log('AppRouter - Showing loading screen');
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center">
         <div className="text-center">
@@ -21,8 +22,10 @@ export function AppRouter() {
   }
 
   if (!isAuthenticated) {
+    console.log('AppRouter - Showing login page');
     return <LoginPage onLogin={login} />;
   }
 
+  console.log('AppRouter - Showing main app');
   return <Index />;
 }
