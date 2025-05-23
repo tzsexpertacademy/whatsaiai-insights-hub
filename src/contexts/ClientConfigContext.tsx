@@ -29,6 +29,7 @@ interface FirebaseConfig {
   storageBucket: string;
   messagingSenderId: string;
   appId: string;
+  databaseURL: string;
 }
 
 interface ClientConfig {
@@ -42,6 +43,8 @@ interface ClientConfigContextType {
   updateConfig: (section: keyof ClientConfig, updates: Partial<ClientConfig[keyof ClientConfig]>) => void;
   saveConfig: () => Promise<void>;
   isLoading: boolean;
+  isFirebaseConnected: boolean;
+  testFirebaseConnection: () => Promise<boolean>;
 }
 
 const defaultConfig: ClientConfig = {
@@ -49,7 +52,7 @@ const defaultConfig: ClientConfig = {
     isConnected: false,
     authorizedNumber: '',
     qrCode: '',
-    platform: 'make',
+    platform: 'atendechat',
     autoSync: false,
     syncInterval: 'daily',
     autoReply: false,
@@ -67,7 +70,8 @@ const defaultConfig: ClientConfig = {
     projectId: '',
     storageBucket: '',
     messagingSenderId: '',
-    appId: ''
+    appId: '',
+    databaseURL: ''
   }
 };
 
@@ -76,6 +80,7 @@ const ClientConfigContext = createContext<ClientConfigContextType | undefined>(u
 export function ClientConfigProvider({ children }: { children: React.ReactNode }) {
   const [config, setConfig] = useState<ClientConfig>(defaultConfig);
   const [isLoading, setIsLoading] = useState(false);
+  const [isFirebaseConnected, setIsFirebaseConnected] = useState(false);
   const { user, isAuthenticated } = useAuth();
   const { toast } = useToast();
 
@@ -105,6 +110,10 @@ export function ClientConfigProvider({ children }: { children: React.ReactNode }
           openai: { ...defaultConfig.openai, ...(data.openai_config as Partial<OpenAIConfig> || {}) },
           firebase: { ...defaultConfig.firebase, ...(data.firebase_config as Partial<FirebaseConfig> || {}) }
         });
+
+        // Verificar se Firebase está conectado
+        const firebaseConfig = data.firebase_config as Partial<FirebaseConfig>;
+        setIsFirebaseConnected(!!(firebaseConfig?.projectId && firebaseConfig?.apiKey));
       }
     } catch (error) {
       console.error('Error loading config:', error);
@@ -120,6 +129,28 @@ export function ClientConfigProvider({ children }: { children: React.ReactNode }
     }));
   };
 
+  const testFirebaseConnection = async (): Promise<boolean> => {
+    const { projectId, apiKey } = config.firebase;
+    
+    if (!projectId || !apiKey) {
+      return false;
+    }
+
+    try {
+      // Teste simples de conectividade com Firebase
+      const testUrl = `https://identitytoolkit.googleapis.com/v1/projects/${projectId}?key=${apiKey}`;
+      const response = await fetch(testUrl, { method: 'GET' });
+      
+      const isConnected = response.status !== 404 && response.status !== 401;
+      setIsFirebaseConnected(isConnected);
+      return isConnected;
+    } catch (error) {
+      console.error('Firebase connection test failed:', error);
+      setIsFirebaseConnected(false);
+      return false;
+    }
+  };
+
   const saveConfig = async (): Promise<void> => {
     if (!isAuthenticated || !user) {
       throw new Error('Usuário não autenticado');
@@ -128,15 +159,17 @@ export function ClientConfigProvider({ children }: { children: React.ReactNode }
     try {
       setIsLoading(true);
       
+      const configData = {
+        user_id: user.id,
+        whatsapp_config: config.whatsapp,
+        openai_config: config.openai,
+        firebase_config: config.firebase,
+        updated_at: new Date().toISOString()
+      };
+
       const { error } = await supabase
         .from('client_configs')
-        .upsert({
-          user_id: user.id,
-          whatsapp_config: config.whatsapp,
-          openai_config: config.openai,
-          firebase_config: config.firebase,
-          updated_at: new Date().toISOString()
-        });
+        .upsert(configData);
 
       if (error) throw error;
 
@@ -162,7 +195,9 @@ export function ClientConfigProvider({ children }: { children: React.ReactNode }
       config,
       updateConfig,
       saveConfig,
-      isLoading
+      isLoading,
+      isFirebaseConnected,
+      testFirebaseConnection
     }}>
       {children}
     </ClientConfigContext.Provider>

@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useClientConfig } from '@/contexts/ClientConfigContext';
 import { useToast } from '@/hooks/use-toast';
 import { WhatsAppPlatformConfig } from './WhatsAppPlatformConfig';
+import { AtendechatIntegration } from './AtendechatIntegration';
 
 export function WhatsAppConfig() {
   const { config, updateConfig, saveConfig } = useClientConfig();
@@ -53,7 +54,10 @@ export function WhatsAppConfig() {
   
   return (
     <div className="space-y-6">
-      {/* Grid principal com QR Code Real e Status */}
+      {/* Integração principal com Atendechat */}
+      <AtendechatIntegration />
+      
+      {/* Grid com QR Code Real e Status (para outras plataformas) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <RealQRCodeGenerator />
         <WhatsAppConnectionStatus />
@@ -62,8 +66,18 @@ export function WhatsAppConfig() {
       {/* Importação de conversas */}
       <ConnectionStatus />
       
-      {/* Configurações de plataforma */}
-      <WhatsAppPlatformConfig />
+      {/* Configurações de outras plataformas */}
+      <Card className="bg-white/70 backdrop-blur-sm border-white/50">
+        <CardHeader>
+          <CardTitle>Outras Plataformas WhatsApp</CardTitle>
+          <CardDescription>
+            Configurações alternativas para integração
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <WhatsAppPlatformConfig />
+        </CardContent>
+      </Card>
       
       {/* Sincronização automática */}
       <Card className="bg-white/70 backdrop-blur-sm border-white/50">
@@ -116,7 +130,7 @@ export function WhatsAppConfig() {
         </CardContent>
       </Card>
       
-      {/* Informações sobre respostas automáticas */}
+      {/* Sistema de respostas automáticas */}
       <Card className="bg-white/70 backdrop-blur-sm border-white/50">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -133,10 +147,10 @@ export function WhatsAppConfig() {
               <h4 className="font-medium text-green-900 mb-2">✅ Funcionamento:</h4>
               <ol className="text-sm text-green-700 space-y-1 list-decimal list-inside">
                 <li>Cliente envia mensagem no WhatsApp Business</li>
-                <li>Make.com recebe a mensagem via webhook</li>
-                <li>Sistema analisa contexto e histórico do cliente</li>
+                <li>Atendechat/Make.com recebe via webhook</li>
+                <li>Sistema analisa contexto e histórico (Firebase do cliente)</li>
                 <li>IA gera resposta personalizada como conselheiro</li>
-                <li>Resposta é enviada automaticamente via WhatsApp</li>
+                <li>Resposta enviada automaticamente via WhatsApp</li>
               </ol>
             </div>
             
@@ -147,7 +161,7 @@ export function WhatsAppConfig() {
                 <li>Respostas baseadas no perfil psicológico</li>
                 <li>Técnicas de aconselhamento personalizadas</li>
                 <li>Contexto de conversas anteriores</li>
-                <li>Encaminhamento para profissional quando necessário</li>
+                <li>Dados seguros no Firebase do cliente</li>
               </ul>
             </div>
             
@@ -157,8 +171,8 @@ export function WhatsAppConfig() {
                 Próximos Passos:
               </h4>
               <ol className="text-sm text-purple-700 space-y-1 list-decimal list-inside">
-                <li>Configure os webhooks do Make.com acima</li>
-                <li>Conecte seu WhatsApp Business real</li>
+                <li>Configure o Atendechat acima</li>
+                <li>Configure o Firebase do cliente (aba Firebase)</li>
                 <li>Configure suas credenciais OpenAI abaixo</li>
                 <li>Teste o sistema enviando uma mensagem</li>
               </ol>
