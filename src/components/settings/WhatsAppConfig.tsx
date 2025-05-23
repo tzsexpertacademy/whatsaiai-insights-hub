@@ -6,19 +6,22 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { QrCode, Smartphone, Wifi, WifiOff, Phone, CheckCircle } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
+import { useClientConfig } from "@/contexts/ClientConfigContext";
 
 export function WhatsAppConfig() {
-  const [isConnected, setIsConnected] = useState(false);
-  const [qrCode, setQrCode] = useState('');
-  const [authorizedNumber, setAuthorizedNumber] = useState('');
+  const { config, updateConfig, saveConfig } = useClientConfig();
   const [isGeneratingQr, setIsGeneratingQr] = useState(false);
   const { toast } = useToast();
+
+  const whatsappConfig = config.whatsapp;
 
   const generateQRCode = async () => {
     setIsGeneratingQr(true);
     // Simular geração de QR Code
     setTimeout(() => {
-      setQrCode('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==');
+      updateConfig('whatsapp', { 
+        qrCode: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==' 
+      });
       setIsGeneratingQr(false);
       toast({
         title: "QR Code Gerado",
@@ -27,8 +30,8 @@ export function WhatsAppConfig() {
     }, 2000);
   };
 
-  const handleConnect = () => {
-    if (!authorizedNumber) {
+  const handleConnect = async () => {
+    if (!whatsappConfig.authorizedNumber) {
       toast({
         title: "Erro",
         description: "Por favor, informe o número autorizado",
@@ -37,16 +40,20 @@ export function WhatsAppConfig() {
       return;
     }
 
-    setIsConnected(true);
+    updateConfig('whatsapp', { isConnected: true });
+    await saveConfig();
     toast({
       title: "Conectado!",
       description: "WhatsApp Business conectado com sucesso",
     });
   };
 
-  const handleDisconnect = () => {
-    setIsConnected(false);
-    setQrCode('');
+  const handleDisconnect = async () => {
+    updateConfig('whatsapp', { 
+      isConnected: false, 
+      qrCode: '' 
+    });
+    await saveConfig();
     toast({
       title: "Desconectado",
       description: "WhatsApp Business desconectado",
@@ -68,7 +75,7 @@ export function WhatsAppConfig() {
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-3 mb-4">
-              {isConnected ? (
+              {whatsappConfig.isConnected ? (
                 <>
                   <Wifi className="h-6 w-6 text-green-500" />
                   <span className="text-green-600 font-medium">Conectado</span>
@@ -81,11 +88,11 @@ export function WhatsAppConfig() {
               )}
             </div>
             
-            {isConnected && (
+            {whatsappConfig.isConnected && (
               <div className="bg-green-50 p-3 rounded-lg border border-green-200">
                 <p className="text-sm text-green-700 flex items-center gap-2">
                   <CheckCircle className="h-4 w-4" />
-                  Número autorizado: {authorizedNumber}
+                  Número autorizado: {whatsappConfig.authorizedNumber}
                 </p>
               </div>
             )}
@@ -95,9 +102,9 @@ export function WhatsAppConfig() {
               <Input
                 id="authorized"
                 placeholder="+55 11 99999-9999"
-                value={authorizedNumber}
-                onChange={(e) => setAuthorizedNumber(e.target.value)}
-                disabled={isConnected}
+                value={whatsappConfig.authorizedNumber}
+                onChange={(e) => updateConfig('whatsapp', { authorizedNumber: e.target.value })}
+                disabled={whatsappConfig.isConnected}
                 className="mt-2"
               />
               <p className="text-xs text-gray-500 mt-1">
@@ -106,8 +113,8 @@ export function WhatsAppConfig() {
             </div>
 
             <div className="flex gap-2 mt-4">
-              {!isConnected ? (
-                <Button onClick={handleConnect} className="flex-1" disabled={!authorizedNumber}>
+              {!whatsappConfig.isConnected ? (
+                <Button onClick={handleConnect} className="flex-1" disabled={!whatsappConfig.authorizedNumber}>
                   Conectar WhatsApp
                 </Button>
               ) : (
@@ -130,7 +137,7 @@ export function WhatsAppConfig() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {!qrCode ? (
+            {!whatsappConfig.qrCode ? (
               <div className="text-center py-8">
                 <QrCode className="h-16 w-16 text-gray-400 mx-auto mb-4" />
                 <p className="text-gray-500 mb-4">Clique no botão abaixo para gerar o QR Code</p>
