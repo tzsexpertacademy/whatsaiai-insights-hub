@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Smartphone, Wifi, WifiOff, Upload } from 'lucide-react';
+import { Smartphone, Wifi, WifiOff, Upload, RefreshCw } from 'lucide-react';
 import { useClientConfig } from "@/contexts/ClientConfigContext";
 import { useToast } from "@/hooks/use-toast";
 
@@ -16,6 +16,7 @@ export function ConnectionStatus() {
   
   const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
   const [isImporting, setIsImporting] = React.useState(false);
+  const [isManualSyncing, setIsManualSyncing] = React.useState(false);
   
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -44,6 +45,43 @@ export function ConnectionStatus() {
       
       setSelectedFile(null);
     }, 2000);
+  };
+
+  const handleManualSync = async () => {
+    setIsManualSyncing(true);
+    
+    try {
+      // Simulando sincronização manual
+      console.log('Iniciando sincronização manual...');
+      
+      // Aqui o sistema vai:
+      // 1. Verificar se há arquivos previamente importados
+      // 2. Processar novamente as conversas
+      // 3. Enviar para OpenAI para nova análise
+      // 4. Atualizar dashboard com novos insights
+      
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      
+      updateConfig('whatsapp', { 
+        lastImport: new Date().toISOString()
+      });
+      
+      toast({
+        title: "Sincronização manual concluída",
+        description: "Conversas reprocessadas e insights atualizados com sucesso"
+      });
+      
+      console.log('Sincronização manual concluída');
+    } catch (error) {
+      console.error('Erro na sincronização manual:', error);
+      toast({
+        title: "Erro na sincronização",
+        description: "Não foi possível completar a sincronização manual",
+        variant: "destructive"
+      });
+    } finally {
+      setIsManualSyncing(false);
+    }
   };
 
   return (
@@ -79,7 +117,29 @@ export function ConnectionStatus() {
         {whatsappConfig.isConnected && whatsappConfig.lastImport && (
           <div className="bg-green-50 p-3 rounded-lg border border-green-200 mb-4">
             <p className="text-sm text-green-700">
-              Última importação: {new Date(whatsappConfig.lastImport).toLocaleDateString('pt-BR')}
+              Última importação: {new Date(whatsappConfig.lastImport).toLocaleDateString('pt-BR')} às {new Date(whatsappConfig.lastImport).toLocaleTimeString('pt-BR')}
+            </p>
+          </div>
+        )}
+
+        {/* Sincronização Manual */}
+        {whatsappConfig.isConnected && (
+          <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 mb-4">
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="font-medium text-blue-900">Sincronização Manual</h4>
+              <Button 
+                onClick={handleManualSync} 
+                disabled={isManualSyncing}
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-2"
+              >
+                <RefreshCw className={`h-4 w-4 ${isManualSyncing ? 'animate-spin' : ''}`} />
+                {isManualSyncing ? 'Sincronizando...' : 'Sincronizar Agora'}
+              </Button>
+            </div>
+            <p className="text-sm text-blue-700">
+              Reprocessar conversas existentes e buscar por novos insights com a OpenAI
             </p>
           </div>
         )}
@@ -139,7 +199,7 @@ export function ConnectionStatus() {
 
         <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
           <p className="text-xs text-blue-700">
-            💡 <strong>Dica:</strong> Para melhores resultados, importe conversas recentes e completas para que a IA possa processar o contexto adequadamente.
+            💡 <strong>Como funciona a sincronização:</strong> O sistema usa os arquivos que você já importou e os reprocessa com a OpenAI para gerar novos insights. Se quiser adicionar novas conversas, faça upload de um novo arquivo.
           </p>
         </div>
       </CardContent>
