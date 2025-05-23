@@ -13,6 +13,9 @@ interface WhatsAppConfig {
   syncInterval: string;
   autoReply: boolean;
   lastImport: string;
+  atendechatApiKey?: string;
+  atendechatWebhookUrl?: string;
+  makeWebhookUrl?: string;
 }
 
 interface OpenAIConfig {
@@ -56,7 +59,10 @@ const defaultConfig: ClientConfig = {
     autoSync: false,
     syncInterval: 'daily',
     autoReply: false,
-    lastImport: ''
+    lastImport: '',
+    atendechatApiKey: '',
+    atendechatWebhookUrl: '',
+    makeWebhookUrl: ''
   },
   openai: {
     apiKey: '',
@@ -111,7 +117,6 @@ export function ClientConfigProvider({ children }: { children: React.ReactNode }
           firebase: { ...defaultConfig.firebase, ...(data.firebase_config as Partial<FirebaseConfig> || {}) }
         });
 
-        // Verificar se Firebase está conectado
         const firebaseConfig = data.firebase_config as Partial<FirebaseConfig>;
         setIsFirebaseConnected(!!(firebaseConfig?.projectId && firebaseConfig?.apiKey));
       }
@@ -137,7 +142,6 @@ export function ClientConfigProvider({ children }: { children: React.ReactNode }
     }
 
     try {
-      // Teste simples de conectividade com Firebase
       const testUrl = `https://identitytoolkit.googleapis.com/v1/projects/${projectId}?key=${apiKey}`;
       const response = await fetch(testUrl, { method: 'GET' });
       
@@ -161,9 +165,9 @@ export function ClientConfigProvider({ children }: { children: React.ReactNode }
       
       const configData = {
         user_id: user.id,
-        whatsapp_config: config.whatsapp,
-        openai_config: config.openai,
-        firebase_config: config.firebase,
+        whatsapp_config: config.whatsapp as any,
+        openai_config: config.openai as any,
+        firebase_config: config.firebase as any,
         updated_at: new Date().toISOString()
       };
 

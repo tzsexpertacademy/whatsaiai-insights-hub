@@ -4,6 +4,8 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { LoginPage } from './auth/LoginPage';
 import Index from '@/pages/Index';
+import { AdminDashboard } from './admin/AdminDashboard';
+import { AdminRoute } from './AdminRoute';
 
 export function AppRouter() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -25,6 +27,18 @@ export function AppRouter() {
         path="/auth" 
         element={
           isAuthenticated ? <Navigate to="/" replace /> : <LoginPage />
+        } 
+      />
+      <Route 
+        path="/admin" 
+        element={
+          isAuthenticated ? (
+            <AdminRoute>
+              <AdminDashboard />
+            </AdminRoute>
+          ) : (
+            <Navigate to="/auth" replace />
+          )
         } 
       />
       <Route 

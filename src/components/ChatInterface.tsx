@@ -3,18 +3,22 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Bot, User, Phone, Wifi, WifiOff, AlertCircle } from 'lucide-react';
+import { Badge } from "@/components/ui/badge";
+import { Send, Bot, User, Phone, Wifi, WifiOff, AlertCircle, Shield } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { useClientConfig } from "@/contexts/ClientConfigContext";
 import { useWhatsAppConnection } from "@/hooks/useWhatsAppConnection";
+import { useAdmin } from "@/contexts/AdminContext";
+import { supabase } from '@/integrations/supabase/client';
 
 interface Message {
   id: string;
   text: string;
-  sender: 'user' | 'contact';
+  sender: 'user' | 'contact' | 'admin';
   timestamp: Date;
   phoneNumber: string;
   status?: 'sent' | 'delivered' | 'read';
+  isAdminIntervention?: boolean;
 }
 
 interface Contact {
@@ -29,6 +33,7 @@ interface Contact {
 export function ChatInterface() {
   const { config } = useClientConfig();
   const { connectionState, sendMessage: sendWhatsAppMessage } = useWhatsAppConnection();
+  const { isAdmin } = useAdmin();
   const whatsappConfig = config.whatsapp;
   
   const [messages, setMessages] = useState<Message[]>([]);
@@ -36,6 +41,7 @@ export function ChatInterface() {
   const [activeContact, setActiveContact] = useState<string>('');
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [isTyping, setIsTyping] = useState(false);
+  const [adminMessage, setAdminMessage] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
@@ -170,10 +176,58 @@ export function ChatInterface() {
     }
   };
 
+  const sendAdminIntervention = async () => {
+    if (!adminMessage.trim() || !activeContact) return;
+
+    const interventionMessage: Message = {
+      id: Date.now().toString(),
+      text: `[INTERVENÇÃO ADMIN] ${adminMessage}`,
+      sender: 'admin',
+      timestamp: new Date(),
+      phoneNumber: whatsappConfig.authorizedNumber || '',
+      status: 'sent',
+      isAdminIntervention: true
+    };
+
+    setMessages(prev => [...prev, interventionMessage]);
+    
+    try {
+      // Registrar intervenção no banco
+      await supabase
+        .from('whatsapp_messages')
+        .insert({
+          message_text: interventionMessage.text,
+          sender_type: 'admin',
+          ai_generated: false
+        });
+
+      // Enviar via WhatsApp se configurado
+      const success = await sendWhatsAppMessage(activeContact, interventionMessage.text);
+      
+      if (success) {
+        toast({
+          title: "Intervenção enviada",
+          description: "Mensagem administrativa enviada com sucesso"
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao enviar intervenção:', error);
+    }
+
+    setAdminMessage('');
+  };
+
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       sendMessage();
+    }
+  };
+
+  const handleAdminKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendAdminIntervention();
     }
   };
 
@@ -222,9 +276,17 @@ export function ChatInterface() {
           <h1 className="text-3xl font-bold text-slate-800 mb-2">Chat WhatsApp</h1>
           <p className="text-slate-600">Conversas espelhadas do {whatsappConfig.authorizedNumber}</p>
         </div>
-        <div className="flex items-center gap-2 px-3 py-1 bg-green-100 rounded-full">
-          <Wifi className="h-4 w-4 text-green-600" />
-          <span className="text-sm text-green-700 font-medium">Conectado</span>
+        <div className="flex items-center gap-2">
+          {isAdmin && (
+            <Badge variant="outline" className="flex items-center gap-1">
+              <Shield className="h-3 w-3" />
+              Admin
+            </Badge>
+          )}
+          <div className="flex items-center gap-2 px-3 py-1 bg-green-100 rounded-full">
+            <Wifi className="h-4 w-4 text-green-600" />
+            <span className="text-sm text-green-700 font-medium">Conectado</span>
+          </div>
         </div>
       </div>
 
@@ -305,21 +367,33 @@ export function ChatInterface() {
                     {messages.map((message) => (
                       <div
                         key={message.id}
-                        className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                        className={`flex ${
+                          message.sender === 'user' || message.sender === 'admin' 
+                            ? 'justify-end' 
+                            : 'justify-start'
+                        }`}
                       >
                         <div
                           className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                            message.sender === 'user'
+                            message.sender === 'admin'
+                              ? 'bg-red-500 text-white border-2 border-red-600'
+                              : message.sender === 'user'
                               ? 'bg-blue-500 text-white'
                               : 'bg-gray-200 text-gray-800'
                           }`}
                         >
+                          {message.isAdminIntervention && (
+                            <div className="flex items-center gap-1 mb-1">
+                              <Shield className="h-3 w-3" />
+                              <span className="text-xs font-bold">ADMIN</span>
+                            </div>
+                          )}
                           <p className="text-sm">{message.text}</p>
                           <div className="flex items-center justify-between mt-1">
                             <p className="text-xs opacity-70">
                               {message.timestamp.toLocaleTimeString()}
                             </p>
-                            {message.sender === 'user' && (
+                            {(message.sender === 'user' || message.sender === 'admin') && (
                               <span className="text-xs opacity-70">
                                 {message.status === 'sent' && '✓'}
                                 {message.status === 'delivered' && '✓✓'}
@@ -347,7 +421,35 @@ export function ChatInterface() {
                   </div>
                 </ScrollArea>
                 
-                <div className="p-4 border-t border-gray-200">
+                <div className="p-4 border-t border-gray-200 space-y-2">
+                  {/* Intervenção administrativa */}
+                  {isAdmin && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Shield className="h-4 w-4 text-red-600" />
+                        <span className="text-sm font-medium text-red-700">Intervenção Administrativa</span>
+                      </div>
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="Digite sua intervenção como administrador..."
+                          value={adminMessage}
+                          onChange={(e) => setAdminMessage(e.target.value)}
+                          onKeyPress={handleAdminKeyPress}
+                          className="flex-1 border-red-300 focus:border-red-500"
+                        />
+                        <Button 
+                          onClick={sendAdminIntervention} 
+                          disabled={!adminMessage.trim()}
+                          variant="destructive"
+                          size="sm"
+                        >
+                          <Send className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Campo de mensagem normal */}
                   <div className="flex gap-2">
                     <Input
                       placeholder={`Responder para ${activeContactInfo.name}...`}
@@ -360,7 +462,7 @@ export function ChatInterface() {
                       <Send className="h-4 w-4" />
                     </Button>
                   </div>
-                  <p className="text-xs text-gray-500 mt-2">
+                  <p className="text-xs text-gray-500">
                     Mensagens enviadas através do {whatsappConfig.authorizedNumber}
                   </p>
                 </div>
