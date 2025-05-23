@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Zap, MessageSquare, Globe, Settings, Code } from 'lucide-react';
+import { Zap, MessageSquare, Globe, Settings, Code, QrCode } from 'lucide-react';
 
 interface PlatformSelectorProps {
   selectedPlatform: string;
@@ -13,6 +13,14 @@ interface PlatformSelectorProps {
 
 export function PlatformSelector({ selectedPlatform, onPlatformChange }: PlatformSelectorProps) {
   const platforms = [
+    {
+      id: 'whatsappweb',
+      name: 'WhatsApp Web Simples',
+      description: '✨ MAIS FÁCIL - Conecta direto pelo navegador',
+      icon: <QrCode className="h-5 w-5" />,
+      pros: ['Super fácil de usar', '100% gratuito', 'Sem programação', 'Conecta em 2 minutos'],
+      cons: ['Precisa manter navegador aberto', 'Celular deve estar online']
+    },
     {
       id: 'make',
       name: 'Make.com + Puppeteer',
@@ -81,7 +89,7 @@ export function PlatformSelector({ selectedPlatform, onPlatformChange }: Platfor
         </div>
 
         {selectedPlatformData && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             {platforms.map(platform => (
               <div 
                 key={platform.id}
@@ -89,7 +97,7 @@ export function PlatformSelector({ selectedPlatform, onPlatformChange }: Platfor
                   platform.id === selectedPlatform 
                     ? 'border-blue-500 bg-blue-50' 
                     : 'border-gray-200 bg-gray-50 hover:border-gray-300'
-                }`}
+                } ${platform.id === 'whatsappweb' ? 'ring-2 ring-green-200' : ''}`}
                 onClick={() => onPlatformChange(platform.id)}
               >
                 <div className="flex items-center gap-2 mb-2">

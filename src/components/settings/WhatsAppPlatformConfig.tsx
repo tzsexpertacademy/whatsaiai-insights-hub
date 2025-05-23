@@ -1,13 +1,13 @@
-
 import React, { useState } from 'react';
 import { PlatformSelector } from './whatsapp/PlatformSelector';
 import { WatiConfig } from './whatsapp/WatiConfig';
 import { SleekFlowConfig } from './whatsapp/SleekFlowConfig';
 import { MakeConfig } from './MakeConfig';
 import { WAWebJSConfig } from './whatsapp/WAWebJSConfig';
+import { WhatsAppWebConfig } from './whatsapp/WhatsAppWebConfig';
 
 export function WhatsAppPlatformConfig() {
-  const [selectedPlatform, setSelectedPlatform] = useState('make');
+  const [selectedPlatform, setSelectedPlatform] = useState('whatsappweb');
   
   // Configurações para cada plataforma
   const [watiConfig, setWatiConfig] = useState({
@@ -26,6 +26,12 @@ export function WhatsAppPlatformConfig() {
     serverUrl: localStorage.getItem('wawebjs_server_url') || '',
     clientId: localStorage.getItem('wawebjs_client_id') || '',
     autoRestart: localStorage.getItem('wawebjs_auto_restart') === 'true'
+  });
+
+  const [webConfig, setWebConfig] = useState({
+    sessionName: localStorage.getItem('whatsappweb_session_name') || '',
+    autoReply: localStorage.getItem('whatsappweb_auto_reply') === 'true',
+    welcomeMessage: localStorage.getItem('whatsappweb_welcome_message') || ''
   });
 
   const updateWatiConfig = (config: Partial<typeof watiConfig>) => {
@@ -58,8 +64,25 @@ export function WhatsAppPlatformConfig() {
     });
   };
 
+  const updateWebConfig = (config: Partial<typeof webConfig>) => {
+    const newConfig = { ...webConfig, ...config };
+    setWebConfig(newConfig);
+    
+    // Salvar no localStorage
+    Object.entries(newConfig).forEach(([key, value]) => {
+      localStorage.setItem(`whatsappweb_${key}`, typeof value === 'boolean' ? String(value) : value);
+    });
+  };
+
   const renderPlatformConfig = () => {
     switch (selectedPlatform) {
+      case 'whatsappweb':
+        return (
+          <WhatsAppWebConfig 
+            webConfig={webConfig}
+            updateWebConfig={updateWebConfig}
+          />
+        );
       case 'wati':
         return (
           <WatiConfig 
