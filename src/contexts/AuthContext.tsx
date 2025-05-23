@@ -40,6 +40,16 @@ const mockUsers: User[] = [
   }
 ];
 
+// Função auxiliar para preservar as datas durante serialização/deserialização
+const parseUserWithDates = (userData: any): User => {
+  if (!userData) return userData;
+  
+  return {
+    ...userData,
+    createdAt: userData.createdAt ? new Date(userData.createdAt) : new Date()
+  };
+};
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -48,7 +58,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Verificar se há um usuário logado no localStorage
     const savedUser = localStorage.getItem('user');
     if (savedUser) {
-      setUser(JSON.parse(savedUser));
+      try {
+        // Converter o savedUser em objeto e garantir que createdAt seja um Date
+        const parsedUser = parseUserWithDates(JSON.parse(savedUser));
+        setUser(parsedUser);
+      } catch (error) {
+        console.error("Erro ao carregar usuário:", error);
+        localStorage.removeItem('user');
+      }
     }
     setIsLoading(false);
   }, []);

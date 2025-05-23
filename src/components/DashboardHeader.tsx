@@ -24,6 +24,26 @@ export function DashboardHeader() {
     }
   };
 
+  // Função para formatar a data com segurança
+  const formatDate = (date: Date | string | undefined | null) => {
+    if (!date) return '';
+    
+    // Se for string, converter para Date
+    const dateObj = date instanceof Date ? date : new Date(date);
+    
+    // Verificar se é uma data válida
+    if (isNaN(dateObj.getTime())) {
+      return '';
+    }
+    
+    try {
+      return dateObj.toLocaleDateString('pt-BR');
+    } catch (error) {
+      console.error('Erro ao formatar data:', error);
+      return '';
+    }
+  };
+
   return (
     <header className="bg-background/80 backdrop-blur-sm border-b border-border/50 p-4 shadow-sm">
       <div className="flex items-center justify-between">
@@ -38,7 +58,7 @@ export function DashboardHeader() {
                 Plano {user?.plan?.toUpperCase()}
               </span>
               <span className="text-xs text-muted-foreground">
-                Cliente desde {user?.createdAt.toLocaleDateString('pt-BR')}
+                Cliente desde {user?.createdAt ? formatDate(user.createdAt) : ''}
               </span>
             </div>
           </div>
