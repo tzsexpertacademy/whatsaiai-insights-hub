@@ -2,16 +2,12 @@
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { QrCode, Loader2, CheckCircle, Clock } from 'lucide-react';
-import { useWhatsAppConnection } from "@/hooks/useWhatsAppConnection";
+import { QrCode, Loader2, CheckCircle, Clock, Wifi, WifiOff } from 'lucide-react';
+import { useWhatsAppQRCode } from "@/hooks/useWhatsAppQRCode";
 
 export function QRCodeGenerator() {
-  const { connectionState, isLoading, generateQRCode, getConnectionStatus } = useWhatsAppConnection();
+  const { qrState, generateQRCode, disconnectWhatsApp, getConnectionStatus, isLoading } = useWhatsAppQRCode();
   const connectionStatus = getConnectionStatus();
-
-  const handleGenerateQR = async () => {
-    await generateQRCode();
-  };
 
   const getStatusInfo = () => {
     switch (connectionStatus) {
@@ -29,7 +25,7 @@ export function QRCodeGenerator() {
         };
       default:
         return {
-          icon: <QrCode className="h-6 w-6 text-gray-400" />,
+          icon: <WifiOff className="h-6 w-6 text-gray-400" />,
           text: 'Desconectado',
           color: 'text-gray-600'
         };
@@ -46,8 +42,8 @@ export function QRCodeGenerator() {
           QR Code WhatsApp Business
         </CardTitle>
         <CardDescription>
-          {connectionState.isConnected 
-            ? 'Sua sessão está salva localmente'
+          {qrState.isConnected 
+            ? 'Sua sessão está ativa e salva localmente'
             : 'Escaneie com seu WhatsApp Business para conectar'}
         </CardDescription>
       </CardHeader>
@@ -58,70 +54,90 @@ export function QRCodeGenerator() {
           <span className={`font-medium ${statusInfo.color}`}>
             {statusInfo.text}
           </span>
-          {connectionState.phoneNumber && (
+          {qrState.phoneNumber && (
             <span className="text-sm text-gray-500 ml-auto">
-              {connectionState.phoneNumber}
+              {qrState.phoneNumber}
             </span>
           )}
         </div>
 
-        {!connectionState.qrCode && !connectionState.isConnected ? (
+        {!qrState.qrCode && !qrState.isConnected ? (
           <div className="text-center py-8">
             <QrCode className="h-16 w-16 text-gray-400 mx-auto mb-4" />
             <p className="text-gray-500 mb-4">Clique no botão abaixo para gerar o QR Code</p>
-            <Button onClick={handleGenerateQR} disabled={isLoading}>
+            <Button onClick={generateQRCode} disabled={isLoading}>
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Gerando...
+                  Gerando QR Code...
                 </>
               ) : (
-                'Gerar QR Code'
+                <>
+                  <QrCode className="mr-2 h-4 w-4" />
+                  Gerar QR Code
+                </>
               )}
             </Button>
           </div>
-        ) : connectionState.isConnected ? (
+        ) : qrState.isConnected ? (
           <div className="text-center py-8">
-            <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
-            <p className="text-green-600 font-medium mb-2">WhatsApp Conectado!</p>
+            <div className="flex items-center justify-center mb-4">
+              <Wifi className="h-16 w-16 text-green-500" />
+            </div>
+            <p className="text-green-600 font-medium mb-2">WhatsApp Business Conectado!</p>
             <p className="text-sm text-gray-600 mb-4">
-              Última conexão: {new Date(connectionState.lastConnected).toLocaleString('pt-BR')}
+              Conectado ao: {qrState.phoneNumber}
             </p>
-            <p className="text-xs text-gray-500">
-              A sessão fica salva no seu navegador
+            <p className="text-sm text-gray-600 mb-4">
+              Última conexão: {new Date(qrState.lastConnected).toLocaleString('pt-BR')}
             </p>
+            <div className="flex gap-2 justify-center">
+              <Button onClick={disconnectWhatsApp} variant="outline" size="sm">
+                Desconectar
+              </Button>
+              <Button onClick={generateQRCode} variant="outline" size="sm">
+                Gerar Novo QR Code
+              </Button>
+            </div>
           </div>
         ) : (
           <div className="text-center">
             <div className="bg-white p-4 rounded-lg border-2 border-dashed border-gray-300 mb-4">
               {isLoading ? (
-                <div className="w-48 h-48 mx-auto rounded-lg flex items-center justify-center">
-                  <Loader2 className="h-16 w-16 text-blue-400 animate-spin" />
+                <div className="w-64 h-64 mx-auto rounded-lg flex items-center justify-center">
+                  <div className="text-center">
+                    <Loader2 className="h-16 w-16 text-blue-400 animate-spin mx-auto mb-4" />
+                    <p className="text-blue-600">Gerando QR Code...</p>
+                  </div>
                 </div>
               ) : (
                 <div className="w-64 h-64 mx-auto rounded-lg flex items-center justify-center overflow-hidden">
                   <img 
-                    src={connectionState.qrCode} 
-                    alt="QR Code para WhatsApp" 
+                    src={qrState.qrCode} 
+                    alt="QR Code para WhatsApp Business" 
                     className="max-w-full max-h-full"
                   />
                 </div>
               )}
             </div>
-            <p className="text-sm text-gray-600 mb-2">
-              1. Abra o WhatsApp Business no seu celular
-            </p>
-            <p className="text-sm text-gray-600 mb-2">
-              2. Vá em Menu → Dispositivos conectados
-            </p>
-            <p className="text-sm text-gray-600 mb-4">
-              3. Escaneie este código QR
-            </p>
+            <div className="space-y-2 text-sm text-gray-600">
+              <p className="font-medium text-blue-600">📱 Como conectar:</p>
+              <p>1. Abra o WhatsApp Business no seu celular</p>
+              <p>2. Vá em Menu (⋮) → Dispositivos conectados</p>
+              <p>3. Toque em "Conectar um dispositivo"</p>
+              <p>4. Escaneie este código QR</p>
+            </div>
+            <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+              <p className="text-xs text-blue-700">
+                💡 <strong>Dica:</strong> Aguarde alguns segundos após escanear. A conexão será detectada automaticamente!
+              </p>
+            </div>
             <Button 
-              onClick={handleGenerateQR} 
+              onClick={generateQRCode} 
               variant="outline" 
               size="sm"
               disabled={isLoading}
+              className="mt-4"
             >
               {isLoading ? (
                 <>
@@ -132,6 +148,17 @@ export function QRCodeGenerator() {
                 'Gerar Novo QR Code'
               )}
             </Button>
+          </div>
+        )}
+        
+        {qrState.isConnected && (
+          <div className="mt-4 p-3 bg-green-50 rounded-lg border border-green-200">
+            <h4 className="font-medium text-green-900 mb-2">✅ Próximos passos:</h4>
+            <ul className="text-sm text-green-700 space-y-1 list-disc list-inside">
+              <li>Vá para a aba "Chat" para ver conversas</li>
+              <li>Configure as respostas automáticas</li>
+              <li>Importe conversas antigas para análise</li>
+            </ul>
           </div>
         )}
       </CardContent>
