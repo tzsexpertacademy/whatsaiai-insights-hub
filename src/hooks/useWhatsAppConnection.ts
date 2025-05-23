@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useToast } from "@/hooks/use-toast";
 
@@ -8,6 +7,7 @@ interface WhatsAppConnectionState {
   phoneNumber: string;
   sessionId: string;
   lastConnected: string;
+  autoReplyEnabled: boolean;
 }
 
 interface MakeConfig {
@@ -15,6 +15,8 @@ interface MakeConfig {
   statusWebhook: string;
   sendMessageWebhook: string;
   disconnectWebhook: string;
+  receiveMessageWebhook: string;
+  autoReplyWebhook: string;
 }
 
 export function useWhatsAppConnection() {
@@ -23,14 +25,17 @@ export function useWhatsAppConnection() {
     qrCode: '',
     phoneNumber: '',
     sessionId: '',
-    lastConnected: ''
+    lastConnected: '',
+    autoReplyEnabled: false
   });
   const [isLoading, setIsLoading] = useState(false);
   const [makeConfig, setMakeConfig] = useState<MakeConfig>({
     qrWebhook: localStorage.getItem('make_qr_webhook') || '',
     statusWebhook: localStorage.getItem('make_status_webhook') || '',
     sendMessageWebhook: localStorage.getItem('make_send_webhook') || '',
-    disconnectWebhook: localStorage.getItem('make_disconnect_webhook') || ''
+    disconnectWebhook: localStorage.getItem('make_disconnect_webhook') || '',
+    receiveMessageWebhook: localStorage.getItem('make_receive_webhook') || '',
+    autoReplyWebhook: localStorage.getItem('make_autoreply_webhook') || ''
   });
   const { toast } = useToast();
 
@@ -59,7 +64,8 @@ export function useWhatsAppConnection() {
     
     // Salvar no localStorage
     Object.entries(newConfig).forEach(([key, value]) => {
-      localStorage.setItem(`make_${key.replace('Webhook', '_webhook')}`, value);
+      const storageKey = `make_${key.replace('Webhook', '_webhook')}`;
+      localStorage.setItem(storageKey, value);
     });
   };
 
@@ -114,7 +120,8 @@ export function useWhatsAppConnection() {
           action: 'generate_qr',
           sessionId: sessionId,
           timestamp: new Date().toISOString(),
-          clientUrl: window.location.origin
+          clientUrl: window.location.origin,
+          autoReply: true // Indica que queremos respostas automáticas
         })
       });
 
@@ -190,6 +197,7 @@ export function useWhatsAppConnection() {
           if (data.isConnected) {
             clearInterval(pollInterval);
             connectWhatsApp(sessionId, data.phoneNumber || data.phone_number);
+            setupAutoReply(sessionId);
           }
         }
       } catch (error) {
@@ -206,13 +214,43 @@ export function useWhatsAppConnection() {
       isConnected: true,
       phoneNumber: phone,
       sessionId: sessionId,
-      lastConnected: new Date().toISOString()
+      lastConnected: new Date().toISOString(),
+      autoReplyEnabled: true
     }));
     
     toast({
-      title: "WhatsApp Conectado via Make.com!",
-      description: `Conectado ao número ${phone}`,
+      title: "WhatsApp Business Conectado!",
+      description: `Respostas automáticas ativadas para ${phone}`,
     });
+  };
+
+  const setupAutoReply = async (sessionId: string) => {
+    if (!makeConfig.autoReplyWebhook) {
+      console.log('Webhook de resposta automática não configurado');
+      return;
+    }
+
+    try {
+      await fetch(makeConfig.autoReplyWebhook, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'setup_autoreply',
+          sessionId: sessionId,
+          timestamp: new Date().toISOString(),
+          systemPrompt: `Você é um assistente conselheiro especializado em bem-estar emocional. 
+          Responda com empatia, usando técnicas de aconselhamento.
+          Mantenha respostas concisas mas acolhedoras.
+          Se a situação for grave, sugira procurar ajuda profissional.`
+        })
+      });
+      
+      console.log('Resposta automática configurada no Make.com');
+    } catch (error) {
+      console.error('Erro ao configurar resposta automática:', error);
+    }
   };
 
   const disconnectWhatsApp = async () => {
@@ -239,14 +277,15 @@ export function useWhatsAppConnection() {
       qrCode: '',
       phoneNumber: '',
       sessionId: '',
-      lastConnected: ''
+      lastConnected: '',
+      autoReplyEnabled: false
     });
     
     localStorage.removeItem('whatsapp_connection');
     
     toast({
       title: "Desconectado",
-      description: "WhatsApp Business desconectado",
+      description: "WhatsApp Business desconectado - respostas automáticas desativadas",
     });
   };
 
@@ -282,6 +321,43 @@ export function useWhatsAppConnection() {
     }
   };
 
+  const toggleAutoReply = async (enabled: boolean) => {
+    if (!makeConfig.autoReplyWebhook) {
+      toast({
+        title: "Webhook não configurado",
+        description: "Configure o webhook de resposta automática",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      await fetch(makeConfig.autoReplyWebhook, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: enabled ? 'enable_autoreply' : 'disable_autoreply',
+          sessionId: connectionState.sessionId,
+          timestamp: new Date().toISOString()
+        })
+      });
+
+      setConnectionState(prev => ({
+        ...prev,
+        autoReplyEnabled: enabled
+      }));
+
+      toast({
+        title: enabled ? "Resposta automática ativada" : "Resposta automática desativada",
+        description: enabled ? "O assistente responderá automaticamente" : "Respostas automáticas foram pausadas"
+      });
+    } catch (error) {
+      console.error('Erro ao alternar resposta automática:', error);
+    }
+  };
+
   const getConnectionStatus = () => {
     if (!connectionState.isConnected) return 'disconnected';
     
@@ -301,6 +377,7 @@ export function useWhatsAppConnection() {
     generateQRCode,
     disconnectWhatsApp,
     sendMessage,
+    toggleAutoReply,
     getConnectionStatus
   };
 }

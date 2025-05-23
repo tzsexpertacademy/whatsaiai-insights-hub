@@ -9,6 +9,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useClientConfig } from '@/contexts/ClientConfigContext';
 import { useToast } from '@/hooks/use-toast';
+import { MakeConfig } from './MakeConfig';
+import { QRCodeGenerator } from './QRCodeGenerator';
 
 export function WhatsAppConfig() {
   const { config, updateConfig, saveConfig } = useClientConfig();
@@ -50,18 +52,21 @@ export function WhatsAppConfig() {
   
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 lg:grid-cols-1 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <ConnectionStatus />
+        <QRCodeGenerator />
       </div>
+      
+      <MakeConfig />
       
       <Card className="bg-white/70 backdrop-blur-sm border-white/50">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Clock className="h-5 w-5 text-indigo-600" />
-            Sincronização Automática
+            Sincronização Automática (Análise)
           </CardTitle>
           <CardDescription>
-            Configure a sincronização automática das conversas
+            Configure a sincronização automática para análise de conversas importadas
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -69,7 +74,7 @@ export function WhatsAppConfig() {
             <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
               <div>
                 <Label htmlFor="autoSync">Sincronização Automática</Label>
-                <p className="text-xs text-gray-500">Importar conversas automaticamente</p>
+                <p className="text-xs text-gray-500">Reprocessar conversas automaticamente</p>
               </div>
               <Switch
                 id="autoSync"
@@ -96,17 +101,17 @@ export function WhatsAppConfig() {
                 </Select>
                 
                 <p className="text-xs text-blue-600 mt-1">
-                  💡 A sincronização ocorrerá automaticamente de acordo com o intervalo selecionado
+                  💡 A sincronização reprocessará arquivos importados para gerar novos insights
                 </p>
               </div>
             )}
             
             <div className="bg-amber-50 p-4 rounded-lg border border-amber-200">
-              <h4 className="font-medium text-amber-900 mb-2">Como funciona:</h4>
-              <p className="text-sm text-amber-700">
-                A sincronização automática requer que você mantenha o navegador aberto e o sistema funcionando. 
-                O sistema tentará importar novas conversas de acordo com o intervalo configurado.
-              </p>
+              <h4 className="font-medium text-amber-900 mb-2">Diferença entre Análise e Conexão Ativa:</h4>
+              <ul className="text-sm text-amber-700 space-y-1 list-disc list-inside">
+                <li><strong>Análise:</strong> Reprocessa arquivos importados para novos insights</li>
+                <li><strong>Conexão Ativa:</strong> WhatsApp Business conectado para respostas automáticas</li>
+              </ul>
             </div>
           </div>
         </CardContent>
@@ -116,38 +121,44 @@ export function WhatsAppConfig() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Bot className="h-5 w-5 text-blue-600" />
-            Processamento de Conversas com OpenAI
+            Assistente Conselheiro - Respostas Automáticas
           </CardTitle>
           <CardDescription>
-            Entenda como funciona a integração simplificada
+            Como funciona o sistema de respostas automáticas via Make.com
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            <p className="text-gray-700">
-              Este sistema utiliza a API da OpenAI para processar e analisar as conversas do WhatsApp,
-              gerando insights e respostas automáticas inteligentes.
-            </p>
-            
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <h4 className="font-medium text-gray-900 mb-2">Como funciona:</h4>
-              <ol className="text-sm text-gray-700 space-y-2 list-decimal list-inside">
-                <li>As conversas do WhatsApp são importadas para o sistema</li>
-                <li>Os dados são armazenados no Firebase do cliente</li>
-                <li>A OpenAI processa as mensagens e gera análises</li>
-                <li>O sistema pode produzir respostas automáticas baseadas na análise da IA</li>
-                <li>Insights e métricas são exibidos no dashboard</li>
+            <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+              <h4 className="font-medium text-green-900 mb-2">Fluxo de Funcionamento:</h4>
+              <ol className="text-sm text-green-700 space-y-2 list-decimal list-inside">
+                <li>Cliente envia mensagem no WhatsApp Business</li>
+                <li>Make.com captura a mensagem via Puppeteer/API</li>
+                <li>Sistema analisa a mensagem com contexto do perfil psicológico</li>
+                <li>OpenAI gera resposta personalizada como conselheiro</li>
+                <li>Make.com envia a resposta automaticamente</li>
               </ol>
             </div>
             
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <h4 className="font-medium text-blue-900 mb-2">Benefícios:</h4>
+            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+              <h4 className="font-medium text-blue-900 mb-2">Recursos do Assistente:</h4>
               <ul className="text-sm text-blue-700 space-y-1 list-disc list-inside">
-                <li>Análise avançada de sentimentos nas conversas</li>
-                <li>Detecção automática de tópicos importantes</li>
-                <li>Sugestões de resposta personalizadas</li>
-                <li>Insights sobre o comportamento dos clientes</li>
+                <li>Análise de sentimentos em tempo real</li>
+                <li>Respostas baseadas no perfil psicológico do cliente</li>
+                <li>Técnicas de aconselhamento personalizadas</li>
+                <li>Histórico de conversas para contexto</li>
+                <li>Encaminhamento para profissional quando necessário</li>
               </ul>
+            </div>
+            
+            <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
+              <h4 className="font-medium text-purple-900 mb-2">Configuração Necessária no Make.com:</h4>
+              <ol className="text-sm text-purple-700 space-y-1 list-decimal list-inside">
+                <li>Cenário para monitorar mensagens recebidas</li>
+                <li>Integração com OpenAI para geração de respostas</li>
+                <li>Webhook para enviar respostas de volta</li>
+                <li>Filtros para mensagens que precisam de resposta automática</li>
+              </ol>
             </div>
           </div>
         </CardContent>
