@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Zap, MessageSquare, Globe, Settings } from 'lucide-react';
+import { Zap, MessageSquare, Globe, Settings, Code } from 'lucide-react';
 
 interface PlatformSelectorProps {
   selectedPlatform: string;
@@ -36,6 +36,14 @@ export function PlatformSelector({ selectedPlatform, onPlatformChange }: Platfor
       icon: <Globe className="h-5 w-5" />,
       pros: ['Multi-canal', 'Analytics avançados', 'Automação poderosa', 'Escalável'],
       cons: ['Mais caro', 'Complexidade adicional']
+    },
+    {
+      id: 'wawebjs',
+      name: 'WhatsApp Web JS',
+      description: 'Biblioteca não oficial gratuita',
+      icon: <Code className="h-5 w-5" />,
+      pros: ['Totalmente gratuito', 'API estruturada', 'Boa documentação'],
+      cons: ['Não oficial', 'Pode quebrar com atualizações', 'Requer servidor Node.js']
     }
   ];
 
@@ -73,7 +81,7 @@ export function PlatformSelector({ selectedPlatform, onPlatformChange }: Platfor
         </div>
 
         {selectedPlatformData && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             {platforms.map(platform => (
               <div 
                 key={platform.id}

@@ -4,6 +4,7 @@ import { PlatformSelector } from './whatsapp/PlatformSelector';
 import { WatiConfig } from './whatsapp/WatiConfig';
 import { SleekFlowConfig } from './whatsapp/SleekFlowConfig';
 import { MakeConfig } from './MakeConfig';
+import { WAWebJSConfig } from './whatsapp/WAWebJSConfig';
 
 export function WhatsAppPlatformConfig() {
   const [selectedPlatform, setSelectedPlatform] = useState('make');
@@ -19,6 +20,12 @@ export function WhatsAppPlatformConfig() {
     apiToken: localStorage.getItem('sleekflow_api_token') || '',
     channelId: localStorage.getItem('sleekflow_channel_id') || '',
     webhookUrl: localStorage.getItem('sleekflow_webhook_url') || ''
+  });
+  
+  const [wawebjsConfig, setWAWebJSConfig] = useState({
+    serverUrl: localStorage.getItem('wawebjs_server_url') || '',
+    clientId: localStorage.getItem('wawebjs_client_id') || '',
+    autoRestart: localStorage.getItem('wawebjs_auto_restart') === 'true'
   });
 
   const updateWatiConfig = (config: Partial<typeof watiConfig>) => {
@@ -40,6 +47,16 @@ export function WhatsAppPlatformConfig() {
       localStorage.setItem(`sleekflow_${key}`, value);
     });
   };
+  
+  const updateWAWebJSConfig = (config: Partial<typeof wawebjsConfig>) => {
+    const newConfig = { ...wawebjsConfig, ...config };
+    setWAWebJSConfig(newConfig);
+    
+    // Salvar no localStorage
+    Object.entries(newConfig).forEach(([key, value]) => {
+      localStorage.setItem(`wawebjs_${key}`, typeof value === 'boolean' ? String(value) : value);
+    });
+  };
 
   const renderPlatformConfig = () => {
     switch (selectedPlatform) {
@@ -55,6 +72,13 @@ export function WhatsAppPlatformConfig() {
           <SleekFlowConfig 
             sleekflowConfig={sleekflowConfig}
             updateSleekFlowConfig={updateSleekFlowConfig}
+          />
+        );
+      case 'wawebjs':
+        return (
+          <WAWebJSConfig 
+            wawebjsConfig={wawebjsConfig}
+            updateWAWebJSConfig={updateWAWebJSConfig}
           />
         );
       case 'make':
