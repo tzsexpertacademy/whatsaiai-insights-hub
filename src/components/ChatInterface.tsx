@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,6 +6,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Send, Bot, User, Phone, Wifi, WifiOff, AlertCircle } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { useClientConfig } from "@/contexts/ClientConfigContext";
+import { useWhatsAppConnection } from "@/hooks/use-whatsapp-connection";
 
 interface Message {
   id: string;
@@ -28,6 +28,7 @@ interface Contact {
 
 export function ChatInterface() {
   const { config } = useClientConfig();
+  const { connectionState, sendMessage: sendWhatsAppMessage } = useWhatsAppConnection();
   const whatsappConfig = config.whatsapp;
   
   const [messages, setMessages] = useState<Message[]>([]);
@@ -130,39 +131,43 @@ export function ChatInterface() {
     };
 
     setMessages(prev => [...prev, userMessage]);
+    const messageText = newMessage;
     setNewMessage('');
     setIsTyping(true);
 
-    // Simular envio via WhatsApp API
-    setTimeout(() => {
-      // Atualizar status para entregue
-      setMessages(prev => prev.map(msg => 
-        msg.id === userMessage.id ? { ...msg, status: 'delivered' } : msg
-      ));
+    // Enviar via Make.com
+    try {
+      const success = await sendWhatsAppMessage(activeContact, messageText);
       
-      // Simular resposta automática se configurado
-      if (whatsappConfig.autoReply) {
-        setTimeout(() => {
-          const botResponse: Message = {
-            id: (Date.now() + 1).toString(),
-            text: 'Recebi sua mensagem! Vou analisar e responder em breve.',
-            sender: 'contact',
-            timestamp: new Date(),
-            phoneNumber: activeContact,
-            status: 'sent'
-          };
-          setMessages(prev => [...prev, botResponse]);
-          setIsTyping(false);
-        }, 1500);
-      } else {
-        setIsTyping(false);
-      }
-    }, 1000);
+      // Atualizar status da mensagem
+      setMessages(prev => prev.map(msg => 
+        msg.id === userMessage.id 
+          ? { ...msg, status: success ? 'delivered' : 'sent' } 
+          : msg
+      ));
 
-    toast({
-      title: "Mensagem enviada",
-      description: `Mensagem enviada para ${activeContact}`,
-    });
+      if (success) {
+        toast({
+          title: "Mensagem enviada",
+          description: `Mensagem enviada via Make.com para ${activeContact}`,
+        });
+      } else {
+        toast({
+          title: "Erro no envio",
+          description: "Verifique a configuração do Make.com",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao enviar mensagem:', error);
+      toast({
+        title: "Erro no envio",
+        description: "Falha ao enviar mensagem via Make.com",
+        variant: "destructive"
+      });
+    } finally {
+      setIsTyping(false);
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {

@@ -2,6 +2,7 @@
 import React from 'react';
 import { ConnectionStatus } from './ConnectionStatus';
 import { QRCodeGenerator } from './QRCodeGenerator';
+import { MakeConfig } from './MakeConfig';
 import { IntegrationGuide } from './IntegrationGuide';
 
 export function WhatsAppConfig() {
@@ -11,6 +12,7 @@ export function WhatsAppConfig() {
         <ConnectionStatus />
         <QRCodeGenerator />
       </div>
+      <MakeConfig />
       <IntegrationGuide />
     </div>
   );
