@@ -64,23 +64,31 @@ export function AdminDashboard() {
 
   const loadClients = async () => {
     try {
-      const { data, error } = await supabase
+      // Buscar perfis e usuários do auth.users para obter emails
+      const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (profilesError) throw profilesError;
 
-      const clientsData: Client[] = data?.map(profile => ({
-        id: profile.id,
-        email: profile.email || 'N/A',
-        name: profile.full_name || 'Usuário',
-        company_name: profile.company_name,
-        plan: profile.plan as 'basic' | 'premium' | 'enterprise',
-        created_at: profile.created_at,
-        is_active: true,
-        last_login: profile.updated_at
-      })) || [];
+      // Buscar usuários do auth para obter emails
+      const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
+      if (authError) throw authError;
+
+      const clientsData: Client[] = profiles?.map(profile => {
+        const authUser = authUsers.users.find(u => u.id === profile.id);
+        return {
+          id: profile.id,
+          email: authUser?.email || 'N/A',
+          name: profile.full_name || 'Usuário',
+          company_name: profile.company_name,
+          plan: profile.plan as 'basic' | 'premium' | 'enterprise',
+          created_at: profile.created_at,
+          is_active: true,
+          last_login: profile.updated_at
+        };
+      }) || [];
 
       setClients(clientsData);
     } catch (error) {
@@ -192,6 +200,40 @@ export function AdminDashboard() {
     }
   };
 
+  const createAdminUser = async () => {
+    setIsLoading(true);
+    try {
+      // Criar usuário administrador
+      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+        email: 'admin@observatorio.com',
+        password: 'admin123456',
+        user_metadata: {
+          full_name: 'Administrador Sistema',
+          company_name: 'Observatório Psicológico',
+          plan: 'enterprise'
+        }
+      });
+
+      if (authError) throw authError;
+
+      toast({
+        title: "Usuário administrador criado!",
+        description: "Email: admin@observatorio.com | Senha: admin123456"
+      });
+
+      loadClients();
+    } catch (error) {
+      console.error('Erro ao criar admin:', error);
+      toast({
+        title: "Erro ao criar administrador",
+        description: error.message || "Erro desconhecido",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const sendInterventionMessage = async (conversationId: string, message: string) => {
     try {
       // Em produção, isso enviaria uma mensagem através do Firebase do cliente
@@ -218,6 +260,9 @@ export function AdminDashboard() {
           <CardContent className="text-center p-8">
             <h1 className="text-2xl font-bold text-red-600 mb-2">Acesso Negado</h1>
             <p className="text-gray-600">Você não tem permissão para acessar esta área.</p>
+            <Button onClick={createAdminUser} className="mt-4" disabled={isLoading}>
+              {isLoading ? 'Criando...' : 'Criar Usuário Admin'}
+            </Button>
           </CardContent>
         </Card>
       </div>
@@ -465,6 +510,16 @@ export function AdminDashboard() {
                     <p className="text-sm text-purple-600">
                       Sistema totalmente configurável para cada cliente, sem armazenamento centralizado
                     </p>
+                  </div>
+
+                  <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg">
+                    <h4 className="font-medium text-orange-800">Usuário Administrador</h4>
+                    <p className="text-sm text-orange-600 mb-2">
+                      Crie um usuário administrador para acessar o painel
+                    </p>
+                    <Button onClick={createAdminUser} disabled={isLoading} variant="outline">
+                      {isLoading ? 'Criando...' : 'Criar Admin'}
+                    </Button>
                   </div>
                 </div>
               </CardContent>

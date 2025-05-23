@@ -12,9 +12,11 @@ const AdminContext = createContext<AdminContextType | undefined>(undefined);
 
 // Lista de emails de administradores
 const ADMIN_EMAILS = [
+  'admin@observatorio.com',
+  'suporte@observatorio.com',
+  'contato@observatorio.com',
   'admin@observatoriopsicologico.com',
-  'suporte@observatoriopsicologico.com',
-  'contato@observatoriopsicologico.com'
+  'suporte@observatoriopsicologico.com'
 ];
 
 export function AdminProvider({ children }: { children: React.ReactNode }) {
