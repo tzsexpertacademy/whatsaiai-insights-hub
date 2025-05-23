@@ -4,9 +4,10 @@ import { useAuth } from './AuthContext';
 interface ClientConfig {
   whatsapp: {
     isConnected: boolean;
-    authorizedNumber: string;
+    authorizedNumber?: string;
     qrCode: string;
     autoReply: boolean;
+    lastImport?: string;  // Data da última importação de conversas
   };
   firebase: {
     isConnected: boolean;
@@ -53,7 +54,8 @@ const defaultConfig: ClientConfig = {
     isConnected: false,
     authorizedNumber: '',
     qrCode: '',
-    autoReply: false
+    autoReply: false,
+    lastImport: ''
   },
   firebase: {
     isConnected: false,

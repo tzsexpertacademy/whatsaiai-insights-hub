@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,6 +22,25 @@ export function OpenAIConfig() {
   const [temperature, setTemperature] = useState('0.7');
   const { toast } = useToast();
 
+  // Carregar configurações salvas ao inicializar
+  useEffect(() => {
+    const savedApiKey = localStorage.getItem('openai_api_key');
+    const savedModel = localStorage.getItem('openai_model') || 'gpt-4o-mini';
+    const savedOrg = localStorage.getItem('openai_organization') || '';
+    const savedTokens = localStorage.getItem('openai_max_tokens') || '4000';
+    const savedTemp = localStorage.getItem('openai_temperature') || '0.7';
+    
+    if (savedApiKey) {
+      setApiKey(savedApiKey);
+      setIsConnected(true);
+    }
+    
+    setDefaultModel(savedModel);
+    setOrganization(savedOrg);
+    setMaxTokens(savedTokens);
+    setTemperature(savedTemp);
+  }, []);
+
   const testConnection = async () => {
     if (!apiKey.startsWith('sk-')) {
       toast({
@@ -33,18 +51,47 @@ export function OpenAIConfig() {
       return;
     }
 
-    // Simular teste de conexão
-    setTimeout(() => {
-      setIsConnected(true);
-      toast({
-        title: "Conectado!",
-        description: "OpenAI API configurada com sucesso",
+    try {
+      // Tentar fazer uma chamada simples para a API OpenAI
+      const response = await fetch('https://api.openai.com/v1/models', {
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          ...(organization && { 'OpenAI-Organization': organization })
+        }
       });
-    }, 1500);
+      
+      if (response.ok) {
+        setIsConnected(true);
+        
+        // Salvar configurações
+        localStorage.setItem('openai_api_key', apiKey);
+        localStorage.setItem('openai_model', defaultModel);
+        localStorage.setItem('openai_organization', organization);
+        localStorage.setItem('openai_max_tokens', maxTokens);
+        localStorage.setItem('openai_temperature', temperature);
+        
+        toast({
+          title: "Conectado!",
+          description: "OpenAI API configurada com sucesso",
+        });
+      } else {
+        throw new Error(`Erro ${response.status}: ${response.statusText}`);
+      }
+    } catch (error) {
+      console.error('Erro ao testar API OpenAI:', error);
+      toast({
+        title: "Falha na conexão",
+        description: "Não foi possível conectar à API da OpenAI",
+        variant: "destructive",
+      });
+    }
   };
 
   const disconnect = () => {
     setIsConnected(false);
+    setApiKey('');
+    localStorage.removeItem('openai_api_key');
+    
     toast({
       title: "Desconectado",
       description: "Conexão com OpenAI removida",
@@ -85,7 +132,7 @@ export function OpenAIConfig() {
                   Modelo padrão: {availableModels.find(m => m.id === defaultModel)?.name}
                 </p>
                 <p className="text-sm text-green-700">
-                  Todos os assistentes configurados e prontos
+                  Processamento de conversas ativado
                 </p>
               </div>
             )}

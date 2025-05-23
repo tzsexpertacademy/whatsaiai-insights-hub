@@ -5,102 +5,130 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Smartphone, Wifi, WifiOff, CheckCircle, Clock } from 'lucide-react';
+import { Smartphone, Wifi, WifiOff, Upload } from 'lucide-react';
 import { useClientConfig } from "@/contexts/ClientConfigContext";
-import { useWhatsAppConnection } from "@/hooks/useWhatsAppConnection";
+import { useToast } from "@/hooks/use-toast";
 
 export function ConnectionStatus() {
   const { config, updateConfig } = useClientConfig();
-  const { connectionState, disconnectWhatsApp, getConnectionStatus } = useWhatsAppConnection();
-  
+  const { toast } = useToast();
   const whatsappConfig = config.whatsapp;
-  const connectionStatus = getConnectionStatus();
-
-  const handleDisconnect = async () => {
-    disconnectWhatsApp();
-    updateConfig('whatsapp', { 
-      isConnected: false, 
-      qrCode: '' 
-    });
-  };
-
-  const getConnectionDisplay = () => {
-    if (connectionState.isConnected) {
-      switch (connectionStatus) {
-        case 'active':
-          return {
-            icon: <Wifi className="h-6 w-6 text-green-500" />,
-            text: 'Conectado (Ativo)',
-            color: 'text-green-600'
-          };
-        case 'idle':
-          return {
-            icon: <Clock className="h-6 w-6 text-yellow-500" />,
-            text: 'Conectado (Inativo)',
-            color: 'text-yellow-600'
-          };
-      }
+  
+  const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
+  const [isImporting, setIsImporting] = React.useState(false);
+  
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
     }
-    
-    return {
-      icon: <WifiOff className="h-6 w-6 text-red-500" />,
-      text: 'Desconectado',
-      color: 'text-red-600'
-    };
   };
-
-  const connectionDisplay = getConnectionDisplay();
+  
+  const importConversations = async () => {
+    if (!selectedFile) return;
+    
+    setIsImporting(true);
+    
+    // Simulando processamento de arquivo
+    setTimeout(() => {
+      setIsImporting(false);
+      updateConfig('whatsapp', { 
+        isConnected: true,
+        lastImport: new Date().toISOString()
+      });
+      
+      toast({
+        title: "Importação concluída",
+        description: "Conversas importadas com sucesso para processamento"
+      });
+      
+      setSelectedFile(null);
+    }, 2000);
+  };
 
   return (
     <Card className="bg-white/70 backdrop-blur-sm border-white/50">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Smartphone className="h-5 w-5 text-green-600" />
-          Status da Conexão
+          Importação de Conversas
         </CardTitle>
         <CardDescription>
-          Status atual do WhatsApp Business (salvo localmente)
+          Importe suas conversas do WhatsApp para análise com OpenAI
         </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="flex items-center gap-3 mb-4">
-          {connectionDisplay.icon}
-          <span className={`font-medium ${connectionDisplay.color}`}>
-            {connectionDisplay.text}
-          </span>
+          {whatsappConfig.isConnected ? (
+            <>
+              <Wifi className="h-6 w-6 text-green-500" />
+              <span className="font-medium text-green-600">
+                Dados importados
+              </span>
+            </>
+          ) : (
+            <>
+              <WifiOff className="h-6 w-6 text-red-500" />
+              <span className="font-medium text-red-600">
+                Sem dados importados
+              </span>
+            </>
+          )}
         </div>
         
-        {connectionState.isConnected && (
+        {whatsappConfig.isConnected && whatsappConfig.lastImport && (
           <div className="bg-green-50 p-3 rounded-lg border border-green-200 mb-4">
-            <p className="text-sm text-green-700 flex items-center gap-2">
-              <CheckCircle className="h-4 w-4" />
-              Número conectado: {connectionState.phoneNumber}
-            </p>
-            <p className="text-xs text-green-600 mt-1">
-              Sessão salva desde: {new Date(connectionState.lastConnected).toLocaleDateString('pt-BR')}
+            <p className="text-sm text-green-700">
+              Última importação: {new Date(whatsappConfig.lastImport).toLocaleDateString('pt-BR')}
             </p>
           </div>
         )}
 
-        <div className="mt-4">
-          <Label htmlFor="authorized">Número Autorizado (Conselheiro Principal)</Label>
+        <div className="space-y-4 mt-4">
+          <Label htmlFor="authorized">Número do WhatsApp</Label>
           <Input
             id="authorized"
             placeholder="+55 11 99999-9999"
-            value={whatsappConfig.authorizedNumber}
+            value={whatsappConfig.authorizedNumber || ''}
             onChange={(e) => updateConfig('whatsapp', { authorizedNumber: e.target.value })}
-            disabled={connectionState.isConnected}
-            className="mt-2"
+            className="mb-4"
           />
-          <p className="text-xs text-gray-500 mt-1">
-            Somente este número receberá respostas do conselheiro principal
-          </p>
+
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <h4 className="font-medium text-gray-900 mb-2">Importar conversas:</h4>
+            <p className="text-sm text-gray-700 mb-3">
+              Exporte as conversas do seu WhatsApp e carregue o arquivo abaixo
+            </p>
+            
+            <div className="space-y-3">
+              <Input 
+                type="file" 
+                onChange={handleFileChange}
+                accept=".txt,.json,.zip,.csv"
+              />
+              
+              {selectedFile && (
+                <p className="text-sm text-gray-600">
+                  Arquivo selecionado: {selectedFile.name}
+                </p>
+              )}
+              
+              <Button 
+                onClick={importConversations} 
+                disabled={!selectedFile || isImporting}
+                className="w-full flex items-center gap-2"
+              >
+                <Upload className="h-4 w-4" />
+                {isImporting ? 'Importando...' : 'Importar Conversas'}
+              </Button>
+            </div>
+          </div>
         </div>
 
         <div className="flex items-center justify-between mt-4 p-3 bg-gray-50 rounded-lg">
           <div>
             <Label htmlFor="autoReply">Resposta Automática</Label>
-            <p className="text-xs text-gray-500">Enviar confirmação automática ao receber mensagens</p>
+            <p className="text-xs text-gray-500">Enviar respostas automáticas da IA</p>
           </div>
           <Switch
             id="autoReply"
@@ -109,22 +137,11 @@ export function ConnectionStatus() {
           />
         </div>
 
-        {connectionState.isConnected && (
-          <div className="flex gap-2 mt-4">
-            <Button onClick={handleDisconnect} variant="destructive" className="flex-1">
-              Desconectar e Limpar Dados
-            </Button>
-          </div>
-        )}
-
-        {connectionState.isConnected && (
-          <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-            <p className="text-xs text-blue-700">
-              💡 <strong>Armazenamento Local:</strong> Sua conexão fica salva no navegador e reconecta automaticamente. 
-              A sessão expira em 24 horas por segurança.
-            </p>
-          </div>
-        )}
+        <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+          <p className="text-xs text-blue-700">
+            💡 <strong>Dica:</strong> Para melhores resultados, importe conversas recentes e completas para que a IA possa processar o contexto adequadamente.
+          </p>
+        </div>
       </CardContent>
     </Card>
   );
