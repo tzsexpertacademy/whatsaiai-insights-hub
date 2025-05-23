@@ -9,6 +9,9 @@ import { AreasOfLife } from '@/components/AreasOfLife';
 import { BehavioralProfile } from '@/components/BehavioralProfile';
 import { EmotionalThermometer } from '@/components/EmotionalThermometer';
 import { Recommendations } from '@/components/Recommendations';
+import { WhatsAppConnection } from '@/components/WhatsAppConnection';
+import { ChatInterface } from '@/components/ChatInterface';
+import { SettingsPage } from '@/components/SettingsPage';
 
 const Index = () => {
   return (
@@ -25,6 +28,9 @@ const Index = () => {
                 <Route path="/profile" element={<BehavioralProfile />} />
                 <Route path="/emotions" element={<EmotionalThermometer />} />
                 <Route path="/recommendations" element={<Recommendations />} />
+                <Route path="/connection" element={<WhatsAppConnection />} />
+                <Route path="/chat" element={<ChatInterface />} />
+                <Route path="/settings" element={<SettingsPage />} />
               </Routes>
             </main>
           </div>

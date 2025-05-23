@@ -8,7 +8,9 @@ import {
   Heart,
   Timer,
   FileText,
-  Settings
+  Settings,
+  MessageCircle,
+  Smartphone
 } from 'lucide-react';
 import {
   Sidebar,
@@ -28,6 +30,14 @@ const navigationItems = [
   { title: "Perfil Comportamental", url: "/profile", icon: User },
   { title: "Termômetro Emocional", url: "/emotions", icon: Timer },
   { title: "Conselhos e Recomendações", url: "/recommendations", icon: FileText },
+];
+
+const whatsappItems = [
+  { title: "Conexão WhatsApp", url: "/connection", icon: Smartphone },
+  { title: "Chat Interface", url: "/chat", icon: MessageCircle },
+];
+
+const configItems = [
   { title: "Configurações", url: "/settings", icon: Settings },
 ];
 
@@ -50,11 +60,47 @@ export function AppSidebar() {
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel className="text-indigo-300 font-medium">
-            {sidebar.open && "Navegação"}
+            {sidebar.open && "Dashboard"}
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {navigationItems.map((item) => (
+                <SidebarNavItem 
+                  key={item.title}
+                  title={item.title} 
+                  url={item.url} 
+                  icon={item.icon} 
+                />
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel className="text-indigo-300 font-medium">
+            {sidebar.open && "WhatsApp"}
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {whatsappItems.map((item) => (
+                <SidebarNavItem 
+                  key={item.title}
+                  title={item.title} 
+                  url={item.url} 
+                  icon={item.icon} 
+                />
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel className="text-indigo-300 font-medium">
+            {sidebar.open && "Sistema"}
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {configItems.map((item) => (
                 <SidebarNavItem 
                   key={item.title}
                   title={item.title} 
