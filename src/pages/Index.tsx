@@ -14,6 +14,8 @@ import { ChatInterface } from '@/components/ChatInterface';
 import { SettingsPage } from '@/components/SettingsPage';
 
 const Index = () => {
+  console.log('Index component rendering');
+  
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background/95 to-background/90">
       <SidebarProvider defaultOpen={true}>

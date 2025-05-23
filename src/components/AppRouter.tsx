@@ -7,6 +7,8 @@ import Index from '@/pages/Index';
 export function AppRouter() {
   const { isAuthenticated, login, isLoading } = useAuth();
 
+  console.log('AppRouter - isAuthenticated:', isAuthenticated, 'isLoading:', isLoading);
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center">
