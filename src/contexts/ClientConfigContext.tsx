@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 
@@ -7,6 +6,7 @@ interface ClientConfig {
     isConnected: boolean;
     authorizedNumber: string;
     qrCode: string;
+    autoReply: boolean;
   };
   firebase: {
     isConnected: boolean;
@@ -52,7 +52,8 @@ const defaultConfig: ClientConfig = {
   whatsapp: {
     isConnected: false,
     authorizedNumber: '',
-    qrCode: ''
+    qrCode: '',
+    autoReply: false
   },
   firebase: {
     isConnected: false,

@@ -1,9 +1,9 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { QrCode, Smartphone, Wifi, WifiOff, Phone, CheckCircle } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { useClientConfig } from "@/contexts/ClientConfigContext";
@@ -110,6 +110,18 @@ export function WhatsAppConfig() {
               <p className="text-xs text-gray-500 mt-1">
                 Somente este número receberá respostas do conselheiro principal
               </p>
+            </div>
+
+            <div className="flex items-center justify-between mt-4 p-3 bg-gray-50 rounded-lg">
+              <div>
+                <Label htmlFor="autoReply">Resposta Automática</Label>
+                <p className="text-xs text-gray-500">Enviar confirmação automática ao receber mensagens</p>
+              </div>
+              <Switch
+                id="autoReply"
+                checked={whatsappConfig.autoReply}
+                onCheckedChange={(checked) => updateConfig('whatsapp', { autoReply: checked })}
+              />
             </div>
 
             <div className="flex gap-2 mt-4">
