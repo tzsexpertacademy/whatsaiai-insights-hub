@@ -149,7 +149,7 @@ export function WhatsAppConfig() {
                   1. Abra o WhatsApp Business no seu celular
                 </p>
                 <p className="text-sm text-gray-600 mb-2">
-                  2. Vá em Menu > Dispositivos conectados
+                  2. Vá em Menu → Dispositivos conectados
                 </p>
                 <p className="text-sm text-gray-600 mb-4">
                   3. Escaneie este código QR
