@@ -1,12 +1,9 @@
 
 import React from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { useLocation, Link } from 'react-router-dom';
 import { LucideIcon } from 'lucide-react';
-import {
-  SidebarMenuButton,
-  SidebarMenuItem,
-  useSidebar,
-} from "@/components/ui/sidebar";
+import { SidebarMenuItem, SidebarMenuButton, useSidebar } from "@/components/ui/sidebar";
+import { cn } from "@/lib/utils";
 
 interface SidebarNavItemProps {
   title: string;
@@ -15,31 +12,37 @@ interface SidebarNavItemProps {
 }
 
 export function SidebarNavItem({ title, url, icon: Icon }: SidebarNavItemProps) {
-  const sidebar = useSidebar();
   const location = useLocation();
-  const isOpen = sidebar.open;
-
-  console.log(`SidebarNavItem ${title} - current location:`, location.pathname, 'url:', url);
+  const { state } = useSidebar();
+  const isActive = location.pathname === url;
+  const isCollapsed = state === "collapsed";
 
   return (
     <SidebarMenuItem>
-      <SidebarMenuButton asChild>
-        <NavLink 
-          to={url} 
-          className={({ isActive }) => {
-            console.log(`NavLink ${title} - isActive:`, isActive);
-            return `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group w-full ${
-              isActive 
-                ? "bg-blue-600 text-white shadow-md font-semibold border border-blue-500" 
-                : "text-gray-700 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:text-blue-700 dark:hover:text-blue-300 border border-transparent"
-            }`;
-          }}
-        >
-          <Icon className="h-5 w-5 shrink-0" />
-          {isOpen && (
-            <span className="font-medium text-sm truncate">{title}</span>
+      <SidebarMenuButton 
+        asChild 
+        tooltip={isCollapsed ? title : undefined}
+        className={cn(
+          "w-full h-10 px-3 rounded-lg transition-all duration-200",
+          "hover:bg-blue-50 dark:hover:bg-gray-800",
+          "group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-2",
+          isActive && "bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800"
+        )}
+      >
+        <Link to={url} className="flex items-center gap-3 w-full min-w-0">
+          <Icon className={cn(
+            "h-5 w-5 flex-shrink-0 transition-colors",
+            isActive ? "text-blue-600 dark:text-blue-400" : "text-gray-600 dark:text-gray-400"
+          )} />
+          {!isCollapsed && (
+            <span className={cn(
+              "font-medium text-sm truncate transition-colors",
+              isActive ? "text-blue-700 dark:text-blue-300" : "text-gray-700 dark:text-gray-300"
+            )}>
+              {title}
+            </span>
           )}
-        </NavLink>
+        </Link>
       </SidebarMenuButton>
     </SidebarMenuItem>
   );
