@@ -4,9 +4,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Building2, CheckCircle, AlertCircle, Send, Key, RefreshCcw } from 'lucide-react';
+import { Building2, CheckCircle, AlertCircle, Send, Key, RefreshCcw, Download, Copy } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 
 interface AtendechatConfigProps {
   atendechatConfig: {
@@ -25,6 +26,8 @@ export function AtendechatConfig({ atendechatConfig, updateAtendechatConfig }: A
   const [testMessage, setTestMessage] = useState('Olá! Teste de conexão via API Atendechat');
   const [isLoading, setIsLoading] = useState(false);
   const [isSendingTest, setIsSendingTest] = useState(false);
+  const [showExtractedConfig, setShowExtractedConfig] = useState(false);
+  const [extractedConfig, setExtractedConfig] = useState('');
   const { toast } = useToast();
 
   const handleConnect = async () => {
@@ -107,122 +110,207 @@ export function AtendechatConfig({ atendechatConfig, updateAtendechatConfig }: A
     }, 1500);
   };
 
+  const handleExtractConfig = () => {
+    const configData = {
+      atendechat: {
+        apiUrl: localStorage.getItem('atendechat_api_url') || '',
+        authToken: localStorage.getItem('atendechat_auth_token') || '',
+        username: localStorage.getItem('atendechat_username') || '',
+        password: localStorage.getItem('atendechat_password') || '',
+        sessionId: localStorage.getItem('atendechat_session_id') || '',
+        isConnected: localStorage.getItem('atendechat_is_connected') === 'true'
+      },
+      timestamp: new Date().toISOString(),
+      extracted_by: 'Atendechat Config Extractor'
+    };
+
+    const jsonString = JSON.stringify(configData, null, 2);
+    setExtractedConfig(jsonString);
+    setShowExtractedConfig(true);
+
+    toast({
+      title: "Configurações extraídas!",
+      description: "Dados do localStorage foram extraídos com sucesso"
+    });
+  };
+
+  const handleCopyConfig = async () => {
+    try {
+      await navigator.clipboard.writeText(extractedConfig);
+      toast({
+        title: "Copiado!",
+        description: "Configurações copiadas para a área de transferência"
+      });
+    } catch (error) {
+      toast({
+        title: "Erro ao copiar",
+        description: "Não foi possível copiar as configurações",
+        variant: "destructive"
+      });
+    }
+  };
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Building2 className="h-5 w-5 text-blue-600" />
-          Configuração da API Atendechat
-        </CardTitle>
-        <CardDescription>
-          Conecte diretamente à sua instância existente do Atendechat
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="api-url">URL da API</Label>
-          <Input
-            id="api-url"
-            placeholder="https://api.enigmafranquias.tzsacademy.com"
-            value={atendechatConfig.apiUrl}
-            onChange={(e) => updateAtendechatConfig({ ...atendechatConfig, apiUrl: e.target.value })}
-            disabled={atendechatConfig.isConnected}
-          />
-          <p className="text-xs text-gray-500">URL base da sua API Atendechat</p>
-        </div>
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Building2 className="h-5 w-5 text-blue-600" />
+            Configuração da API Atendechat
+          </CardTitle>
+          <CardDescription>
+            Conecte diretamente à sua instância existente do Atendechat
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="api-url">URL da API</Label>
+            <Input
+              id="api-url"
+              placeholder="https://api.enigmafranquias.tzsacademy.com"
+              value={atendechatConfig.apiUrl}
+              onChange={(e) => updateAtendechatConfig({ ...atendechatConfig, apiUrl: e.target.value })}
+              disabled={atendechatConfig.isConnected}
+            />
+            <p className="text-xs text-gray-500">URL base da sua API Atendechat</p>
+          </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="username">Usuário</Label>
-          <Input
-            id="username"
-            placeholder="Seu nome de usuário"
-            value={atendechatConfig.username}
-            onChange={(e) => updateAtendechatConfig({ ...atendechatConfig, username: e.target.value })}
-            disabled={atendechatConfig.isConnected}
-          />
-        </div>
+          <div className="space-y-2">
+            <Label htmlFor="username">Usuário</Label>
+            <Input
+              id="username"
+              placeholder="Seu nome de usuário"
+              value={atendechatConfig.username}
+              onChange={(e) => updateAtendechatConfig({ ...atendechatConfig, username: e.target.value })}
+              disabled={atendechatConfig.isConnected}
+            />
+          </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="password">Senha</Label>
-          <Input
-            id="password"
-            type="password"
-            placeholder="••••••••"
-            value={atendechatConfig.password}
-            onChange={(e) => updateAtendechatConfig({ ...atendechatConfig, password: e.target.value })}
-            disabled={atendechatConfig.isConnected}
-          />
-        </div>
+          <div className="space-y-2">
+            <Label htmlFor="password">Senha</Label>
+            <Input
+              id="password"
+              type="password"
+              placeholder="••••••••"
+              value={atendechatConfig.password}
+              onChange={(e) => updateAtendechatConfig({ ...atendechatConfig, password: e.target.value })}
+              disabled={atendechatConfig.isConnected}
+            />
+          </div>
 
-        {atendechatConfig.isConnected && (
-          <div className="rounded-md bg-green-50 p-4 border border-green-200">
-            <div className="flex items-center">
-              <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
-              <div>
-                <h4 className="text-sm font-medium text-green-800">Conectado à API Atendechat</h4>
-                <p className="text-xs text-green-700 mt-1">ID da sessão: {atendechatConfig.sessionId}</p>
+          {atendechatConfig.isConnected && (
+            <div className="rounded-md bg-green-50 p-4 border border-green-200">
+              <div className="flex items-center">
+                <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
+                <div>
+                  <h4 className="text-sm font-medium text-green-800">Conectado à API Atendechat</h4>
+                  <p className="text-xs text-green-700 mt-1">ID da sessão: {atendechatConfig.sessionId}</p>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {atendechatConfig.isConnected && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="auto-reply">Respostas Automáticas</Label>
-              <Switch id="auto-reply" defaultChecked />
-            </div>
-            
-            <div className="border-t pt-4">
-              <h4 className="text-sm font-medium mb-2">Enviar Mensagem de Teste</h4>
-              <div className="space-y-2">
-                <Label htmlFor="test-number">Número de WhatsApp (com DDD)</Label>
-                <Input
-                  id="test-number"
-                  placeholder="11912345678"
-                  value={testNumber}
-                  onChange={(e) => setTestNumber(e.target.value)}
-                />
-                
-                <Label htmlFor="test-message">Mensagem</Label>
-                <Input
-                  id="test-message"
-                  value={testMessage}
-                  onChange={(e) => setTestMessage(e.target.value)}
-                />
-                
-                <Button 
-                  onClick={handleSendTest} 
-                  disabled={isSendingTest}
-                  className="w-full"
-                >
-                  {isSendingTest ? "Enviando..." : "Enviar Teste"} <Send className="ml-2 h-4 w-4" />
-                </Button>
+          {atendechatConfig.isConnected && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="auto-reply">Respostas Automáticas</Label>
+                <Switch id="auto-reply" defaultChecked />
+              </div>
+              
+              <div className="border-t pt-4">
+                <h4 className="text-sm font-medium mb-2">Enviar Mensagem de Teste</h4>
+                <div className="space-y-2">
+                  <Label htmlFor="test-number">Número de WhatsApp (com DDD)</Label>
+                  <Input
+                    id="test-number"
+                    placeholder="11912345678"
+                    value={testNumber}
+                    onChange={(e) => setTestNumber(e.target.value)}
+                  />
+                  
+                  <Label htmlFor="test-message">Mensagem</Label>
+                  <Input
+                    id="test-message"
+                    value={testMessage}
+                    onChange={(e) => setTestMessage(e.target.value)}
+                  />
+                  
+                  <Button 
+                    onClick={handleSendTest} 
+                    disabled={isSendingTest}
+                    className="w-full"
+                  >
+                    {isSendingTest ? "Enviando..." : "Enviar Teste"} <Send className="ml-2 h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             </div>
-          </div>
-        )}
-      </CardContent>
-      <CardFooter>
-        {!atendechatConfig.isConnected ? (
+          )}
+        </CardContent>
+        <CardFooter className="flex gap-2">
+          {!atendechatConfig.isConnected ? (
+            <Button 
+              onClick={handleConnect} 
+              disabled={isLoading} 
+              className="flex-1"
+            >
+              {isLoading ? "Conectando..." : "Conectar à API Atendechat"} 
+              {isLoading ? <RefreshCcw className="ml-2 h-4 w-4 animate-spin" /> : <Key className="ml-2 h-4 w-4" />}
+            </Button>
+          ) : (
+            <Button 
+              onClick={handleDisconnect}
+              variant="outline"
+              className="flex-1"
+            >
+              Desconectar
+            </Button>
+          )}
+          
           <Button 
-            onClick={handleConnect} 
-            disabled={isLoading} 
-            className="w-full"
+            onClick={handleExtractConfig}
+            variant="secondary"
+            className="flex-1"
           >
-            {isLoading ? "Conectando..." : "Conectar à API Atendechat"} 
-            {isLoading ? <RefreshCcw className="ml-2 h-4 w-4 animate-spin" /> : <Key className="ml-2 h-4 w-4" />}
+            <Download className="mr-2 h-4 w-4" />
+            Extrair Configurações
           </Button>
-        ) : (
-          <Button 
-            onClick={handleDisconnect}
-            variant="outline"
-            className="w-full"
-          >
-            Desconectar
-          </Button>
-        )}
-      </CardFooter>
-    </Card>
+        </CardFooter>
+      </Card>
+
+      {showExtractedConfig && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Download className="h-5 w-5 text-green-600" />
+              Configurações Extraídas
+            </CardTitle>
+            <CardDescription>
+              Dados salvos no localStorage do navegador
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="extracted-config">Dados em JSON</Label>
+              <Textarea
+                id="extracted-config"
+                value={extractedConfig}
+                readOnly
+                className="min-h-[300px] font-mono text-sm"
+              />
+            </div>
+          </CardContent>
+          <CardFooter>
+            <Button 
+              onClick={handleCopyConfig}
+              className="w-full"
+            >
+              <Copy className="mr-2 h-4 w-4" />
+              Copiar Configurações
+            </Button>
+          </CardFooter>
+        </Card>
+      )}
+    </div>
   );
 }
