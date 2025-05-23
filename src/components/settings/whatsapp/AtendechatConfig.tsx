@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Building2, CheckCircle, AlertCircle, Send, Key, RefreshCcw, Download, Copy } from 'lucide-react';
+import { Building2, CheckCircle, AlertCircle, Send, Key, RefreshCcw, Download, Copy, User } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
@@ -34,7 +34,7 @@ export function AtendechatConfig({ atendechatConfig, updateAtendechatConfig }: A
     if (!atendechatConfig.apiUrl || !atendechatConfig.username || !atendechatConfig.password) {
       toast({
         title: "Informações incompletas",
-        description: "Por favor, preencha todos os campos obrigatórios",
+        description: "Por favor, preencha todos os campos obrigatórios (URL da API, Usuário e Senha)",
         variant: "destructive"
       });
       return;
@@ -113,12 +113,12 @@ export function AtendechatConfig({ atendechatConfig, updateAtendechatConfig }: A
   const handleExtractConfig = () => {
     const configData = {
       atendechat: {
-        apiUrl: localStorage.getItem('atendechat_api_url') || '',
-        authToken: localStorage.getItem('atendechat_auth_token') || '',
-        username: localStorage.getItem('atendechat_username') || '',
-        password: localStorage.getItem('atendechat_password') || '',
-        sessionId: localStorage.getItem('atendechat_session_id') || '',
-        isConnected: localStorage.getItem('atendechat_is_connected') === 'true'
+        apiUrl: atendechatConfig.apiUrl,
+        authToken: atendechatConfig.authToken,
+        username: atendechatConfig.username,
+        password: atendechatConfig.password,
+        sessionId: atendechatConfig.sessionId,
+        isConnected: atendechatConfig.isConnected
       },
       timestamp: new Date().toISOString(),
       extracted_by: 'Atendechat Config Extractor'
@@ -130,7 +130,7 @@ export function AtendechatConfig({ atendechatConfig, updateAtendechatConfig }: A
 
     toast({
       title: "Configurações extraídas!",
-      description: "Dados do localStorage foram extraídos com sucesso"
+      description: "Dados de configuração foram extraídos com sucesso"
     });
   };
 
@@ -164,7 +164,7 @@ export function AtendechatConfig({ atendechatConfig, updateAtendechatConfig }: A
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="api-url">URL da API</Label>
+            <Label htmlFor="api-url">URL da API <span className="text-red-500">*</span></Label>
             <Input
               id="api-url"
               placeholder="https://api.enigmafranquias.tzsacademy.com"
@@ -176,26 +176,35 @@ export function AtendechatConfig({ atendechatConfig, updateAtendechatConfig }: A
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="username">Usuário</Label>
-            <Input
-              id="username"
-              placeholder="Seu nome de usuário"
-              value={atendechatConfig.username}
-              onChange={(e) => updateAtendechatConfig({ ...atendechatConfig, username: e.target.value })}
-              disabled={atendechatConfig.isConnected}
-            />
+            <Label htmlFor="username">Usuário <span className="text-red-500">*</span></Label>
+            <div className="flex items-center gap-2 rounded-md border bg-background px-3">
+              <User className="h-4 w-4 text-gray-400" />
+              <Input
+                id="username"
+                placeholder="Seu nome de usuário"
+                value={atendechatConfig.username}
+                onChange={(e) => updateAtendechatConfig({ ...atendechatConfig, username: e.target.value })}
+                disabled={atendechatConfig.isConnected}
+                className="border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 px-0"
+              />
+            </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="password">Senha</Label>
-            <Input
-              id="password"
-              type="password"
-              placeholder="••••••••"
-              value={atendechatConfig.password}
-              onChange={(e) => updateAtendechatConfig({ ...atendechatConfig, password: e.target.value })}
-              disabled={atendechatConfig.isConnected}
-            />
+            <Label htmlFor="password">Senha <span className="text-red-500">*</span></Label>
+            <div className="flex items-center gap-2 rounded-md border bg-background px-3">
+              <Key className="h-4 w-4 text-gray-400" />
+              <Input
+                id="password"
+                type="password"
+                placeholder="••••••••"
+                value={atendechatConfig.password}
+                onChange={(e) => updateAtendechatConfig({ ...atendechatConfig, password: e.target.value })}
+                disabled={atendechatConfig.isConnected}
+                className="border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 px-0"
+              />
+            </div>
+            <p className="text-xs text-gray-500">Todos os campos marcados com <span className="text-red-500">*</span> são obrigatórios</p>
           </div>
 
           {atendechatConfig.isConnected && (
@@ -247,7 +256,7 @@ export function AtendechatConfig({ atendechatConfig, updateAtendechatConfig }: A
             </div>
           )}
         </CardContent>
-        <CardFooter className="flex gap-2">
+        <CardFooter className="flex flex-wrap gap-2">
           {!atendechatConfig.isConnected ? (
             <Button 
               onClick={handleConnect} 
@@ -286,7 +295,7 @@ export function AtendechatConfig({ atendechatConfig, updateAtendechatConfig }: A
               Configurações Extraídas
             </CardTitle>
             <CardDescription>
-              Dados salvos no localStorage do navegador
+              Dados de configuração do Atendechat
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
