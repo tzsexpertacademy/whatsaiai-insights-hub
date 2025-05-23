@@ -2,7 +2,7 @@
 import React from 'react';
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarContent, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Bell, LogOut, Settings, User } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -52,11 +52,9 @@ export function DashboardHeader() {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                 <Avatar className="h-8 w-8">
-                  <AvatarContent>
-                    <AvatarFallback>
-                      {getInitials(user?.name || 'U')}
-                    </AvatarFallback>
-                  </AvatarContent>
+                  <AvatarFallback>
+                    {getInitials(user?.name || 'U')}
+                  </AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
