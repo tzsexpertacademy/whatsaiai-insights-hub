@@ -5,9 +5,10 @@ import { SleekFlowConfig } from './whatsapp/SleekFlowConfig';
 import { MakeConfig } from './MakeConfig';
 import { WAWebJSConfig } from './whatsapp/WAWebJSConfig';
 import { WhatsAppWebConfig } from './whatsapp/WhatsAppWebConfig';
+import { AtendechatConfig } from './whatsapp/AtendechatConfig';
 
 export function WhatsAppPlatformConfig() {
-  const [selectedPlatform, setSelectedPlatform] = useState('whatsappweb');
+  const [selectedPlatform, setSelectedPlatform] = useState('atendechat');
   
   // Configurações para cada plataforma
   const [watiConfig, setWatiConfig] = useState({
@@ -32,6 +33,15 @@ export function WhatsAppPlatformConfig() {
     sessionName: localStorage.getItem('whatsappweb_session_name') || '',
     autoReply: localStorage.getItem('whatsappweb_auto_reply') === 'true',
     welcomeMessage: localStorage.getItem('whatsappweb_welcome_message') || ''
+  });
+
+  const [atendechatConfig, setAtendechatConfig] = useState({
+    apiUrl: localStorage.getItem('atendechat_api_url') || 'https://api.enigmafranquias.tzsacademy.com',
+    authToken: localStorage.getItem('atendechat_auth_token') || '',
+    username: localStorage.getItem('atendechat_username') || '',
+    password: localStorage.getItem('atendechat_password') || '',
+    sessionId: localStorage.getItem('atendechat_session_id') || '',
+    isConnected: localStorage.getItem('atendechat_is_connected') === 'true'
   });
 
   const updateWatiConfig = (config: Partial<typeof watiConfig>) => {
@@ -74,8 +84,25 @@ export function WhatsAppPlatformConfig() {
     });
   };
 
+  const updateAtendechatConfig = (config: Partial<typeof atendechatConfig>) => {
+    const newConfig = { ...atendechatConfig, ...config };
+    setAtendechatConfig(newConfig);
+    
+    // Salvar no localStorage
+    Object.entries(newConfig).forEach(([key, value]) => {
+      localStorage.setItem(`atendechat_${key}`, typeof value === 'boolean' ? String(value) : value);
+    });
+  };
+
   const renderPlatformConfig = () => {
     switch (selectedPlatform) {
+      case 'atendechat':
+        return (
+          <AtendechatConfig 
+            atendechatConfig={atendechatConfig}
+            updateAtendechatConfig={updateAtendechatConfig}
+          />
+        );
       case 'whatsappweb':
         return (
           <WhatsAppWebConfig 
