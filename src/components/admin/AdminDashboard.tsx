@@ -77,7 +77,7 @@ export function AdminDashboard() {
       if (authError) throw authError;
 
       const clientsData: Client[] = profiles?.map(profile => {
-        const authUser = authUsers.users.find(u => u.id === profile.id);
+        const authUser = authUsers.users.find((u: any) => u.id === profile.id);
         return {
           id: profile.id,
           email: authUser?.email || 'N/A',
@@ -159,10 +159,11 @@ export function AdminDashboard() {
 
     setIsLoading(true);
     try {
-      // Criar usuário no Supabase Auth
+      // Criar usuário no Supabase Auth com confirmação automática
       const { data: authData, error: authError } = await supabase.auth.admin.createUser({
         email: newClient.email,
         password: newClient.password,
+        email_confirm: true, // Confirma automaticamente o email
         user_metadata: {
           full_name: newClient.name,
           company_name: newClient.companyName,
@@ -188,7 +189,7 @@ export function AdminDashboard() {
 
       // Recarregar lista de clientes
       loadClients();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao criar cliente:', error);
       toast({
         title: "Erro ao criar cliente",
@@ -203,10 +204,11 @@ export function AdminDashboard() {
   const createAdminUser = async () => {
     setIsLoading(true);
     try {
-      // Criar usuário administrador
+      // Criar usuário administrador com email confirmado automaticamente
       const { data: authData, error: authError } = await supabase.auth.admin.createUser({
         email: 'admin@observatorio.com',
         password: 'admin123456',
+        email_confirm: true, // Confirma automaticamente o email
         user_metadata: {
           full_name: 'Administrador Sistema',
           company_name: 'Observatório Psicológico',
@@ -222,7 +224,7 @@ export function AdminDashboard() {
       });
 
       loadClients();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao criar admin:', error);
       toast({
         title: "Erro ao criar administrador",
