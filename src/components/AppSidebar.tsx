@@ -1,19 +1,4 @@
-
-import React from 'react';
-import { useLocation } from 'react-router-dom';
-import { 
-  Brain,
-  Home,
-  User,
-  Heart,
-  Timer,
-  FileText,
-  Settings,
-  MessageCircle,
-  Smartphone,
-  Shield,
-  UserCircle
-} from 'lucide-react';
+import { Brain, BarChart3, User, Heart, Target, MessageSquare, Settings, UserCircle, Users, FileSearch } from 'lucide-react';
 import {
   Sidebar,
   SidebarContent,
@@ -21,110 +6,102 @@ import {
   SidebarGroupContent,
   SidebarGroupLabel,
   SidebarMenu,
-  SidebarTrigger,
-  useSidebar,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarHeader,
+  SidebarFooter,
 } from "@/components/ui/sidebar";
-import { SidebarNavItem } from "@/components/SidebarNavItem";
-
-const navigationItems = [
-  { title: "Dashboard", url: "/", icon: Home },
-  { title: "Áreas da Vida", url: "/areas", icon: Heart },
-  { title: "Perfil Comportamental", url: "/profile", icon: User },
-  { title: "Termômetro Emocional", url: "/emotions", icon: Timer },
-  { title: "Conselhos e Recomendações", url: "/recommendations", icon: FileText },
-];
-
-const whatsappItems = [
-  { title: "Conexão WhatsApp", url: "/connection", icon: Smartphone },
-  { title: "Chat Interface", url: "/chat", icon: MessageCircle },
-];
-
-const configItems = [
-  { title: "Meu Perfil", url: "/user-profile", icon: UserCircle },
-  { title: "Configurações", url: "/settings", icon: Settings },
-  { title: "Painel Admin", url: "/admin/clients", icon: Shield },
-];
+import { SidebarNavItem } from './SidebarNavItem';
+import { useAuth } from '@/contexts/AuthContext';
 
 export function AppSidebar() {
-  const { state } = useSidebar();
-  const location = useLocation();
-  const isCollapsed = state === "collapsed";
-  
+  const { user } = useAuth();
+
+  const mainNavItems = [
+    { title: 'Dashboard', icon: BarChart3, href: '/' },
+    { title: 'Áreas da Vida', icon: Target, href: '/areas' },
+    { title: 'Perfil Comportamental', icon: Brain, href: '/profile' },
+    { title: 'Termômetro Emocional', icon: Heart, href: '/emotions' },
+    { title: 'Recomendações', icon: MessageSquare, href: '/recommendations' },
+    { title: 'Análise de Documentos', icon: FileSearch, href: '/document-analysis' },
+  ];
+
+  const configNavItems = [
+    { title: 'Conexão WhatsApp', icon: MessageSquare, href: '/connection' },
+    { title: 'Chat com IA', icon: Brain, href: '/chat' },
+    { title: 'Configurações', icon: Settings, href: '/settings' },
+    { title: 'Perfil', icon: UserCircle, href: '/user-profile' },
+  ];
+
+  const isAdmin = user?.email === 'admin@kairon.ai';
+
   return (
-    <Sidebar 
-      className="border-r bg-white dark:bg-gray-900 shadow-lg"
-      collapsible="icon"
-    >
-      <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-900">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="p-2 bg-blue-100 dark:bg-blue-900/50 rounded-lg border border-blue-200 dark:border-blue-800 flex-shrink-0">
-            <Brain className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+    <Sidebar>
+      <SidebarHeader className="p-6">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+            <Brain className="w-5 h-5 text-white" />
           </div>
-          {!isCollapsed && (
-            <div className="min-w-0 flex-1">
-              <h2 className="text-lg font-bold text-gray-800 dark:text-white truncate">Observatório</h2>
-              <p className="text-xs text-gray-600 dark:text-gray-400 truncate">Insights Pessoais</p>
-            </div>
-          )}
+          <div>
+            <h1 className="font-bold text-lg">LifeSync AI</h1>
+            <p className="text-xs text-muted-foreground">Insights Inteligentes</p>
+          </div>
         </div>
-        <SidebarTrigger className="text-gray-600 dark:text-gray-300 hover:bg-white/50 dark:hover:bg-gray-800/50 hover:text-gray-800 dark:hover:text-white w-8 h-8 rounded-md transition-colors border border-gray-300 dark:border-gray-600" />
-      </div>
+      </SidebarHeader>
 
-      <SidebarContent className="px-2 py-4 space-y-4 bg-gray-50 dark:bg-gray-900">
+      <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel className="text-gray-800 dark:text-white font-semibold text-xs mb-2 px-2 uppercase tracking-wide">
-            {!isCollapsed ? "PRINCIPAL" : ""}
-          </SidebarGroupLabel>
+          <SidebarGroupLabel>Principal</SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu className="space-y-1">
-              {navigationItems.map((item) => (
-                <SidebarNavItem 
-                  key={item.title}
-                  title={item.title} 
-                  url={item.url} 
-                  icon={item.icon} 
-                />
+            <SidebarMenu>
+              {mainNavItems.map((item) => (
+                <SidebarMenuItem key={item.href}>
+                  <SidebarMenuButton asChild>
+                    <SidebarNavItem {...item} />
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
               ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
 
         <SidebarGroup>
-          <SidebarGroupLabel className="text-gray-800 dark:text-white font-semibold text-xs mb-2 px-2 uppercase tracking-wide">
-            {!isCollapsed ? "WHATSAPP" : ""}
-          </SidebarGroupLabel>
+          <SidebarGroupLabel>Configurações</SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu className="space-y-1">
-              {whatsappItems.map((item) => (
-                <SidebarNavItem 
-                  key={item.title}
-                  title={item.title} 
-                  url={item.url} 
-                  icon={item.icon} 
-                />
+            <SidebarMenu>
+              {configNavItems.map((item) => (
+                <SidebarMenuItem key={item.href}>
+                  <SidebarMenuButton asChild>
+                    <SidebarNavItem {...item} />
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
               ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <SidebarGroup>
-          <SidebarGroupLabel className="text-gray-800 dark:text-white font-semibold text-xs mb-2 px-2 uppercase tracking-wide">
-            {!isCollapsed ? "CONTA" : ""}
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu className="space-y-1">
-              {configItems.map((item) => (
-                <SidebarNavItem 
-                  key={item.title}
-                  title={item.title} 
-                  url={item.url} 
-                  icon={item.icon} 
-                />
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {isAdmin && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Admin</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <SidebarNavItem title="Gerenciar Clientes" icon={Users} href="/admin/clients" />
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
       </SidebarContent>
+
+      <SidebarFooter className="p-6">
+        <div className="text-center text-xs text-muted-foreground">
+          <p>© {new Date().getFullYear()} Kairon Labs</p>
+          <p>Inteligência Artificial para o seu bem-estar</p>
+        </div>
+      </SidebarFooter>
     </Sidebar>
   );
 }

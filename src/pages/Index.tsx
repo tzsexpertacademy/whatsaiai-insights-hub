@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { SidebarProvider } from "@/components/ui/sidebar";
@@ -14,6 +13,7 @@ import { ChatInterface } from '@/components/ChatInterface';
 import { SettingsPage } from '@/components/SettingsPage';
 import { ProfilePage } from '@/components/ProfilePage';
 import { ClientManagement } from '@/components/admin/ClientManagement';
+import { DocumentAnalysis } from '@/components/DocumentAnalysis';
 
 // Criamos um componente wrapper para carregar componentes dinâmicos que usam bibliotecas externas
 const DynamicComponentLoader = ({ Component }) => {
@@ -109,6 +109,12 @@ const Index = () => {
                       <>
                         {console.log('Index - Rendering ClientManagement')}
                         <ClientManagement />
+                      </>
+                    } />
+                    <Route path="/document-analysis" element={
+                      <>
+                        {console.log('Index - Rendering DocumentAnalysis')}
+                        <DocumentAnalysis />
                       </>
                     } />
                   </Routes>

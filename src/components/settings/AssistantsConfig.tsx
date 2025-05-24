@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,8 +7,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Save, X, Plus, Eye, MessageCircle } from 'lucide-react';
+import { Edit, Save, X, Plus, Eye, MessageCircle, TestTube } from 'lucide-react';
 import { useAssistantsConfig } from '@/hooks/useAssistantsConfig';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Assistant {
   id: string;
@@ -29,6 +31,72 @@ export function AssistantsConfig() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [newAssistant, setNewAssistant] = useState<Partial<Assistant>>({});
   const [showNewForm, setShowNewForm] = useState(false);
+  const [isTestingAnalysis, setIsTestingAnalysis] = useState(false);
+  const { toast } = useToast();
+  const { user } = useAuth();
+
+  const createTestConversation = async () => {
+    if (!user?.id) return;
+
+    setIsTestingAnalysis(true);
+    
+    try {
+      // Criar conversa de teste
+      const testConversation = {
+        user_id: user.id,
+        contact_name: 'Maria Silva',
+        contact_phone: '+5511999999999',
+        messages: [
+          {
+            sender: 'Maria Silva',
+            message: 'Oi! Estou me sentindo muito ansiosa ultimamente...',
+            timestamp: new Date().toISOString()
+          },
+          {
+            sender: 'You',
+            message: 'Me conta mais sobre isso, quando começou?',
+            timestamp: new Date().toISOString()
+          },
+          {
+            sender: 'Maria Silva',
+            message: 'Desde que comecei o novo trabalho, não durmo bem, estou gastando mais dinheiro comprando coisas desnecessárias e não consigo me concentrar nos exercícios.',
+            timestamp: new Date().toISOString()
+          },
+          {
+            sender: 'You',
+            message: 'Entendo... você já tentou alguma técnica de relaxamento?',
+            timestamp: new Date().toISOString()
+          },
+          {
+            sender: 'Maria Silva',
+            message: 'Tentei meditação mas minha mente não para. Estou pensando em procurar um psicólogo, mas tenho medo de não ter dinheiro para continuar o tratamento.',
+            timestamp: new Date().toISOString()
+          }
+        ]
+      };
+
+      const { error: insertError } = await supabase
+        .from('whatsapp_conversations')
+        .insert(testConversation);
+
+      if (insertError) throw insertError;
+
+      toast({
+        title: "Conversa de teste criada",
+        description: "Agora você pode testar a análise multi-assistente no dashboard",
+      });
+
+    } catch (error) {
+      console.error('Erro ao criar conversa de teste:', error);
+      toast({
+        title: "Erro ao criar teste",
+        description: "Não foi possível criar a conversa de teste",
+        variant: "destructive",
+      });
+    } finally {
+      setIsTestingAnalysis(false);
+    }
+  };
 
   const handleEdit = (id: string) => {
     setEditingId(id);
@@ -94,11 +162,37 @@ export function AssistantsConfig() {
           <h2 className="text-2xl font-bold text-slate-800">Assistentes do Sistema</h2>
           <p className="text-slate-600">Configure personalidades e prompts dos assistentes que analisam suas conversas</p>
         </div>
-        <Button onClick={() => setShowNewForm(true)} className="flex items-center gap-2">
-          <Plus className="h-4 w-4" />
-          Novo Assistente
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            onClick={createTestConversation}
+            disabled={isTestingAnalysis}
+            variant="outline"
+            className="flex items-center gap-2"
+          >
+            <TestTube className="h-4 w-4" />
+            {isTestingAnalysis ? 'Criando...' : 'Criar Teste'}
+          </Button>
+          <Button onClick={() => setShowNewForm(true)} className="flex items-center gap-2">
+            <Plus className="h-4 w-4" />
+            Novo Assistente
+          </Button>
+        </div>
       </div>
+
+      {/* Alerta sobre teste */}
+      <Card className="bg-blue-50 border-blue-200">
+        <CardContent className="pt-6">
+          <div className="flex items-start gap-3">
+            <TestTube className="h-5 w-5 text-blue-600 mt-0.5" />
+            <div>
+              <h3 className="font-semibold text-blue-900">Testar Análise Multi-Assistente</h3>
+              <p className="text-blue-700 text-sm mt-1">
+                Clique em "Criar Teste" para adicionar uma conversa de exemplo. Depois vá ao Dashboard e clique em "Atualizar Relatório" para ver os assistentes em ação.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {showNewForm && (
         <Card className="bg-white/70 backdrop-blur-sm border-white/50">
