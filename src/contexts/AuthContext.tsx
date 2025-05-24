@@ -33,27 +33,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   console.log('🔐 AuthProvider render - Estado:', { user: !!user, session: !!session, isLoading });
 
   useEffect(() => {
-    console.log('🔄 AuthProvider - Iniciando configuração de autenticação');
+    console.log('🔄 AuthProvider - Iniciando configuração simplificada');
     
-    let mounted = true;
+    let isMounted = true;
 
-    // Função para processar sessão
-    const handleSession = async (session: Session | null) => {
+    // Função simplificada para processar sessão
+    const processSession = async (session: Session | null) => {
+      if (!isMounted) return;
+      
       console.log('📋 AuthProvider - Processando sessão:', !!session);
-      
-      if (!mounted) return;
-      
       setSession(session);
       
       if (session?.user) {
         try {
+          // Buscar perfil do usuário
           const { data: profile } = await supabase
             .from('profiles')
             .select('*')
             .eq('id', session.user.id)
             .maybeSingle();
 
-          if (mounted) {
+          if (isMounted) {
             const userProfile: UserProfile = {
               id: session.user.id,
               email: session.user.email!,
@@ -69,7 +69,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         } catch (error) {
           console.error('❌ AuthProvider - Erro ao carregar perfil:', error);
-          if (mounted) {
+          if (isMounted) {
+            // Fallback para usuário básico
             setUser({
               id: session.user.id,
               email: session.user.email!,
@@ -82,58 +83,65 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       } else {
         console.log('🚪 AuthProvider - Removendo usuário (logout)');
-        if (mounted) {
+        if (isMounted) {
           setUser(null);
         }
       }
       
-      if (mounted) {
+      // IMPORTANTE: Sempre finalizar loading
+      if (isMounted) {
         console.log('🏁 AuthProvider - Finalizando loading');
         setIsLoading(false);
       }
     };
 
-    // Configurar listener de mudanças de autenticação
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('🔄 AuthProvider - Auth state changed:', event);
-      await handleSession(session);
-    });
-
-    // Verificar sessão atual
-    const initializeAuth = async () => {
+    // Inicialização simplificada
+    const initialize = async () => {
       try {
-        console.log('🔍 AuthProvider - Verificando sessão atual');
-        const { data: { session }, error } = await supabase.auth.getSession();
+        console.log('🔍 AuthProvider - Verificando sessão inicial');
+        
+        // 1. Primeiro verificar sessão atual
+        const { data: { session: currentSession }, error } = await supabase.auth.getSession();
         
         if (error) {
           console.error('❌ AuthProvider - Erro ao verificar sessão:', error);
-          if (mounted) {
+          if (isMounted) {
             setIsLoading(false);
           }
           return;
         }
 
-        await handleSession(session);
+        // 2. Processar sessão atual
+        await processSession(currentSession);
+
       } catch (error) {
         console.error('❌ AuthProvider - Erro na inicialização:', error);
-        if (mounted) {
+        if (isMounted) {
           setIsLoading(false);
         }
       }
     };
 
-    initializeAuth();
+    // 3. Configurar listener de mudanças (DEPOIS da inicialização)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('🔄 AuthProvider - Auth state changed:', event);
+      if (isMounted) {
+        await processSession(session);
+      }
+    });
+
+    // Executar inicialização
+    initialize();
 
     return () => {
       console.log('🧹 AuthProvider - Cleanup');
-      mounted = false;
+      isMounted = false;
       subscription.unsubscribe();
     };
-  }, []);
+  }, []); // Array de dependências vazio - executa apenas uma vez
 
   const login = async (email: string, password: string): Promise<void> => {
     console.log('🔑 AuthProvider - Tentativa de login');
-    setIsLoading(true);
     try {
       const { error } = await supabase.auth.signInWithPassword({
         email,
@@ -142,14 +150,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (error) throw error;
       console.log('✅ AuthProvider - Login bem-sucedido');
-    } finally {
-      setIsLoading(false);
+    } catch (error) {
+      console.error('❌ AuthProvider - Erro no login:', error);
+      throw error;
     }
   };
 
   const signup = async (email: string, password: string, metadata?: { fullName?: string; companyName?: string }): Promise<void> => {
     console.log('📝 AuthProvider - Tentativa de cadastro');
-    setIsLoading(true);
     try {
       const { error } = await supabase.auth.signUp({
         email,
@@ -164,18 +172,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (error) throw error;
       console.log('✅ AuthProvider - Cadastro bem-sucedido');
-    } finally {
-      setIsLoading(false);
+    } catch (error) {
+      console.error('❌ AuthProvider - Erro no cadastro:', error);
+      throw error;
     }
   };
 
   const logout = async (): Promise<void> => {
     console.log('🚪 AuthProvider - Logout');
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
-    
-    setUser(null);
-    setSession(null);
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
+      setUser(null);
+      setSession(null);
+    } catch (error) {
+      console.error('❌ AuthProvider - Erro no logout:', error);
+      throw error;
+    }
   };
 
   const isAuthenticated = !!user && !!session;
