@@ -9,6 +9,7 @@ import { useAssistantsConfig } from '@/hooks/useAssistantsConfig';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { useClientConfig } from '@/contexts/ClientConfigContext';
+import { CostEstimator } from './CostEstimator';
 
 export function DocumentAnalysis() {
   const { assistants, isLoading } = useAssistantsConfig();
@@ -348,6 +349,10 @@ ${processedContent}`;
     );
   }
 
+  // Buscar assistente selecionado para usar no estimador de custo
+  const selectedAssistantData = assistants.find(a => a.id === selectedAssistant);
+  const modelToUse = selectedAssistantData?.model || config.openai?.model || 'gpt-4o-mini';
+
   return (
     <div className="space-y-6">
       <div>
@@ -575,6 +580,16 @@ ${processedContent}`;
           </CardContent>
         </Card>
       </div>
+
+      {/* Estimador de Custo - aparece quando temos arquivo e assistente selecionados */}
+      {selectedFile && selectedAssistant && documentInfo && (
+        <CostEstimator
+          estimatedTokens={documentInfo.estimatedTokens}
+          maxTokens={maxTokens}
+          model={modelToUse}
+          fileName={selectedFile.name}
+        />
+      )}
 
       {/* Assistentes Disponíveis */}
       <Card>
