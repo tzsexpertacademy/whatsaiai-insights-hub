@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,8 +7,10 @@ import { Switch } from "@/components/ui/switch";
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { useAutoRefresh } from '@/hooks/useAutoRefresh';
+import { useCacheManager } from '@/hooks/useCacheManager';
 import { supabase } from '@/integrations/supabase/client';
-import { User, Save, Sparkles, RefreshCw } from 'lucide-react';
+import { User, Save, Sparkles, RefreshCw, Trash2 } from 'lucide-react';
+import { AIAnalysisButton } from '@/components/AIAnalysisButton';
 
 interface UserProfile {
   id: string;
@@ -23,6 +24,7 @@ export function ProfileSettings() {
   const { user } = useAuth();
   const { toast } = useToast();
   const { refreshAfterUpdate, quickRefresh } = useAutoRefresh();
+  const { forceRefreshWithCacheClear } = useCacheManager();
   const [profile, setProfile] = useState<UserProfile>({
     id: '',
     full_name: '',
@@ -215,15 +217,31 @@ export function ProfileSettings() {
           </p>
         </div>
         
-        <Button 
-          onClick={quickRefresh}
-          variant="outline"
-          size="sm"
-          className="flex items-center gap-2"
-        >
-          <RefreshCw className="h-4 w-4" />
-          Atualizar Página
-        </Button>
+        <div className="flex items-center gap-3">
+          {/* Botão de Análise por IA */}
+          <AIAnalysisButton variant="outline" size="sm" />
+          
+          {/* Botão para limpar cache */}
+          <Button 
+            onClick={forceRefreshWithCacheClear}
+            variant="ghost"
+            size="sm"
+            className="flex items-center gap-2 text-orange-600 hover:text-orange-700"
+          >
+            <Trash2 className="h-4 w-4" />
+            Limpar Cache
+          </Button>
+          
+          <Button 
+            onClick={quickRefresh}
+            variant="outline"
+            size="sm"
+            className="flex items-center gap-2"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Atualizar Página
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -345,6 +363,19 @@ export function ProfileSettings() {
                   Relatórios detalhados sobre áreas da vida
                 </li>
               </ul>
+            </div>
+            
+            {/* Botão adicional para análise manual */}
+            <div className="pt-4 border-t">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="font-medium text-gray-900 mb-1">Análise Manual</h4>
+                  <p className="text-sm text-gray-600">
+                    Execute uma análise imediata das suas conversações
+                  </p>
+                </div>
+                <AIAnalysisButton variant="outline" size="sm" showText={false} />
+              </div>
             </div>
           </CardContent>
         </Card>

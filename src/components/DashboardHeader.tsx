@@ -1,10 +1,11 @@
-
 import React from 'react';
 import { Button } from "@/components/ui/button";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { useAuth } from '@/contexts/AuthContext';
-import { LogOut, User } from 'lucide-react';
+import { LogOut, User, RefreshCw, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useCacheManager } from '@/hooks/useCacheManager';
+import { AIAnalysisButton } from '@/components/AIAnalysisButton';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,6 +19,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 export function DashboardHeader() {
   const { user, logout } = useAuth();
   const { toast } = useToast();
+  const { forceRefreshWithCacheClear } = useCacheManager();
 
   const handleLogout = async () => {
     try {
@@ -68,32 +70,50 @@ export function DashboardHeader() {
           </div>
         </div>
 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-              <Avatar className="h-10 w-10">
-                <AvatarFallback className="bg-blue-500 text-white">
-                  {user?.name ? getUserInitials(user.name) : <User className="h-4 w-4" />}
-                </AvatarFallback>
-              </Avatar>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-56" align="end" forceMount>
-            <DropdownMenuLabel className="font-normal">
-              <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium leading-none">{user?.name}</p>
-                <p className="text-xs leading-none text-muted-foreground">
-                  {user?.email}
-                </p>
-              </div>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
-              <LogOut className="mr-2 h-4 w-4" />
-              <span>Sair</span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <div className="flex items-center gap-3">
+          {/* Botão de Análise por IA */}
+          <AIAnalysisButton variant="outline" size="sm" />
+          
+          {/* Botão para limpar cache */}
+          <Button 
+            onClick={forceRefreshWithCacheClear}
+            variant="ghost"
+            size="sm"
+            className="flex items-center gap-2 text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+            title="Limpar cache e atualizar"
+          >
+            <Trash2 className="h-4 w-4" />
+            <span className="hidden md:inline">Limpar Cache</span>
+          </Button>
+
+          {/* Menu do usuário */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+                <Avatar className="h-10 w-10">
+                  <AvatarFallback className="bg-blue-500 text-white">
+                    {user?.name ? getUserInitials(user.name) : <User className="h-4 w-4" />}
+                  </AvatarFallback>
+                </Avatar>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-56" align="end" forceMount>
+              <DropdownMenuLabel className="font-normal">
+                <div className="flex flex-col space-y-1">
+                  <p className="text-sm font-medium leading-none">{user?.name}</p>
+                  <p className="text-xs leading-none text-muted-foreground">
+                    {user?.email}
+                  </p>
+                </div>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Sair</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
     </header>
   );
