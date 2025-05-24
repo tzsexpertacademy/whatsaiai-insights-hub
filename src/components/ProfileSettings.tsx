@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -30,20 +29,27 @@ export function ProfileSettings() {
     plan: 'basic',
     ai_analysis_enabled: false
   });
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true); // Começar como true
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
+    console.log('🔄 ProfileSettings useEffect - user:', user?.id);
     if (user?.id) {
       loadProfile();
+    } else {
+      console.log('❌ Usuário não encontrado, parando carregamento');
+      setIsLoading(false);
     }
   }, [user?.id]);
 
   const loadProfile = async () => {
-    if (!user?.id) return;
+    if (!user?.id) {
+      console.log('❌ LoadProfile: user.id não disponível');
+      setIsLoading(false);
+      return;
+    }
 
     try {
-      setIsLoading(true);
       console.log('📥 Carregando perfil do usuário:', user.id);
 
       const { data, error } = await supabase
@@ -59,10 +65,12 @@ export function ProfileSettings() {
           description: "Não foi possível carregar as informações do perfil",
           variant: "destructive"
         });
+        setIsLoading(false);
         return;
       }
 
       if (data) {
+        console.log('✅ Perfil encontrado:', data);
         setProfile({
           id: data.id,
           full_name: data.full_name || '',
@@ -70,8 +78,18 @@ export function ProfileSettings() {
           plan: data.plan || 'basic',
           ai_analysis_enabled: data.ai_analysis_enabled || false
         });
-        console.log('✅ Perfil carregado com sucesso');
+      } else {
+        console.log('ℹ️ Nenhum perfil encontrado, usando dados do auth');
+        setProfile({
+          id: user.id,
+          full_name: user.name || '',
+          company_name: '',
+          plan: 'basic',
+          ai_analysis_enabled: false
+        });
       }
+      
+      console.log('✅ Perfil carregado com sucesso');
     } catch (error) {
       console.error('❌ Erro inesperado ao carregar perfil:', error);
       toast({
@@ -151,6 +169,17 @@ export function ProfileSettings() {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Carregando perfil...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold text-gray-800 mb-2">Usuário não encontrado</h2>
+          <p className="text-gray-600">Faça login para acessar seu perfil</p>
         </div>
       </div>
     );

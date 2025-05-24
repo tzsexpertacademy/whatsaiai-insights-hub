@@ -95,7 +95,13 @@ const Index = () => {
                     } />
                     <Route path="/user-profile" element={
                       <>
-                        {console.log('Index - Rendering ProfilePage')}
+                        {console.log('Index - Rendering ProfilePage (user-profile)')}
+                        <ProfilePage />
+                      </>
+                    } />
+                    <Route path="/perfil" element={
+                      <>
+                        {console.log('Index - Rendering ProfilePage (perfil)')}
                         <ProfilePage />
                       </>
                     } />
