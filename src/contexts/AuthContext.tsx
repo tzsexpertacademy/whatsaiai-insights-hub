@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { User, Session } from '@supabase/supabase-js';
 
@@ -29,123 +29,110 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const initialized = useRef(false);
-  const mountedRef = useRef(true);
+
+  console.log('🔐 AuthProvider render - Estado:', { user: !!user, session: !!session, isLoading });
 
   useEffect(() => {
-    return () => {
-      mountedRef.current = false;
+    console.log('🔄 AuthProvider - Iniciando configuração de autenticação');
+    
+    let mounted = true;
+
+    // Função para processar sessão
+    const handleSession = async (session: Session | null) => {
+      console.log('📋 AuthProvider - Processando sessão:', !!session);
+      
+      if (!mounted) return;
+      
+      setSession(session);
+      
+      if (session?.user) {
+        try {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .maybeSingle();
+
+          if (mounted) {
+            const userProfile: UserProfile = {
+              id: session.user.id,
+              email: session.user.email!,
+              name: profile?.full_name || session.user.user_metadata?.full_name || 'Usuário',
+              companyName: profile?.company_name || session.user.user_metadata?.company_name,
+              plan: (profile?.plan as 'basic' | 'premium' | 'enterprise') || 'basic',
+              createdAt: new Date(profile?.created_at || session.user.created_at),
+              isActive: true
+            };
+            
+            console.log('✅ AuthProvider - Usuário carregado:', userProfile.email);
+            setUser(userProfile);
+          }
+        } catch (error) {
+          console.error('❌ AuthProvider - Erro ao carregar perfil:', error);
+          if (mounted) {
+            setUser({
+              id: session.user.id,
+              email: session.user.email!,
+              name: 'Usuário',
+              plan: 'basic',
+              createdAt: new Date(),
+              isActive: true
+            });
+          }
+        }
+      } else {
+        console.log('🚪 AuthProvider - Removendo usuário (logout)');
+        if (mounted) {
+          setUser(null);
+        }
+      }
+      
+      if (mounted) {
+        console.log('🏁 AuthProvider - Finalizando loading');
+        setIsLoading(false);
+      }
     };
-  }, []);
 
-  useEffect(() => {
-    if (initialized.current) return;
-    initialized.current = true;
+    // Configurar listener de mudanças de autenticação
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('🔄 AuthProvider - Auth state changed:', event);
+      await handleSession(session);
+    });
 
+    // Verificar sessão atual
     const initializeAuth = async () => {
       try {
-        console.log('🔐 Inicializando autenticação...');
-        
-        const { data: { session: currentSession }, error } = await supabase.auth.getSession();
+        console.log('🔍 AuthProvider - Verificando sessão atual');
+        const { data: { session }, error } = await supabase.auth.getSession();
         
         if (error) {
-          console.error('❌ Erro ao verificar sessão:', error);
-          await supabase.auth.signOut();
+          console.error('❌ AuthProvider - Erro ao verificar sessão:', error);
+          if (mounted) {
+            setIsLoading(false);
+          }
           return;
         }
 
-        if (currentSession?.user && mountedRef.current) {
-          console.log('✅ Sessão válida encontrada:', currentSession.user.id);
-          await updateUserFromSession(currentSession);
-        } else {
-          console.log('ℹ️ Nenhuma sessão ativa');
-        }
+        await handleSession(session);
       } catch (error) {
-        console.error('❌ Erro na inicialização:', error);
-        if (mountedRef.current) {
-          setUser(null);
-          setSession(null);
-        }
-      } finally {
-        if (mountedRef.current) {
+        console.error('❌ AuthProvider - Erro na inicialização:', error);
+        if (mounted) {
           setIsLoading(false);
         }
       }
     };
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, newSession) => {
-        if (!mountedRef.current) return;
-        
-        console.log('🔄 Auth state changed:', event);
-        
-        try {
-          if (newSession?.user) {
-            await updateUserFromSession(newSession);
-          } else {
-            setUser(null);
-            setSession(null);
-          }
-        } catch (error) {
-          console.error('❌ Erro no auth state change:', error);
-          setUser(null);
-          setSession(null);
-        }
-      }
-    );
-
     initializeAuth();
 
     return () => {
+      console.log('🧹 AuthProvider - Cleanup');
+      mounted = false;
       subscription.unsubscribe();
     };
   }, []);
 
-  const updateUserFromSession = async (session: Session) => {
-    if (!mountedRef.current) return;
-    
-    setSession(session);
-    
-    try {
-      const { data: profile, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', session.user.id)
-        .maybeSingle();
-
-      if (error && error.code !== 'PGRST116') {
-        console.error('❌ Erro ao buscar perfil:', error);
-      }
-
-      if (mountedRef.current) {
-        const userProfile: UserProfile = {
-          id: session.user.id,
-          email: session.user.email!,
-          name: profile?.full_name || session.user.user_metadata?.full_name || 'Usuário',
-          companyName: profile?.company_name || session.user.user_metadata?.company_name,
-          plan: (profile?.plan as 'basic' | 'premium' | 'enterprise') || 'basic',
-          createdAt: new Date(profile?.created_at || session.user.created_at),
-          isActive: true
-        };
-        
-        setUser(userProfile);
-      }
-    } catch (error) {
-      console.error('❌ Erro ao atualizar usuário:', error);
-      if (mountedRef.current) {
-        setUser({
-          id: session.user.id,
-          email: session.user.email!,
-          name: 'Usuário',
-          plan: 'basic',
-          createdAt: new Date(),
-          isActive: true
-        });
-      }
-    }
-  };
-
   const login = async (email: string, password: string): Promise<void> => {
+    console.log('🔑 AuthProvider - Tentativa de login');
     setIsLoading(true);
     try {
       const { error } = await supabase.auth.signInWithPassword({
@@ -154,12 +141,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (error) throw error;
+      console.log('✅ AuthProvider - Login bem-sucedido');
     } finally {
       setIsLoading(false);
     }
   };
 
   const signup = async (email: string, password: string, metadata?: { fullName?: string; companyName?: string }): Promise<void> => {
+    console.log('📝 AuthProvider - Tentativa de cadastro');
     setIsLoading(true);
     try {
       const { error } = await supabase.auth.signUp({
@@ -174,12 +163,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (error) throw error;
+      console.log('✅ AuthProvider - Cadastro bem-sucedido');
     } finally {
       setIsLoading(false);
     }
   };
 
   const logout = async (): Promise<void> => {
+    console.log('🚪 AuthProvider - Logout');
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
     
@@ -188,6 +179,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const isAuthenticated = !!user && !!session;
+
+  console.log('🎯 AuthProvider - Estado final:', { isAuthenticated, isLoading, hasUser: !!user, hasSession: !!session });
 
   return (
     <AuthContext.Provider value={{
