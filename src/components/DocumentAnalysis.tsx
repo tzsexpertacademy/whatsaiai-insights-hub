@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { FileText, Upload, Brain, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
+import { FileText, Upload, Brain, AlertCircle, CheckCircle, XCircle, Info } from 'lucide-react';
 import { useAssistantsConfig } from '@/hooks/useAssistantsConfig';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
@@ -18,6 +18,7 @@ export function DocumentAnalysis() {
   const [selectedAssistant, setSelectedAssistant] = useState<string>('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<string | null>(null);
+  const [documentInfo, setDocumentInfo] = useState<{ size: number; willBeTruncated: boolean } | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -27,13 +28,32 @@ export function DocumentAnalysis() {
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      // Verificar se é um arquivo de texto suportado
-      if (file.type.includes('text') || file.name.endsWith('.txt') || file.name.endsWith('.md')) {
+      // Aceitar qualquer arquivo de texto
+      const isTextFile = file.type.includes('text') || 
+                        file.name.match(/\.(txt|md|csv|json|xml|html|css|js|ts|jsx|tsx|py|java|cpp|c|h|sql|log|conf|config|ini|yaml|yml)$/i);
+      
+      if (isTextFile || file.type === 'application/json' || file.type === 'text/plain' || file.type === '') {
         setSelectedFile(file);
+        
+        // Calcular informações do documento
+        const fileSizeKB = file.size / 1024;
+        const maxTokensForAnalysis = 100000; // Aumentado significativamente
+        const estimatedTokens = file.size / 3; // Estimativa mais generosa: 1 token ≈ 3 caracteres
+        const willBeTruncated = estimatedTokens > maxTokensForAnalysis;
+        
+        setDocumentInfo({
+          size: fileSizeKB,
+          willBeTruncated
+        });
+        
+        toast({
+          title: "Arquivo carregado",
+          description: `${file.name} (${fileSizeKB.toFixed(1)} KB) ${willBeTruncated ? '- será truncado para análise' : '- será analisado completamente'}`,
+        });
       } else {
         toast({
           title: "Tipo de arquivo não suportado",
-          description: "Por favor, selecione um arquivo de texto (.txt, .md)",
+          description: "Por favor, selecione um arquivo de texto (txt, md, csv, json, xml, html, etc.)",
           variant: "destructive",
         });
       }
@@ -45,20 +65,29 @@ export function DocumentAnalysis() {
       const reader = new FileReader();
       reader.onload = (e) => resolve(e.target?.result as string);
       reader.onerror = (e) => reject(e);
-      reader.readAsText(file);
+      reader.readAsText(file, 'UTF-8');
     });
   };
 
-  const truncateContent = (content: string, maxTokens: number = 15000): string => {
-    // Estimativa conservadora: 1 token ≈ 4 caracteres
+  const truncateContent = (content: string, maxTokens: number = 100000): { content: string; wasTruncated: boolean } => {
+    // Estimativa mais conservadora: 1 token ≈ 2.5 caracteres para texto em português
     const maxChars = maxTokens * 2.5;
     
     if (content.length <= maxChars) {
-      return content;
+      return { content, wasTruncated: false };
     }
     
-    // Truncar e adicionar indicação
-    return content.substring(0, maxChars) + "\n\n[DOCUMENTO TRUNCADO DEVIDO AO TAMANHO]";
+    // Truncar em uma quebra de linha próxima ao limite para manter contexto
+    let truncateAt = maxChars;
+    const nearbyNewline = content.lastIndexOf('\n', maxChars);
+    if (nearbyNewline > maxChars * 0.9) { // Se há uma quebra de linha nos últimos 10%
+      truncateAt = nearbyNewline;
+    }
+    
+    const truncatedContent = content.substring(0, truncateAt) + 
+      "\n\n[DOCUMENTO TRUNCADO PARA ANÁLISE - CONTEÚDO RESTANTE NÃO PROCESSADO]";
+    
+    return { content: truncatedContent, wasTruncated: true };
   };
 
   const analyzeDocument = async () => {
@@ -75,15 +104,11 @@ export function DocumentAnalysis() {
     
     try {
       console.log('📄 Iniciando análise do documento...');
-      console.log('🔑 Config OpenAI:', {
-        hasApiKey: !!config.openai?.apiKey,
-        apiKeyLength: config.openai?.apiKey?.length || 0,
-        model: config.openai?.model,
-        temperature: config.openai?.temperature,
-        maxTokens: config.openai?.maxTokens
+      console.log('📊 Arquivo:', {
+        nome: selectedFile.name,
+        tamanho: selectedFile.size,
+        tipo: selectedFile.type
       });
-      console.log('🔗 Status conexão:', connectionStatus.openai);
-      console.log('🤖 Assistente ID:', selectedAssistant);
       
       // Verificar se a configuração OpenAI está válida
       if (!config.openai?.apiKey) {
@@ -121,13 +146,15 @@ export function DocumentAnalysis() {
       const fileContent = await readFileContent(selectedFile);
       console.log('📖 Arquivo lido:', fileContent.length, 'caracteres');
       
-      // Truncar conteúdo se muito grande
-      const truncatedContent = truncateContent(fileContent);
-      if (truncatedContent !== fileContent) {
-        console.log('✂️ Conteúdo truncado para:', truncatedContent.length, 'caracteres');
+      // Truncar conteúdo se necessário
+      const { content: processedContent, wasTruncated } = truncateContent(fileContent);
+      
+      if (wasTruncated) {
+        console.log('✂️ Conteúdo truncado para:', processedContent.length, 'caracteres');
         toast({
-          title: "Documento grande",
-          description: "O documento foi truncado para análise devido ao tamanho",
+          title: "Documento muito grande",
+          description: "O documento foi truncado para análise. Os primeiros segmentos serão analisados.",
+          variant: "default",
         });
       }
       
@@ -142,29 +169,39 @@ export function DocumentAnalysis() {
       console.log('📊 Preparando chamada para OpenAI...');
 
       // Construir mensagens para OpenAI
+      const systemPrompt = `${assistant.prompt}
+
+Você receberá um documento de texto para análise. ${wasTruncated ? 'IMPORTANTE: Este documento foi truncado devido ao tamanho. Analise apenas o conteúdo fornecido e mencione que a análise é baseada nos primeiros segmentos do documento.' : ''}
+
+Forneça insights detalhados da sua área de especialidade. Seja conciso mas informativo. Estruture sua resposta de forma clara e organizada.`;
+
+      const userPrompt = `Analise o seguinte documento da perspectiva de ${assistant.area}:
+
+ARQUIVO: ${selectedFile.name}
+TAMANHO: ${(selectedFile.size / 1024).toFixed(1)} KB
+${wasTruncated ? 'STATUS: Documento truncado - análise baseada nos primeiros segmentos\n' : ''}
+
+CONTEÚDO:
+${processedContent}`;
+
       const messages = [
-        { 
-          role: 'system' as const, 
-          content: `${assistant.prompt}\n\nVocê receberá um documento para análise. Forneça insights detalhados da sua área de especialidade. Seja conciso mas informativo.` 
-        },
-        { 
-          role: 'user' as const, 
-          content: `Analise o seguinte documento da perspectiva de ${assistant.area}:\n\n${truncatedContent}` 
-        }
+        { role: 'system' as const, content: systemPrompt },
+        { role: 'user' as const, content: userPrompt }
       ];
 
       const requestBody = {
         model: assistant.model || config.openai.model || 'gpt-4o-mini',
         messages: messages,
         temperature: config.openai.temperature || 0.7,
-        max_tokens: Math.min(config.openai.maxTokens || 1500, 2000)
+        max_tokens: Math.min(config.openai.maxTokens || 2000, 4000) // Aumentado o limite
       };
 
       console.log('🚀 Fazendo chamada para OpenAI...', {
         model: requestBody.model,
         messagesCount: requestBody.messages.length,
         temperature: requestBody.temperature,
-        maxTokens: requestBody.max_tokens
+        maxTokens: requestBody.max_tokens,
+        contentLength: processedContent.length
       });
 
       // Fazer análise via OpenAI
@@ -178,7 +215,6 @@ export function DocumentAnalysis() {
       });
 
       console.log('📡 Resposta OpenAI status:', response.status);
-      console.log('📡 Resposta headers:', Object.fromEntries(response.headers.entries()));
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -194,7 +230,7 @@ export function DocumentAnalysis() {
         } else if (response.status === 429) {
           errorMessage = 'Limite de rate excedido - tente novamente em alguns minutos';
         } else if (response.status === 400) {
-          errorMessage = 'Documento muito grande ou formato inválido';
+          errorMessage = 'Erro na requisição - documento pode estar muito complexo';
         }
         
         throw new Error(`${errorMessage} (${response.status})`);
@@ -221,7 +257,7 @@ export function DocumentAnalysis() {
       
       toast({
         title: "Análise concluída",
-        description: `${assistant.name} analisou seu documento com sucesso`,
+        description: `${assistant.name} analisou seu documento com sucesso${wasTruncated ? ' (parcialmente devido ao tamanho)' : ''}`,
       });
 
     } catch (error) {
@@ -251,7 +287,7 @@ export function DocumentAnalysis() {
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-slate-800">Análise de Documentos</h2>
-        <p className="text-slate-600">Faça upload de documentos e escolha um assistente para análise especializada</p>
+        <p className="text-slate-600">Faça upload de qualquer documento de texto para análise especializada</p>
       </div>
 
       {/* Status da API OpenAI */}
@@ -287,7 +323,7 @@ export function DocumentAnalysis() {
           {!config.openai?.apiKey && (
             <div className="p-3 bg-yellow-50 rounded-md">
               <p className="text-sm text-yellow-800">
-                Configure sua API Key do OpenAI na aba "Configurações {'>'}OpenAI" para usar este recurso.
+                Configure sua API Key do OpenAI na aba "Configurações > OpenAI" para usar este recurso.
               </p>
             </div>
           )}
@@ -295,7 +331,7 @@ export function DocumentAnalysis() {
           {apiStatus !== 'valid' && config.openai?.apiKey && (
             <div className="p-3 bg-red-50 rounded-md">
               <p className="text-sm text-red-800">
-                Há um problema com sua API Key. Teste a conexão na aba "Configurações {'>'}OpenAI".
+                Há um problema com sua API Key. Teste a conexão na aba "Configurações > OpenAI".
               </p>
             </div>
           )}
@@ -311,7 +347,7 @@ export function DocumentAnalysis() {
               Upload de Documento
             </CardTitle>
             <CardDescription>
-              Selecione um arquivo de texto para análise
+              Aceita qualquer arquivo de texto independente do tamanho
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -320,21 +356,32 @@ export function DocumentAnalysis() {
               <input
                 id="file-upload"
                 type="file"
-                accept=".txt,.md,text/plain"
+                accept=".txt,.md,.csv,.json,.xml,.html,.css,.js,.ts,.jsx,.tsx,.py,.java,.cpp,.c,.h,.sql,.log,.conf,.config,.ini,.yaml,.yml,text/*,application/json"
                 onChange={handleFileSelect}
                 className="mt-2 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
               />
+              <p className="text-xs text-gray-500 mt-1">
+                Tipos suportados: TXT, MD, CSV, JSON, XML, HTML, CSS, JS, TS, Python, Java, C++, SQL, LOG, YAML e outros arquivos de texto
+              </p>
             </div>
 
-            {selectedFile && (
+            {selectedFile && documentInfo && (
               <div className="p-3 bg-green-50 rounded-md">
                 <div className="flex items-center gap-2">
                   <FileText className="h-4 w-4 text-green-600" />
                   <span className="text-sm font-medium text-green-800">{selectedFile.name}</span>
                 </div>
                 <p className="text-xs text-green-600 mt-1">
-                  {(selectedFile.size / 1024).toFixed(1)} KB
+                  {documentInfo.size.toFixed(1)} KB
                 </p>
+                {documentInfo.willBeTruncated && (
+                  <div className="flex items-center gap-1 mt-2">
+                    <Info className="h-3 w-3 text-blue-600" />
+                    <span className="text-xs text-blue-600">
+                      Documento grande - será analisado parcialmente
+                    </span>
+                  </div>
+                )}
               </div>
             )}
 
