@@ -28,7 +28,6 @@ export function useConfigPersistence({
       const { error } = await supabase
         .from('client_configs')
         .insert({
-          user_id: user.id,
           whatsapp_config: defaultConfig.whatsapp,
           openai_config: defaultConfig.openai,
           firebase_config: defaultConfig.firebase
@@ -60,10 +59,11 @@ export function useConfigPersistence({
       setIsLoading(true);
       console.log('📥 Carregando configurações para usuário:', user.id);
       
+      // Buscar configuração existente do usuário
       const { data, error } = await supabase
         .from('client_configs')
         .select('*')
-        .eq('user_id', user.id)
+        .limit(1)
         .single();
 
       if (error) {
@@ -123,21 +123,40 @@ export function useConfigPersistence({
         firebase: Object.keys(config.firebase).length
       });
       
-      const { error } = await supabase
+      // Primeiro, verificar se já existe uma configuração
+      const { data: existingConfig } = await supabase
         .from('client_configs')
-        .upsert({
-          user_id: userId,
-          whatsapp_config: config.whatsapp,
-          openai_config: config.openai,
-          firebase_config: config.firebase,
-          updated_at: new Date().toISOString()
-        }, {
-          onConflict: 'user_id'
-        });
+        .select('id')
+        .limit(1)
+        .single();
 
-      if (error) {
-        console.error('❌ Erro ao salvar configurações:', error);
-        throw error;
+      let result;
+      
+      if (existingConfig) {
+        // Atualizar configuração existente
+        result = await supabase
+          .from('client_configs')
+          .update({
+            whatsapp_config: config.whatsapp,
+            openai_config: config.openai,
+            firebase_config: config.firebase,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existingConfig.id);
+      } else {
+        // Inserir nova configuração
+        result = await supabase
+          .from('client_configs')
+          .insert({
+            whatsapp_config: config.whatsapp,
+            openai_config: config.openai,
+            firebase_config: config.firebase
+          });
+      }
+
+      if (result.error) {
+        console.error('❌ Erro ao salvar configurações:', result.error);
+        throw result.error;
       }
 
       console.log('✅ Configurações salvas com sucesso!');
