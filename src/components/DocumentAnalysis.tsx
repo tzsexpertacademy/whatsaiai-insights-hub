@@ -11,11 +11,28 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useClientConfig } from '@/contexts/ClientConfigContext';
 import { CostEstimator } from './CostEstimator';
 
+// Modelos LLM disponíveis
+const LLM_MODELS = [
+  {
+    id: 'gpt-4o-mini',
+    name: 'GPT-4o Mini',
+    description: 'Rápido e econômico - Ideal para análises básicas',
+    costPerK: { input: 0.00015, output: 0.0006 }
+  },
+  {
+    id: 'gpt-4o',
+    name: 'GPT-4o',
+    description: 'Mais poderoso - Análises detalhadas e complexas',
+    costPerK: { input: 0.005, output: 0.015 }
+  }
+];
+
 export function DocumentAnalysis() {
   const { assistants, isLoading } = useAssistantsConfig();
   const { config, connectionStatus } = useClientConfig();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedAssistant, setSelectedAssistant] = useState<string>('');
+  const [selectedModel, setSelectedModel] = useState<string>('gpt-4o-mini');
   const [maxTokens, setMaxTokens] = useState<number>(80000);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<string | null>(null);
@@ -93,7 +110,7 @@ export function DocumentAnalysis() {
     });
   };
 
-  const truncateContent = (content: string, maxTokensLimit: number = maxTokens): { content: string; wasTruncated: boolean } => {
+  const truncateContent = (content: string, maxTokensLimit: number): { content: string; wasTruncated: boolean } => {
     // Estimativa conservadora: 1 token ≈ 3 caracteres
     const maxChars = Math.floor(maxTokensLimit * 3);
     
@@ -146,7 +163,8 @@ export function DocumentAnalysis() {
         nome: selectedFile.name,
         tamanho: selectedFile.size,
         tipo: selectedFile.type,
-        maxTokensConfig: maxTokens
+        maxTokensConfig: maxTokens,
+        modeloSelecionado: selectedModel
       });
       
       // Verificar se a configuração OpenAI está válida
@@ -207,7 +225,8 @@ export function DocumentAnalysis() {
       console.log('🤖 Assistente selecionado para análise:', {
         id: assistant.id,
         name: assistant.name,
-        area: assistant.area
+        area: assistant.area,
+        modeloEscolhido: selectedModel
       });
 
       // Construir mensagens para OpenAI com prompt mais conciso
@@ -225,6 +244,7 @@ INSTRUÇÕES:
 
       const userPrompt = `ARQUIVO: ${selectedFile.name} (${(selectedFile.size / 1024).toFixed(1)} KB)
 ASSISTENTE: ${assistant.name}
+MODELO: ${selectedModel}
 LIMITE DE TOKENS: ${maxTokens.toLocaleString()}
 ${wasTruncated ? 'STATUS: Documento truncado\n' : ''}
 CONTEÚDO:
@@ -243,7 +263,8 @@ ${processedContent}`;
         totalChars: systemPrompt.length + userPrompt.length,
         estimatedTokens,
         maxTokensAllowed: 128000,
-        configuredLimit: maxTokens
+        configuredLimit: maxTokens,
+        modeloUtilizado: selectedModel
       });
 
       if (estimatedTokens > 120000) { // Deixa margem de segurança
@@ -251,7 +272,7 @@ ${processedContent}`;
       }
 
       const requestBody = {
-        model: assistant.model || config.openai.model || 'gpt-4o-mini',
+        model: selectedModel, // Usar o modelo selecionado pelo usuário
         messages: messages,
         temperature: config.openai.temperature || 0.7,
         max_tokens: Math.min(config.openai.maxTokens || 3000, 4000)
@@ -306,7 +327,8 @@ ${processedContent}`;
         choicesLength: data.choices?.length,
         hasContent: !!data.choices?.[0]?.message?.content,
         usage: data.usage,
-        assistantUsed: assistant.name
+        assistantUsed: assistant.name,
+        modelUsed: selectedModel
       });
       
       const analysis = data.choices?.[0]?.message?.content;
@@ -316,14 +338,14 @@ ${processedContent}`;
         throw new Error('Resposta vazia da OpenAI');
       }
       
-      console.log('✅ Análise concluída por', assistant.name, ':', analysis.length, 'caracteres');
+      console.log('✅ Análise concluída por', assistant.name, 'usando', selectedModel, ':', analysis.length, 'caracteres');
       
       setAnalysisResult(analysis);
       setCurrentAnalysisAssistant(assistant.name);
       
       toast({
         title: "Análise concluída",
-        description: `${assistant.name} analisou seu documento com sucesso${wasTruncated ? ' (parcialmente devido ao limite de tokens)' : ''}`,
+        description: `${assistant.name} analisou seu documento com sucesso usando ${selectedModel}${wasTruncated ? ' (parcialmente devido ao limite de tokens)' : ''}`,
       });
 
     } catch (error) {
@@ -349,89 +371,12 @@ ${processedContent}`;
     );
   }
 
-  // Buscar assistente selecionado para usar no estimador de custo
-  const selectedAssistantData = assistants.find(a => a.id === selectedAssistant);
-  const modelToUse = selectedAssistantData?.model || config.openai?.model || 'gpt-4o-mini';
-
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-slate-800">Análise de Documentos</h2>
         <p className="text-slate-600">Faça upload de qualquer documento de texto para análise especializada</p>
       </div>
-
-      {/* Status da API OpenAI */}
-      <Card className="border-l-4 border-l-blue-500">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Brain className="h-5 w-5" />
-            Status da API OpenAI
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center gap-3">
-            {apiStatus === 'valid' && (
-              <>
-                <CheckCircle className="h-5 w-5 text-green-500" />
-                <span className="text-green-600 font-medium">API conectada e funcionando</span>
-              </>
-            )}
-            {apiStatus === 'invalid' && (
-              <>
-                <XCircle className="h-5 w-5 text-red-500" />
-                <span className="text-red-600 font-medium">Problema com a API Key</span>
-              </>
-            )}
-            {apiStatus === 'unknown' && (
-              <>
-                <AlertCircle className="h-5 w-5 text-gray-500" />
-                <span className="text-gray-600 font-medium">API Key não configurada</span>
-              </>
-            )}
-          </div>
-
-          {!config.openai?.apiKey && (
-            <div className="p-3 bg-yellow-50 rounded-md">
-              <p className="text-sm text-yellow-800">
-                Configure sua API Key do OpenAI na aba "Configurações → OpenAI" para usar este recurso.
-              </p>
-            </div>
-          )}
-
-          {apiStatus !== 'valid' && config.openai?.apiKey && (
-            <div className="p-3 bg-red-50 rounded-md">
-              <p className="text-sm text-red-800">
-                Há um problema com sua API Key. Teste a conexão na aba "Configurações → OpenAI".
-              </p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Card de Explicação sobre Tokens */}
-      <Card className="border-l-4 border-l-purple-500">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Info className="h-5 w-5" />
-            O que são Tokens?
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3 text-sm">
-            <p><strong>Token</strong> é a unidade que a IA usa para processar texto:</p>
-            <ul className="list-disc pl-6 space-y-1">
-              <li><strong>1 token ≈ 3-4 caracteres</strong> (incluindo espaços e pontuação)</li>
-              <li><strong>1 palavra</strong> geralmente = 1-2 tokens</li>
-              <li><strong>1 página de texto</strong> ≈ 500-750 tokens</li>
-            </ul>
-            <div className="p-3 bg-purple-50 rounded-md">
-              <p className="text-purple-800">
-                <strong>Exemplo:</strong> "Olá mundo!" = ~3 tokens | "Análise detalhada" = ~4 tokens
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Upload e Configuração */}
@@ -442,10 +387,36 @@ ${processedContent}`;
               Upload de Documento
             </CardTitle>
             <CardDescription>
-              Configure o limite de tokens e faça upload do seu documento
+              Configure o modelo, limite de tokens e faça upload do seu documento
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Seleção de Modelo LLM */}
+            <div>
+              <Label className="flex items-center gap-2">
+                <Brain className="h-4 w-4" />
+                Modelo de IA para Análise
+              </Label>
+              <Select value={selectedModel} onValueChange={setSelectedModel}>
+                <SelectTrigger className="mt-2">
+                  <SelectValue placeholder="Escolha o modelo de IA" />
+                </SelectTrigger>
+                <SelectContent>
+                  {LLM_MODELS.map((model) => (
+                    <SelectItem key={model.id} value={model.id}>
+                      <div className="flex flex-col">
+                        <span className="font-medium">{model.name}</span>
+                        <span className="text-xs text-gray-500">{model.description}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-gray-500 mt-1">
+                GPT-4o Mini é mais rápido e econômico. GPT-4o oferece análises mais detalhadas.
+              </p>
+            </div>
+
             {/* Seleção de Limite de Tokens */}
             <div>
               <Label className="flex items-center gap-2">
@@ -465,7 +436,7 @@ ${processedContent}`;
                 </SelectContent>
               </Select>
               <p className="text-xs text-gray-500 mt-1">
-                Maior limite = mais conteúdo analisado, mas pode ser mais lento
+                1 token ≈ 3-4 caracteres. Maior limite = mais conteúdo analisado.
               </p>
             </div>
 
@@ -492,10 +463,11 @@ ${processedContent}`;
                 <div className="text-xs text-green-600 mt-1 space-y-1">
                   <p>{documentInfo.size.toFixed(1)} KB (~{documentInfo.estimatedTokens.toLocaleString()} tokens estimados)</p>
                   <p>Limite configurado: {maxTokens.toLocaleString()} tokens</p>
+                  <p>Modelo selecionado: {LLM_MODELS.find(m => m.id === selectedModel)?.name}</p>
                 </div>
                 {documentInfo.willBeTruncated && (
                   <div className="flex items-center gap-1 mt-2">
-                    <Info className="h-3 w-3 text-blue-600" />
+                    <AlertCircle className="h-3 w-3 text-blue-600" />
                     <span className="text-xs text-blue-600">
                       Documento será truncado - primeiros {maxTokens.toLocaleString()} tokens serão analisados
                     </span>
@@ -586,7 +558,7 @@ ${processedContent}`;
         <CostEstimator
           estimatedTokens={documentInfo.estimatedTokens}
           maxTokens={maxTokens}
-          model={modelToUse}
+          model={selectedModel}
           fileName={selectedFile.name}
         />
       )}
