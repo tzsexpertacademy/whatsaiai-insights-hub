@@ -49,9 +49,9 @@ export function DocumentAnalysis() {
     });
   };
 
-  const truncateContent = (content: string, maxTokens: number = 20000): string => {
-    // Estimativa mais conservadora: 1 token ≈ 4 caracteres
-    const maxChars = maxTokens * 3; // Ainda mais conservador
+  const truncateContent = (content: string, maxTokens: number = 15000): string => {
+    // Estimativa conservadora: 1 token ≈ 4 caracteres
+    const maxChars = maxTokens * 2.5;
     
     if (content.length <= maxChars) {
       return content;
@@ -75,16 +75,32 @@ export function DocumentAnalysis() {
     
     try {
       console.log('📄 Iniciando análise do documento...');
-      console.log('🔑 API Key presente:', !!config.openai?.apiKey);
-      console.log('🔗 Status OpenAI:', connectionStatus.openai);
+      console.log('🔑 Config OpenAI:', {
+        hasApiKey: !!config.openai?.apiKey,
+        apiKeyLength: config.openai?.apiKey?.length || 0,
+        model: config.openai?.model,
+        temperature: config.openai?.temperature,
+        maxTokens: config.openai?.maxTokens
+      });
+      console.log('🔗 Status conexão:', connectionStatus.openai);
       console.log('🤖 Assistente ID:', selectedAssistant);
       
-      // Verificar se a API está configurada
+      // Verificar se a configuração OpenAI está válida
       if (!config.openai?.apiKey) {
         console.log('❌ API Key não encontrada');
         toast({
           title: "API Key não configurada",
           description: "Configure sua API Key do OpenAI na aba 'Configurações > OpenAI'",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (!config.openai.apiKey.startsWith('sk-')) {
+        console.log('❌ API Key formato inválido');
+        toast({
+          title: "API Key inválida",
+          description: "A API Key deve começar com 'sk-'",
           variant: "destructive",
         });
         return;
@@ -123,7 +139,7 @@ export function DocumentAnalysis() {
       }
 
       console.log('🤖 Assistente encontrado:', assistant.name);
-      console.log('📊 Enviando', truncatedContent.length, 'caracteres para OpenAI');
+      console.log('📊 Preparando chamada para OpenAI...');
 
       // Construir mensagens para OpenAI
       const messages = [
@@ -137,7 +153,19 @@ export function DocumentAnalysis() {
         }
       ];
 
-      console.log('🚀 Fazendo chamada para OpenAI...');
+      const requestBody = {
+        model: assistant.model || config.openai.model || 'gpt-4o-mini',
+        messages: messages,
+        temperature: config.openai.temperature || 0.7,
+        max_tokens: Math.min(config.openai.maxTokens || 1500, 2000)
+      };
+
+      console.log('🚀 Fazendo chamada para OpenAI...', {
+        model: requestBody.model,
+        messagesCount: requestBody.messages.length,
+        temperature: requestBody.temperature,
+        maxTokens: requestBody.max_tokens
+      });
 
       // Fazer análise via OpenAI
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -146,15 +174,11 @@ export function DocumentAnalysis() {
           'Authorization': `Bearer ${config.openai.apiKey}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          model: assistant.model || 'gpt-4o-mini',
-          messages: messages,
-          temperature: config.openai.temperature || 0.7,
-          max_tokens: Math.min(config.openai.maxTokens || 1500, 1500)
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       console.log('📡 Resposta OpenAI status:', response.status);
+      console.log('📡 Resposta headers:', Object.fromEntries(response.headers.entries()));
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -180,7 +204,8 @@ export function DocumentAnalysis() {
       console.log('📥 Resposta OpenAI recebida:', {
         hasChoices: !!data.choices,
         choicesLength: data.choices?.length,
-        hasContent: !!data.choices?.[0]?.message?.content
+        hasContent: !!data.choices?.[0]?.message?.content,
+        usage: data.usage
       });
       
       const analysis = data.choices?.[0]?.message?.content;
@@ -229,7 +254,7 @@ export function DocumentAnalysis() {
         <p className="text-slate-600">Faça upload de documentos e escolha um assistente para análise especializada</p>
       </div>
 
-      {/* Status da API OpenAI - Simplificado */}
+      {/* Status da API OpenAI */}
       <Card className="border-l-4 border-l-blue-500">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -262,7 +287,7 @@ export function DocumentAnalysis() {
           {!config.openai?.apiKey && (
             <div className="p-3 bg-yellow-50 rounded-md">
               <p className="text-sm text-yellow-800">
-                Configure sua API Key do OpenAI na aba "Configurações > OpenAI" para usar este recurso.
+                Configure sua API Key do OpenAI na aba "Configurações {'>'}OpenAI" para usar este recurso.
               </p>
             </div>
           )}
@@ -270,7 +295,7 @@ export function DocumentAnalysis() {
           {apiStatus !== 'valid' && config.openai?.apiKey && (
             <div className="p-3 bg-red-50 rounded-md">
               <p className="text-sm text-red-800">
-                Há um problema com sua API Key. Teste a conexão na aba "Configurações > OpenAI".
+                Há um problema com sua API Key. Teste a conexão na aba "Configurações {'>'}OpenAI".
               </p>
             </div>
           )}
