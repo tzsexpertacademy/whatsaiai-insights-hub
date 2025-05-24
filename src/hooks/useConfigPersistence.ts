@@ -28,9 +28,9 @@ export function useConfigPersistence({
       const { error } = await supabase
         .from('client_configs')
         .insert({
-          whatsapp_config: defaultConfig.whatsapp,
-          openai_config: defaultConfig.openai,
-          firebase_config: defaultConfig.firebase
+          whatsapp_config: defaultConfig.whatsapp as any,
+          openai_config: defaultConfig.openai as any,
+          firebase_config: defaultConfig.firebase as any
         });
 
       if (error) {
@@ -64,14 +64,9 @@ export function useConfigPersistence({
         .from('client_configs')
         .select('*')
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (error) {
-        if (error.code === 'PGRST116') {
-          console.log('ℹ️ Nenhuma configuração encontrada, criando registro inicial...');
-          await createInitialConfig();
-          return;
-        }
         console.error('❌ Erro ao carregar configurações:', error);
         toast({
           title: "Erro ao carregar configurações",
@@ -81,26 +76,30 @@ export function useConfigPersistence({
         return;
       }
 
-      if (data) {
-        console.log('✅ Configurações carregadas com sucesso:', {
-          hasWhatsApp: !!data.whatsapp_config,
-          hasOpenAI: !!data.openai_config,
-          hasFirebase: !!data.firebase_config
-        });
-
-        const loadedConfig = {
-          whatsapp: { ...defaultConfig.whatsapp, ...(data.whatsapp_config as any || {}) },
-          openai: { ...defaultConfig.openai, ...(data.openai_config as any || {}) },
-          firebase: { ...defaultConfig.firebase, ...(data.firebase_config as any || {}) }
-        };
-
-        setConfig(loadedConfig);
-
-        toast({
-          title: "Configurações carregadas",
-          description: "Suas configurações foram restauradas com sucesso"
-        });
+      if (!data) {
+        console.log('ℹ️ Nenhuma configuração encontrada, criando registro inicial...');
+        await createInitialConfig();
+        return;
       }
+
+      console.log('✅ Configurações carregadas com sucesso:', {
+        hasWhatsApp: !!data.whatsapp_config,
+        hasOpenAI: !!data.openai_config,
+        hasFirebase: !!data.firebase_config
+      });
+
+      const loadedConfig = {
+        whatsapp: { ...defaultConfig.whatsapp, ...(data.whatsapp_config as any || {}) },
+        openai: { ...defaultConfig.openai, ...(data.openai_config as any || {}) },
+        firebase: { ...defaultConfig.firebase, ...(data.firebase_config as any || {}) }
+      };
+
+      setConfig(loadedConfig);
+
+      toast({
+        title: "Configurações carregadas",
+        description: "Suas configurações foram restauradas com sucesso"
+      });
     } catch (error) {
       console.error('❌ Erro inesperado ao carregar configurações:', error);
       toast({
@@ -128,7 +127,7 @@ export function useConfigPersistence({
         .from('client_configs')
         .select('id')
         .limit(1)
-        .single();
+        .maybeSingle();
 
       let result;
       
@@ -137,9 +136,9 @@ export function useConfigPersistence({
         result = await supabase
           .from('client_configs')
           .update({
-            whatsapp_config: config.whatsapp,
-            openai_config: config.openai,
-            firebase_config: config.firebase,
+            whatsapp_config: config.whatsapp as any,
+            openai_config: config.openai as any,
+            firebase_config: config.firebase as any,
             updated_at: new Date().toISOString()
           })
           .eq('id', existingConfig.id);
@@ -148,9 +147,9 @@ export function useConfigPersistence({
         result = await supabase
           .from('client_configs')
           .insert({
-            whatsapp_config: config.whatsapp,
-            openai_config: config.openai,
-            firebase_config: config.firebase
+            whatsapp_config: config.whatsapp as any,
+            openai_config: config.openai as any,
+            firebase_config: config.firebase as any
           });
       }
 
