@@ -1,13 +1,22 @@
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useClientConfig } from '@/contexts/ClientConfigContext';
 import { useToast } from '@/hooks/use-toast';
 
 export function useConfigValidation() {
   const { config } = useClientConfig();
   const { toast } = useToast();
+  const lastValidationRef = useRef<string>('');
 
   useEffect(() => {
+    // Só validar se a configuração mudou
+    const configString = JSON.stringify(config);
+    if (configString === lastValidationRef.current) {
+      return;
+    }
+    
+    lastValidationRef.current = configString;
+    
     // Validar configurações quando carregam
     validateConfigurations();
   }, [config]);

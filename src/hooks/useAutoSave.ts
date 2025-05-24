@@ -7,8 +7,19 @@ export function useAutoSave() {
   const { config, saveConfig } = useClientConfig();
   const { toast } = useToast();
   const timeoutRef = useRef<NodeJS.Timeout>();
+  const lastConfigRef = useRef<string>('');
 
   useEffect(() => {
+    // Serializar config para comparação
+    const configString = JSON.stringify(config);
+    
+    // Só executar se a configuração realmente mudou
+    if (configString === lastConfigRef.current) {
+      return;
+    }
+    
+    lastConfigRef.current = configString;
+
     // Clear timeout anterior
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
