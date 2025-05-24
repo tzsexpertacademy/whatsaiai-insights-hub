@@ -1,0 +1,161 @@
+
+{
+  "name": "WhatsApp - Receber Mensagens",
+  "flow": [
+    {
+      "id": 1,
+      "module": "whatsapp-business",
+      "version": 1,
+      "parameters": {
+        "action": "watchMessages"
+      },
+      "mapper": {},
+      "metadata": {
+        "designer": {
+          "x": 0,
+          "y": 0
+        },
+        "restore": {},
+        "parameters": [
+          {
+            "name": "action",
+            "type": "select",
+            "label": "Action",
+            "required": true,
+            "options": [
+              {
+                "label": "Watch Messages",
+                "value": "watchMessages"
+              }
+            ]
+          }
+        ],
+        "interface": [
+          {
+            "name": "from",
+            "type": "text"
+          },
+          {
+            "name": "message",
+            "type": "text"
+          },
+          {
+            "name": "timestamp",
+            "type": "text"
+          },
+          {
+            "name": "messageId",
+            "type": "text"
+          }
+        ]
+      }
+    },
+    {
+      "id": 2,
+      "module": "router",
+      "version": 1,
+      "parameters": {},
+      "mapper": {},
+      "metadata": {
+        "designer": {
+          "x": 300,
+          "y": 0
+        },
+        "restore": {}
+      }
+    },
+    {
+      "id": 3,
+      "module": "filter",
+      "version": 1,
+      "parameters": {
+        "condition": "{{1.from}} != {{1.myNumber}}"
+      },
+      "mapper": {
+        "condition": "{{1.from}} != {{1.myNumber}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 600,
+          "y": 0
+        },
+        "restore": {}
+      }
+    },
+    {
+      "id": 4,
+      "module": "http",
+      "version": 3,
+      "parameters": {
+        "url": "{{webhook_url_receive}}",
+        "method": "POST",
+        "headers": [
+          {
+            "name": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "bodyType": "raw",
+        "parseResponse": true
+      },
+      "mapper": {
+        "url": "SEU_WEBHOOK_RECEIVE_AQUI",
+        "method": "POST",
+        "headers": [
+          {
+            "name": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": "{\"from\": \"{{1.from}}\", \"message\": \"{{1.message}}\", \"timestamp\": \"{{1.timestamp}}\", \"messageId\": \"{{1.messageId}}\", \"action\": \"message_received\"}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 900,
+          "y": 0
+        },
+        "restore": {}
+      }
+    },
+    {
+      "id": 5,
+      "module": "http",
+      "version": 3,
+      "parameters": {
+        "url": "{{webhook_url_autoreply}}",
+        "method": "POST"
+      },
+      "mapper": {
+        "url": "SEU_WEBHOOK_AUTOREPLY_AQUI",
+        "body": "{\"from\": \"{{1.from}}\", \"message\": \"{{1.message}}\", \"timestamp\": \"{{1.timestamp}}\", \"trigger_ai\": true}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 900,
+          "y": 150
+        },
+        "restore": {}
+      }
+    }
+  ],
+  "metadata": {
+    "instant": true,
+    "version": 1,
+    "scenario": {
+      "roundtrips": 1,
+      "maxCycles": 1,
+      "autoCommit": true,
+      "autoCommitTriggerLast": true,
+      "sequential": false,
+      "slots": null,
+      "confidential": false,
+      "dataloss": false,
+      "dlq": false,
+      "freshVariables": false
+    },
+    "designer": {
+      "orphans": []
+    },
+    "zone": "us1.make.com"
+  }
+}

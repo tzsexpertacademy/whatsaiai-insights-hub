@@ -1,0 +1,98 @@
+
+{
+  "name": "WhatsApp - Enviar Mensagens Dashboard",
+  "flow": [
+    {
+      "id": 1,
+      "module": "webhook",
+      "version": 1,
+      "parameters": {
+        "hook": "custom_webhook_send_message",
+        "maxResults": 1
+      },
+      "mapper": {},
+      "metadata": {
+        "designer": {
+          "x": 0,
+          "y": 0
+        },
+        "restore": {},
+        "interface": [
+          {
+            "name": "phoneNumber",
+            "type": "text"
+          },
+          {
+            "name": "message",
+            "type": "text"
+          },
+          {
+            "name": "sessionId",
+            "type": "text"
+          }
+        ]
+      }
+    },
+    {
+      "id": 2,
+      "module": "whatsapp-business",
+      "version": 1,
+      "parameters": {
+        "action": "sendMessage",
+        "to": "{{1.phoneNumber}}",
+        "message": "{{1.message}}"
+      },
+      "mapper": {
+        "to": "{{1.phoneNumber}}",
+        "message": "{{1.message}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 300,
+          "y": 0
+        },
+        "restore": {}
+      }
+    },
+    {
+      "id": 3,
+      "module": "http",
+      "version": 3,
+      "parameters": {
+        "url": "{{webhook_confirmation}}",
+        "method": "POST"
+      },
+      "mapper": {
+        "url": "SEU_WEBHOOK_CONFIRMACAO_AQUI",
+        "body": "{\"success\": {{2.success}}, \"messageId\": \"{{2.messageId}}\", \"to\": \"{{1.phoneNumber}}\", \"timestamp\": \"{{now}}\"}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 600,
+          "y": 0
+        },
+        "restore": {}
+      }
+    }
+  ],
+  "metadata": {
+    "instant": false,
+    "version": 1,
+    "scenario": {
+      "roundtrips": 1,
+      "maxCycles": 1,
+      "autoCommit": true,
+      "autoCommitTriggerLast": true,
+      "sequential": false,
+      "slots": null,
+      "confidential": false,
+      "dataloss": false,
+      "dlq": false,
+      "freshVariables": false
+    },
+    "designer": {
+      "orphans": []
+    },
+    "zone": "us1.make.com"
+  }
+}

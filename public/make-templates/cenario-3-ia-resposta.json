@@ -1,0 +1,149 @@
+
+{
+  "name": "WhatsApp - IA + Resposta Automática",
+  "flow": [
+    {
+      "id": 1,
+      "module": "webhook",
+      "version": 1,
+      "parameters": {
+        "hook": "custom_webhook_ai_reply",
+        "maxResults": 1
+      },
+      "mapper": {},
+      "metadata": {
+        "designer": {
+          "x": 0,
+          "y": 0
+        },
+        "restore": {},
+        "interface": [
+          {
+            "name": "from",
+            "type": "text"
+          },
+          {
+            "name": "message",
+            "type": "text"
+          },
+          {
+            "name": "timestamp",
+            "type": "text"
+          }
+        ]
+      }
+    },
+    {
+      "id": 2,
+      "module": "openai-gpt-3",
+      "version": 1,
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "temperature": 0.7,
+        "max_tokens": 500
+      },
+      "mapper": {
+        "model": "gpt-4o-mini",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Você é um assistente conselheiro especializado em bem-estar emocional. Responda com empatia, usando técnicas de aconselhamento. Mantenha respostas concisas mas acolhedoras. Se a situação for grave, sugira procurar ajuda profissional. Responda sempre em português brasileiro."
+          },
+          {
+            "role": "user", 
+            "content": "{{1.message}}"
+          }
+        ],
+        "temperature": 0.7,
+        "max_tokens": 500
+      },
+      "metadata": {
+        "designer": {
+          "x": 300,
+          "y": 0
+        },
+        "restore": {}
+      }
+    },
+    {
+      "id": 3,
+      "module": "text-parser",
+      "version": 1,
+      "parameters": {
+        "type": "target",
+        "target": "{{2.choices[].message.content}}"
+      },
+      "mapper": {
+        "target": "{{2.choices[].message.content}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 600,
+          "y": 0
+        },
+        "restore": {}
+      }
+    },
+    {
+      "id": 4,
+      "module": "whatsapp-business",
+      "version": 1,
+      "parameters": {
+        "action": "sendMessage",
+        "to": "{{1.from}}",
+        "message": "{{3.result}}"
+      },
+      "mapper": {
+        "to": "{{1.from}}",
+        "message": "{{3.result}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 900,
+          "y": 0
+        },
+        "restore": {}
+      }
+    },
+    {
+      "id": 5,
+      "module": "http",
+      "version": 3,
+      "parameters": {
+        "url": "{{firebase_log_url}}",
+        "method": "POST"
+      },
+      "mapper": {
+        "url": "SEU_FIREBASE_LOG_AQUI",
+        "body": "{\"from\": \"{{1.from}}\", \"user_message\": \"{{1.message}}\", \"ai_response\": \"{{3.result}}\", \"timestamp\": \"{{1.timestamp}}\", \"type\": \"auto_reply\"}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 900,
+          "y": 150
+        },
+        "restore": {}
+      }
+    }
+  ],
+  "metadata": {
+    "instant": false,
+    "version": 1,
+    "scenario": {
+      "roundtrips": 1,
+      "maxCycles": 1,
+      "autoCommit": true,
+      "autoCommitTriggerLast": true,
+      "sequential": false,
+      "slots": null,
+      "confidential": false,
+      "dataloss": false,
+      "dlq": false,
+      "freshVariables": false
+    },
+    "designer": {
+      "orphans": []
+    },
+    "zone": "us1.make.com"
+  }
+}
