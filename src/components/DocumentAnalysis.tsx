@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { FileText, Upload, Brain, AlertCircle } from 'lucide-react';
+import { FileText, Upload, Brain, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
 import { useAssistantsConfig } from '@/hooks/useAssistantsConfig';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -16,6 +16,8 @@ export function DocumentAnalysis() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedAssistant, setSelectedAssistant] = useState<string>('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isTestingApi, setIsTestingApi] = useState(false);
+  const [apiStatus, setApiStatus] = useState<'unknown' | 'valid' | 'invalid'>('unknown');
   const [analysisResult, setAnalysisResult] = useState<string | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
@@ -45,18 +47,128 @@ export function DocumentAnalysis() {
     });
   };
 
+  const testOpenAIConnection = async () => {
+    if (!user?.id) return;
+
+    setIsTestingApi(true);
+    setApiStatus('unknown');
+
+    try {
+      console.log('🔍 Testando conexão com OpenAI...');
+
+      // Buscar configuração do OpenAI
+      const { data: config, error: configError } = await supabase
+        .from('client_configs')
+        .select('openai_config')
+        .eq('user_id', user.id)
+        .single();
+
+      if (configError) {
+        console.error('❌ Erro ao buscar config:', configError);
+        throw new Error('Erro ao buscar configuração');
+      }
+
+      const openaiConfig = config?.openai_config as { apiKey?: string } | null;
+      const openaiApiKey = openaiConfig?.apiKey;
+      
+      console.log('🔑 API Key encontrada:', openaiApiKey ? 'Sim' : 'Não');
+      console.log('🔑 API Key formato:', openaiApiKey ? (openaiApiKey.startsWith('sk-') ? 'Válido' : 'Inválido') : 'N/A');
+
+      if (!openaiApiKey) {
+        setApiStatus('invalid');
+        toast({
+          title: "API Key não encontrada",
+          description: "Configure sua API Key do OpenAI nas configurações",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (!openaiApiKey.startsWith('sk-')) {
+        setApiStatus('invalid');
+        toast({
+          title: "API Key inválida",
+          description: "A API Key deve começar com 'sk-'",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Testar conexão real com OpenAI
+      console.log('🌐 Fazendo teste de conexão com OpenAI...');
+      
+      const response = await fetch('https://api.openai.com/v1/models', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${openaiApiKey}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      console.log('📡 Status da resposta:', response.status);
+      console.log('📡 Headers da resposta:', Object.fromEntries(response.headers.entries()));
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Erro na resposta da OpenAI:', errorText);
+        setApiStatus('invalid');
+        
+        let errorMessage = 'Erro na conexão com OpenAI';
+        if (response.status === 401) {
+          errorMessage = 'API Key inválida ou sem permissões';
+        } else if (response.status === 429) {
+          errorMessage = 'Limite de rate excedido';
+        } else if (response.status === 403) {
+          errorMessage = 'Acesso negado - verifique as permissões da API Key';
+        }
+        
+        toast({
+          title: "Falha no teste",
+          description: `${errorMessage} (Status: ${response.status})`,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const data = await response.json();
+      console.log('✅ Resposta da OpenAI:', data);
+      
+      setApiStatus('valid');
+      toast({
+        title: "Conexão bem-sucedida!",
+        description: `API OpenAI está funcionando. ${data.data?.length || 0} modelos disponíveis.`,
+      });
+
+    } catch (error) {
+      console.error('❌ Erro inesperado no teste:', error);
+      setApiStatus('invalid');
+      toast({
+        title: "Erro no teste",
+        description: `Erro inesperado: ${error.message}`,
+        variant: "destructive",
+      });
+    } finally {
+      setIsTestingApi(false);
+    }
+  };
+
   const analyzeDocument = async () => {
     if (!selectedFile || !selectedAssistant || !user?.id) return;
 
     setIsAnalyzing(true);
     
     try {
+      console.log('📄 Iniciando análise do documento...');
+      
       // Ler conteúdo do arquivo
       const fileContent = await readFileContent(selectedFile);
+      console.log('📖 Conteúdo do arquivo lido:', fileContent.length, 'caracteres');
       
       // Buscar o assistente selecionado
       const assistant = assistants.find(a => a.id === selectedAssistant);
       if (!assistant) throw new Error('Assistente não encontrado');
+
+      console.log('🤖 Assistente selecionado:', assistant.name);
 
       // Buscar configuração do OpenAI
       const { data: config } = await supabase
@@ -66,8 +178,8 @@ export function DocumentAnalysis() {
         .single();
 
       // Tipo seguro para acessar api_key
-      const openaiConfig = config?.openai_config as { api_key?: string } | null;
-      const openaiApiKey = openaiConfig?.api_key;
+      const openaiConfig = config?.openai_config as { apiKey?: string } | null;
+      const openaiApiKey = openaiConfig?.apiKey;
       
       if (!openaiApiKey) {
         toast({
@@ -77,6 +189,8 @@ export function DocumentAnalysis() {
         });
         return;
       }
+
+      console.log('🚀 Enviando para OpenAI...');
 
       // Fazer análise via OpenAI
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -102,12 +216,18 @@ export function DocumentAnalysis() {
         }),
       });
 
+      console.log('📡 Status da análise:', response.status);
+
       if (!response.ok) {
-        throw new Error('Erro na análise do documento');
+        const errorText = await response.text();
+        console.error('❌ Erro na análise:', errorText);
+        throw new Error(`Erro na análise do documento (${response.status})`);
       }
 
       const data = await response.json();
       const analysis = data.choices[0].message.content;
+      
+      console.log('✅ Análise concluída:', analysis.length, 'caracteres');
       
       setAnalysisResult(analysis);
       
@@ -117,10 +237,10 @@ export function DocumentAnalysis() {
       });
 
     } catch (error) {
-      console.error('Erro na análise:', error);
+      console.error('❌ Erro na análise:', error);
       toast({
         title: "Erro na análise",
-        description: "Não foi possível analisar o documento",
+        description: `Não foi possível analisar o documento: ${error.message}`,
         variant: "destructive",
       });
     } finally {
@@ -145,6 +265,47 @@ export function DocumentAnalysis() {
         <h2 className="text-2xl font-bold text-slate-800">Análise de Documentos</h2>
         <p className="text-slate-600">Faça upload de documentos e escolha um assistente para análise especializada</p>
       </div>
+
+      {/* Status da API OpenAI */}
+      <Card className="border-l-4 border-l-blue-500">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Brain className="h-5 w-5" />
+            Status da API OpenAI
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center gap-3">
+            {apiStatus === 'valid' && (
+              <>
+                <CheckCircle className="h-5 w-5 text-green-500" />
+                <span className="text-green-600 font-medium">API conectada e funcionando</span>
+              </>
+            )}
+            {apiStatus === 'invalid' && (
+              <>
+                <XCircle className="h-5 w-5 text-red-500" />
+                <span className="text-red-600 font-medium">Problema com a API Key</span>
+              </>
+            )}
+            {apiStatus === 'unknown' && (
+              <>
+                <AlertCircle className="h-5 w-5 text-gray-500" />
+                <span className="text-gray-600 font-medium">Status não verificado</span>
+              </>
+            )}
+          </div>
+          
+          <Button 
+            onClick={testOpenAIConnection} 
+            disabled={isTestingApi}
+            variant="outline"
+            className="w-full"
+          >
+            {isTestingApi ? 'Testando Conexão...' : 'Testar Conexão OpenAI'}
+          </Button>
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Upload e Configuração */}
@@ -206,7 +367,7 @@ export function DocumentAnalysis() {
 
             <Button 
               onClick={analyzeDocument}
-              disabled={!selectedFile || !selectedAssistant || isAnalyzing}
+              disabled={!selectedFile || !selectedAssistant || isAnalyzing || apiStatus === 'invalid'}
               className="w-full"
             >
               <Brain className="h-4 w-4 mr-2" />
