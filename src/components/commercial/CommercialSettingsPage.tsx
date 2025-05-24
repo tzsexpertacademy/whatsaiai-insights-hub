@@ -1,90 +1,57 @@
 
 import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Settings, Database, Bot, MessageSquare, Users, AlertCircle } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
-import { WhatsAppConfig } from '@/components/settings/WhatsAppConfig';
-import { FirebaseConfig } from '@/components/settings/FirebaseConfig';
-import { OpenAIConfig } from '@/components/settings/OpenAIConfig';
-import { CommercialAssistantsConfig } from '@/components/commercial/CommercialAssistantsConfig';
-import { ClientConfig } from '@/components/settings/ClientConfig';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Settings, Users, Database, Bot } from 'lucide-react';
+import { CommercialAssistantsConfig } from './CommercialAssistantsConfig';
+import { CommercialDatabaseCleanup } from './CommercialDatabaseCleanup';
 
 export function CommercialSettingsPage() {
-  console.log('CommercialSettingsPage - Componente sendo renderizado');
-  
-  const { user, isAuthenticated } = useAuth();
-  
-  console.log('CommercialSettingsPage - Estado da autenticação:', {
-    isAuthenticated,
-    user: user ? { id: user.id, email: user.email } : null
-  });
-
-  if (!isAuthenticated) {
-    console.log('CommercialSettingsPage - Usuário não autenticado');
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="max-w-md w-full bg-white/70 backdrop-blur-sm border border-white/50 rounded-lg p-8">
-          <div className="text-center">
-            <AlertCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
-            <h1 className="text-2xl font-bold text-red-600 mb-2">Acesso Negado</h1>
-            <p className="text-gray-600">
-              Você precisa estar logado para acessar as configurações.
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-  
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-slate-800 mb-2">Configurações do Cérebro Comercial</h1>
-        <p className="text-slate-600">Configure todas as integrações e assistentes para o módulo comercial</p>
+        <h2 className="text-2xl font-bold text-slate-800">Configurações Comerciais</h2>
+        <p className="text-slate-600">Configure assistentes e gerencie dados do módulo comercial</p>
       </div>
 
-      <Tabs defaultValue="whatsapp" className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="whatsapp" className="flex items-center gap-2">
-            <MessageSquare className="h-4 w-4" />
-            WhatsApp
-          </TabsTrigger>
-          <TabsTrigger value="firebase" className="flex items-center gap-2">
-            <Database className="h-4 w-4" />
-            Firebase
-          </TabsTrigger>
-          <TabsTrigger value="openai" className="flex items-center gap-2">
-            <Bot className="h-4 w-4" />
-            OpenAI
-          </TabsTrigger>
+      <Tabs defaultValue="assistants" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="assistants" className="flex items-center gap-2">
-            <Users className="h-4 w-4" />
-            Assistentes
+            <Bot className="h-4 w-4" />
+            Assistentes Comerciais
           </TabsTrigger>
-          <TabsTrigger value="clients" className="flex items-center gap-2">
-            <Settings className="h-4 w-4" />
-            Clientes
+          <TabsTrigger value="database" className="flex items-center gap-2">
+            <Database className="h-4 w-4" />
+            Limpeza de Dados
           </TabsTrigger>
         </TabsList>
-
-        <TabsContent value="whatsapp">
-          <WhatsAppConfig />
-        </TabsContent>
-
-        <TabsContent value="firebase">
-          <FirebaseConfig />
-        </TabsContent>
-
-        <TabsContent value="openai">
-          <OpenAIConfig />
-        </TabsContent>
 
         <TabsContent value="assistants">
           <CommercialAssistantsConfig />
         </TabsContent>
 
-        <TabsContent value="clients">
-          <ClientConfig />
+        <TabsContent value="database">
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Database className="h-5 w-5" />
+                  Gerenciamento de Dados Comerciais
+                </CardTitle>
+                <CardDescription>
+                  Ferramentas para limpeza e manutenção dos dados do módulo comercial
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-gray-600 mb-4">
+                  Use as ferramentas abaixo para gerenciar os dados do sistema comercial. 
+                  A limpeza é útil para testar o sistema com dados frescos.
+                </p>
+              </CardContent>
+            </Card>
+
+            <CommercialDatabaseCleanup />
+          </div>
         </TabsContent>
       </Tabs>
     </div>
