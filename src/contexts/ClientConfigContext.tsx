@@ -47,7 +47,7 @@ export function ClientConfigProvider({ children }: { children: React.ReactNode }
         const { data, error } = await supabase
           .from('client_configs')
           .select('*')
-          .eq('user_id', user.id)
+          .eq('id', user.id)
           .maybeSingle();
 
         if (error) {
@@ -78,7 +78,7 @@ export function ClientConfigProvider({ children }: { children: React.ReactNode }
           await supabase
             .from('client_configs')
             .insert({
-              user_id: user.id,
+              id: user.id,
               whatsapp_config: defaultConfig.whatsapp,
               openai_config: defaultConfig.openai,
               firebase_config: defaultConfig.firebase
@@ -118,7 +118,7 @@ export function ClientConfigProvider({ children }: { children: React.ReactNode }
       const { error } = await supabase
         .from('client_configs')
         .upsert({
-          user_id: user.id,
+          id: user.id,
           whatsapp_config: config.whatsapp,
           openai_config: config.openai,
           firebase_config: config.firebase,
