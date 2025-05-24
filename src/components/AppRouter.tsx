@@ -10,14 +10,7 @@ import { AdminRoute } from './AdminRoute';
 export function AppRouter() {
   const { isAuthenticated, isLoading } = useAuth();
 
-  console.log('🎯 AppRouter - Estado atual:', {
-    isAuthenticated,
-    isLoading,
-    currentPath: window.location.pathname
-  });
-
   if (isLoading) {
-    console.log('🔄 AppRouter - Carregando autenticação...');
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -28,59 +21,27 @@ export function AppRouter() {
     );
   }
 
-  console.log('✅ AppRouter - Renderizando rotas, isAuthenticated:', isAuthenticated);
-
   return (
     <Routes>
       <Route 
         path="/auth" 
-        element={
-          isAuthenticated ? (
-            <>
-              {console.log('🔀 Redirecionando usuário autenticado de /auth para /')}
-              <Navigate to="/" replace />
-            </>
-          ) : (
-            <>
-              {console.log('📝 Renderizando LoginPage')}
-              <LoginPage />
-            </>
-          )
-        } 
+        element={isAuthenticated ? <Navigate to="/" replace /> : <LoginPage />} 
       />
       <Route 
         path="/admin" 
         element={
           isAuthenticated ? (
-            <>
-              {console.log('🔐 Renderizando AdminRoute')}
-              <AdminRoute>
-                <AdminDashboard />
-              </AdminRoute>
-            </>
+            <AdminRoute>
+              <AdminDashboard />
+            </AdminRoute>
           ) : (
-            <>
-              {console.log('🔀 Redirecionando usuário não autenticado de /admin para /auth')}
-              <Navigate to="/auth" replace />
-            </>
+            <Navigate to="/auth" replace />
           )
         } 
       />
       <Route 
         path="/*" 
-        element={
-          isAuthenticated ? (
-            <>
-              {console.log('🏠 Renderizando Index (app principal)')}
-              <Index />
-            </>
-          ) : (
-            <>
-              {console.log('🔀 Redirecionando usuário não autenticado para /auth')}
-              <Navigate to="/auth" replace />
-            </>
-          )
-        } 
+        element={isAuthenticated ? <Index /> : <Navigate to="/auth" replace />} 
       />
     </Routes>
   );

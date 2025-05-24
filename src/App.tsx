@@ -8,7 +8,6 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ClientConfigProvider } from "@/contexts/ClientConfigContext";
 import { AdminProvider } from "@/contexts/AdminContext";
 import { AppRouter } from "@/components/AppRouter";
-import { LoopProtectionWrapper } from "@/components/LoopProtectionWrapper";
 
 const queryClient = new QueryClient();
 
@@ -19,15 +18,13 @@ function App() {
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          <LoopProtectionWrapper>
-            <AuthProvider>
-              <AdminProvider>
-                <ClientConfigProvider>
-                  <AppRouter />
-                </ClientConfigProvider>
-              </AdminProvider>
-            </AuthProvider>
-          </LoopProtectionWrapper>
+          <AuthProvider>
+            <AdminProvider>
+              <ClientConfigProvider>
+                <AppRouter />
+              </ClientConfigProvider>
+            </AdminProvider>
+          </AuthProvider>
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>
