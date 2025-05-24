@@ -185,6 +185,7 @@ export function SolutionsHub() {
   const { logout, user } = useAuth();
 
   const handleSolutionClick = (solution: Solution) => {
+    console.log(`Attempting to navigate to: ${solution.route}`);
     if (solution.status === 'active' && solution.route) {
       navigate(solution.route);
     } else {

@@ -12,6 +12,8 @@ import { TeamCulture } from '@/components/commercial/TeamCulture';
 import { StrategicMetrics } from '@/components/commercial/StrategicMetrics';
 
 export function CommercialBrain() {
+  console.log('CommercialBrain component rendering');
+  
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background/95 to-background/90">
       <SidebarProvider defaultOpen={true}>
