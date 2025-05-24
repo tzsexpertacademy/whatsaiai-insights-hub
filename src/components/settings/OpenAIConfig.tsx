@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Bot, CheckCircle, AlertCircle, Brain } from 'lucide-react';
+import { Bot, CheckCircle, AlertCircle, Brain, Loader2 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { useClientConfig } from '@/contexts/ClientConfigContext';
 
@@ -15,35 +15,11 @@ const availableModels = [
 ];
 
 export function OpenAIConfig() {
-  const { config, updateConfig, saveConfig, isLoading } = useClientConfig();
-  const [isConnected, setIsConnected] = useState(false);
+  const { config, updateConfig, saveConfig, isLoading, connectionStatus, testOpenAIConnection } = useClientConfig();
   const [isTesting, setIsTesting] = useState(false);
   const { toast } = useToast();
 
-  // Verificar conexão quando o componente carrega ou config muda
-  useEffect(() => {
-    checkConnection();
-  }, [config.openai.apiKey]);
-
-  const checkConnection = async () => {
-    if (!config.openai.apiKey || !config.openai.apiKey.startsWith('sk-')) {
-      setIsConnected(false);
-      return;
-    }
-
-    try {
-      const response = await fetch('https://api.openai.com/v1/models', {
-        headers: {
-          'Authorization': `Bearer ${config.openai.apiKey}`,
-        }
-      });
-      
-      setIsConnected(response.ok);
-    } catch (error) {
-      console.error('Erro ao verificar conexão OpenAI:', error);
-      setIsConnected(false);
-    }
-  };
+  const isConnected = connectionStatus.openai;
 
   const testConnection = async () => {
     if (!config.openai.apiKey.startsWith('sk-')) {
@@ -58,16 +34,9 @@ export function OpenAIConfig() {
     setIsTesting(true);
 
     try {
-      const response = await fetch('https://api.openai.com/v1/models', {
-        headers: {
-          'Authorization': `Bearer ${config.openai.apiKey}`,
-        }
-      });
+      const connected = await testOpenAIConnection();
       
-      if (response.ok) {
-        setIsConnected(true);
-        
-        // Salvar configurações no banco de dados
+      if (connected) {
         await saveConfig();
         
         toast({
@@ -75,7 +44,11 @@ export function OpenAIConfig() {
           description: "OpenAI API configurada e salva com sucesso",
         });
       } else {
-        throw new Error(`Erro ${response.status}: ${response.statusText}`);
+        toast({
+          title: "Falha na conexão",
+          description: "Não foi possível conectar à API da OpenAI",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error('Erro ao testar API OpenAI:', error);
@@ -96,10 +69,7 @@ export function OpenAIConfig() {
       temperature: 0.7,
       maxTokens: 1000
     });
-
-    setIsConnected(false);
     
-    // Salvar as configurações vazias no banco
     await saveConfig();
     
     toast({
@@ -123,7 +93,12 @@ export function OpenAIConfig() {
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-3 mb-4">
-              {isConnected ? (
+              {isLoading ? (
+                <>
+                  <Loader2 className="h-6 w-6 text-blue-500 animate-spin" />
+                  <span className="text-blue-600 font-medium">Verificando...</span>
+                </>
+              ) : isConnected ? (
                 <>
                   <CheckCircle className="h-6 w-6 text-green-500" />
                   <span className="text-green-600 font-medium">Conectado</span>
@@ -168,7 +143,14 @@ export function OpenAIConfig() {
                   className="flex-1" 
                   disabled={!config.openai.apiKey || isTesting || isLoading}
                 >
-                  {isTesting ? 'Testando...' : 'Testar e Salvar'}
+                  {isTesting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Testando...
+                    </>
+                  ) : (
+                    'Testar e Salvar'
+                  )}
                 </Button>
               ) : (
                 <Button 
@@ -254,7 +236,14 @@ export function OpenAIConfig() {
                 className="w-full mt-4"
                 disabled={isLoading}
               >
-                Salvar Configurações
+                {isLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Salvando...
+                  </>
+                ) : (
+                  "Salvar Configurações"
+                )}
               </Button>
             )}
           </CardContent>

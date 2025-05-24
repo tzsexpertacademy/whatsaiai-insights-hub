@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,29 +10,12 @@ import { useClientConfig } from '@/contexts/ClientConfigContext';
 import { FirebaseConnectionDiagnostics } from './FirebaseConnectionDiagnostics';
 
 export function FirebaseConfig() {
-  const { config, updateConfig, saveConfig, isLoading, isFirebaseConnected, testFirebaseConnection } = useClientConfig();
+  const { config, updateConfig, saveConfig, isLoading, connectionStatus, testFirebaseConnection } = useClientConfig();
   const [configFile, setConfigFile] = useState<File | null>(null);
   const [isTestingConnection, setIsTestingConnection] = useState(false);
   const { toast } = useToast();
 
-  // Verificar conexão quando o componente carrega ou config muda
-  useEffect(() => {
-    if (config.firebase.projectId && config.firebase.apiKey) {
-      checkConnection();
-    }
-  }, [config.firebase.projectId, config.firebase.apiKey]);
-
-  const checkConnection = async () => {
-    if (!config.firebase.projectId || !config.firebase.apiKey) {
-      return;
-    }
-
-    try {
-      await testFirebaseConnection();
-    } catch (error) {
-      console.error('Erro ao verificar conexão Firebase:', error);
-    }
-  };
+  const isFirebaseConnected = connectionStatus.firebase;
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -84,7 +67,6 @@ export function FirebaseConfig() {
       const isConnected = await testFirebaseConnection();
       
       if (isConnected) {
-        // Salvar configurações no banco de dados
         await saveConfig();
         
         toast({
@@ -120,7 +102,6 @@ export function FirebaseConfig() {
       databaseURL: ''
     });
 
-    // Salvar as configurações vazias no banco
     await saveConfig();
     
     toast({
@@ -383,7 +364,6 @@ export function FirebaseConfig() {
         </Card>
       </div>
 
-      {/* Diagnóstico de Conexão */}
       <FirebaseConnectionDiagnostics config={config.firebase} />
 
       <Card className="bg-white/70 backdrop-blur-sm border-white/50">
