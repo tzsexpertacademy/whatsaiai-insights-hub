@@ -121,21 +121,11 @@ export function useCommercialAssistantsConfig() {
     try {
       setIsLoading(true);
 
-      const { data: config } = await supabase
-        .from('client_configs')
-        .select('openai_config')
-        .eq('user_id', user.id)
-        .single();
-
-      const openaiConfig = config?.openai_config as CommercialOpenAIConfig | null;
+      // Força a atualização para os novos assistentes comerciais
+      console.log('Carregando novos assistentes comerciais...');
+      setAssistants(defaultAssistants);
+      await saveAssistants(defaultAssistants);
       
-      if (openaiConfig?.assistants && openaiConfig.assistants.length > 0) {
-        setAssistants(openaiConfig.assistants);
-      } else {
-        // Se não tem assistentes salvos ou está vazio, carrega os padrões e salva
-        setAssistants(defaultAssistants);
-        await saveAssistants(defaultAssistants);
-      }
     } catch (error) {
       console.error('Erro ao carregar assistentes comerciais:', error);
       setAssistants(defaultAssistants);
