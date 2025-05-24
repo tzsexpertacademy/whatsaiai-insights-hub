@@ -8,10 +8,12 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { FileText, Upload, Brain, AlertCircle, CheckCircle, XCircle, Info, Settings, Send, User, Bot, MessageSquare } from 'lucide-react';
 import { useAssistantsConfig } from '@/hooks/useAssistantsConfig';
+import { useCommercialAssistantsConfig } from '@/hooks/useCommercialAssistantsConfig';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { useClientConfig } from '@/contexts/ClientConfigContext';
 import { CostEstimator } from './CostEstimator';
+import { useLocation } from 'react-router-dom';
 
 // Modelos LLM disponíveis
 const LLM_MODELS = [
@@ -38,7 +40,14 @@ interface ChatMessage {
 }
 
 export function DocumentAnalysis() {
-  const { assistants, isLoading } = useAssistantsConfig();
+  const location = useLocation();
+  const isCommercialModule = location.pathname.includes('/commercial');
+  
+  // Usar hook apropriado baseado no módulo
+  const observatorioConfig = useAssistantsConfig();
+  const commercialConfig = useCommercialAssistantsConfig();
+  
+  const { assistants, isLoading } = isCommercialModule ? commercialConfig : observatorioConfig;
   const { config, connectionStatus } = useClientConfig();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedAssistant, setSelectedAssistant] = useState<string>('');
@@ -521,11 +530,16 @@ INSTRUÇÕES:
     );
   }
 
+  const moduleTitle = isCommercialModule ? "Análise Comercial" : "Análise e Conselho";
+  const moduleDescription = isCommercialModule 
+    ? "Analise documentos e converse com assistentes especializados em vendas e gestão comercial"
+    : "Analise documentos e converse com assistentes especializados";
+
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-slate-800">Análise e Conselho</h2>
-        <p className="text-slate-600">Analise documentos e converse com assistentes especializados</p>
+        <h2 className="text-2xl font-bold text-slate-800">{moduleTitle}</h2>
+        <p className="text-slate-600">{moduleDescription}</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -787,9 +801,14 @@ INSTRUÇÕES:
       {/* Assistentes Disponíveis */}
       <Card>
         <CardHeader>
-          <CardTitle>Assistentes Disponíveis</CardTitle>
+          <CardTitle>
+            {isCommercialModule ? "Assistentes Comerciais Disponíveis" : "Assistentes Disponíveis"}
+          </CardTitle>
           <CardDescription>
-            Cada assistente oferece uma perspectiva especializada na análise e conversa
+            {isCommercialModule 
+              ? "Cada assistente oferece uma perspectiva especializada em operações comerciais"
+              : "Cada assistente oferece uma perspectiva especializada na análise e conversa"
+            }
           </CardDescription>
         </CardHeader>
         <CardContent>
