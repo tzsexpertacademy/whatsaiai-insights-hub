@@ -19,6 +19,7 @@ interface Assistant {
 
 interface OpenAIConfig {
   assistants?: Assistant[];
+  commercial_assistants?: any[]; // Mantém os assistentes comerciais separados
   [key: string]: any;
 }
 
@@ -141,13 +142,16 @@ export function useAssistantsConfig() {
 
       const openaiConfig = config?.openai_config as OpenAIConfig | null;
       
-      if (openaiConfig?.assistants) {
+      // Busca especificamente os assistentes do observatório (chave 'assistants')
+      if (openaiConfig?.assistants && openaiConfig.assistants.length > 0) {
         setAssistants(openaiConfig.assistants);
       } else {
+        // Se não tem assistentes do observatório salvos, carrega os padrões e salva
         setAssistants(defaultAssistants);
+        await saveAssistants(defaultAssistants);
       }
     } catch (error) {
-      console.error('Erro ao carregar assistentes:', error);
+      console.error('Erro ao carregar assistentes do observatório:', error);
       setAssistants(defaultAssistants);
     } finally {
       setIsLoading(false);
@@ -160,14 +164,25 @@ export function useAssistantsConfig() {
     try {
       setIsLoading(true);
 
-      const openaiConfig: OpenAIConfig = {
+      // Primeiro, busca a configuração atual para preservar os assistentes comerciais
+      const { data: currentConfig } = await supabase
+        .from('client_configs')
+        .select('openai_config')
+        .eq('user_id', user.id)
+        .single();
+
+      const existingConfig = currentConfig?.openai_config as OpenAIConfig || {};
+
+      // Preserva os assistentes comerciais e atualiza apenas os do observatório
+      const updatedConfig: OpenAIConfig = {
+        ...existingConfig,
         assistants: updatedAssistants
       };
 
       const { error } = await supabase
         .from('client_configs')
         .update({
-          openai_config: openaiConfig
+          openai_config: updatedConfig
         })
         .eq('user_id', user.id);
 
