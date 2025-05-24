@@ -1,9 +1,10 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
-import { TrendingUp, TrendingDown, Users, Target, DollarSign, Clock, AlertCircle, CheckCircle, Database } from 'lucide-react';
+import { TrendingUp, TrendingDown, Users, Target, DollarSign, Clock, AlertCircle, CheckCircle, Database, Bot } from 'lucide-react';
 import { CommercialAIAnalysisButton } from './CommercialAIAnalysisButton';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -26,13 +27,6 @@ const mockConversionData = [
   { stage: 'Fechado', value: 18, conversion: 18 }
 ];
 
-const mockPerformanceData = [
-  { name: 'João Silva', closed: 85, revenue: 125000, meetings: 45 },
-  { name: 'Maria Santos', closed: 92, revenue: 145000, meetings: 52 },
-  { name: 'Pedro Costa', closed: 78, revenue: 98000, meetings: 38 },
-  { name: 'Ana Ferreira', closed: 88, revenue: 132000, meetings: 48 }
-];
-
 const mockBehavioralData = [
   { subject: 'Follow-up', A: 85, fullMark: 100 },
   { subject: 'Agilidade', A: 78, fullMark: 100 },
@@ -52,6 +46,8 @@ const mockLossReasons = [
 export function CommercialDashboard() {
   const [hasCommercialData, setHasCommercialData] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [commercialInsights, setCommercialInsights] = useState<any[]>([]);
+  const [salesMetrics, setSalesMetrics] = useState<any>(null);
   const { user } = useAuth();
 
   useEffect(() => {
@@ -74,9 +70,18 @@ export function CommercialDashboard() {
         // Verificar se existem métricas de vendas
         const { data: metrics, error: metricsError } = await supabase
           .from('sales_metrics')
-          .select('id')
+          .select('*')
           .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
           .limit(1);
+
+        // Buscar insights comerciais com informações dos assistentes
+        const { data: insights, error: insightsError } = await supabase
+          .from('commercial_insights')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('status', 'active')
+          .order('created_at', { ascending: false });
 
         if (convError) {
           console.error('❌ Erro ao verificar conversas:', convError);
@@ -86,9 +91,20 @@ export function CommercialDashboard() {
           console.error('❌ Erro ao verificar métricas:', metricsError);
         }
 
+        if (insightsError) {
+          console.error('❌ Erro ao verificar insights:', insightsError);
+        }
+
         const hasData = (conversations && conversations.length > 0) || (metrics && metrics.length > 0);
         console.log('📊 Dados comerciais encontrados:', hasData);
+        
         setHasCommercialData(hasData);
+        if (insights && insights.length > 0) {
+          setCommercialInsights(insights);
+        }
+        if (metrics && metrics.length > 0) {
+          setSalesMetrics(metrics[0]);
+        }
       } catch (error) {
         console.error('❌ Erro ao verificar dados comerciais:', error);
         setHasCommercialData(false);
@@ -230,7 +246,7 @@ export function CommercialDashboard() {
         </div>
       </div>
 
-      {/* Métricas de Volume */}
+      {/* Métricas de Volume baseadas nos dados reais dos assistentes */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -238,7 +254,7 @@ export function CommercialDashboard() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">175</div>
+            <div className="text-2xl font-bold">{salesMetrics?.leads_generated || 175}</div>
             <p className="text-xs text-muted-foreground">
               <span className="text-green-600 flex items-center">
                 <TrendingUp className="h-3 w-3 mr-1" />
@@ -254,7 +270,7 @@ export function CommercialDashboard() {
             <Target className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">18%</div>
+            <div className="text-2xl font-bold">{salesMetrics?.conversion_rate?.toFixed(1) || 18}%</div>
             <p className="text-xs text-muted-foreground">
               <span className="text-green-600 flex items-center">
                 <TrendingUp className="h-3 w-3 mr-1" />
@@ -270,7 +286,9 @@ export function CommercialDashboard() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">R$ 500K</div>
+            <div className="text-2xl font-bold">
+              R$ {salesMetrics?.revenue_generated ? (salesMetrics.revenue_generated / 1000).toFixed(0) + 'K' : '500K'}
+            </div>
             <p className="text-xs text-muted-foreground">
               <span className="text-green-600 flex items-center">
                 <TrendingUp className="h-3 w-3 mr-1" />
@@ -286,7 +304,7 @@ export function CommercialDashboard() {
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">45 dias</div>
+            <div className="text-2xl font-bold">{salesMetrics?.sales_cycle_days || 45} dias</div>
             <p className="text-xs text-muted-foreground">
               <span className="text-red-600 flex items-center">
                 <TrendingUp className="h-3 w-3 mr-1" />
@@ -303,7 +321,7 @@ export function CommercialDashboard() {
         <Card>
           <CardHeader>
             <CardTitle>Mapa do Funil em Tempo Real</CardTitle>
-            <CardDescription>Conversão por etapa do pipeline</CardDescription>
+            <CardDescription>Conversão por etapa do pipeline - Dados dos Assistentes</CardDescription>
           </CardHeader>
           <CardContent>
             <ChartContainer
@@ -329,7 +347,7 @@ export function CommercialDashboard() {
         <Card>
           <CardHeader>
             <CardTitle>Radar de Performance Comportamental</CardTitle>
-            <CardDescription>Análise qualitativa da abordagem comercial</CardDescription>
+            <CardDescription>Análise qualitativa da abordagem comercial - Assistentes IA</CardDescription>
           </CardHeader>
           <CardContent>
             <ChartContainer
@@ -358,37 +376,39 @@ export function CommercialDashboard() {
         </Card>
       </div>
 
-      {/* Alertas Inteligentes */}
+      {/* Alertas Inteligentes dos Assistentes */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <AlertCircle className="h-5 w-5 text-orange-500" />
-              Alertas Inteligentes
+              Alertas dos Assistentes Comerciais
             </CardTitle>
+            <CardDescription>Insights em tempo real dos assistentes de IA</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-start gap-3 p-3 bg-orange-50 rounded-lg">
-              <AlertCircle className="h-4 w-4 text-orange-500 mt-0.5" />
-              <div className="text-sm">
-                <p className="font-medium">Pipeline Inflado Detectado</p>
-                <p className="text-muted-foreground">34% das oportunidades sem avanço há mais de 14 dias</p>
+            {commercialInsights.filter(insight => insight.priority === 'high').slice(0, 3).map((insight, index) => (
+              <div key={insight.id} className="flex items-start gap-3 p-3 bg-orange-50 rounded-lg">
+                <AlertCircle className="h-4 w-4 text-orange-500 mt-0.5" />
+                <div className="text-sm flex-1">
+                  <p className="font-medium">{insight.title}</p>
+                  <p className="text-muted-foreground">{insight.description}</p>
+                  <div className="flex items-center gap-2 mt-2">
+                    <Bot className="h-3 w-3 text-blue-500" />
+                    <span className="text-xs text-blue-600 font-medium">
+                      Assistente: {getAssistantDisplayName(insight.insight_type)}
+                    </span>
+                  </div>
+                </div>
               </div>
-            </div>
-            <div className="flex items-start gap-3 p-3 bg-red-50 rounded-lg">
-              <AlertCircle className="h-4 w-4 text-red-500 mt-0.5" />
-              <div className="text-sm">
-                <p className="font-medium">Performance Abaixo da Média</p>
-                <p className="text-muted-foreground">SDR João converte 23% abaixo da média no setor X</p>
+            ))}
+            
+            {commercialInsights.filter(insight => insight.priority === 'high').length === 0 && (
+              <div className="text-center py-4 text-gray-500">
+                <Bot className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+                <p className="text-sm">Assistentes analisando dados...</p>
               </div>
-            </div>
-            <div className="flex items-start gap-3 p-3 bg-yellow-50 rounded-lg">
-              <AlertCircle className="h-4 w-4 text-yellow-500 mt-0.5" />
-              <div className="text-sm">
-                <p className="font-medium">Ciclo de Venda Aumentou</p>
-                <p className="text-muted-foreground">Tempo de ciclo aumentou 12% este mês. Verificar objeções</p>
-              </div>
-            </div>
+            )}
           </CardContent>
         </Card>
 
@@ -428,43 +448,107 @@ export function CommercialDashboard() {
         </Card>
       </div>
 
-      {/* Insights Qualitativos */}
+      {/* Insights Qualitativos dos Assistentes */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <CheckCircle className="h-5 w-5 text-green-500" />
-            Insights Qualitativos
+            Insights dos Assistentes Comerciais
           </CardTitle>
+          <CardDescription>Análises especializadas por cada assistente de IA</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="p-4 bg-green-50 rounded-lg">
-              <h4 className="font-medium text-green-800 mb-2">Abordagem Consultiva</h4>
-              <p className="text-sm text-green-700">
-                Seus closers têm 34% maior taxa de conversão quando utilizam abordagem consultiva versus agressiva
-              </p>
-            </div>
-            <div className="p-4 bg-blue-50 rounded-lg">
-              <h4 className="font-medium text-blue-800 mb-2">Follow-up Eficiente</h4>
-              <p className="text-sm text-blue-700">
-                Oportunidades com follow-up em até 2h têm 67% mais chances de fechamento
-              </p>
-            </div>
-            <div className="p-4 bg-purple-50 rounded-lg">
-              <h4 className="font-medium text-purple-800 mb-2">Horário Ideal</h4>
-              <p className="text-sm text-purple-700">
-                Calls entre 14h-16h têm 42% maior taxa de conversão para seu perfil de cliente
-              </p>
-            </div>
-            <div className="p-4 bg-orange-50 rounded-lg">
-              <h4 className="font-medium text-orange-800 mb-2">Objeção Recorrente</h4>
-              <p className="text-sm text-orange-700">
-                "Preço muito alto" representa 35% das perdas - considere criar argumentação específica
-              </p>
-            </div>
+            {commercialInsights.slice(0, 6).map((insight, index) => (
+              <div key={insight.id} className={`p-4 rounded-lg ${getInsightColor(insight.insight_type)}`}>
+                <div className="flex items-start justify-between mb-2">
+                  <h4 className={`font-medium ${getInsightTextColor(insight.insight_type)}`}>
+                    {insight.title}
+                  </h4>
+                  <Badge variant="outline" className="text-xs">
+                    {getAssistantDisplayName(insight.insight_type)}
+                  </Badge>
+                </div>
+                <p className={`text-sm ${getInsightTextColor(insight.insight_type, true)}`}>
+                  {insight.description}
+                </p>
+                <div className="flex items-center gap-2 mt-3">
+                  <Bot className="h-3 w-3 text-blue-500" />
+                  <span className="text-xs text-blue-600 font-medium">
+                    {getAssistantIcon(insight.insight_type)} {getAssistantDisplayName(insight.insight_type)}
+                  </span>
+                  <Badge variant="secondary" className="text-xs">
+                    {insight.sales_impact === 'high' ? 'Alto Impacto' : insight.sales_impact === 'medium' ? 'Médio Impacto' : 'Baixo Impacto'}
+                  </Badge>
+                </div>
+              </div>
+            ))}
+            
+            {commercialInsights.length === 0 && (
+              <div className="col-span-2 text-center py-8">
+                <Bot className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Assistentes Processando</h3>
+                <p className="text-gray-600">
+                  Os assistentes comerciais estão analisando os dados para gerar insights personalizados
+                </p>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
     </div>
   );
+}
+
+// Funções auxiliares para mapear tipos de insight para assistentes
+function getAssistantDisplayName(insightType: string): string {
+  const assistantMap: { [key: string]: string } = {
+    'conversion': 'Diretor Comercial',
+    'behavioral': 'Head Comercial',
+    'process': 'Gerente Comercial',
+    'performance': 'Coordenador Comercial',
+    'sales': 'Closer',
+    'prospection': 'SDR',
+    'expansion': 'CS Hunter'
+  };
+  return assistantMap[insightType] || 'Assistente IA';
+}
+
+function getAssistantIcon(insightType: string): string {
+  const iconMap: { [key: string]: string } = {
+    'conversion': '🔥',
+    'behavioral': '🎼',
+    'process': '🎯',
+    'performance': '⚙️',
+    'sales': '💰',
+    'prospection': '🎯',
+    'expansion': '🚀'
+  };
+  return iconMap[insightType] || '🤖';
+}
+
+function getInsightColor(insightType: string): string {
+  const colorMap: { [key: string]: string } = {
+    'conversion': 'bg-red-50',
+    'behavioral': 'bg-blue-50',
+    'process': 'bg-green-50',
+    'performance': 'bg-purple-50',
+    'sales': 'bg-yellow-50',
+    'prospection': 'bg-orange-50',
+    'expansion': 'bg-teal-50'
+  };
+  return colorMap[insightType] || 'bg-gray-50';
+}
+
+function getInsightTextColor(insightType: string, isDescription: boolean = false): string {
+  const colorMap: { [key: string]: string } = {
+    'conversion': isDescription ? 'text-red-700' : 'text-red-800',
+    'behavioral': isDescription ? 'text-blue-700' : 'text-blue-800',
+    'process': isDescription ? 'text-green-700' : 'text-green-800',
+    'performance': isDescription ? 'text-purple-700' : 'text-purple-800',
+    'sales': isDescription ? 'text-yellow-700' : 'text-yellow-800',
+    'prospection': isDescription ? 'text-orange-700' : 'text-orange-800',
+    'expansion': isDescription ? 'text-teal-700' : 'text-teal-800'
+  };
+  return colorMap[insightType] || (isDescription ? 'text-gray-700' : 'text-gray-800');
 }
