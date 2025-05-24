@@ -4,8 +4,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { ClientConfig, defaultConfig } from '@/types/clientConfig';
-import { useConfigPersistence } from '@/hooks/useConfigPersistence';
-import { useFirebaseConnection } from '@/hooks/useFirebaseConnection';
 
 interface ClientConfigContextType {
   config: ClientConfig;
@@ -21,44 +19,67 @@ const ClientConfigContext = createContext<ClientConfigContextType | undefined>(u
 export function ClientConfigProvider({ children }: { children: React.ReactNode }) {
   const [config, setConfig] = useState<ClientConfig>(defaultConfig);
   const [isLoading, setIsLoading] = useState(false);
-  const [isInitialized, setIsInitialized] = useState(false);
+  const [isFirebaseConnected, setIsFirebaseConnected] = useState(false);
   const { user, isAuthenticated } = useAuth();
   const { toast } = useToast();
-  
-  const { loadConfig, saveConfigToDatabase } = useConfigPersistence({
-    user,
-    isAuthenticated,
-    setConfig,
-    setIsLoading,
-    toast
-  });
-  
-  const { isFirebaseConnected, testFirebaseConnection } = useFirebaseConnection(config.firebase);
 
+  // Carregar configurações apenas UMA vez quando o usuário estiver autenticado
   useEffect(() => {
-    if (isInitialized) return;
+    if (!isAuthenticated || !user?.id) {
+      console.log('🔄 Usuário não autenticado, usando config padrão');
+      setConfig(defaultConfig);
+      return;
+    }
 
-    const initializeConfig = async () => {
-      if (isAuthenticated && user?.id) {
-        console.log('🔄 Usuário autenticado, carregando configurações...');
-        try {
-          await loadConfig();
-        } catch (error) {
+    const loadUserConfig = async () => {
+      try {
+        setIsLoading(true);
+        console.log('📥 Carregando configurações do usuário:', user.id);
+        
+        const { data, error } = await supabase
+          .from('client_configs')
+          .select('*')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (error) {
           console.error('❌ Erro ao carregar configurações:', error);
           setConfig(defaultConfig);
+          return;
         }
-      } else {
-        console.log('ℹ️ Usando configurações padrão');
+
+        if (data) {
+          const loadedConfig = {
+            whatsapp: { ...defaultConfig.whatsapp, ...(data.whatsapp_config || {}) },
+            openai: { ...defaultConfig.openai, ...(data.openai_config || {}) },
+            firebase: { ...defaultConfig.firebase, ...(data.firebase_config || {}) }
+          };
+          setConfig(loadedConfig);
+          console.log('✅ Configurações carregadas');
+        } else {
+          console.log('ℹ️ Criando configuração inicial');
+          await supabase
+            .from('client_configs')
+            .insert({
+              user_id: user.id,
+              whatsapp_config: defaultConfig.whatsapp,
+              openai_config: defaultConfig.openai,
+              firebase_config: defaultConfig.firebase
+            });
+          setConfig(defaultConfig);
+        }
+      } catch (error) {
+        console.error('❌ Erro inesperado:', error);
         setConfig(defaultConfig);
+      } finally {
+        setIsLoading(false);
       }
-      setIsInitialized(true);
     };
 
-    initializeConfig();
-  }, [isAuthenticated, user?.id, loadConfig, isInitialized]);
+    loadUserConfig();
+  }, [user?.id, isAuthenticated]); // Dependências simples e claras
 
   const updateConfig = (section: keyof ClientConfig, updates: Partial<ClientConfig[keyof ClientConfig]>) => {
-    console.log(`🔧 Atualizando seção ${section}:`, updates);
     setConfig(prev => ({
       ...prev,
       [section]: { ...prev[section], ...updates }
@@ -66,12 +87,55 @@ export function ClientConfigProvider({ children }: { children: React.ReactNode }
   };
 
   const saveConfig = async (): Promise<void> => {
-    if (!isAuthenticated || !user?.id) {
-      console.error('❌ SaveConfig: Usuário não autenticado');
+    if (!user?.id) {
       throw new Error('Usuário não autenticado');
     }
 
-    await saveConfigToDatabase(config, user.id, setIsLoading);
+    try {
+      setIsLoading(true);
+      
+      const { error } = await supabase
+        .from('client_configs')
+        .upsert({
+          user_id: user.id,
+          whatsapp_config: config.whatsapp,
+          openai_config: config.openai,
+          firebase_config: config.firebase,
+          updated_at: new Date().toISOString()
+        });
+
+      if (error) throw error;
+      
+      console.log('✅ Configurações salvas');
+    } catch (error) {
+      console.error('❌ Erro ao salvar:', error);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const testFirebaseConnection = async (): Promise<boolean> => {
+    const { projectId, apiKey, databaseURL } = config.firebase;
+    
+    if (!projectId || !apiKey || !databaseURL) {
+      setIsFirebaseConnected(false);
+      return false;
+    }
+
+    try {
+      const cleanUrl = databaseURL.replace(/\/$/, '');
+      const testUrl = `${cleanUrl}/.json?auth=${apiKey}`;
+      
+      const response = await fetch(testUrl, { method: 'GET' });
+      const connected = response.ok;
+      setIsFirebaseConnected(connected);
+      return connected;
+    } catch (error) {
+      console.error('❌ Erro de conexão Firebase:', error);
+      setIsFirebaseConnected(false);
+      return false;
+    }
   };
 
   return (

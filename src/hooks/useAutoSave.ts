@@ -1,11 +1,9 @@
 
 import { useEffect, useRef } from 'react';
 import { useClientConfig } from '@/contexts/ClientConfigContext';
-import { useToast } from '@/hooks/use-toast';
 
 export function useAutoSave() {
   const { config, saveConfig } = useClientConfig();
-  const { toast } = useToast();
   const timeoutRef = useRef<NodeJS.Timeout>();
   const lastConfigRef = useRef<string>('');
   const isSavingRef = useRef(false);
@@ -13,26 +11,26 @@ export function useAutoSave() {
   useEffect(() => {
     const configString = JSON.stringify(config);
     
-    // Só executar se a configuração realmente mudou e não está salvando
+    // Só salvar se a configuração mudou e não está salvando
     if (configString === lastConfigRef.current || isSavingRef.current) {
       return;
     }
     
     lastConfigRef.current = configString;
 
-    // Clear timeout anterior
+    // Limpar timeout anterior
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
     }
 
-    // Auto-save após 3 segundos de inatividade
+    // Auto-save após 3 segundos
     timeoutRef.current = setTimeout(async () => {
       if (isSavingRef.current) return;
       
       try {
         isSavingRef.current = true;
         await saveConfig();
-        console.log('✅ Configurações salvas automaticamente');
+        console.log('✅ Auto-save realizado');
       } catch (error) {
         console.error('❌ Erro no auto-save:', error);
       } finally {
@@ -53,16 +51,10 @@ export function useAutoSave() {
     try {
       isSavingRef.current = true;
       await saveConfig();
-      toast({
-        title: "Configurações salvas",
-        description: "Todas as configurações foram salvas no seu perfil"
-      });
+      console.log('✅ Save manual realizado');
     } catch (error) {
-      toast({
-        title: "Erro ao salvar",
-        description: "Não foi possível salvar as configurações",
-        variant: "destructive"
-      });
+      console.error('❌ Erro no save manual:', error);
+      throw error;
     } finally {
       isSavingRef.current = false;
     }
