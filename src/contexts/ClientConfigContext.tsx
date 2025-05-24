@@ -62,15 +62,15 @@ export function ClientConfigProvider({ children }: { children: React.ReactNode }
           const loadedConfig: ClientConfig = {
             whatsapp: {
               ...defaultConfig.whatsapp,
-              ...(data.whatsapp_config || {})
+              ...(data.whatsapp_config && typeof data.whatsapp_config === 'object' ? data.whatsapp_config as any : {})
             },
             openai: {
               ...defaultConfig.openai,
-              ...(data.openai_config || {})
+              ...(data.openai_config && typeof data.openai_config === 'object' ? data.openai_config as any : {})
             },
             firebase: {
               ...defaultConfig.firebase,
-              ...(data.firebase_config || {})
+              ...(data.firebase_config && typeof data.firebase_config === 'object' ? data.firebase_config as any : {})
             }
           };
           setConfig(loadedConfig);
@@ -82,9 +82,9 @@ export function ClientConfigProvider({ children }: { children: React.ReactNode }
             .from('client_configs')
             .insert({
               id: user.id,
-              whatsapp_config: defaultConfig.whatsapp,
-              openai_config: defaultConfig.openai,
-              firebase_config: defaultConfig.firebase
+              whatsapp_config: defaultConfig.whatsapp as any,
+              openai_config: defaultConfig.openai as any,
+              firebase_config: defaultConfig.firebase as any
             });
           
           if (insertError) {
@@ -139,9 +139,9 @@ export function ClientConfigProvider({ children }: { children: React.ReactNode }
         .from('client_configs')
         .upsert({
           id: user.id,
-          whatsapp_config: config.whatsapp,
-          openai_config: config.openai,
-          firebase_config: config.firebase,
+          whatsapp_config: config.whatsapp as any,
+          openai_config: config.openai as any,
+          firebase_config: config.firebase as any,
           updated_at: new Date().toISOString()
         });
 
