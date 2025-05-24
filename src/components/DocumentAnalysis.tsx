@@ -18,6 +18,7 @@ export function DocumentAnalysis() {
   const [selectedAssistant, setSelectedAssistant] = useState<string>('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<string | null>(null);
+  const [currentAnalysisAssistant, setCurrentAnalysisAssistant] = useState<string | null>(null);
   const [documentInfo, setDocumentInfo] = useState<{ size: number; willBeTruncated: boolean } | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
@@ -37,8 +38,8 @@ export function DocumentAnalysis() {
         
         // Calcular informações do documento
         const fileSizeKB = file.size / 1024;
-        const maxTokensForAnalysis = 100000; // Aumentado significativamente
-        const estimatedTokens = file.size / 3; // Estimativa mais generosa: 1 token ≈ 3 caracteres
+        const maxTokensForAnalysis = 200000; // Aumentado significativamente
+        const estimatedTokens = file.size / 2; // Estimativa mais generosa: 1 token ≈ 2 caracteres
         const willBeTruncated = estimatedTokens > maxTokensForAnalysis;
         
         setDocumentInfo({
@@ -69,9 +70,9 @@ export function DocumentAnalysis() {
     });
   };
 
-  const truncateContent = (content: string, maxTokens: number = 100000): { content: string; wasTruncated: boolean } => {
-    // Estimativa mais conservadora: 1 token ≈ 2.5 caracteres para texto em português
-    const maxChars = maxTokens * 2.5;
+  const truncateContent = (content: string, maxTokens: number = 200000): { content: string; wasTruncated: boolean } => {
+    // Estimativa mais conservadora: 1 token ≈ 2 caracteres para texto em português
+    const maxChars = maxTokens * 2;
     
     if (content.length <= maxChars) {
       return { content, wasTruncated: false };
@@ -115,7 +116,7 @@ export function DocumentAnalysis() {
         console.log('❌ API Key não encontrada');
         toast({
           title: "API Key não configurada",
-          description: "Configure sua API Key do OpenAI na aba 'Configurações > OpenAI'",
+          description: "Configure sua API Key do OpenAI na aba 'Configurações → OpenAI'",
           variant: "destructive",
         });
         return;
@@ -135,7 +136,7 @@ export function DocumentAnalysis() {
         console.log('❌ Conexão OpenAI falhou');
         toast({
           title: "Problema com a conexão",
-          description: "Teste a conexão OpenAI na aba 'Configurações > OpenAI'",
+          description: "Teste a conexão OpenAI na aba 'Configurações → OpenAI'",
           variant: "destructive",
         });
         return;
@@ -165,20 +166,32 @@ export function DocumentAnalysis() {
         throw new Error('Assistente não encontrado');
       }
 
-      console.log('🤖 Assistente encontrado:', assistant.name);
+      console.log('🤖 Assistente selecionado para análise:', {
+        id: assistant.id,
+        name: assistant.name,
+        area: assistant.area
+      });
       console.log('📊 Preparando chamada para OpenAI...');
 
       // Construir mensagens para OpenAI
-      const systemPrompt = `${assistant.prompt}
+      const systemPrompt = `Você é ${assistant.name}, ${assistant.description}.
+
+${assistant.prompt}
 
 Você receberá um documento de texto para análise. ${wasTruncated ? 'IMPORTANTE: Este documento foi truncado devido ao tamanho. Analise apenas o conteúdo fornecido e mencione que a análise é baseada nos primeiros segmentos do documento.' : ''}
 
-Forneça insights detalhados da sua área de especialidade. Seja conciso mas informativo. Estruture sua resposta de forma clara e organizada.`;
+INSTRUÇÕES IMPORTANTES:
+- Sempre comece sua resposta identificando-se: "**Análise de ${assistant.name}**"
+- Forneça insights detalhados da sua área de especialidade (${assistant.area})
+- Seja conciso mas informativo
+- Estruture sua resposta de forma clara e organizada
+- Use formatação markdown para melhor legibilidade`;
 
       const userPrompt = `Analise o seguinte documento da perspectiva de ${assistant.area}:
 
 ARQUIVO: ${selectedFile.name}
 TAMANHO: ${(selectedFile.size / 1024).toFixed(1)} KB
+ASSISTENTE: ${assistant.name}
 ${wasTruncated ? 'STATUS: Documento truncado - análise baseada nos primeiros segmentos\n' : ''}
 
 CONTEÚDO:
@@ -193,7 +206,7 @@ ${processedContent}`;
         model: assistant.model || config.openai.model || 'gpt-4o-mini',
         messages: messages,
         temperature: config.openai.temperature || 0.7,
-        max_tokens: Math.min(config.openai.maxTokens || 2000, 4000) // Aumentado o limite
+        max_tokens: Math.min(config.openai.maxTokens || 3000, 4000)
       };
 
       console.log('🚀 Fazendo chamada para OpenAI...', {
@@ -201,7 +214,8 @@ ${processedContent}`;
         messagesCount: requestBody.messages.length,
         temperature: requestBody.temperature,
         maxTokens: requestBody.max_tokens,
-        contentLength: processedContent.length
+        contentLength: processedContent.length,
+        assistantName: assistant.name
       });
 
       // Fazer análise via OpenAI
@@ -241,7 +255,8 @@ ${processedContent}`;
         hasChoices: !!data.choices,
         choicesLength: data.choices?.length,
         hasContent: !!data.choices?.[0]?.message?.content,
-        usage: data.usage
+        usage: data.usage,
+        assistantUsed: assistant.name
       });
       
       const analysis = data.choices?.[0]?.message?.content;
@@ -251,9 +266,10 @@ ${processedContent}`;
         throw new Error('Resposta vazia da OpenAI');
       }
       
-      console.log('✅ Análise concluída:', analysis.length, 'caracteres');
+      console.log('✅ Análise concluída por', assistant.name, ':', analysis.length, 'caracteres');
       
       setAnalysisResult(analysis);
+      setCurrentAnalysisAssistant(assistant.name);
       
       toast({
         title: "Análise concluída",
@@ -323,7 +339,7 @@ ${processedContent}`;
           {!config.openai?.apiKey && (
             <div className="p-3 bg-yellow-50 rounded-md">
               <p className="text-sm text-yellow-800">
-                Configure sua API Key do OpenAI na aba "Configurações > OpenAI" para usar este recurso.
+                Configure sua API Key do OpenAI na aba "Configurações → OpenAI" para usar este recurso.
               </p>
             </div>
           )}
@@ -331,7 +347,7 @@ ${processedContent}`;
           {apiStatus !== 'valid' && config.openai?.apiKey && (
             <div className="p-3 bg-red-50 rounded-md">
               <p className="text-sm text-red-800">
-                Há um problema com sua API Key. Teste a conexão na aba "Configurações > OpenAI".
+                Há um problema com sua API Key. Teste a conexão na aba "Configurações → OpenAI".
               </p>
             </div>
           )}
@@ -439,7 +455,7 @@ ${processedContent}`;
               <div className="space-y-4">
                 <div className="p-4 bg-blue-50 rounded-md border border-blue-200">
                   <h4 className="font-semibold text-blue-900 mb-2">
-                    Análise de {assistants.find(a => a.id === selectedAssistant)?.name}
+                    Análise realizada por: {currentAnalysisAssistant}
                   </h4>
                   <div className="text-sm text-blue-800 whitespace-pre-wrap">
                     {analysisResult}
@@ -448,7 +464,10 @@ ${processedContent}`;
                 
                 <Button 
                   variant="outline" 
-                  onClick={() => setAnalysisResult(null)}
+                  onClick={() => {
+                    setAnalysisResult(null);
+                    setCurrentAnalysisAssistant(null);
+                  }}
                   className="w-full"
                 >
                   Nova Análise
