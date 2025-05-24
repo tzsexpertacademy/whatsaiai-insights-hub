@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -36,11 +35,11 @@ export function DocumentAnalysis() {
       if (isTextFile || file.type === 'application/json' || file.type === 'text/plain' || file.type === '') {
         setSelectedFile(file);
         
-        // Calcular informações do documento
+        // Calcular informações do documento com limite mais conservador
         const fileSizeKB = file.size / 1024;
-        const maxTokensForAnalysis = 200000; // Aumentado significativamente
-        const estimatedTokens = file.size / 2; // Estimativa mais generosa: 1 token ≈ 2 caracteres
-        const willBeTruncated = estimatedTokens > maxTokensForAnalysis;
+        const maxTokensForDocument = 80000; // Muito mais conservador - deixa espaço para system prompt e resposta
+        const estimatedTokens = file.size / 3; // Estimativa mais conservadora: 1 token ≈ 3 caracteres
+        const willBeTruncated = estimatedTokens > maxTokensForDocument;
         
         setDocumentInfo({
           size: fileSizeKB,
@@ -70,9 +69,16 @@ export function DocumentAnalysis() {
     });
   };
 
-  const truncateContent = (content: string, maxTokens: number = 200000): { content: string; wasTruncated: boolean } => {
-    // Estimativa mais conservadora: 1 token ≈ 2 caracteres para texto em português
-    const maxChars = maxTokens * 2;
+  const truncateContent = (content: string, maxTokens: number = 80000): { content: string; wasTruncated: boolean } => {
+    // Estimativa muito conservadora: 1 token ≈ 3 caracteres para garantir que ficamos dentro do limite
+    const maxChars = Math.floor(maxTokens * 3);
+    
+    console.log('📏 Truncagem:', {
+      contentLength: content.length,
+      maxChars,
+      maxTokens,
+      willTruncate: content.length > maxChars
+    });
     
     if (content.length <= maxChars) {
       return { content, wasTruncated: false };
@@ -87,6 +93,13 @@ export function DocumentAnalysis() {
     
     const truncatedContent = content.substring(0, truncateAt) + 
       "\n\n[DOCUMENTO TRUNCADO PARA ANÁLISE - CONTEÚDO RESTANTE NÃO PROCESSADO]";
+    
+    console.log('✂️ Conteúdo truncado:', {
+      originalLength: content.length,
+      truncatedLength: truncatedContent.length,
+      truncateAt,
+      estimatedTokens: Math.ceil(truncatedContent.length / 3)
+    });
     
     return { content: truncatedContent, wasTruncated: true };
   };
@@ -147,14 +160,14 @@ export function DocumentAnalysis() {
       const fileContent = await readFileContent(selectedFile);
       console.log('📖 Arquivo lido:', fileContent.length, 'caracteres');
       
-      // Truncar conteúdo se necessário
-      const { content: processedContent, wasTruncated } = truncateContent(fileContent);
+      // Truncar conteúdo com limite muito mais conservador
+      const { content: processedContent, wasTruncated } = truncateContent(fileContent, 80000);
       
       if (wasTruncated) {
-        console.log('✂️ Conteúdo truncado para:', processedContent.length, 'caracteres');
+        console.log('✂️ Conteúdo truncado para análise segura');
         toast({
-          title: "Documento muito grande",
-          description: "O documento foi truncado para análise. Os primeiros segmentos serão analisados.",
+          title: "Documento truncado",
+          description: "O documento foi truncado para garantir análise segura. Os primeiros segmentos serão analisados.",
           variant: "default",
         });
       }
@@ -171,29 +184,23 @@ export function DocumentAnalysis() {
         name: assistant.name,
         area: assistant.area
       });
-      console.log('📊 Preparando chamada para OpenAI...');
 
-      // Construir mensagens para OpenAI
+      // Construir mensagens para OpenAI com prompt mais conciso
       const systemPrompt = `Você é ${assistant.name}, ${assistant.description}.
 
 ${assistant.prompt}
 
-Você receberá um documento de texto para análise. ${wasTruncated ? 'IMPORTANTE: Este documento foi truncado devido ao tamanho. Analise apenas o conteúdo fornecido e mencione que a análise é baseada nos primeiros segmentos do documento.' : ''}
+Analise o documento fornecido da perspectiva de ${assistant.area}. ${wasTruncated ? 'IMPORTANTE: Este documento foi truncado. Analise apenas o conteúdo fornecido e mencione que a análise é baseada nos primeiros segmentos.' : ''}
 
-INSTRUÇÕES IMPORTANTES:
-- Sempre comece sua resposta identificando-se: "**Análise de ${assistant.name}**"
-- Forneça insights detalhados da sua área de especialidade (${assistant.area})
+INSTRUÇÕES:
+- Comece com: "**Análise de ${assistant.name}**"
+- Forneça insights de ${assistant.area}
 - Seja conciso mas informativo
-- Estruture sua resposta de forma clara e organizada
-- Use formatação markdown para melhor legibilidade`;
+- Use markdown para organização`;
 
-      const userPrompt = `Analise o seguinte documento da perspectiva de ${assistant.area}:
-
-ARQUIVO: ${selectedFile.name}
-TAMANHO: ${(selectedFile.size / 1024).toFixed(1)} KB
+      const userPrompt = `ARQUIVO: ${selectedFile.name} (${(selectedFile.size / 1024).toFixed(1)} KB)
 ASSISTENTE: ${assistant.name}
-${wasTruncated ? 'STATUS: Documento truncado - análise baseada nos primeiros segmentos\n' : ''}
-
+${wasTruncated ? 'STATUS: Documento truncado\n' : ''}
 CONTEÚDO:
 ${processedContent}`;
 
@@ -201,6 +208,20 @@ ${processedContent}`;
         { role: 'system' as const, content: systemPrompt },
         { role: 'user' as const, content: userPrompt }
       ];
+
+      // Estimar tokens totais antes de enviar
+      const estimatedTokens = Math.ceil((systemPrompt.length + userPrompt.length) / 3);
+      console.log('🧮 Estimativa de tokens:', {
+        systemPromptChars: systemPrompt.length,
+        userPromptChars: userPrompt.length,
+        totalChars: systemPrompt.length + userPrompt.length,
+        estimatedTokens,
+        maxTokensAllowed: 128000
+      });
+
+      if (estimatedTokens > 120000) { // Deixa margem de segurança
+        throw new Error('Documento ainda muito grande após truncagem');
+      }
 
       const requestBody = {
         model: assistant.model || config.openai.model || 'gpt-4o-mini',
@@ -215,7 +236,8 @@ ${processedContent}`;
         temperature: requestBody.temperature,
         maxTokens: requestBody.max_tokens,
         contentLength: processedContent.length,
-        assistantName: assistant.name
+        assistantName: assistant.name,
+        estimatedInputTokens: estimatedTokens
       });
 
       // Fazer análise via OpenAI
@@ -244,7 +266,7 @@ ${processedContent}`;
         } else if (response.status === 429) {
           errorMessage = 'Limite de rate excedido - tente novamente em alguns minutos';
         } else if (response.status === 400) {
-          errorMessage = 'Erro na requisição - documento pode estar muito complexo';
+          errorMessage = 'Documento ainda muito complexo - tente um arquivo menor';
         }
         
         throw new Error(`${errorMessage} (${response.status})`);
@@ -363,7 +385,7 @@ ${processedContent}`;
               Upload de Documento
             </CardTitle>
             <CardDescription>
-              Aceita qualquer arquivo de texto independente do tamanho
+              Aceita qualquer arquivo de texto - documentos grandes são truncados automaticamente
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -394,7 +416,7 @@ ${processedContent}`;
                   <div className="flex items-center gap-1 mt-2">
                     <Info className="h-3 w-3 text-blue-600" />
                     <span className="text-xs text-blue-600">
-                      Documento grande - será analisado parcialmente
+                      Documento grande - será analisado parcialmente (primeiros segmentos)
                     </span>
                   </div>
                 )}
