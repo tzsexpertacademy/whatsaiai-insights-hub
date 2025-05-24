@@ -30,8 +30,7 @@ export function AppSidebar() {
   ];
 
   const analysisNavItems = [
-    { title: 'Análise de Documentos', icon: FileSearch, url: '/dashboard/document-analysis' },
-    { title: 'Chat com IA', icon: Brain, url: '/dashboard/chat' },
+    { title: 'Análise e Conselho', icon: FileSearch, url: '/dashboard/analysis' },
   ];
 
   const configNavItems = [
