@@ -49,9 +49,9 @@ export function DocumentAnalysis() {
     });
   };
 
-  const truncateContent = (content: string, maxTokens: number = 30000): string => {
+  const truncateContent = (content: string, maxTokens: number = 20000): string => {
     // Estimativa mais conservadora: 1 token ≈ 4 caracteres
-    const maxChars = maxTokens * 4;
+    const maxChars = maxTokens * 3; // Ainda mais conservador
     
     if (content.length <= maxChars) {
       return content;
@@ -62,18 +62,26 @@ export function DocumentAnalysis() {
   };
 
   const analyzeDocument = async () => {
-    if (!selectedFile || !selectedAssistant || !user?.id) return;
+    if (!selectedFile || !selectedAssistant || !user?.id) {
+      console.log('❌ Parâmetros inválidos:', { 
+        hasFile: !!selectedFile, 
+        hasAssistant: !!selectedAssistant, 
+        hasUser: !!user?.id 
+      });
+      return;
+    }
 
     setIsAnalyzing(true);
     
     try {
       console.log('📄 Iniciando análise do documento...');
-      console.log('🔑 API Key disponível:', !!config.openai.apiKey);
-      console.log('🔗 Status de conexão OpenAI:', connectionStatus.openai);
-      console.log('🤖 Assistente selecionado:', selectedAssistant);
+      console.log('🔑 API Key presente:', !!config.openai?.apiKey);
+      console.log('🔗 Status OpenAI:', connectionStatus.openai);
+      console.log('🤖 Assistente ID:', selectedAssistant);
       
       // Verificar se a API está configurada
-      if (!config.openai.apiKey) {
+      if (!config.openai?.apiKey) {
+        console.log('❌ API Key não encontrada');
         toast({
           title: "API Key não configurada",
           description: "Configure sua API Key do OpenAI na aba 'Configurações > OpenAI'",
@@ -83,6 +91,7 @@ export function DocumentAnalysis() {
       }
 
       if (!connectionStatus.openai) {
+        console.log('❌ Conexão OpenAI falhou');
         toast({
           title: "Problema com a conexão",
           description: "Teste a conexão OpenAI na aba 'Configurações > OpenAI'",
@@ -92,10 +101,11 @@ export function DocumentAnalysis() {
       }
       
       // Ler conteúdo do arquivo
+      console.log('📖 Lendo arquivo...');
       const fileContent = await readFileContent(selectedFile);
-      console.log('📖 Conteúdo do arquivo lido:', fileContent.length, 'caracteres');
+      console.log('📖 Arquivo lido:', fileContent.length, 'caracteres');
       
-      // Truncar conteúdo se muito grande (mais conservador)
+      // Truncar conteúdo se muito grande
       const truncatedContent = truncateContent(fileContent);
       if (truncatedContent !== fileContent) {
         console.log('✂️ Conteúdo truncado para:', truncatedContent.length, 'caracteres');
@@ -107,11 +117,27 @@ export function DocumentAnalysis() {
       
       // Buscar o assistente selecionado
       const assistant = assistants.find(a => a.id === selectedAssistant);
-      if (!assistant) throw new Error('Assistente não encontrado');
+      if (!assistant) {
+        console.log('❌ Assistente não encontrado');
+        throw new Error('Assistente não encontrado');
+      }
 
       console.log('🤖 Assistente encontrado:', assistant.name);
-      console.log('🚀 Enviando para OpenAI...');
-      console.log('📊 Tamanho final do conteúdo:', truncatedContent.length, 'caracteres');
+      console.log('📊 Enviando', truncatedContent.length, 'caracteres para OpenAI');
+
+      // Construir mensagens para OpenAI
+      const messages = [
+        { 
+          role: 'system' as const, 
+          content: `${assistant.prompt}\n\nVocê receberá um documento para análise. Forneça insights detalhados da sua área de especialidade. Seja conciso mas informativo.` 
+        },
+        { 
+          role: 'user' as const, 
+          content: `Analise o seguinte documento da perspectiva de ${assistant.area}:\n\n${truncatedContent}` 
+        }
+      ];
+
+      console.log('🚀 Fazendo chamada para OpenAI...');
 
       // Fazer análise via OpenAI
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -122,26 +148,21 @@ export function DocumentAnalysis() {
         },
         body: JSON.stringify({
           model: assistant.model || 'gpt-4o-mini',
-          messages: [
-            { 
-              role: 'system', 
-              content: `${assistant.prompt}\n\nVocê receberá um documento para análise. Forneça insights detalhados da sua área de especialidade. Seja conciso mas informativo.` 
-            },
-            { 
-              role: 'user', 
-              content: `Analise o seguinte documento da perspectiva de ${assistant.area}:\n\n${truncatedContent}` 
-            }
-          ],
+          messages: messages,
           temperature: config.openai.temperature || 0.7,
-          max_tokens: Math.min(config.openai.maxTokens || 2000, 2000)
+          max_tokens: Math.min(config.openai.maxTokens || 1500, 1500)
         }),
       });
 
-      console.log('📡 Status da resposta OpenAI:', response.status);
+      console.log('📡 Resposta OpenAI status:', response.status);
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('❌ Erro detalhado da OpenAI:', errorText);
+        console.error('❌ Erro OpenAI:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorText
+        });
         
         let errorMessage = 'Erro na análise do documento';
         if (response.status === 401) {
@@ -156,11 +177,16 @@ export function DocumentAnalysis() {
       }
 
       const data = await response.json();
-      console.log('📥 Resposta completa da OpenAI:', data);
+      console.log('📥 Resposta OpenAI recebida:', {
+        hasChoices: !!data.choices,
+        choicesLength: data.choices?.length,
+        hasContent: !!data.choices?.[0]?.message?.content
+      });
       
       const analysis = data.choices?.[0]?.message?.content;
       
       if (!analysis) {
+        console.log('❌ Resposta vazia da OpenAI');
         throw new Error('Resposta vazia da OpenAI');
       }
       
@@ -177,7 +203,7 @@ export function DocumentAnalysis() {
       console.error('❌ Erro completo na análise:', error);
       toast({
         title: "Erro na análise",
-        description: error.message || "Não foi possível analisar o documento",
+        description: error instanceof Error ? error.message : "Não foi possível analisar o documento",
         variant: "destructive",
       });
     } finally {
@@ -233,18 +259,18 @@ export function DocumentAnalysis() {
             )}
           </div>
 
-          {!config.openai.apiKey && (
+          {!config.openai?.apiKey && (
             <div className="p-3 bg-yellow-50 rounded-md">
               <p className="text-sm text-yellow-800">
-                Configure sua API Key do OpenAI na aba "Configurações {'>'}OpenAI" para usar este recurso.
+                Configure sua API Key do OpenAI na aba "Configurações > OpenAI" para usar este recurso.
               </p>
             </div>
           )}
 
-          {apiStatus !== 'valid' && config.openai.apiKey && (
+          {apiStatus !== 'valid' && config.openai?.apiKey && (
             <div className="p-3 bg-red-50 rounded-md">
               <p className="text-sm text-red-800">
-                Há um problema com sua API Key. Teste a conexão na aba "Configurações {'>'}OpenAI".
+                Há um problema com sua API Key. Teste a conexão na aba "Configurações > OpenAI".
               </p>
             </div>
           )}
