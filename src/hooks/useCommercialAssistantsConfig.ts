@@ -18,7 +18,8 @@ interface CommercialAssistant {
 }
 
 interface CommercialOpenAIConfig {
-  assistants?: CommercialAssistant[];
+  commercial_assistants?: CommercialAssistant[];
+  assistants?: any[]; // Mantém os assistentes originais do observatório
   [key: string]: any;
 }
 
@@ -121,11 +122,22 @@ export function useCommercialAssistantsConfig() {
     try {
       setIsLoading(true);
 
-      // Força a atualização para os novos assistentes comerciais
-      console.log('Carregando novos assistentes comerciais...');
-      setAssistants(defaultAssistants);
-      await saveAssistants(defaultAssistants);
+      const { data: config } = await supabase
+        .from('client_configs')
+        .select('openai_config')
+        .eq('user_id', user.id)
+        .single();
+
+      const openaiConfig = config?.openai_config as CommercialOpenAIConfig | null;
       
+      // Busca especificamente os assistentes comerciais
+      if (openaiConfig?.commercial_assistants && openaiConfig.commercial_assistants.length > 0) {
+        setAssistants(openaiConfig.commercial_assistants);
+      } else {
+        // Se não tem assistentes comerciais salvos, carrega os padrões e salva
+        setAssistants(defaultAssistants);
+        await saveAssistants(defaultAssistants);
+      }
     } catch (error) {
       console.error('Erro ao carregar assistentes comerciais:', error);
       setAssistants(defaultAssistants);
@@ -140,14 +152,25 @@ export function useCommercialAssistantsConfig() {
     try {
       setIsLoading(true);
 
-      const openaiConfig: CommercialOpenAIConfig = {
-        assistants: updatedAssistants
+      // Primeiro, busca a configuração atual para preservar os assistentes do observatório
+      const { data: currentConfig } = await supabase
+        .from('client_configs')
+        .select('openai_config')
+        .eq('user_id', user.id)
+        .single();
+
+      const existingConfig = currentConfig?.openai_config as CommercialOpenAIConfig || {};
+
+      // Preserva os assistentes originais do observatório e adiciona os comerciais separadamente
+      const updatedConfig: CommercialOpenAIConfig = {
+        ...existingConfig,
+        commercial_assistants: updatedAssistants
       };
 
       const { error } = await supabase
         .from('client_configs')
         .update({
-          openai_config: openaiConfig
+          openai_config: updatedConfig
         })
         .eq('user_id', user.id);
 
