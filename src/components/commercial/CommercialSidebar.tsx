@@ -1,5 +1,5 @@
 
-import { TrendingUp, Funnel, Target, Brain, Users, BarChart3, ArrowLeft, DollarSign } from 'lucide-react';
+import { TrendingUp, TrendingDown, Target, Brain, Users, BarChart3, ArrowLeft, DollarSign } from 'lucide-react';
 import {
   Sidebar,
   SidebarContent,
@@ -21,7 +21,7 @@ export function CommercialSidebar() {
 
   const mainNavItems = [
     { title: 'Dashboard Comercial', icon: BarChart3, url: '/commercial/' },
-    { title: 'Análise de Funil', icon: Funnel, url: '/commercial/funnel' },
+    { title: 'Análise de Funil', icon: TrendingDown, url: '/commercial/funnel' },
     { title: 'Performance de Vendas', icon: TrendingUp, url: '/commercial/performance' },
     { title: 'Métricas Comportamentais', icon: Brain, url: '/commercial/behavioral' },
     { title: 'Cultura do Time', icon: Users, url: '/commercial/culture' },
