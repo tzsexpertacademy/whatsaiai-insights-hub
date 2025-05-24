@@ -11,6 +11,8 @@ import { BehavioralMetrics } from '@/components/commercial/BehavioralMetrics';
 import { TeamCulture } from '@/components/commercial/TeamCulture';
 import { StrategicMetrics } from '@/components/commercial/StrategicMetrics';
 import { CommercialSettingsPage } from '@/components/commercial/CommercialSettingsPage';
+import { DocumentAnalysis } from '@/components/DocumentAnalysis';
+import { ChatInterface } from '@/components/ChatInterface';
 
 export function CommercialBrain() {
   console.log('CommercialBrain component rendering');
@@ -31,6 +33,8 @@ export function CommercialBrain() {
                   <Route path="/behavioral" element={<BehavioralMetrics />} />
                   <Route path="/culture" element={<TeamCulture />} />
                   <Route path="/strategic" element={<StrategicMetrics />} />
+                  <Route path="/document-analysis" element={<DocumentAnalysis />} />
+                  <Route path="/chat" element={<ChatInterface />} />
                   <Route path="/settings" element={<CommercialSettingsPage />} />
                 </Routes>
               </div>

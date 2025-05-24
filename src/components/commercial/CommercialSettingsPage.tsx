@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { WhatsAppConfig } from '@/components/settings/WhatsAppConfig';
 import { FirebaseConfig } from '@/components/settings/FirebaseConfig';
 import { OpenAIConfig } from '@/components/settings/OpenAIConfig';
-import { AssistantsConfig } from '@/components/settings/AssistantsConfig';
+import { CommercialAssistantsConfig } from '@/components/commercial/CommercialAssistantsConfig';
 import { ClientConfig } from '@/components/settings/ClientConfig';
 
 export function CommercialSettingsPage() {
@@ -80,7 +80,7 @@ export function CommercialSettingsPage() {
         </TabsContent>
 
         <TabsContent value="assistants">
-          <AssistantsConfig />
+          <CommercialAssistantsConfig />
         </TabsContent>
 
         <TabsContent value="clients">

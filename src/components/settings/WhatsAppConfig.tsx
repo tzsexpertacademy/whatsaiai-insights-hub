@@ -1,9 +1,9 @@
+
 import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { MessageSquare, Settings, Smartphone, Globe, Zap } from 'lucide-react';
+import { Smartphone, Settings, Zap } from 'lucide-react';
 import { WhatsAppPlatformConfig } from './WhatsAppPlatformConfig';
 import { WhatsAppConnectionStatus } from './WhatsAppConnectionStatus';
-import { AtendechatIntegration } from './AtendechatIntegration';
 import { MakeConfig } from './MakeConfig';
 import { useClientConfig } from '@/contexts/ClientConfigContext';
 
@@ -23,14 +23,10 @@ export function WhatsAppConfig() {
       <WhatsAppConnectionStatus />
 
       <Tabs defaultValue="platform" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="platform" className="flex items-center gap-2">
             <Smartphone className="h-4 w-4" />
             Plataforma
-          </TabsTrigger>
-          <TabsTrigger value="atendechat" className="flex items-center gap-2">
-            <MessageSquare className="h-4 w-4" />
-            Atendechat
           </TabsTrigger>
           <TabsTrigger value="make" className="flex items-center gap-2">
             <Zap className="h-4 w-4" />
@@ -44,10 +40,6 @@ export function WhatsAppConfig() {
 
         <TabsContent value="platform">
           <WhatsAppPlatformConfig />
-        </TabsContent>
-
-        <TabsContent value="atendechat">
-          <AtendechatIntegration />
         </TabsContent>
 
         <TabsContent value="make">

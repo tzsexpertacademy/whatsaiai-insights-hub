@@ -27,12 +27,15 @@ export function AppSidebar() {
     { title: 'Perfil Comportamental', icon: Brain, url: '/dashboard/profile' },
     { title: 'Termômetro Emocional', icon: Heart, url: '/dashboard/emotions' },
     { title: 'Recomendações', icon: MessageSquare, url: '/dashboard/recommendations' },
+  ];
+
+  const analysisNavItems = [
     { title: 'Análise de Documentos', icon: FileSearch, url: '/dashboard/document-analysis' },
+    { title: 'Chat com IA', icon: Brain, url: '/dashboard/chat' },
   ];
 
   const configNavItems = [
     { title: 'Conexão WhatsApp', icon: MessageSquare, url: '/dashboard/connection' },
-    { title: 'Chat com IA', icon: Brain, url: '/dashboard/chat' },
     { title: 'Configurações', icon: Settings, url: '/dashboard/settings' },
     { title: 'Perfil', icon: UserCircle, url: '/dashboard/user-profile' },
   ];
@@ -69,6 +72,21 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {mainNavItems.map((item) => (
+                <SidebarMenuItem key={item.url}>
+                  <SidebarMenuButton asChild>
+                    <SidebarNavItem {...item} />
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Análise e Conselho</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {analysisNavItems.map((item) => (
                 <SidebarMenuItem key={item.url}>
                   <SidebarMenuButton asChild>
                     <SidebarNavItem {...item} />
