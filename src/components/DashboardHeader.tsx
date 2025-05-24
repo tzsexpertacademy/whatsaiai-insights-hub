@@ -27,19 +27,27 @@ export function DashboardHeader() {
   const handleLogout = async () => {
     try {
       await logout();
-      // Limpar localStorage para evitar problemas de cache
+      // Limpar localStorage e sessionStorage
       localStorage.clear();
+      sessionStorage.clear();
       // Redirecionar para login
       navigate('/auth');
+      // Forçar reload da página para garantir que todos os estados sejam limpos
+      window.location.href = '/auth';
       toast({
         title: "Logout realizado",
         description: "Você foi desconectado com sucesso"
       });
     } catch (error) {
+      console.error('Erro no logout:', error);
+      // Mesmo com erro, forçar redirecionamento
+      localStorage.clear();
+      sessionStorage.clear();
+      window.location.href = '/auth';
       toast({
-        title: "Erro no logout",
-        description: "Não foi possível fazer logout",
-        variant: "destructive"
+        title: "Logout realizado",
+        description: "Sessão encerrada",
+        variant: "default"
       });
     }
   };
@@ -120,7 +128,7 @@ export function DashboardHeader() {
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleProfileClick} className="cursor-pointer">
                 <User className="mr-2 h-4 w-4" />
-                <span>Perfil</span>
+                <span>Meu Perfil</span>
               </DropdownMenuItem>
               <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
                 <LogOut className="mr-2 h-4 w-4" />
