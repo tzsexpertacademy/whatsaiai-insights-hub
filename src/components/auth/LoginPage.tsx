@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { Brain, Mail, Lock, User, Building, TestTube } from 'lucide-react';
+import { Brain, Mail, Lock, User, Building } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export function LoginPage() {
@@ -35,41 +35,6 @@ export function LoginPage() {
       navigate('/');
     }
   }, [user, navigate]);
-
-  const createTestUser = async () => {
-    const timestamp = Date.now();
-    const testEmail = `teste${timestamp}@exemplo.com`;
-    const testPassword = 'teste123456';
-    
-    console.log('🧪 Criando usuário de teste:', testEmail);
-    
-    try {
-      await signup(testEmail, testPassword, {
-        fullName: `Usuário Teste ${timestamp}`,
-        companyName: 'Empresa Teste'
-      });
-      
-      toast({
-        title: "Usuário de teste criado!",
-        description: `Email: ${testEmail} | Senha: ${testPassword}`,
-        duration: 8000
-      });
-
-      // Preencher automaticamente o formulário de login
-      setLoginData({
-        email: testEmail,
-        password: testPassword
-      });
-
-    } catch (error) {
-      console.error('❌ Erro ao criar usuário de teste:', error);
-      toast({
-        title: "Erro ao criar usuário de teste",
-        description: error.message || "Erro desconhecido",
-        variant: "destructive"
-      });
-    }
-  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -136,22 +101,6 @@ export function LoginPage() {
             <h1 className="text-2xl font-bold text-gray-900">Observatório Psicológico</h1>
           </div>
           <p className="text-gray-600">Análise comportamental avançada via WhatsApp</p>
-        </div>
-
-        {/* Botão para criar usuário de teste */}
-        <div className="mb-6">
-          <Button 
-            onClick={createTestUser}
-            variant="outline"
-            className="w-full flex items-center gap-2 bg-green-50 border-green-200 text-green-700 hover:bg-green-100"
-            disabled={isLoading}
-          >
-            <TestTube className="h-4 w-4" />
-            🧪 Criar Usuário de Teste
-          </Button>
-          <p className="text-xs text-gray-500 mt-2 text-center">
-            Cria automaticamente um usuário para testes rápidos
-          </p>
         </div>
 
         <Card className="shadow-xl border-0">

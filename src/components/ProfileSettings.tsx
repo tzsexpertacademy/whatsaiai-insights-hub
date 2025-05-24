@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -7,9 +8,8 @@ import { Switch } from "@/components/ui/switch";
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { useAutoRefresh } from '@/hooks/useAutoRefresh';
-import { useCacheManager } from '@/hooks/useCacheManager';
 import { supabase } from '@/integrations/supabase/client';
-import { User, Save, Sparkles, RefreshCw, Trash2 } from 'lucide-react';
+import { User, Save, Sparkles } from 'lucide-react';
 import { AIAnalysisButton } from '@/components/AIAnalysisButton';
 
 interface UserProfile {
@@ -23,8 +23,7 @@ interface UserProfile {
 export function ProfileSettings() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const { refreshAfterUpdate, quickRefresh } = useAutoRefresh();
-  const { forceRefreshWithCacheClear } = useCacheManager();
+  const { refreshAfterUpdate } = useAutoRefresh();
   const [profile, setProfile] = useState<UserProfile>({
     id: '',
     full_name: '',
@@ -220,27 +219,6 @@ export function ProfileSettings() {
         <div className="flex items-center gap-3">
           {/* Botão de Análise por IA */}
           <AIAnalysisButton variant="outline" size="sm" />
-          
-          {/* Botão para limpar cache */}
-          <Button 
-            onClick={forceRefreshWithCacheClear}
-            variant="ghost"
-            size="sm"
-            className="flex items-center gap-2 text-orange-600 hover:text-orange-700"
-          >
-            <Trash2 className="h-4 w-4" />
-            Limpar Cache
-          </Button>
-          
-          <Button 
-            onClick={quickRefresh}
-            variant="outline"
-            size="sm"
-            className="flex items-center gap-2"
-          >
-            <RefreshCw className="h-4 w-4" />
-            Atualizar Página
-          </Button>
         </div>
       </div>
 
