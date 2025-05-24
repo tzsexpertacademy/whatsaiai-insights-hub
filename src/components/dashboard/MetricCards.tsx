@@ -1,8 +1,9 @@
 
 import React from 'react';
 import { Card, CardContent } from "@/components/ui/card";
-import { Brain, Heart, Timer, BarChart3, TrendingUp, Loader2 } from 'lucide-react';
+import { Brain, Heart, Timer, BarChart3, TrendingUp, Loader2, AlertCircle } from 'lucide-react';
 import { useAnalysisData } from '@/contexts/AnalysisDataContext';
+import { Badge } from "@/components/ui/badge";
 
 export function MetricCards() {
   const { data, isLoading } = useAnalysisData();
@@ -17,6 +18,76 @@ export function MetricCards() {
             </CardContent>
           </Card>
         ))}
+      </div>
+    );
+  }
+
+  if (!data.hasRealData) {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <Card className="bg-gradient-to-br from-gray-300 to-gray-400 text-white border-0 opacity-60">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-100 text-sm">Perfil Psicológico</p>
+                <p className="text-3xl font-bold">--</p>
+                <p className="text-gray-100 text-sm flex items-center gap-1 mt-1">
+                  <AlertCircle className="h-3 w-3" />
+                  Sem dados
+                </p>
+              </div>
+              <Brain className="h-8 w-8 text-gray-200" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-gray-300 to-gray-400 text-white border-0 opacity-60">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-100 text-sm">Estado Emocional</p>
+                <p className="text-3xl font-bold">--</p>
+                <p className="text-gray-100 text-sm flex items-center gap-1 mt-1">
+                  <AlertCircle className="h-3 w-3" />
+                  Sem dados
+                </p>
+              </div>
+              <Heart className="h-8 w-8 text-gray-200" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-gray-300 to-gray-400 text-white border-0 opacity-60">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-100 text-sm">Foco Principal</p>
+                <p className="text-3xl font-bold">--</p>
+                <p className="text-gray-100 text-sm flex items-center gap-1 mt-1">
+                  <AlertCircle className="h-3 w-3" />
+                  Sem dados
+                </p>
+              </div>
+              <Timer className="h-8 w-8 text-gray-200" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-gray-300 to-gray-400 text-white border-0 opacity-60">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-100 text-sm">Consciência Relacional</p>
+                <p className="text-3xl font-bold">0%</p>
+                <p className="text-gray-100 text-sm flex items-center gap-1 mt-1">
+                  <AlertCircle className="h-3 w-3" />
+                  Sem dados
+                </p>
+              </div>
+              <BarChart3 className="h-8 w-8 text-gray-200" />
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }

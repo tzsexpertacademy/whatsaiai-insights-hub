@@ -2,7 +2,7 @@
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Brain, FileText, Heart, Loader2 } from 'lucide-react';
+import { Brain, FileText, Heart, Loader2, AlertCircle } from 'lucide-react';
 import { useAnalysisData } from '@/contexts/AnalysisDataContext';
 
 const recommendationIcons = [Brain, FileText, Heart];
@@ -25,6 +25,17 @@ export function RecommendationsSection() {
         {isLoading ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
+          </div>
+        ) : !data.hasRealData || data.recommendations.length === 0 ? (
+          <div className="flex items-center justify-center py-8 text-center">
+            <div>
+              <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+              <p className="text-gray-500 text-sm">
+                Nenhuma recomendação disponível ainda.
+                <br />
+                Execute a análise por IA para receber sugestões personalizadas.
+              </p>
+            </div>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
