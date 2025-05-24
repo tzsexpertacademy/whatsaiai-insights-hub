@@ -85,6 +85,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          ai_analysis_enabled: boolean | null
           company_name: string | null
           created_at: string | null
           full_name: string | null
@@ -93,6 +94,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          ai_analysis_enabled?: boolean | null
           company_name?: string | null
           created_at?: string | null
           full_name?: string | null
@@ -101,6 +103,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          ai_analysis_enabled?: boolean | null
           company_name?: string | null
           created_at?: string | null
           full_name?: string | null
