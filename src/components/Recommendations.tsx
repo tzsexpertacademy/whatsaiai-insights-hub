@@ -9,6 +9,32 @@ import { Loader2, AlertCircle, Brain, Heart } from 'lucide-react';
 export function Recommendations() {
   const { data, isLoading } = useAnalysisData();
 
+  const getAssistantIcon = (area: string) => {
+    const iconMap: { [key: string]: string } = {
+      'psicologia': '🔮',
+      'financeiro': '💰',
+      'saude': '⚡',
+      'estrategia': '🎯',
+      'proposito': '🌟',
+      'criatividade': '🎨',
+      'relacionamentos': '👥'
+    };
+    return iconMap[area] || '🤖';
+  };
+
+  const getAssistantColor = (area: string) => {
+    const colorMap: { [key: string]: string } = {
+      'psicologia': 'bg-purple-100 text-purple-800',
+      'financeiro': 'bg-green-100 text-green-800',
+      'saude': 'bg-blue-100 text-blue-800',
+      'estrategia': 'bg-orange-100 text-orange-800',
+      'proposito': 'bg-yellow-100 text-yellow-800',
+      'criatividade': 'bg-pink-100 text-pink-800',
+      'relacionamentos': 'bg-indigo-100 text-indigo-800'
+    };
+    return colorMap[area] || 'bg-gray-100 text-gray-800';
+  };
+
   if (isLoading) {
     return (
       <div className="space-y-6">
@@ -23,7 +49,7 @@ export function Recommendations() {
     );
   }
 
-  if (!data.hasRealData || data.recommendations.length === 0) {
+  if (!data.hasRealData || data.recommendationsWithAssistant.length === 0) {
     return (
       <div className="space-y-6">
         <div>
@@ -86,7 +112,7 @@ export function Recommendations() {
       </div>
 
       <div className="grid grid-cols-1 gap-6">
-        {data.recommendations.map((recommendation, index) => (
+        {data.recommendationsWithAssistant.map((recommendation, index) => (
           <Card key={index} className="bg-white/70 backdrop-blur-sm border-white/50">
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -96,14 +122,26 @@ export function Recommendations() {
                   </div>
                   <div>
                     <CardTitle>Recomendação {index + 1}</CardTitle>
-                    <CardDescription>Baseada na análise dos assistentes</CardDescription>
+                    <CardDescription>
+                      {recommendation.assistantName ? 
+                        `Baseada na análise do ${recommendation.assistantName}` : 
+                        'Baseada na análise dos assistentes'
+                      }
+                    </CardDescription>
                   </div>
                 </div>
-                <Badge variant="outline">Personalizada</Badge>
+                <div className="flex gap-2">
+                  {recommendation.assistantName && (
+                    <Badge className={getAssistantColor(recommendation.assistantArea || '')}>
+                      {getAssistantIcon(recommendation.assistantArea || '')} {recommendation.assistantName}
+                    </Badge>
+                  )}
+                  <Badge variant="outline">Personalizada</Badge>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
-              <p className="text-slate-700 mb-4">{recommendation}</p>
+              <p className="text-slate-700 mb-4">{recommendation.text}</p>
               <div className="flex justify-end">
                 <Button size="sm" className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700">
                   Implementar
@@ -114,7 +152,7 @@ export function Recommendations() {
         ))}
       </div>
 
-      {data.recommendations.length > 0 && (
+      {data.recommendationsWithAssistant.length > 0 && (
         <Card className="bg-gradient-to-br from-indigo-500 via-blue-500 to-purple-500 text-white border-0">
           <CardContent className="p-6">
             <h3 className="text-xl font-bold mb-4">Próxima Análise</h3>

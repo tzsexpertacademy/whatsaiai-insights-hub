@@ -172,29 +172,34 @@ Seja empático e focado nas relações.`,
     if (!conversations || conversations.length === 0) {
       console.log('⚠️ Nenhuma conversa encontrada, criando análise de exemplo');
       
-      // Criar insights de exemplo que serão processados pelos assistentes
+      // Criar insights de exemplo com informações do assistente
       const exampleInsights = [
-        'Análise psicológica: Personalidade introspectiva com tendência à reflexão profunda e autoconhecimento',
-        'Padrão financeiro: Consciência emergente sobre gestão de recursos e planejamento futuro',
-        'Saúde física: Interesse crescente em otimização de bem-estar e cuidados corporais',
-        'Estratégia de vida: Foco em desenvolvimento pessoal e construção de objetivos claros',
-        'Propósito existencial: Busca por significado e alinhamento com valores fundamentais',
-        'Criatividade: Potencial criativo em desenvolvimento com abertura para novas experiências',
-        'Relacionamentos: Habilidades sociais em crescimento com foco em conexões autênticas'
+        { text: 'Personalidade introspectiva com tendência à reflexão profunda e autoconhecimento', assistant: defaultAssistants[0] },
+        { text: 'Consciência emergente sobre gestão de recursos e planejamento futuro', assistant: defaultAssistants[1] },
+        { text: 'Interesse crescente em otimização de bem-estar e cuidados corporais', assistant: defaultAssistants[2] },
+        { text: 'Foco em desenvolvimento pessoal e construção de objetivos claros', assistant: defaultAssistants[3] },
+        { text: 'Busca por significado e alinhamento com valores fundamentais', assistant: defaultAssistants[4] },
+        { text: 'Potencial criativo em desenvolvimento com abertura para novas experiências', assistant: defaultAssistants[5] },
+        { text: 'Habilidades sociais em crescimento com foco em conexões autênticas', assistant: defaultAssistants[6] }
       ];
 
-      // Salvar insights de exemplo
+      // Salvar insights de exemplo com metadados do assistente
       for (const insight of exampleInsights) {
         try {
           await supabase
             .from('insights')
             .insert({
               user_id: userId,
-              title: 'Análise Multi-Assistente',
-              description: insight,
+              title: `Análise - ${insight.assistant.name}`,
+              description: insight.text,
               insight_type: 'ai_analysis',
               priority: 'medium',
-              status: 'active'
+              status: 'active',
+              metadata: {
+                assistant_id: insight.assistant.id,
+                assistant_name: insight.assistant.name,
+                assistant_area: insight.assistant.area
+              }
             });
         } catch (error) {
           console.error('❌ Erro ao salvar insight:', error);
@@ -263,6 +268,7 @@ Responda em português, de forma clara e objetiva.
 
           return {
             assistant: assistant.name,
+            assistantId: assistant.id,
             area: assistant.area,
             analysis: analysis
           };
@@ -271,6 +277,7 @@ Responda em português, de forma clara e objetiva.
           console.error(`❌ Erro na análise do ${assistant.name}:`, error);
           return {
             assistant: assistant.name,
+            assistantId: assistant.id,
             area: assistant.area,
             analysis: `Insight de ${assistant.name}: Aguardando nova análise baseada em mais dados de conversa.`
           };
@@ -280,21 +287,24 @@ Responda em português, de forma clara e objetiva.
 
     console.log('✅ Consolidando análises dos assistentes...');
 
-    // Salvar insights consolidados no banco com marcadores de área
+    // Salvar insights consolidados no banco com informações do assistente
     const savedInsights = [];
     for (const assistantAnalysis of assistantAnalyses) {
       try {
-        const insightText = `${assistantAnalysis.analysis}`;
-        
         const { data: savedInsight } = await supabase
           .from('insights')
           .insert({
             user_id: userId,
             title: `Análise - ${assistantAnalysis.assistant}`,
-            description: insightText,
+            description: assistantAnalysis.analysis,
             insight_type: 'ai_analysis',
             priority: 'medium',
-            status: 'active'
+            status: 'active',
+            metadata: {
+              assistant_id: assistantAnalysis.assistantId,
+              assistant_name: assistantAnalysis.assistant,
+              assistant_area: assistantAnalysis.area
+            }
           })
           .select()
           .single();

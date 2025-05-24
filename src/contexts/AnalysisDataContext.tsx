@@ -3,6 +3,18 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 
+interface InsightWithAssistant {
+  text: string;
+  assistantName?: string;
+  assistantArea?: string;
+}
+
+interface RecommendationWithAssistant {
+  text: string;
+  assistantName?: string;
+  assistantArea?: string;
+}
+
 interface AnalysisData {
   // Métricas principais
   psychologicalProfile: string;
@@ -16,9 +28,13 @@ interface AnalysisData {
   bigFiveData: Array<{ name: string; value: number }>;
   skillsData: Array<{ title: string; value: string; trend: string }>;
   
-  // Insights e recomendações
+  // Insights e recomendações originais (para compatibilidade)
   insights: string[];
   recommendations: string[];
+  
+  // Insights e recomendações com informações do assistente
+  insightsWithAssistant: InsightWithAssistant[];
+  recommendationsWithAssistant: RecommendationWithAssistant[];
   
   // Última atualização
   lastUpdated: Date | null;
@@ -62,6 +78,8 @@ const emptyAnalysisData: AnalysisData = {
   ],
   insights: [],
   recommendations: [],
+  insightsWithAssistant: [],
+  recommendationsWithAssistant: [],
   lastUpdated: null,
   hasRealData: false
 };
@@ -306,13 +324,31 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
       updatedData.hasRealData = true;
 
       if (hasInsights) {
+        // Processar insights com informações dos assistentes
         const analysisInsights = insights.map(insight => insight.description);
+        const insightsWithAssistant: InsightWithAssistant[] = insights.map(insight => ({
+          text: insight.description,
+          assistantName: insight.metadata?.assistant_name,
+          assistantArea: insight.metadata?.assistant_area
+        }));
+        
+        // Filtrar recomendações
         const analysisRecommendations = insights
           .filter(insight => insight.insight_type === 'recommendation' || insight.description.toLowerCase().includes('recomenda'))
           .map(insight => insight.description);
         
+        const recommendationsWithAssistant: RecommendationWithAssistant[] = insights
+          .filter(insight => insight.insight_type === 'recommendation' || insight.description.toLowerCase().includes('recomenda'))
+          .map(insight => ({
+            text: insight.description,
+            assistantName: insight.metadata?.assistant_name,
+            assistantArea: insight.metadata?.assistant_area
+          }));
+        
         updatedData.insights = analysisInsights;
         updatedData.recommendations = analysisRecommendations;
+        updatedData.insightsWithAssistant = insightsWithAssistant;
+        updatedData.recommendationsWithAssistant = recommendationsWithAssistant;
         updatedData.lastUpdated = new Date(insights[0].created_at);
       }
 
