@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -20,25 +20,27 @@ export function ClientConfigProvider({ children }: { children: React.ReactNode }
   const [config, setConfig] = useState<ClientConfig>(defaultConfig);
   const [isLoading, setIsLoading] = useState(false);
   const [isFirebaseConnected, setIsFirebaseConnected] = useState(false);
-  const [hasInitialized, setHasInitialized] = useState(false);
   const { user, isAuthenticated } = useAuth();
   const { toast } = useToast();
+  const hasLoadedRef = useRef(false);
+  const isLoadingRef = useRef(false);
 
-  // Carregar configurações apenas quando o usuário estiver autenticado
+  // Carregar configurações apenas uma vez quando o usuário estiver autenticado
   useEffect(() => {
-    if (!isAuthenticated || !user?.id || hasInitialized) {
+    if (!isAuthenticated || !user?.id || hasLoadedRef.current || isLoadingRef.current) {
       if (!isAuthenticated) {
         console.log('🔄 Usuário não autenticado, usando config padrão');
         setConfig(defaultConfig);
-        setHasInitialized(false);
+        hasLoadedRef.current = false;
       }
       return;
     }
 
     const loadUserConfig = async () => {
-      if (isLoading) return; // Evitar múltiplas chamadas simultâneas
+      if (isLoadingRef.current) return;
       
       try {
+        isLoadingRef.current = true;
         setIsLoading(true);
         console.log('📥 Carregando configurações do usuário:', user.id);
         
@@ -75,25 +77,27 @@ export function ClientConfigProvider({ children }: { children: React.ReactNode }
           console.log('ℹ️ Criando configuração inicial');
           await supabase
             .from('client_configs')
-            .insert({
+            .insert([{
               user_id: user.id,
               whatsapp_config: defaultConfig.whatsapp,
               openai_config: defaultConfig.openai,
               firebase_config: defaultConfig.firebase
-            });
+            }]);
           setConfig(defaultConfig);
         }
-        setHasInitialized(true);
+        
+        hasLoadedRef.current = true;
       } catch (error) {
         console.error('❌ Erro inesperado:', error);
         setConfig(defaultConfig);
       } finally {
         setIsLoading(false);
+        isLoadingRef.current = false;
       }
     };
 
     loadUserConfig();
-  }, [user?.id, isAuthenticated, hasInitialized, isLoading]);
+  }, [user?.id, isAuthenticated]);
 
   const updateConfig = (section: keyof ClientConfig, updates: Partial<ClientConfig[keyof ClientConfig]>) => {
     setConfig(prev => ({
@@ -113,13 +117,13 @@ export function ClientConfigProvider({ children }: { children: React.ReactNode }
       
       const { error } = await supabase
         .from('client_configs')
-        .upsert({
+        .upsert([{
           user_id: user.id,
           whatsapp_config: config.whatsapp,
           openai_config: config.openai,
           firebase_config: config.firebase,
           updated_at: new Date().toISOString()
-        });
+        }]);
 
       if (error) throw error;
       

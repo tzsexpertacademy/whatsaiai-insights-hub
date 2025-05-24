@@ -48,9 +48,9 @@ export function useAIReportUpdate() {
         body: { 
           userId: user.id,
           openaiApiKey: config.openai.apiKey,
-          model: config.openai.model,
-          temperature: config.openai.temperature,
-          maxTokens: config.openai.maxTokens
+          model: config.openai.model || 'gpt-4o-mini',
+          temperature: config.openai.temperature || 0.7,
+          maxTokens: config.openai.maxTokens || 1000
         }
       });
 
@@ -72,6 +72,12 @@ export function useAIReportUpdate() {
       });
 
       console.log('✅ Relatório atualizado com sucesso');
+      
+      // Aguardar um pouco antes de recarregar para mostrar o toast
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
+      
     } catch (error) {
       console.error('❌ Erro ao atualizar relatório:', error);
       toast({
