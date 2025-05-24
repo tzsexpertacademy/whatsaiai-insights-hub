@@ -29,25 +29,11 @@ export function useConfigPersistence({
       setIsLoading(true);
       console.log('📥 Carregando configurações para usuário:', user.id);
       
-      // Primeiro, tentar buscar pelo user_id
-      let { data, error } = await supabase
+      const { data, error } = await supabase
         .from('client_configs')
         .select('*')
         .eq('user_id', user.id)
         .maybeSingle();
-
-      // Se não encontrar pelo user_id, tentar pelo id (fallback)
-      if (!data && !error) {
-        console.log('🔄 Tentando buscar configuração pelo campo id...');
-        const fallbackResult = await supabase
-          .from('client_configs')
-          .select('*')
-          .eq('id', user.id)
-          .maybeSingle();
-        
-        data = fallbackResult.data;
-        error = fallbackResult.error;
-      }
 
       if (error) {
         console.error('❌ Erro ao carregar configurações:', error);
@@ -74,27 +60,17 @@ export function useConfigPersistence({
         console.log('✅ Configurações carregadas');
       } else {
         console.log('ℹ️ Criando configuração inicial');
-        // Tentar criar com user_id primeiro
-        try {
-          await supabase
-            .from('client_configs')
-            .insert([{
-              user_id: user.id,
-              whatsapp_config: defaultConfig.whatsapp,
-              openai_config: defaultConfig.openai,
-              firebase_config: defaultConfig.firebase
-            }]);
-        } catch (insertError) {
-          console.log('🔄 Tentando inserir com campo id...');
-          // Fallback para id se user_id não funcionar
-          await supabase
-            .from('client_configs')
-            .insert([{
-              id: user.id,
-              whatsapp_config: defaultConfig.whatsapp,
-              openai_config: defaultConfig.openai,
-              firebase_config: defaultConfig.firebase
-            }]);
+        const { error: insertError } = await supabase
+          .from('client_configs')
+          .insert({
+            user_id: user.id,
+            whatsapp_config: defaultConfig.whatsapp as any,
+            openai_config: defaultConfig.openai as any,
+            firebase_config: defaultConfig.firebase as any
+          });
+        
+        if (insertError) {
+          console.error('❌ Erro ao criar configuração:', insertError);
         }
         setConfig(defaultConfig);
       }
@@ -111,33 +87,15 @@ export function useConfigPersistence({
       setIsLoading(true);
       console.log('💾 Salvando configurações para usuário:', userId);
       
-      const configData = {
-        whatsapp_config: config.whatsapp,
-        openai_config: config.openai,
-        firebase_config: config.firebase,
-        updated_at: new Date().toISOString()
-      };
-
-      // Tentar salvar com user_id primeiro
-      let { error } = await supabase
+      const { error } = await supabase
         .from('client_configs')
-        .upsert([{
+        .upsert({
           user_id: userId,
-          ...configData
-        }]);
-
-      // Se falhar, tentar com id
-      if (error) {
-        console.log('🔄 Tentando salvar com campo id...');
-        const fallbackResult = await supabase
-          .from('client_configs')
-          .upsert([{
-            id: userId,
-            ...configData
-          }]);
-        
-        error = fallbackResult.error;
-      }
+          whatsapp_config: config.whatsapp as any,
+          openai_config: config.openai as any,
+          firebase_config: config.firebase as any,
+          updated_at: new Date().toISOString()
+        });
 
       if (error) {
         console.error('❌ Erro ao salvar configurações:', error);
