@@ -92,42 +92,121 @@ export function ClientConfigProvider({ children }: { children: React.ReactNode }
 
   useEffect(() => {
     if (isAuthenticated && user) {
+      console.log('🔄 Usuário autenticado, carregando configurações...');
       loadConfig();
+    } else {
+      console.log('❌ Usuário não autenticado, resetando configurações');
+      setConfig(defaultConfig);
+      setIsFirebaseConnected(false);
     }
   }, [isAuthenticated, user]);
 
   const loadConfig = async () => {
+    if (!user?.id) {
+      console.error('❌ LoadConfig: user.id não disponível');
+      return;
+    }
+
     try {
       setIsLoading(true);
+      console.log('📥 Carregando configurações para usuário:', user.id);
+      
       const { data, error } = await supabase
         .from('client_configs')
         .select('*')
-        .eq('user_id', user?.id)
+        .eq('user_id', user.id)
         .single();
 
-      if (error && error.code !== 'PGRST116') {
-        console.error('Error loading config:', error);
+      if (error) {
+        if (error.code === 'PGRST116') {
+          console.log('ℹ️ Nenhuma configuração encontrada, criando registro inicial...');
+          await createInitialConfig();
+          return;
+        }
+        console.error('❌ Erro ao carregar configurações:', error);
+        toast({
+          title: "Erro ao carregar configurações",
+          description: "Usando configurações padrão",
+          variant: "destructive"
+        });
         return;
       }
 
       if (data) {
-        setConfig({
+        console.log('✅ Configurações carregadas com sucesso:', {
+          hasWhatsApp: !!data.whatsapp_config,
+          hasOpenAI: !!data.openai_config,
+          hasFirebase: !!data.firebase_config
+        });
+
+        const loadedConfig = {
           whatsapp: { ...defaultConfig.whatsapp, ...(data.whatsapp_config as Partial<WhatsAppConfig> || {}) },
           openai: { ...defaultConfig.openai, ...(data.openai_config as Partial<OpenAIConfig> || {}) },
           firebase: { ...defaultConfig.firebase, ...(data.firebase_config as Partial<FirebaseConfig> || {}) }
-        });
+        };
 
+        setConfig(loadedConfig);
+
+        // Verificar conexão Firebase se configurado
         const firebaseConfig = data.firebase_config as Partial<FirebaseConfig>;
-        setIsFirebaseConnected(!!(firebaseConfig?.projectId && firebaseConfig?.apiKey));
+        if (firebaseConfig?.projectId && firebaseConfig?.apiKey) {
+          console.log('🔥 Firebase configurado, testando conexão...');
+          await testFirebaseConnection();
+        } else {
+          console.log('ℹ️ Firebase não configurado');
+          setIsFirebaseConnected(false);
+        }
+
+        toast({
+          title: "Configurações carregadas",
+          description: "Suas configurações foram restauradas com sucesso"
+        });
       }
     } catch (error) {
-      console.error('Error loading config:', error);
+      console.error('❌ Erro inesperado ao carregar configurações:', error);
+      toast({
+        title: "Erro inesperado",
+        description: "Não foi possível carregar as configurações",
+        variant: "destructive"
+      });
     } finally {
       setIsLoading(false);
     }
   };
 
+  const createInitialConfig = async () => {
+    if (!user?.id) return;
+
+    try {
+      console.log('🆕 Criando configuração inicial para usuário:', user.id);
+      
+      const { error } = await supabase
+        .from('client_configs')
+        .insert({
+          user_id: user.id,
+          whatsapp_config: defaultConfig.whatsapp,
+          openai_config: defaultConfig.openai,
+          firebase_config: defaultConfig.firebase
+        });
+
+      if (error) {
+        console.error('❌ Erro ao criar configuração inicial:', error);
+        throw error;
+      }
+
+      console.log('✅ Configuração inicial criada com sucesso');
+    } catch (error) {
+      console.error('❌ Falha ao criar configuração inicial:', error);
+      toast({
+        title: "Erro de inicialização",
+        description: "Não foi possível criar as configurações iniciais",
+        variant: "destructive"
+      });
+    }
+  };
+
   const updateConfig = (section: keyof ClientConfig, updates: Partial<ClientConfig[keyof ClientConfig]>) => {
+    console.log(`🔧 Atualizando seção ${section}:`, updates);
     setConfig(prev => ({
       ...prev,
       [section]: { ...prev[section], ...updates }
@@ -190,12 +269,19 @@ export function ClientConfigProvider({ children }: { children: React.ReactNode }
   };
 
   const saveConfig = async (): Promise<void> => {
-    if (!isAuthenticated || !user) {
+    if (!isAuthenticated || !user?.id) {
+      console.error('❌ SaveConfig: Usuário não autenticado');
       throw new Error('Usuário não autenticado');
     }
 
     try {
       setIsLoading(true);
+      console.log('💾 Salvando configurações para usuário:', user.id);
+      console.log('📋 Dados a salvar:', {
+        whatsapp: Object.keys(config.whatsapp).length,
+        openai: Object.keys(config.openai).length,
+        firebase: Object.keys(config.firebase).length
+      });
       
       const configData = {
         user_id: user.id,
@@ -207,16 +293,23 @@ export function ClientConfigProvider({ children }: { children: React.ReactNode }
 
       const { error } = await supabase
         .from('client_configs')
-        .upsert(configData);
+        .upsert(configData, {
+          onConflict: 'user_id'
+        });
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Erro ao salvar configurações:', error);
+        throw error;
+      }
 
+      console.log('✅ Configurações salvas com sucesso!');
+      
       toast({
         title: "Configurações salvas",
-        description: "Suas configurações foram salvas com sucesso"
+        description: "Suas configurações foram salvas com sucesso e não serão perdidas"
       });
     } catch (error) {
-      console.error('Error saving config:', error);
+      console.error('❌ Erro ao salvar configurações:', error);
       toast({
         title: "Erro ao salvar",
         description: "Não foi possível salvar as configurações",
