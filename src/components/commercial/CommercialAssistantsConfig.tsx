@@ -8,7 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Trash2, Plus, Edit, Save, X, DollarSign, TrendingUp, Users, Target } from 'lucide-react';
+import { Trash2, Plus, Edit, Save, X, Target, TrendingUp, Users, Cog, DollarSign, Zap, Rocket } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { useCommercialAssistantsConfig } from '@/hooks/useCommercialAssistantsConfig';
 
@@ -70,7 +70,7 @@ export function CommercialAssistantsConfig() {
       canRespond: false,
       icon: '💼',
       color: 'green',
-      area: 'comercial'
+      area: 'vendas'
     };
     
     setAssistants([...assistants, newAssistant]);
@@ -87,10 +87,13 @@ export function CommercialAssistantsConfig() {
 
   const getAreaIcon = (area: string) => {
     switch (area) {
-      case 'vendas': return <DollarSign className="h-4 w-4" />;
-      case 'performance': return <TrendingUp className="h-4 w-4" />;
-      case 'cultura': return <Users className="h-4 w-4" />;
       case 'estrategia': return <Target className="h-4 w-4" />;
+      case 'gestao': return <Users className="h-4 w-4" />;
+      case 'performance': return <TrendingUp className="h-4 w-4" />;
+      case 'processos': return <Cog className="h-4 w-4" />;
+      case 'vendas': return <DollarSign className="h-4 w-4" />;
+      case 'prospeccao': return <Zap className="h-4 w-4" />;
+      case 'expansao': return <Rocket className="h-4 w-4" />;
       default: return <DollarSign className="h-4 w-4" />;
     }
   };
@@ -99,9 +102,9 @@ export function CommercialAssistantsConfig() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-slate-800 mb-2">Assistentes Comerciais</h2>
+          <h2 className="text-2xl font-bold text-slate-800 mb-2">Assistentes Inteligentes do Cérebro Comercial</h2>
           <p className="text-slate-600">
-            Configure os assistentes especializados em análise comercial e vendas
+            Configure os 7 assistentes especializados na operação comercial completa
           </p>
         </div>
         <div className="flex gap-2">
@@ -125,8 +128,8 @@ export function CommercialAssistantsConfig() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 bg-${assistant.color}-100 rounded-lg flex items-center justify-center`}>
-                    <span className="text-lg">{assistant.icon}</span>
+                  <div className={`w-12 h-12 bg-gradient-to-br from-orange-100 to-orange-200 rounded-lg flex items-center justify-center`}>
+                    <span className="text-xl">{assistant.icon}</span>
                   </div>
                   <div>
                     <CardTitle className="flex items-center gap-2">
@@ -146,7 +149,7 @@ export function CommercialAssistantsConfig() {
                         </>
                       )}
                     </CardTitle>
-                    <CardDescription>
+                    <CardDescription className="text-orange-600 font-medium">
                       {editingId === assistant.id ? (
                         <Input
                           value={editingAssistant?.description || ''}
@@ -224,7 +227,6 @@ export function CommercialAssistantsConfig() {
                       <SelectContent>
                         <SelectItem value="gpt-4o">GPT-4o</SelectItem>
                         <SelectItem value="gpt-4o-mini">GPT-4o Mini</SelectItem>
-                        <SelectItem value="gpt-4.5-preview">GPT-4.5 Preview</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -242,11 +244,13 @@ export function CommercialAssistantsConfig() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="vendas">Vendas</SelectItem>
-                        <SelectItem value="performance">Performance</SelectItem>
-                        <SelectItem value="cultura">Cultura</SelectItem>
                         <SelectItem value="estrategia">Estratégia</SelectItem>
-                        <SelectItem value="comercial">Geral Comercial</SelectItem>
+                        <SelectItem value="gestao">Gestão</SelectItem>
+                        <SelectItem value="performance">Performance</SelectItem>
+                        <SelectItem value="processos">Processos</SelectItem>
+                        <SelectItem value="vendas">Vendas</SelectItem>
+                        <SelectItem value="prospeccao">Prospecção</SelectItem>
+                        <SelectItem value="expansao">Expansão</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -259,7 +263,7 @@ export function CommercialAssistantsConfig() {
                         ...editingAssistant,
                         prompt: e.target.value
                       })}
-                      rows={6}
+                      rows={8}
                       placeholder="Instruções detalhadas para o assistente..."
                     />
                   </div>
@@ -295,7 +299,10 @@ export function CommercialAssistantsConfig() {
                   
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium">Área:</span>
-                    <Badge variant="outline">{assistant.area}</Badge>
+                    <Badge variant="outline" className="flex items-center gap-1">
+                      {getAreaIcon(assistant.area)}
+                      {assistant.area}
+                    </Badge>
                   </div>
                   
                   <div className="flex items-center justify-between">
@@ -307,9 +314,9 @@ export function CommercialAssistantsConfig() {
                   </div>
                   
                   <div>
-                    <span className="text-sm font-medium">Prompt:</span>
-                    <p className="text-sm text-gray-600 mt-1 line-clamp-3">
-                      {assistant.prompt}
+                    <span className="text-sm font-medium">Especialidade:</span>
+                    <p className="text-sm text-gray-600 mt-1 line-clamp-2 bg-orange-50 p-2 rounded">
+                      {assistant.prompt.substring(0, 200)}...
                     </p>
                   </div>
                 </div>
