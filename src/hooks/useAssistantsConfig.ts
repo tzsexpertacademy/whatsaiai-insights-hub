@@ -17,6 +17,11 @@ interface Assistant {
   area?: string;
 }
 
+interface OpenAIConfig {
+  assistants?: Assistant[];
+  [key: string]: any;
+}
+
 export function useAssistantsConfig() {
   const [assistants, setAssistants] = useState<Assistant[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -134,8 +139,10 @@ export function useAssistantsConfig() {
         .eq('user_id', user.id)
         .single();
 
-      if (config?.openai_config?.assistants) {
-        setAssistants(config.openai_config.assistants);
+      const openaiConfig = config?.openai_config as OpenAIConfig | null;
+      
+      if (openaiConfig?.assistants) {
+        setAssistants(openaiConfig.assistants);
       } else {
         setAssistants(defaultAssistants);
       }
@@ -153,12 +160,14 @@ export function useAssistantsConfig() {
     try {
       setIsLoading(true);
 
+      const openaiConfig: OpenAIConfig = {
+        assistants: updatedAssistants
+      };
+
       const { error } = await supabase
         .from('client_configs')
         .update({
-          openai_config: {
-            assistants: updatedAssistants
-          }
+          openai_config: openaiConfig
         })
         .eq('user_id', user.id);
 
