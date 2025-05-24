@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -8,19 +7,22 @@ import { Badge } from "@/components/ui/badge";
 import { FileText, Upload, Brain, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
 import { useAssistantsConfig } from '@/hooks/useAssistantsConfig';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useClientConfig } from '@/contexts/ClientConfigContext';
 
 export function DocumentAnalysis() {
   const { assistants, isLoading } = useAssistantsConfig();
+  const { config, connectionStatus } = useClientConfig();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedAssistant, setSelectedAssistant] = useState<string>('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isTestingApi, setIsTestingApi] = useState(false);
-  const [apiStatus, setApiStatus] = useState<'unknown' | 'valid' | 'invalid'>('unknown');
   const [analysisResult, setAnalysisResult] = useState<string | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
+
+  // Use the connection status from the client config context
+  const apiStatus = connectionStatus.openai ? 'valid' : (config.openai.apiKey ? 'invalid' : 'unknown');
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -51,31 +53,13 @@ export function DocumentAnalysis() {
     if (!user?.id) return;
 
     setIsTestingApi(true);
-    setApiStatus('unknown');
 
     try {
       console.log('🔍 Testando conexão com OpenAI...');
+      console.log('🔑 API Key do contexto:', config.openai.apiKey ? 'Configurada' : 'Não configurada');
+      console.log('🔑 API Key formato:', config.openai.apiKey ? (config.openai.apiKey.startsWith('sk-') ? 'Válido' : 'Inválido') : 'N/A');
 
-      // Buscar configuração do OpenAI
-      const { data: config, error: configError } = await supabase
-        .from('client_configs')
-        .select('openai_config')
-        .eq('user_id', user.id)
-        .single();
-
-      if (configError) {
-        console.error('❌ Erro ao buscar config:', configError);
-        throw new Error('Erro ao buscar configuração');
-      }
-
-      const openaiConfig = config?.openai_config as { apiKey?: string } | null;
-      const openaiApiKey = openaiConfig?.apiKey;
-      
-      console.log('🔑 API Key encontrada:', openaiApiKey ? 'Sim' : 'Não');
-      console.log('🔑 API Key formato:', openaiApiKey ? (openaiApiKey.startsWith('sk-') ? 'Válido' : 'Inválido') : 'N/A');
-
-      if (!openaiApiKey) {
-        setApiStatus('invalid');
+      if (!config.openai.apiKey) {
         toast({
           title: "API Key não encontrada",
           description: "Configure sua API Key do OpenAI nas configurações",
@@ -84,8 +68,7 @@ export function DocumentAnalysis() {
         return;
       }
 
-      if (!openaiApiKey.startsWith('sk-')) {
-        setApiStatus('invalid');
+      if (!config.openai.apiKey.startsWith('sk-')) {
         toast({
           title: "API Key inválida",
           description: "A API Key deve começar com 'sk-'",
@@ -100,7 +83,7 @@ export function DocumentAnalysis() {
       const response = await fetch('https://api.openai.com/v1/models', {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${openaiApiKey}`,
+          'Authorization': `Bearer ${config.openai.apiKey}`,
           'Content-Type': 'application/json',
         },
       });
@@ -111,7 +94,6 @@ export function DocumentAnalysis() {
       if (!response.ok) {
         const errorText = await response.text();
         console.error('❌ Erro na resposta da OpenAI:', errorText);
-        setApiStatus('invalid');
         
         let errorMessage = 'Erro na conexão com OpenAI';
         if (response.status === 401) {
@@ -133,7 +115,6 @@ export function DocumentAnalysis() {
       const data = await response.json();
       console.log('✅ Resposta da OpenAI:', data);
       
-      setApiStatus('valid');
       toast({
         title: "Conexão bem-sucedida!",
         description: `API OpenAI está funcionando. ${data.data?.length || 0} modelos disponíveis.`,
@@ -141,7 +122,6 @@ export function DocumentAnalysis() {
 
     } catch (error) {
       console.error('❌ Erro inesperado no teste:', error);
-      setApiStatus('invalid');
       toast({
         title: "Erro no teste",
         description: `Erro inesperado: ${error.message}`,
@@ -170,18 +150,7 @@ export function DocumentAnalysis() {
 
       console.log('🤖 Assistente selecionado:', assistant.name);
 
-      // Buscar configuração do OpenAI
-      const { data: config } = await supabase
-        .from('client_configs')
-        .select('openai_config')
-        .eq('user_id', user.id)
-        .single();
-
-      // Tipo seguro para acessar api_key
-      const openaiConfig = config?.openai_config as { apiKey?: string } | null;
-      const openaiApiKey = openaiConfig?.apiKey;
-      
-      if (!openaiApiKey) {
+      if (!config.openai.apiKey) {
         toast({
           title: "API Key não configurada",
           description: "Configure sua API Key do OpenAI nas configurações",
@@ -196,7 +165,7 @@ export function DocumentAnalysis() {
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${openaiApiKey}`,
+          'Authorization': `Bearer ${config.openai.apiKey}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -291,19 +260,27 @@ export function DocumentAnalysis() {
             {apiStatus === 'unknown' && (
               <>
                 <AlertCircle className="h-5 w-5 text-gray-500" />
-                <span className="text-gray-600 font-medium">Status não verificado</span>
+                <span className="text-gray-600 font-medium">API Key não configurada</span>
               </>
             )}
           </div>
           
           <Button 
             onClick={testOpenAIConnection} 
-            disabled={isTestingApi}
+            disabled={isTestingApi || !config.openai.apiKey}
             variant="outline"
             className="w-full"
           >
             {isTestingApi ? 'Testando Conexão...' : 'Testar Conexão OpenAI'}
           </Button>
+
+          {!config.openai.apiKey && (
+            <div className="p-3 bg-yellow-50 rounded-md">
+              <p className="text-sm text-yellow-800">
+                Configure sua API Key do OpenAI na aba "Configurações" para usar este recurso.
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -367,7 +344,7 @@ export function DocumentAnalysis() {
 
             <Button 
               onClick={analyzeDocument}
-              disabled={!selectedFile || !selectedAssistant || isAnalyzing || apiStatus === 'invalid'}
+              disabled={!selectedFile || !selectedAssistant || isAnalyzing || apiStatus !== 'valid'}
               className="w-full"
             >
               <Brain className="h-4 w-4 mr-2" />
