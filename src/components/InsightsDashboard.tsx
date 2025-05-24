@@ -1,4 +1,6 @@
+
 import React from 'react';
+import { Badge } from "@/components/ui/badge";
 import { MetricCards } from '@/components/dashboard/MetricCards';
 import { LifeAreasMap } from '@/components/dashboard/LifeAreasMap';
 import { EmotionalChart } from '@/components/dashboard/EmotionalChart';
@@ -17,8 +19,9 @@ export function InsightsDashboard() {
           <p className="text-slate-600">Um espelho da sua mente, comportamentos e evolução pessoal</p>
         </div>
         
-        {/* Botão de Análise por IA no Dashboard */}
         <div className="flex items-center gap-3">
+          <Badge className="bg-purple-100 text-purple-800">Operacional</Badge>
+          <Badge className="bg-blue-100 text-blue-800">Dados Atualizados</Badge>
           <AIAnalysisButton />
         </div>
       </div>
