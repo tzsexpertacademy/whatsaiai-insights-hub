@@ -29,25 +29,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const initializingRef = useRef(false);
+  const initialized = useRef(false);
   const mountedRef = useRef(true);
 
-  // Limpa estados problemáticos no início
   useEffect(() => {
-    // Só executa uma vez por mount
-    if (initializingRef.current) return;
-    initializingRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (initialized.current) return;
+    initialized.current = true;
 
     const initializeAuth = async () => {
       try {
         console.log('🔐 Inicializando autenticação...');
         
-        // Verifica sessão atual
         const { data: { session: currentSession }, error } = await supabase.auth.getSession();
         
         if (error) {
           console.error('❌ Erro ao verificar sessão:', error);
-          // Limpa dados corrompidos
           await supabase.auth.signOut();
           return;
         }
@@ -60,7 +62,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       } catch (error) {
         console.error('❌ Erro na inicialização:', error);
-        // Em caso de erro, limpa tudo
         if (mountedRef.current) {
           setUser(null);
           setSession(null);
@@ -72,12 +73,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
-    // Configurar listener de mudanças de auth
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, newSession) => {
         if (!mountedRef.current) return;
         
-        console.log('🔄 Auth state changed:', event, newSession?.user?.id);
+        console.log('🔄 Auth state changed:', event);
         
         try {
           if (newSession?.user) {
@@ -98,7 +98,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       subscription.unsubscribe();
-      mountedRef.current = false;
     };
   }, []);
 
@@ -108,14 +107,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setSession(session);
     
     try {
-      // Buscar perfil do usuário de forma mais robusta
       const { data: profile, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', session.user.id)
         .maybeSingle();
 
-      if (error && error.code !== 'PGRST116') { // PGRST116 = not found
+      if (error && error.code !== 'PGRST116') {
         console.error('❌ Erro ao buscar perfil:', error);
       }
 
@@ -135,7 +133,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       console.error('❌ Erro ao atualizar usuário:', error);
       if (mountedRef.current) {
-        // Manter usuário básico mesmo com erro no perfil
         setUser({
           id: session.user.id,
           email: session.user.email!,
@@ -186,7 +183,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
     
-    // Limpar estados locais imediatamente
     setUser(null);
     setSession(null);
   };

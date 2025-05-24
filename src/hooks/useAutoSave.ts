@@ -24,26 +24,26 @@ export function useAutoSave() {
     
     const configString = JSON.stringify(config);
     
-    // Pular o primeiro carregamento
+    // Skip initial load
     if (isInitialLoad.current) {
       lastConfigRef.current = configString;
       isInitialLoad.current = false;
       return;
     }
     
-    // Só salvar se mudou e não está salvando
+    // Only save if changed and not saving
     if (configString === lastConfigRef.current || isSavingRef.current) {
       return;
     }
     
     lastConfigRef.current = configString;
 
-    // Limpar timeout anterior
+    // Clear previous timeout
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
     }
 
-    // Auto-save após 3 segundos
+    // Auto-save after 3 seconds
     timeoutRef.current = setTimeout(async () => {
       if (!mountedRef.current || isSavingRef.current) return;
       
@@ -59,12 +59,6 @@ export function useAutoSave() {
         }
       }
     }, 3000);
-
-    return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-    };
   }, [config, saveConfig]);
 
   const forceSave = async () => {
