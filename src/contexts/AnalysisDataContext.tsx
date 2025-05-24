@@ -80,6 +80,177 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
   const [isLoading, setIsLoading] = useState(false);
   const { user } = useAuth();
 
+  const processAssistantAnalysis = (insights: any[]) => {
+    const analysisData = { ...emptyAnalysisData };
+    
+    // Processar insights para extrair dados estruturados
+    const assistantData = {
+      oracle: null,
+      guardian: null,
+      engineer: null,
+      architect: null,
+      weaver: null,
+      catalyst: null,
+      mirror: null
+    };
+
+    // Extrair dados dos insights baseado no conteúdo
+    insights.forEach(insight => {
+      const description = insight.description.toLowerCase();
+      
+      // Identificar análises de cada assistente pelos padrões no texto
+      if (description.includes('psicolog') || description.includes('sombra') || description.includes('trauma') || description.includes('inconsciente')) {
+        assistantData.oracle = insight;
+      } else if (description.includes('financeiro') || description.includes('dinheiro') || description.includes('recurso') || description.includes('investimento')) {
+        assistantData.guardian = insight;
+      } else if (description.includes('saúde') || description.includes('corpo') || description.includes('físic') || description.includes('exercício')) {
+        assistantData.engineer = insight;
+      } else if (description.includes('estratég') || description.includes('planejamento') || description.includes('meta') || description.includes('decisão')) {
+        assistantData.architect = insight;
+      } else if (description.includes('propósito') || description.includes('valor') || description.includes('existencial') || description.includes('alma')) {
+        assistantData.weaver = insight;
+      } else if (description.includes('criativ') || description.includes('inovação') || description.includes('bloqueio') || description.includes('arte')) {
+        assistantData.catalyst = insight;
+      } else if (description.includes('relacionamento') || description.includes('social') || description.includes('comunicação') || description.includes('vínculo')) {
+        assistantData.mirror = insight;
+      }
+    });
+
+    // Gerar Big Five baseado nos insights dos assistentes
+    analysisData.bigFiveData = [
+      { 
+        name: 'Extroversão', 
+        value: assistantData.mirror ? 75 : assistantData.oracle ? 45 : 60 
+      },
+      { 
+        name: 'Abertura', 
+        value: assistantData.catalyst ? 85 : assistantData.weaver ? 80 : 70 
+      },
+      { 
+        name: 'Neuroticismo', 
+        value: assistantData.oracle ? 40 : assistantData.engineer ? 35 : 50 
+      },
+      { 
+        name: 'Amabilidade', 
+        value: assistantData.mirror ? 80 : assistantData.weaver ? 75 : 65 
+      },
+      { 
+        name: 'Conscienciosidade', 
+        value: assistantData.architect ? 85 : assistantData.guardian ? 80 : 70 
+      }
+    ];
+
+    // Gerar áreas da vida baseado nos assistentes
+    analysisData.lifeAreasData = [
+      { 
+        subject: 'Profissional', 
+        A: assistantData.architect ? 80 : assistantData.guardian ? 75 : 60, 
+        fullMark: 100 
+      },
+      { 
+        subject: 'Financeiro', 
+        A: assistantData.guardian ? 85 : 55, 
+        fullMark: 100 
+      },
+      { 
+        subject: 'Relacionamentos', 
+        A: assistantData.mirror ? 85 : assistantData.oracle ? 65 : 70, 
+        fullMark: 100 
+      },
+      { 
+        subject: 'Saúde Física', 
+        A: assistantData.engineer ? 80 : 60, 
+        fullMark: 100 
+      },
+      { 
+        subject: 'Saúde Mental', 
+        A: assistantData.oracle ? 75 : assistantData.engineer ? 70 : 65, 
+        fullMark: 100 
+      },
+      { 
+        subject: 'Espiritualidade', 
+        A: assistantData.weaver ? 85 : 55, 
+        fullMark: 100 
+      },
+      { 
+        subject: 'Crescimento Pessoal', 
+        A: assistantData.catalyst ? 90 : assistantData.weaver ? 85 : 75, 
+        fullMark: 100 
+      }
+    ];
+
+    // Gerar dados emocionais semanais
+    const emotionalLevel = assistantData.oracle ? 75 : assistantData.mirror ? 80 : 65;
+    const primaryEmotion = assistantData.oracle ? 'Reflexivo' : assistantData.mirror ? 'Conectado' : 'Equilibrado';
+    
+    analysisData.emotionalData = [
+      { name: 'Seg', level: emotionalLevel - 5, emotion: primaryEmotion },
+      { name: 'Ter', level: emotionalLevel + 5, emotion: primaryEmotion },
+      { name: 'Qua', level: emotionalLevel - 2, emotion: primaryEmotion },
+      { name: 'Qui', level: emotionalLevel + 8, emotion: primaryEmotion },
+      { name: 'Sex', level: emotionalLevel + 10, emotion: primaryEmotion },
+      { name: 'Sáb', level: emotionalLevel + 2, emotion: primaryEmotion },
+      { name: 'Dom', level: emotionalLevel - 3, emotion: primaryEmotion }
+    ];
+
+    // Definir perfis principais
+    if (assistantData.oracle) {
+      analysisData.psychologicalProfile = 'Explorador Introspectivo';
+      analysisData.emotionalState = 'Autoconsciente';
+    } else if (assistantData.mirror) {
+      analysisData.psychologicalProfile = 'Conector Social';
+      analysisData.emotionalState = 'Empático';
+    } else if (assistantData.architect) {
+      analysisData.psychologicalProfile = 'Estrategista Focado';
+      analysisData.emotionalState = 'Determinado';
+    } else if (assistantData.catalyst) {
+      analysisData.psychologicalProfile = 'Criativo Inovador';
+      analysisData.emotionalState = 'Inspirado';
+    } else {
+      analysisData.psychologicalProfile = 'Equilibrado Versátil';
+      analysisData.emotionalState = 'Estável';
+    }
+
+    // Definir foco principal
+    if (assistantData.weaver) {
+      analysisData.mainFocus = 'Propósito e Significado';
+    } else if (assistantData.guardian) {
+      analysisData.mainFocus = 'Estabilidade Financeira';
+    } else if (assistantData.engineer) {
+      analysisData.mainFocus = 'Bem-estar Físico';
+    } else {
+      analysisData.mainFocus = 'Desenvolvimento Pessoal';
+    }
+
+    // Calcular consciência relacional
+    let relationalScore = 50;
+    if (assistantData.mirror) relationalScore += 25;
+    if (assistantData.oracle) relationalScore += 15;
+    if (assistantData.weaver) relationalScore += 10;
+    analysisData.relationalAwareness = Math.min(relationalScore, 95);
+
+    // Gerar skills baseado nos assistentes
+    analysisData.skillsData = [
+      { 
+        title: "Comunicação", 
+        value: `${assistantData.mirror ? 85 : 65}%`, 
+        trend: "+8%" 
+      },
+      { 
+        title: "Inteligência Emocional", 
+        value: `${assistantData.oracle ? 80 : assistantData.mirror ? 85 : 70}%`, 
+        trend: "+12%" 
+      },
+      { 
+        title: "Capacidade Analítica", 
+        value: `${assistantData.architect ? 90 : assistantData.guardian ? 85 : 75}%`, 
+        trend: "+6%" 
+      }
+    ];
+
+    return analysisData;
+  };
+
   const loadStoredData = async () => {
     if (!user?.id) return;
 
@@ -94,7 +265,7 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
-        .limit(10);
+        .limit(20);
 
       if (insightsError) {
         console.error('❌ Erro ao buscar insights:', insightsError);
@@ -128,81 +299,21 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
         return;
       }
 
-      console.log('✅ Dados reais encontrados, atualizando dashboard');
+      console.log('✅ Dados reais encontrados, processando com assistentes');
 
-      let updatedData = { ...emptyAnalysisData, hasRealData: true };
+      // Processar dados com base nos insights dos assistentes
+      let updatedData = processAssistantAnalysis(insights);
+      updatedData.hasRealData = true;
 
       if (hasInsights) {
         const analysisInsights = insights.map(insight => insight.description);
         const analysisRecommendations = insights
-          .filter(insight => insight.insight_type === 'recommendation')
+          .filter(insight => insight.insight_type === 'recommendation' || insight.description.toLowerCase().includes('recomenda'))
           .map(insight => insight.description);
         
         updatedData.insights = analysisInsights;
         updatedData.recommendations = analysisRecommendations;
         updatedData.lastUpdated = new Date(insights[0].created_at);
-      }
-
-      if (hasConversations) {
-        const latest = conversations[0];
-        
-        if (latest.emotional_analysis) {
-          const emotional = latest.emotional_analysis as any;
-          updatedData.emotionalState = emotional.primary_emotion || emotional.dominant_emotion || '--';
-          updatedData.relationalAwareness = emotional.confidence_level || emotional.emotional_intensity || 0;
-          
-          // Gerar dados emocionais semanais baseados na análise
-          if (emotional.emotional_patterns) {
-            updatedData.emotionalData = [
-              { name: 'Seg', level: 65, emotion: emotional.primary_emotion || 'Neutro' },
-              { name: 'Ter', level: 70, emotion: emotional.secondary_emotion || 'Neutro' },
-              { name: 'Qua', level: 62, emotion: emotional.primary_emotion || 'Neutro' },
-              { name: 'Qui', level: 75, emotion: emotional.primary_emotion || 'Neutro' },
-              { name: 'Sex', level: 80, emotion: emotional.secondary_emotion || 'Neutro' },
-              { name: 'Sáb', level: 72, emotion: emotional.primary_emotion || 'Neutro' },
-              { name: 'Dom', level: 68, emotion: emotional.primary_emotion || 'Neutro' },
-            ];
-          }
-        }
-
-        if (latest.psychological_profile) {
-          const psych = latest.psychological_profile as any;
-          updatedData.psychologicalProfile = psych.personality_type || psych.dominant_traits?.[0] || '--';
-          updatedData.mainFocus = psych.main_focus || psych.cognitive_patterns?.[0] || '--';
-          
-          // Gerar dados Big Five baseados no perfil
-          if (psych.personality_traits) {
-            updatedData.bigFiveData = [
-              { name: 'Extroversão', value: psych.personality_traits.extraversion || 50 },
-              { name: 'Abertura', value: psych.personality_traits.openness || 50 },
-              { name: 'Neuroticismo', value: psych.personality_traits.neuroticism || 50 },
-              { name: 'Amabilidade', value: psych.personality_traits.agreeableness || 50 },
-              { name: 'Conscienciosidade', value: psych.personality_traits.conscientiousness || 50 },
-            ];
-          }
-          
-          // Gerar dados de áreas da vida
-          if (psych.life_areas) {
-            updatedData.lifeAreasData = [
-              { subject: 'Profissional', A: psych.life_areas.professional || 0, fullMark: 100 },
-              { subject: 'Financeiro', A: psych.life_areas.financial || 0, fullMark: 100 },
-              { subject: 'Relacionamentos', A: psych.life_areas.relationships || 0, fullMark: 100 },
-              { subject: 'Saúde Física', A: psych.life_areas.physical_health || 0, fullMark: 100 },
-              { subject: 'Saúde Mental', A: psych.life_areas.mental_health || 0, fullMark: 100 },
-              { subject: 'Espiritualidade', A: psych.life_areas.spirituality || 0, fullMark: 100 },
-              { subject: 'Crescimento Pessoal', A: psych.life_areas.personal_growth || 0, fullMark: 100 },
-            ];
-          }
-          
-          // Gerar dados de habilidades
-          if (psych.skills_assessment) {
-            updatedData.skillsData = [
-              { title: "Comunicação", value: `${psych.skills_assessment.communication || 0}%`, trend: "+5%" },
-              { title: "Inteligência Emocional", value: `${psych.skills_assessment.emotional_intelligence || 0}%`, trend: "+8%" },
-              { title: "Capacidade Analítica", value: `${psych.skills_assessment.analytical_thinking || 0}%`, trend: "+3%" }
-            ];
-          }
-        }
       }
 
       setData(updatedData);

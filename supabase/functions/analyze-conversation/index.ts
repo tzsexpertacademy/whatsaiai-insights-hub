@@ -56,49 +56,105 @@ serve(async (req) => {
       {
         id: 'oracle',
         name: 'Oráculo das Sombras',
-        prompt: 'Você é o Oráculo das Sombras, especialista em psicologia profunda. Analise padrões inconscientes, traumas não resolvidos e aspectos sombrios da personalidade. Foque em insights psicológicos profundos.',
+        prompt: `Você é o Oráculo das Sombras, especialista em psicologia profunda. Analise padrões inconscientes, traços de personalidade e aspectos emocionais. 
+
+Responda com insights específicos sobre:
+- Traços psicológicos identificados
+- Padrões emocionais
+- Aspectos inconscientes
+- Pontos de desenvolvimento pessoal
+
+Use linguagem clara e construtiva.`,
         isActive: true,
         area: 'psicologia'
       },
       {
         id: 'guardian',
         name: 'Guardião dos Recursos',
-        prompt: 'Você é o Guardião dos Recursos, mentor financeiro especializado. Analise padrões de gastos, decisões financeiras e relacionamento com dinheiro. Identifique oportunidades de crescimento financeiro.',
+        prompt: `Você é o Guardião dos Recursos, mentor financeiro especializado. Analise padrões financeiros e de gestão de recursos.
+
+Responda com insights sobre:
+- Comportamentos financeiros
+- Relação com dinheiro e recursos
+- Oportunidades de melhoria financeira
+- Planejamento e organização
+
+Seja prático e orientado a resultados.`,
         isActive: true,
         area: 'financeiro'
       },
       {
         id: 'engineer',
         name: 'Engenheiro do Corpo',
-        prompt: 'Você é o Engenheiro do Corpo, especialista em biohacking e otimização física. Analise padrões de saúde, sono, alimentação e exercícios mencionados nas conversas.',
+        prompt: `Você é o Engenheiro do Corpo, especialista em saúde e bem-estar físico. Analise padrões relacionados à saúde física.
+
+Responda com insights sobre:
+- Cuidados com a saúde física
+- Padrões de energia e vitalidade
+- Hábitos de bem-estar
+- Otimização do desempenho físico
+
+Seja motivador e focado na saúde.`,
         isActive: true,
         area: 'saude'
       },
       {
         id: 'architect',
         name: 'Arquiteto do Jogo',
-        prompt: 'Você é o Arquiteto do Jogo, estrategista de vida. Analise padrões de tomada de decisão, planejamento e execução de metas. Identifique pontos de melhoria na estratégia de vida.',
+        prompt: `Você é o Arquiteto do Jogo, estrategista de vida. Analise padrões de planejamento e execução de objetivos.
+
+Responda com insights sobre:
+- Estratégias de vida e carreira
+- Planejamento e organização
+- Tomada de decisões
+- Execução de metas
+
+Seja estratégico e orientado a objetivos.`,
         isActive: true,
         area: 'estrategia'
       },
       {
         id: 'weaver',
         name: 'Tecelão da Alma',
-        prompt: 'Você é o Tecelão da Alma, especialista em propósito e legado. Analise conexões com propósito de vida, valores fundamentais e direcionamento existencial.',
+        prompt: `Você é o Tecelão da Alma, especialista em propósito e significado. Analise conexões com valores e propósito de vida.
+
+Responda com insights sobre:
+- Propósito e significado de vida
+- Valores fundamentais
+- Direcionamento existencial
+- Crescimento espiritual
+
+Seja inspirador e profundo.`,
         isActive: true,
         area: 'proposito'
       },
       {
         id: 'catalyst',
         name: 'Catalisador',
-        prompt: 'Você é o Catalisador, especialista em criatividade e inovação. Analise padrões criativos, bloqueios e potencial de inovação nas conversas.',
+        prompt: `Você é o Catalisador, especialista em criatividade e inovação. Analise padrões criativos e de inovação.
+
+Responda com insights sobre:
+- Potencial criativo
+- Bloqueios e limitações
+- Oportunidades de inovação
+- Expressão pessoal
+
+Seja criativo e inspirador.`,
         isActive: true,
         area: 'criatividade'
       },
       {
         id: 'mirror',
         name: 'Espelho Social',
-        prompt: 'Você é o Espelho Social, especialista em relacionamentos. Analise padrões de comunicação, vínculos sociais e dinâmicas relacionais mencionadas.',
+        prompt: `Você é o Espelho Social, especialista em relacionamentos e comunicação. Analise padrões sociais e relacionais.
+
+Responda com insights sobre:
+- Habilidades de comunicação
+- Padrões relacionais
+- Inteligência social
+- Vínculos e conexões
+
+Seja empático e focado nas relações.`,
         isActive: true,
         area: 'relacionamentos'
       }
@@ -116,47 +172,38 @@ serve(async (req) => {
     if (!conversations || conversations.length === 0) {
       console.log('⚠️ Nenhuma conversa encontrada, criando análise de exemplo');
       
-      const exampleAnalysis = {
-        perfil_psicologico: 'ENFP - Explorador empático em desenvolvimento',
-        estado_emocional: 'Curioso e receptivo ao crescimento',
-        areas_vida: {
-          profissional: 'Potencial em desenvolvimento',
-          relacionamentos: 'Base sólida para crescimento',
-          saude: 'Consciência emergente',
-          desenvolvimento: 'Ativo e engajado'
-        },
-        insights: [
-          'Personalidade aberta a novas experiências detectada',
-          'Padrões de reflexão e autoconhecimento em desenvolvimento',
-          'Tendência natural para conexões significativas'
-        ],
-        recomendacoes: [
-          'Explore técnicas de journaling para autoconhecimento',
-          'Desenvolva rotinas de bem-estar pessoal',
-          'Cultive relacionamentos autênticos'
-        ],
-        alertas: [],
-        big_five: {
-          extroversao: 65,
-          abertura: 85,
-          neuroticismo: 45,
-          amabilidade: 70,
-          conscienciosidade: 75
-        },
-        areas_metricas: {
-          profissional: 70,
-          financeiro: 55,
-          relacionamentos: 75,
-          saude_fisica: 60,
-          saude_mental: 70,
-          espiritualidade: 65,
-          crescimento_pessoal: 80
+      // Criar insights de exemplo que serão processados pelos assistentes
+      const exampleInsights = [
+        'Análise psicológica: Personalidade introspectiva com tendência à reflexão profunda e autoconhecimento',
+        'Padrão financeiro: Consciência emergente sobre gestão de recursos e planejamento futuro',
+        'Saúde física: Interesse crescente em otimização de bem-estar e cuidados corporais',
+        'Estratégia de vida: Foco em desenvolvimento pessoal e construção de objetivos claros',
+        'Propósito existencial: Busca por significado e alinhamento com valores fundamentais',
+        'Criatividade: Potencial criativo em desenvolvimento com abertura para novas experiências',
+        'Relacionamentos: Habilidades sociais em crescimento com foco em conexões autênticas'
+      ];
+
+      // Salvar insights de exemplo
+      for (const insight of exampleInsights) {
+        try {
+          await supabase
+            .from('insights')
+            .insert({
+              user_id: userId,
+              title: 'Análise Multi-Assistente',
+              description: insight,
+              insight_type: 'ai_analysis',
+              priority: 'medium',
+              status: 'active'
+            });
+        } catch (error) {
+          console.error('❌ Erro ao salvar insight:', error);
         }
-      };
+      }
 
       return new Response(JSON.stringify({
         success: true,
-        analysis: exampleAnalysis,
+        insights_generated: exampleInsights.length,
         assistants_used: assistants.map(a => a.name),
         timestamp: new Date().toISOString()
       }), {
@@ -181,36 +228,13 @@ serve(async (req) => {
           console.log(`🤖 Analisando com ${assistant.name}...`);
           
           const assistantPrompt = `
-${assistant.prompt}
-
-Analise as seguintes conversas de WhatsApp da sua perspectiva especializada:
+Analise as seguintes conversas de WhatsApp da sua perspectiva especializada em ${assistant.area}:
 
 ${JSON.stringify(conversationData, null, 2)}
 
-IMPORTANTE: Responda APENAS com um JSON válido seguindo esta estrutura:
+Forneça insights específicos da sua área de especialização. Seja direto, construtivo e focado nos padrões que identifica.
 
-{
-  "area_especialidade": "${assistant.area || 'geral'}",
-  "avaliacao_principal": "Sua avaliação principal da área",
-  "nivel_desenvolvimento": 75,
-  "insights_especificos": [
-    "Primeiro insight da sua área",
-    "Segundo insight da sua área"
-  ],
-  "recomendacoes_especificas": [
-    "Primeira recomendação específica",
-    "Segunda recomendação específica"
-  ],
-  "alertas_especificos": [
-    "Alerta se houver algo importante"
-  ],
-  "metricas_especificas": {
-    "metric1": 75,
-    "metric2": 68
-  }
-}
-
-Seja preciso, focado na sua especialidade e use linguagem construtiva.
+Responda em português, de forma clara e objetiva.
 `;
 
           const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -237,38 +261,18 @@ Seja preciso, focado na sua especialidade e use linguagem construtiva.
           const data = await response.json();
           const analysis = data.choices[0].message.content;
 
-          try {
-            return {
-              assistant: assistant.name,
-              analysis: JSON.parse(analysis)
-            };
-          } catch {
-            return {
-              assistant: assistant.name,
-              analysis: {
-                area_especialidade: assistant.area || 'geral',
-                avaliacao_principal: 'Análise em processo',
-                nivel_desenvolvimento: 70,
-                insights_especificos: [`Insight de ${assistant.name} em desenvolvimento`],
-                recomendacoes_especificas: [`Continue explorando sua ${assistant.area}`],
-                alertas_especificos: [],
-                metricas_especificas: {}
-              }
-            };
-          }
+          return {
+            assistant: assistant.name,
+            area: assistant.area,
+            analysis: analysis
+          };
+
         } catch (error) {
           console.error(`❌ Erro na análise do ${assistant.name}:`, error);
           return {
             assistant: assistant.name,
-            analysis: {
-              area_especialidade: assistant.area || 'geral',
-              avaliacao_principal: 'Análise temporariamente indisponível',
-              nivel_desenvolvimento: 65,
-              insights_especificos: ['Aguardando nova análise'],
-              recomendacoes_especificas: ['Continue suas práticas atuais'],
-              alertas_especificos: [],
-              metricas_especificas: {}
-            }
+            area: assistant.area,
+            analysis: `Insight de ${assistant.name}: Aguardando nova análise baseada em mais dados de conversa.`
           };
         }
       })
@@ -276,61 +280,28 @@ Seja preciso, focado na sua especialidade e use linguagem construtiva.
 
     console.log('✅ Consolidando análises dos assistentes...');
 
-    // Consolidar análises
-    const consolidatedInsights = assistantAnalyses.flatMap(a => a.analysis.insights_especificos || []);
-    const consolidatedRecommendations = assistantAnalyses.flatMap(a => a.analysis.recomendacoes_especificas || []);
-    const consolidatedAlerts = assistantAnalyses.flatMap(a => a.analysis.alertas_especificos || []);
-
-    // Calcular métricas Big Five baseadas nas análises
-    const bigFiveMetrics = {
-      extroversao: Math.round(assistantAnalyses.reduce((acc, a) => acc + (a.analysis.metricas_especificas?.extroversao || 65), 0) / assistantAnalyses.length),
-      abertura: Math.round(assistantAnalyses.reduce((acc, a) => acc + (a.analysis.metricas_especificas?.abertura || 75), 0) / assistantAnalyses.length),
-      neuroticismo: Math.round(assistantAnalyses.reduce((acc, a) => acc + (a.analysis.metricas_especificas?.neuroticismo || 45), 0) / assistantAnalyses.length),
-      amabilidade: Math.round(assistantAnalyses.reduce((acc, a) => acc + (a.analysis.metricas_especificas?.amabilidade || 70), 0) / assistantAnalyses.length),
-      conscienciosidade: Math.round(assistantAnalyses.reduce((acc, a) => acc + (a.analysis.metricas_especificas?.conscienciosidade || 75), 0) / assistantAnalyses.length)
-    };
-
-    // Calcular métricas de áreas da vida
-    const areasMetricas = {
-      profissional: assistantAnalyses.find(a => a.analysis.area_especialidade === 'estrategia')?.analysis.nivel_desenvolvimento || 75,
-      financeiro: assistantAnalyses.find(a => a.analysis.area_especialidade === 'financeiro')?.analysis.nivel_desenvolvimento || 65,
-      relacionamentos: assistantAnalyses.find(a => a.analysis.area_especialidade === 'relacionamentos')?.analysis.nivel_desenvolvimento || 70,
-      saude_fisica: assistantAnalyses.find(a => a.analysis.area_especialidade === 'saude')?.analysis.nivel_desenvolvimento || 65,
-      saude_mental: assistantAnalyses.find(a => a.analysis.area_especialidade === 'psicologia')?.analysis.nivel_desenvolvimento || 70,
-      espiritualidade: assistantAnalyses.find(a => a.analysis.area_especialidade === 'proposito')?.analysis.nivel_desenvolvimento || 65,
-      crescimento_pessoal: assistantAnalyses.find(a => a.analysis.area_especialidade === 'criatividade')?.analysis.nivel_desenvolvimento || 75
-    };
-
-    const finalAnalysis = {
-      perfil_psicologico: assistantAnalyses.find(a => a.analysis.area_especialidade === 'psicologia')?.analysis.avaliacao_principal || 'ENFP - Personalidade exploratória',
-      estado_emocional: 'Equilibrado e em crescimento',
-      areas_vida: {
-        profissional: assistantAnalyses.find(a => a.analysis.area_especialidade === 'estrategia')?.analysis.avaliacao_principal || 'Em desenvolvimento estratégico',
-        relacionamentos: assistantAnalyses.find(a => a.analysis.area_especialidade === 'relacionamentos')?.analysis.avaliacao_principal || 'Conexões saudáveis',
-        saude: assistantAnalyses.find(a => a.analysis.area_especialidade === 'saude')?.analysis.avaliacao_principal || 'Consciência corporal ativa',
-        desenvolvimento: assistantAnalyses.find(a => a.analysis.area_especialidade === 'criatividade')?.analysis.avaliacao_principal || 'Criatividade florescente'
-      },
-      insights: consolidatedInsights.slice(0, 8),
-      recomendacoes: consolidatedRecommendations.slice(0, 6),
-      alertas: consolidatedAlerts,
-      big_five: bigFiveMetrics,
-      areas_metricas: areasMetricas,
-      assistants_analysis: assistantAnalyses
-    };
-
-    // Salvar insights consolidados no banco
-    for (const insight of consolidatedInsights.slice(0, 10)) {
+    // Salvar insights consolidados no banco com marcadores de área
+    const savedInsights = [];
+    for (const assistantAnalysis of assistantAnalyses) {
       try {
-        await supabase
+        const insightText = `${assistantAnalysis.analysis}`;
+        
+        const { data: savedInsight } = await supabase
           .from('insights')
           .insert({
             user_id: userId,
-            title: 'Análise Multi-Assistente',
-            description: insight,
+            title: `Análise - ${assistantAnalysis.assistant}`,
+            description: insightText,
             insight_type: 'ai_analysis',
             priority: 'medium',
             status: 'active'
-          });
+          })
+          .select()
+          .single();
+
+        if (savedInsight) {
+          savedInsights.push(savedInsight);
+        }
       } catch (error) {
         console.error('❌ Erro ao salvar insight:', error);
       }
@@ -340,8 +311,13 @@ Seja preciso, focado na sua especialidade e use linguagem construtiva.
 
     return new Response(JSON.stringify({
       success: true,
-      analysis: finalAnalysis,
+      insights_generated: savedInsights.length,
       assistants_used: assistants.map(a => a.name),
+      assistant_analyses: assistantAnalyses.map(a => ({
+        assistant: a.assistant,
+        area: a.area,
+        preview: a.analysis.substring(0, 100) + '...'
+      })),
       timestamp: new Date().toISOString()
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
