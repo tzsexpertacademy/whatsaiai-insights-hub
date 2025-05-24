@@ -129,10 +129,12 @@ export function useCommercialAssistantsConfig() {
 
       const openaiConfig = config?.openai_config as CommercialOpenAIConfig | null;
       
-      if (openaiConfig?.assistants) {
+      if (openaiConfig?.assistants && openaiConfig.assistants.length > 0) {
         setAssistants(openaiConfig.assistants);
       } else {
+        // Se não tem assistentes salvos ou está vazio, carrega os padrões e salva
         setAssistants(defaultAssistants);
+        await saveAssistants(defaultAssistants);
       }
     } catch (error) {
       console.error('Erro ao carregar assistentes comerciais:', error);
