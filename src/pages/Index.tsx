@@ -12,6 +12,7 @@ import { Recommendations } from '@/components/Recommendations';
 import { WhatsAppConnection } from '@/components/WhatsAppConnection';
 import { ChatInterface } from '@/components/ChatInterface';
 import { SettingsPage } from '@/components/SettingsPage';
+import { ProfilePage } from '@/components/ProfilePage';
 import { ClientManagement } from '@/components/admin/ClientManagement';
 
 // Criamos um componente wrapper para carregar componentes dinâmicos que usam bibliotecas externas
@@ -90,6 +91,12 @@ const Index = () => {
                       <>
                         {console.log('Index - Rendering SettingsPage')}
                         <DynamicComponentLoader Component={SettingsPage} />
+                      </>
+                    } />
+                    <Route path="/user-profile" element={
+                      <>
+                        {console.log('Index - Rendering ProfilePage')}
+                        <ProfilePage />
                       </>
                     } />
                     <Route path="/admin/clients" element={
