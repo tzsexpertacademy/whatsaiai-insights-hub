@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { FileText, Upload, Brain, AlertCircle, CheckCircle, XCircle, Info } from 'lucide-react';
+import { FileText, Upload, Brain, AlertCircle, CheckCircle, XCircle, Info, Settings } from 'lucide-react';
 import { useAssistantsConfig } from '@/hooks/useAssistantsConfig';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
@@ -15,12 +15,21 @@ export function DocumentAnalysis() {
   const { config, connectionStatus } = useClientConfig();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedAssistant, setSelectedAssistant] = useState<string>('');
+  const [maxTokens, setMaxTokens] = useState<number>(80000);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<string | null>(null);
   const [currentAnalysisAssistant, setCurrentAnalysisAssistant] = useState<string | null>(null);
-  const [documentInfo, setDocumentInfo] = useState<{ size: number; willBeTruncated: boolean } | null>(null);
+  const [documentInfo, setDocumentInfo] = useState<{ size: number; willBeTruncated: boolean; estimatedTokens: number } | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
+
+  // Opções de tokens disponíveis
+  const tokenOptions = [
+    { value: 40000, label: "40K tokens (Documentos pequenos)" },
+    { value: 80000, label: "80K tokens (Recomendado)" },
+    { value: 120000, label: "120K tokens (Documentos grandes)" },
+    { value: 150000, label: "150K tokens (Máximo seguro)" }
+  ];
 
   // Use the connection status from the client config context
   const apiStatus = connectionStatus.openai ? 'valid' : (config.openai.apiKey ? 'invalid' : 'unknown');
@@ -35,20 +44,20 @@ export function DocumentAnalysis() {
       if (isTextFile || file.type === 'application/json' || file.type === 'text/plain' || file.type === '') {
         setSelectedFile(file);
         
-        // Calcular informações do documento com limite mais conservador
+        // Calcular informações do documento
         const fileSizeKB = file.size / 1024;
-        const maxTokensForDocument = 80000; // Muito mais conservador - deixa espaço para system prompt e resposta
-        const estimatedTokens = file.size / 3; // Estimativa mais conservadora: 1 token ≈ 3 caracteres
-        const willBeTruncated = estimatedTokens > maxTokensForDocument;
+        const estimatedTokens = Math.ceil(file.size / 3); // 1 token ≈ 3 caracteres
+        const willBeTruncated = estimatedTokens > maxTokens;
         
         setDocumentInfo({
           size: fileSizeKB,
-          willBeTruncated
+          willBeTruncated,
+          estimatedTokens
         });
         
         toast({
           title: "Arquivo carregado",
-          description: `${file.name} (${fileSizeKB.toFixed(1)} KB) ${willBeTruncated ? '- será truncado para análise' : '- será analisado completamente'}`,
+          description: `${file.name} (${fileSizeKB.toFixed(1)} KB, ~${estimatedTokens.toLocaleString()} tokens) ${willBeTruncated ? '- será truncado para análise' : '- será analisado completamente'}`,
         });
       } else {
         toast({
@@ -60,6 +69,20 @@ export function DocumentAnalysis() {
     }
   };
 
+  // Recalcular informações quando maxTokens mudar
+  useEffect(() => {
+    if (selectedFile && documentInfo) {
+      const estimatedTokens = Math.ceil(selectedFile.size / 3);
+      const willBeTruncated = estimatedTokens > maxTokens;
+      
+      setDocumentInfo({
+        size: documentInfo.size,
+        willBeTruncated,
+        estimatedTokens
+      });
+    }
+  }, [maxTokens, selectedFile]);
+
   const readFileContent = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -69,14 +92,14 @@ export function DocumentAnalysis() {
     });
   };
 
-  const truncateContent = (content: string, maxTokens: number = 80000): { content: string; wasTruncated: boolean } => {
-    // Estimativa muito conservadora: 1 token ≈ 3 caracteres para garantir que ficamos dentro do limite
-    const maxChars = Math.floor(maxTokens * 3);
+  const truncateContent = (content: string, maxTokensLimit: number = maxTokens): { content: string; wasTruncated: boolean } => {
+    // Estimativa conservadora: 1 token ≈ 3 caracteres
+    const maxChars = Math.floor(maxTokensLimit * 3);
     
     console.log('📏 Truncagem:', {
       contentLength: content.length,
       maxChars,
-      maxTokens,
+      maxTokens: maxTokensLimit,
       willTruncate: content.length > maxChars
     });
     
@@ -121,7 +144,8 @@ export function DocumentAnalysis() {
       console.log('📊 Arquivo:', {
         nome: selectedFile.name,
         tamanho: selectedFile.size,
-        tipo: selectedFile.type
+        tipo: selectedFile.type,
+        maxTokensConfig: maxTokens
       });
       
       // Verificar se a configuração OpenAI está válida
@@ -160,14 +184,14 @@ export function DocumentAnalysis() {
       const fileContent = await readFileContent(selectedFile);
       console.log('📖 Arquivo lido:', fileContent.length, 'caracteres');
       
-      // Truncar conteúdo com limite muito mais conservador
-      const { content: processedContent, wasTruncated } = truncateContent(fileContent, 80000);
+      // Truncar conteúdo com limite configurado
+      const { content: processedContent, wasTruncated } = truncateContent(fileContent, maxTokens);
       
       if (wasTruncated) {
         console.log('✂️ Conteúdo truncado para análise segura');
         toast({
           title: "Documento truncado",
-          description: "O documento foi truncado para garantir análise segura. Os primeiros segmentos serão analisados.",
+          description: `O documento foi truncado para ${maxTokens.toLocaleString()} tokens. Os primeiros segmentos serão analisados.`,
           variant: "default",
         });
       }
@@ -200,6 +224,7 @@ INSTRUÇÕES:
 
       const userPrompt = `ARQUIVO: ${selectedFile.name} (${(selectedFile.size / 1024).toFixed(1)} KB)
 ASSISTENTE: ${assistant.name}
+LIMITE DE TOKENS: ${maxTokens.toLocaleString()}
 ${wasTruncated ? 'STATUS: Documento truncado\n' : ''}
 CONTEÚDO:
 ${processedContent}`;
@@ -216,7 +241,8 @@ ${processedContent}`;
         userPromptChars: userPrompt.length,
         totalChars: systemPrompt.length + userPrompt.length,
         estimatedTokens,
-        maxTokensAllowed: 128000
+        maxTokensAllowed: 128000,
+        configuredLimit: maxTokens
       });
 
       if (estimatedTokens > 120000) { // Deixa margem de segurança
@@ -237,7 +263,8 @@ ${processedContent}`;
         maxTokens: requestBody.max_tokens,
         contentLength: processedContent.length,
         assistantName: assistant.name,
-        estimatedInputTokens: estimatedTokens
+        estimatedInputTokens: estimatedTokens,
+        configuredTokenLimit: maxTokens
       });
 
       // Fazer análise via OpenAI
@@ -266,7 +293,7 @@ ${processedContent}`;
         } else if (response.status === 429) {
           errorMessage = 'Limite de rate excedido - tente novamente em alguns minutos';
         } else if (response.status === 400) {
-          errorMessage = 'Documento ainda muito complexo - tente um arquivo menor';
+          errorMessage = 'Documento ainda muito complexo - tente reduzir o limite de tokens';
         }
         
         throw new Error(`${errorMessage} (${response.status})`);
@@ -295,7 +322,7 @@ ${processedContent}`;
       
       toast({
         title: "Análise concluída",
-        description: `${assistant.name} analisou seu documento com sucesso${wasTruncated ? ' (parcialmente devido ao tamanho)' : ''}`,
+        description: `${assistant.name} analisou seu documento com sucesso${wasTruncated ? ' (parcialmente devido ao limite de tokens)' : ''}`,
       });
 
     } catch (error) {
@@ -376,6 +403,31 @@ ${processedContent}`;
         </CardContent>
       </Card>
 
+      {/* Card de Explicação sobre Tokens */}
+      <Card className="border-l-4 border-l-purple-500">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Info className="h-5 w-5" />
+            O que são Tokens?
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3 text-sm">
+            <p><strong>Token</strong> é a unidade que a IA usa para processar texto:</p>
+            <ul className="list-disc pl-6 space-y-1">
+              <li><strong>1 token ≈ 3-4 caracteres</strong> (incluindo espaços e pontuação)</li>
+              <li><strong>1 palavra</strong> geralmente = 1-2 tokens</li>
+              <li><strong>1 página de texto</strong> ≈ 500-750 tokens</li>
+            </ul>
+            <div className="p-3 bg-purple-50 rounded-md">
+              <p className="text-purple-800">
+                <strong>Exemplo:</strong> "Olá mundo!" = ~3 tokens | "Análise detalhada" = ~4 tokens
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Upload e Configuração */}
         <Card>
@@ -385,10 +437,33 @@ ${processedContent}`;
               Upload de Documento
             </CardTitle>
             <CardDescription>
-              Aceita qualquer arquivo de texto - documentos grandes são truncados automaticamente
+              Configure o limite de tokens e faça upload do seu documento
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Seleção de Limite de Tokens */}
+            <div>
+              <Label className="flex items-center gap-2">
+                <Settings className="h-4 w-4" />
+                Limite de Tokens para Análise
+              </Label>
+              <Select value={maxTokens.toString()} onValueChange={(value) => setMaxTokens(parseInt(value))}>
+                <SelectTrigger className="mt-2">
+                  <SelectValue placeholder="Escolha o limite de tokens" />
+                </SelectTrigger>
+                <SelectContent>
+                  {tokenOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value.toString()}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-gray-500 mt-1">
+                Maior limite = mais conteúdo analisado, mas pode ser mais lento
+              </p>
+            </div>
+
             <div>
               <Label htmlFor="file-upload">Arquivo de Texto</Label>
               <input
@@ -409,14 +484,15 @@ ${processedContent}`;
                   <FileText className="h-4 w-4 text-green-600" />
                   <span className="text-sm font-medium text-green-800">{selectedFile.name}</span>
                 </div>
-                <p className="text-xs text-green-600 mt-1">
-                  {documentInfo.size.toFixed(1)} KB
-                </p>
+                <div className="text-xs text-green-600 mt-1 space-y-1">
+                  <p>{documentInfo.size.toFixed(1)} KB (~{documentInfo.estimatedTokens.toLocaleString()} tokens estimados)</p>
+                  <p>Limite configurado: {maxTokens.toLocaleString()} tokens</p>
+                </div>
                 {documentInfo.willBeTruncated && (
                   <div className="flex items-center gap-1 mt-2">
                     <Info className="h-3 w-3 text-blue-600" />
                     <span className="text-xs text-blue-600">
-                      Documento grande - será analisado parcialmente (primeiros segmentos)
+                      Documento será truncado - primeiros {maxTokens.toLocaleString()} tokens serão analisados
                     </span>
                   </div>
                 )}
