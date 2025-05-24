@@ -11,9 +11,9 @@ interface LoopProtectionConfig {
 
 export function useInfiniteLoopProtection(config: LoopProtectionConfig = {}) {
   const {
-    maxRenders = 50,
-    maxErrors = 10,
-    timeWindow = 5000, // 5 segundos
+    maxRenders = 30, // Reduzindo para detectar mais cedo
+    maxErrors = 5,
+    timeWindow = 3000,
     redirectTo = '/'
   } = config;
 
@@ -26,6 +26,7 @@ export function useInfiniteLoopProtection(config: LoopProtectionConfig = {}) {
   const resetCounters = useCallback(() => {
     const now = Date.now();
     if (now - lastResetRef.current > timeWindow) {
+      console.log('🔄 Loop Protection - Resetando contadores');
       renderCountRef.current = 0;
       errorCountRef.current = 0;
       lastResetRef.current = now;
@@ -38,9 +39,11 @@ export function useInfiniteLoopProtection(config: LoopProtectionConfig = {}) {
 
     resetCounters();
     renderCountRef.current++;
+    
+    console.log(`🔍 Loop Protection - Render ${renderCountRef.current}/${maxRenders}`);
 
     if (renderCountRef.current > maxRenders) {
-      console.warn('🔄 Loop infinito detectado! Redirecionando para home...');
+      console.warn('🚨 LOOP INFINITO DETECTADO! Redirecionando para home...');
       hasRedirectedRef.current = true;
       
       // Força limpeza do estado
@@ -49,6 +52,7 @@ export function useInfiniteLoopProtection(config: LoopProtectionConfig = {}) {
       
       // Redireciona após um pequeno delay
       setTimeout(() => {
+        console.log('🏠 Executando redirecionamento para:', redirectTo);
         navigate(redirectTo, { replace: true });
         window.location.reload();
       }, 100);
@@ -60,14 +64,17 @@ export function useInfiniteLoopProtection(config: LoopProtectionConfig = {}) {
 
     resetCounters();
     errorCountRef.current++;
+    
+    console.log(`❌ Loop Protection - Erro ${errorCountRef.current}/${maxErrors}`);
 
     if (errorCountRef.current > maxErrors) {
-      console.warn('❌ Muitos erros detectados! Redirecionando para home...');
+      console.warn('🚨 MUITOS ERROS DETECTADOS! Redirecionando para home...');
       hasRedirectedRef.current = true;
       
       localStorage.setItem('loop-protection-redirect', 'true');
       
       setTimeout(() => {
+        console.log('🏠 Executando redirecionamento por erros para:', redirectTo);
         navigate(redirectTo, { replace: true });
         window.location.reload();
       }, 100);
