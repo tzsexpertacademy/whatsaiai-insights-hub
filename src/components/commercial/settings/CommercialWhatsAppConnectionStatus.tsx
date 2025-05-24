@@ -3,16 +3,16 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle, AlertCircle, Clock, Smartphone } from 'lucide-react';
-import { useClientConfig } from '@/contexts/ClientConfigContext';
+import { useCommercialClientConfig } from '@/hooks/useCommercialClientConfig';
 
 export function CommercialWhatsAppConnectionStatus() {
-  const { config } = useClientConfig();
+  const { config } = useCommercialClientConfig();
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'checking'>('checking');
 
   useEffect(() => {
     // Verificar status da conexão comercial
     const checkConnection = () => {
-      const whatsappConfig = config?.whatsapp_config;
+      const whatsappConfig = config?.commercial_whatsapp_config;
       if (whatsappConfig && Object.keys(whatsappConfig).length > 0) {
         setConnectionStatus('connected');
       } else {

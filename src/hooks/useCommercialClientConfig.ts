@@ -7,9 +7,9 @@ import { useToast } from '@/hooks/use-toast';
 export interface CommercialClientConfig {
   id?: string;
   user_id?: string;
-  whatsapp_config?: any;
-  openai_config?: any;
-  firebase_config?: any;
+  commercial_whatsapp_config?: any;
+  commercial_openai_config?: any;
+  commercial_firebase_config?: any;
   created_at?: string;
   updated_at?: string;
 }
@@ -30,7 +30,7 @@ export function useCommercialClientConfig() {
       console.log('🔧 Carregando configuração comercial para usuário:', user.id);
       
       const { data, error } = await supabase
-        .from('commercial_client_configs')
+        .from('client_configs')
         .select('*')
         .eq('user_id', user.id)
         .single();
@@ -42,18 +42,28 @@ export function useCommercialClientConfig() {
 
       if (data) {
         console.log('✅ Configuração comercial carregada:', data);
-        setConfig(data);
+        // Extrair configurações comerciais dos campos existentes
+        const commercialConfig = {
+          id: data.id,
+          user_id: data.user_id,
+          commercial_whatsapp_config: data.whatsapp_config?.commercial || {},
+          commercial_openai_config: data.openai_config?.commercial || {},
+          commercial_firebase_config: data.firebase_config?.commercial || {},
+          created_at: data.created_at,
+          updated_at: data.updated_at
+        };
+        setConfig(commercialConfig);
       } else {
         console.log('📝 Criando configuração comercial inicial...');
         const newConfig = {
           user_id: user.id,
-          whatsapp_config: {},
-          openai_config: {},
-          firebase_config: {}
+          whatsapp_config: { commercial: {} },
+          openai_config: { commercial: {} },
+          firebase_config: { commercial: {} }
         };
 
         const { data: created, error: createError } = await supabase
-          .from('commercial_client_configs')
+          .from('client_configs')
           .insert([newConfig])
           .select()
           .single();
@@ -63,7 +73,16 @@ export function useCommercialClientConfig() {
           throw createError;
         }
 
-        setConfig(created);
+        const commercialConfig = {
+          id: created.id,
+          user_id: created.user_id,
+          commercial_whatsapp_config: {},
+          commercial_openai_config: {},
+          commercial_firebase_config: {},
+          created_at: created.created_at,
+          updated_at: created.updated_at
+        };
+        setConfig(commercialConfig);
       }
     } catch (error) {
       console.error('❌ Erro no hook de configuração comercial:', error);
@@ -83,9 +102,38 @@ export function useCommercialClientConfig() {
     try {
       console.log('🔄 Atualizando configuração comercial:', updates);
       
+      // Buscar a configuração atual primeiro
+      const { data: currentData } = await supabase
+        .from('client_configs')
+        .select('*')
+        .eq('id', config.id)
+        .single();
+
+      if (!currentData) throw new Error('Configuração não encontrada');
+
+      // Mesclar as atualizações com a configuração existente
+      const updatedWhatsappConfig = {
+        ...currentData.whatsapp_config,
+        commercial: updates.commercial_whatsapp_config || currentData.whatsapp_config?.commercial || {}
+      };
+
+      const updatedOpenAIConfig = {
+        ...currentData.openai_config,
+        commercial: updates.commercial_openai_config || currentData.openai_config?.commercial || {}
+      };
+
+      const updatedFirebaseConfig = {
+        ...currentData.firebase_config,
+        commercial: updates.commercial_firebase_config || currentData.firebase_config?.commercial || {}
+      };
+
       const { data, error } = await supabase
-        .from('commercial_client_configs')
-        .update(updates)
+        .from('client_configs')
+        .update({
+          whatsapp_config: updatedWhatsappConfig,
+          openai_config: updatedOpenAIConfig,
+          firebase_config: updatedFirebaseConfig
+        })
         .eq('id', config.id)
         .select()
         .single();
@@ -96,9 +144,19 @@ export function useCommercialClientConfig() {
       }
 
       console.log('✅ Configuração comercial atualizada:', data);
-      setConfig(data);
       
-      return data;
+      const commercialConfig = {
+        id: data.id,
+        user_id: data.user_id,
+        commercial_whatsapp_config: data.whatsapp_config?.commercial || {},
+        commercial_openai_config: data.openai_config?.commercial || {},
+        commercial_firebase_config: data.firebase_config?.commercial || {},
+        created_at: data.created_at,
+        updated_at: data.updated_at
+      };
+      
+      setConfig(commercialConfig);
+      return commercialConfig;
     } catch (error) {
       console.error('❌ Erro ao atualizar configuração comercial:', error);
       toast({

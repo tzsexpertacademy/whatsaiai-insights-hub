@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Database, Upload, CheckCircle, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useClientConfig } from '@/contexts/ClientConfigContext';
+import { useCommercialClientConfig } from '@/hooks/useCommercialClientConfig';
 
 export function CommercialFirebaseConfig() {
   const [config, setConfig] = useState({
@@ -23,13 +23,13 @@ export function CommercialFirebaseConfig() {
   });
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  const { updateConfig } = useClientConfig();
+  const { updateConfig } = useCommercialClientConfig();
 
   const handleSave = async () => {
     setIsLoading(true);
     try {
       await updateConfig({
-        firebase_config: {
+        commercial_firebase_config: {
           ...config,
           module: 'commercial',
           configured_at: new Date().toISOString()

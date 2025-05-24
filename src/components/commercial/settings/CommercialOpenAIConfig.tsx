@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Bot, Key, Settings, CheckCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useClientConfig } from '@/contexts/ClientConfigContext';
+import { useCommercialClientConfig } from '@/hooks/useCommercialClientConfig';
 
 export function CommercialOpenAIConfig() {
   const [config, setConfig] = useState({
@@ -24,13 +24,13 @@ export function CommercialOpenAIConfig() {
   });
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  const { updateConfig } = useClientConfig();
+  const { updateConfig } = useCommercialClientConfig();
 
   const handleSave = async () => {
     setIsLoading(true);
     try {
       await updateConfig({
-        openai_config: {
+        commercial_openai_config: {
           ...config,
           module: 'commercial',
           configured_at: new Date().toISOString()
