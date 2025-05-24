@@ -1,5 +1,5 @@
 
-import { TrendingUp, TrendingDown, Target, Brain, Users, BarChart3, ArrowLeft, DollarSign } from 'lucide-react';
+import { TrendingUp, TrendingDown, Target, Brain, Users, BarChart3, ArrowLeft, DollarSign, Settings } from 'lucide-react';
 import {
   Sidebar,
   SidebarContent,
@@ -26,6 +26,10 @@ export function CommercialSidebar() {
     { title: 'Métricas Comportamentais', icon: Brain, url: '/commercial/behavioral' },
     { title: 'Cultura do Time', icon: Users, url: '/commercial/culture' },
     { title: 'Métricas Estratégicas', icon: Target, url: '/commercial/strategic' },
+  ];
+
+  const configNavItems = [
+    { title: 'Configurações', icon: Settings, url: '/commercial/settings' },
   ];
 
   return (
@@ -58,6 +62,21 @@ export function CommercialSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {mainNavItems.map((item) => (
+                <SidebarMenuItem key={item.url}>
+                  <SidebarMenuButton asChild>
+                    <SidebarNavItem {...item} />
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Sistema</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {configNavItems.map((item) => (
                 <SidebarMenuItem key={item.url}>
                   <SidebarMenuButton asChild>
                     <SidebarNavItem {...item} />
