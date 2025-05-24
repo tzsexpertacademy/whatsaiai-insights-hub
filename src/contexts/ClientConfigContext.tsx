@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
@@ -284,7 +283,6 @@ export function ClientConfigProvider({ children }: { children: React.ReactNode }
       });
       
       const configData = {
-        user_id: user.id,
         whatsapp_config: config.whatsapp as any,
         openai_config: config.openai as any,
         firebase_config: config.firebase as any,
@@ -293,7 +291,10 @@ export function ClientConfigProvider({ children }: { children: React.ReactNode }
 
       const { error } = await supabase
         .from('client_configs')
-        .upsert(configData, {
+        .upsert({
+          ...configData,
+          user_id: user.id
+        }, {
           onConflict: 'user_id'
         });
 
