@@ -34,7 +34,7 @@ export function useConfigPersistence({
       const { data, error } = await supabase
         .from('client_configs')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('id', user.id)
         .maybeSingle();
 
       if (error && error.code !== 'PGRST116') {
@@ -47,15 +47,15 @@ export function useConfigPersistence({
         const loadedConfig: ClientConfig = {
           whatsapp: { 
             ...defaultConfig.whatsapp, 
-            ...(typeof data.whatsapp_config === 'object' && data.whatsapp_config ? data.whatsapp_config : {})
+            ...(typeof data.whatsapp_config === 'object' && data.whatsapp_config ? data.whatsapp_config as any : {})
           },
           openai: { 
             ...defaultConfig.openai, 
-            ...(typeof data.openai_config === 'object' && data.openai_config ? data.openai_config : {})
+            ...(typeof data.openai_config === 'object' && data.openai_config ? data.openai_config as any : {})
           },
           firebase: { 
             ...defaultConfig.firebase, 
-            ...(typeof data.firebase_config === 'object' && data.firebase_config ? data.firebase_config : {})
+            ...(typeof data.firebase_config === 'object' && data.firebase_config ? data.firebase_config as any : {})
           }
         };
         setConfig(loadedConfig);
@@ -87,10 +87,10 @@ export function useConfigPersistence({
       const { error } = await supabase
         .from('client_configs')
         .upsert({
-          user_id: userId,
-          whatsapp_config: config.whatsapp,
-          openai_config: config.openai,
-          firebase_config: config.firebase,
+          id: userId,
+          whatsapp_config: config.whatsapp as any,
+          openai_config: config.openai as any,
+          firebase_config: config.firebase as any,
           updated_at: new Date().toISOString()
         });
 

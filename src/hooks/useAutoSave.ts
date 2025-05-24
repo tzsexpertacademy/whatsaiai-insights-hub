@@ -13,6 +13,9 @@ export function useAutoSave() {
   useEffect(() => {
     return () => {
       mountedRef.current = false;
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
     };
   }, []);
 

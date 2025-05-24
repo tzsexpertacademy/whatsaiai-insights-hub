@@ -26,16 +26,26 @@ export function ClientConfigProvider({ children }: { children: React.ReactNode }
   const loadingRef = useRef(false);
   const mountedRef = useRef(true);
 
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
   // Reset quando usuário muda
   useEffect(() => {
+    if (!mountedRef.current) return;
+    
     loadedRef.current = false;
     loadingRef.current = false;
     setConfig(defaultConfig);
+    console.log('🔄 Reset config for user change');
   }, [user?.id]);
 
   // Carregar configurações apenas quando necessário
   useEffect(() => {
-    if (!isAuthenticated || !user?.id || loadedRef.current || loadingRef.current) {
+    if (!mountedRef.current || !isAuthenticated || !user?.id || loadedRef.current || loadingRef.current) {
       return;
     }
 
@@ -48,10 +58,11 @@ export function ClientConfigProvider({ children }: { children: React.ReactNode }
         
         console.log('📋 Carregando configurações para:', user.id);
         
+        // Buscar por ID do usuário usando filtro where
         const { data, error } = await supabase
           .from('client_configs')
           .select('*')
-          .eq('user_id', user.id)
+          .eq('id', user.id)
           .maybeSingle();
 
         if (error && error.code !== 'PGRST116') {
@@ -65,15 +76,15 @@ export function ClientConfigProvider({ children }: { children: React.ReactNode }
           const loadedConfig: ClientConfig = {
             whatsapp: {
               ...defaultConfig.whatsapp,
-              ...(typeof data.whatsapp_config === 'object' && data.whatsapp_config ? data.whatsapp_config : {})
+              ...(typeof data.whatsapp_config === 'object' && data.whatsapp_config ? data.whatsapp_config as any : {})
             },
             openai: {
               ...defaultConfig.openai,
-              ...(typeof data.openai_config === 'object' && data.openai_config ? data.openai_config : {})
+              ...(typeof data.openai_config === 'object' && data.openai_config ? data.openai_config as any : {})
             },
             firebase: {
               ...defaultConfig.firebase,
-              ...(typeof data.firebase_config === 'object' && data.firebase_config ? data.firebase_config : {})
+              ...(typeof data.firebase_config === 'object' && data.firebase_config ? data.firebase_config as any : {})
             }
           };
           setConfig(loadedConfig);
@@ -81,17 +92,20 @@ export function ClientConfigProvider({ children }: { children: React.ReactNode }
         } else {
           console.log('ℹ️ Criando configuração inicial');
           
+          // Usar insert simples sem array
           const { error: insertError } = await supabase
             .from('client_configs')
             .insert({
-              user_id: user.id,
-              whatsapp_config: defaultConfig.whatsapp,
-              openai_config: defaultConfig.openai,
-              firebase_config: defaultConfig.firebase
+              id: user.id,
+              whatsapp_config: defaultConfig.whatsapp as any,
+              openai_config: defaultConfig.openai as any,
+              firebase_config: defaultConfig.firebase as any
             });
           
           if (insertError) {
             console.error('❌ Erro ao criar config:', insertError);
+          } else {
+            setConfig(defaultConfig);
           }
         }
         
@@ -107,13 +121,11 @@ export function ClientConfigProvider({ children }: { children: React.ReactNode }
     };
 
     loadConfig();
-
-    return () => {
-      mountedRef.current = false;
-    };
   }, [user?.id, isAuthenticated]);
 
   const updateConfig = (section: keyof ClientConfig, updates: Partial<ClientConfig[keyof ClientConfig]>) => {
+    if (!mountedRef.current) return;
+    
     setConfig(prev => ({
       ...prev,
       [section]: { ...prev[section], ...updates }
@@ -121,7 +133,7 @@ export function ClientConfigProvider({ children }: { children: React.ReactNode }
   };
 
   const saveConfig = async (): Promise<void> => {
-    if (!user?.id) {
+    if (!user?.id || !mountedRef.current) {
       throw new Error('Usuário não autenticado');
     }
 
@@ -129,13 +141,14 @@ export function ClientConfigProvider({ children }: { children: React.ReactNode }
       setIsLoading(true);
       console.log('💾 Salvando configurações...');
       
+      // Usar upsert simples sem array
       const { error } = await supabase
         .from('client_configs')
         .upsert({
-          user_id: user.id,
-          whatsapp_config: config.whatsapp,
-          openai_config: config.openai,
-          firebase_config: config.firebase,
+          id: user.id,
+          whatsapp_config: config.whatsapp as any,
+          openai_config: config.openai as any,
+          firebase_config: config.firebase as any,
           updated_at: new Date().toISOString()
         });
 
@@ -146,7 +159,9 @@ export function ClientConfigProvider({ children }: { children: React.ReactNode }
       console.error('❌ Erro ao salvar:', error);
       throw error;
     } finally {
-      setIsLoading(false);
+      if (mountedRef.current) {
+        setIsLoading(false);
+      }
     }
   };
 
