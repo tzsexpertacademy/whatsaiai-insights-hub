@@ -12,6 +12,7 @@ import { useAssistantsConfig } from '@/hooks/useAssistantsConfig';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { DatabaseCleanup } from './DatabaseCleanup';
 
 interface Assistant {
   id: string;
@@ -179,6 +180,9 @@ export function AssistantsConfig() {
         </div>
       </div>
 
+      {/* Componente de limpeza do banco */}
+      <DatabaseCleanup />
+
       {/* Alerta sobre teste */}
       <Card className="bg-blue-50 border-blue-200">
         <CardContent className="pt-6">
@@ -187,7 +191,9 @@ export function AssistantsConfig() {
             <div>
               <h3 className="font-semibold text-blue-900">Testar Análise Multi-Assistente</h3>
               <p className="text-blue-700 text-sm mt-1">
-                Clique em "Criar Teste" para adicionar uma conversa de exemplo. Depois vá ao Dashboard e clique em "Atualizar Relatório" para ver os assistentes em ação.
+                1. Primeiro, limpe o banco de dados usando o botão acima<br/>
+                2. Clique em "Criar Teste" para adicionar uma conversa de exemplo<br/>
+                3. Vá ao Dashboard e clique em "Atualizar Relatório" para ver os assistentes em ação
               </p>
             </div>
           </div>
