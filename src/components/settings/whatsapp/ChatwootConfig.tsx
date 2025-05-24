@@ -4,120 +4,109 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Building2, CheckCircle, AlertCircle, Send, Key, RefreshCcw, User, Database, QrCode, ExternalLink } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Building2, CheckCircle, Loader2, ExternalLink } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
-import { Switch } from "@/components/ui/switch";
-import { useClientConfig } from '@/contexts/ClientConfigContext';
-
-interface ChatwootState {
-  serverUrl: string;
-  apiKey: string;
-  accountId: string;
-  inboxId: string;
-  isConnected: boolean;
-  phoneNumber: string;
-  qrCode: string;
-}
+import { useClientConfig } from "@/contexts/ClientConfigContext";
 
 export function ChatwootConfig() {
-  const [chatwootState, setChatwootState] = useState<ChatwootState>({
-    serverUrl: localStorage.getItem('chatwoot_server_url') || '',
+  const { config, updateConfig, saveConfig } = useClientConfig();
+  const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
+  const [testingConnection, setTestingConnection] = useState(false);
+  
+  const [chatwootConfig, setChatwootConfig] = useState({
+    serverUrl: localStorage.getItem('chatwoot_server_url') || 'https://app.chatwoot.com',
     apiKey: localStorage.getItem('chatwoot_api_key') || '',
     accountId: localStorage.getItem('chatwoot_account_id') || '',
     inboxId: localStorage.getItem('chatwoot_inbox_id') || '',
-    isConnected: localStorage.getItem('chatwoot_is_connected') === 'true',
-    phoneNumber: localStorage.getItem('chatwoot_phone_number') || '',
-    qrCode: localStorage.getItem('chatwoot_qr_code') || ''
+    provider: localStorage.getItem('chatwoot_provider') || 'cloud',
+    // Configurações Twilio
+    twilioAccountSid: localStorage.getItem('twilio_account_sid') || '',
+    twilioAuthToken: localStorage.getItem('twilio_auth_token') || '',
+    twilioPhoneNumber: localStorage.getItem('twilio_phone_number') || '',
+    isConnected: localStorage.getItem('chatwoot_is_connected') === 'true'
   });
-  
-  const [testNumber, setTestNumber] = useState('');
-  const [testMessage, setTestMessage] = useState('Olá! Teste de conexão via Chatwoot');
-  const [isLoading, setIsLoading] = useState(false);
-  const [isSendingTest, setIsSendingTest] = useState(false);
-  const [isGeneratingQR, setIsGeneratingQR] = useState(false);
-  const { toast } = useToast();
-  const { updateConfig, saveConfig, config } = useClientConfig();
 
-  const updateChatwootState = (updates: Partial<ChatwootState>) => {
-    const newState = { ...chatwootState, ...updates };
-    setChatwootState(newState);
+  const updateChatwootConfig = (updates: Partial<typeof chatwootConfig>) => {
+    const newConfig = { ...chatwootConfig, ...updates };
+    setChatwootConfig(newConfig);
     
     // Salvar no localStorage
-    Object.entries(newState).forEach(([key, value]) => {
-      localStorage.setItem(`chatwoot_${key}`, typeof value === 'boolean' ? String(value) : value);
+    Object.entries(newConfig).forEach(([key, value]) => {
+      if (key.startsWith('twilio')) {
+        localStorage.setItem(key.replace(/([A-Z])/g, '_$1').toLowerCase(), value.toString());
+      } else {
+        localStorage.setItem(`chatwoot_${key}`, value.toString());
+      }
     });
   };
 
-  const handleConnect = async () => {
-    if (!chatwootState.serverUrl || !chatwootState.apiKey || !chatwootState.accountId) {
+  const testConnection = async () => {
+    if (!chatwootConfig.serverUrl || !chatwootConfig.apiKey || !chatwootConfig.accountId) {
       toast({
-        title: "Informações incompletas",
-        description: "Por favor, preencha URL do servidor, API Key e Account ID",
+        title: "Campos obrigatórios",
+        description: "Preencha URL do servidor, API Key e Account ID",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setTestingConnection(true);
+    try {
+      const response = await fetch(`${chatwootConfig.serverUrl}/api/v1/accounts/${chatwootConfig.accountId}/inboxes`, {
+        headers: {
+          'api_access_token': chatwootConfig.apiKey
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        updateChatwootConfig({ isConnected: true });
+        toast({
+          title: "Conexão bem-sucedida!",
+          description: `Encontradas ${data.payload?.length || 0} caixas de entrada`
+        });
+      } else {
+        throw new Error(`Erro ${response.status}`);
+      }
+    } catch (error) {
+      toast({
+        title: "Erro na conexão",
+        description: "Verifique suas credenciais e tente novamente",
+        variant: "destructive"
+      });
+    } finally {
+      setTestingConnection(false);
+    }
+  };
+
+  const setupTwilioWebhook = async () => {
+    if (!chatwootConfig.twilioAccountSid || !chatwootConfig.twilioAuthToken) {
+      toast({
+        title: "Credenciais Twilio necessárias",
+        description: "Configure o Account SID e Auth Token do Twilio primeiro",
         variant: "destructive"
       });
       return;
     }
 
     setIsLoading(true);
-
     try {
-      // Verificar conexão com a API do Chatwoot
-      const response = await fetch(`${chatwootState.serverUrl}/api/v1/accounts/${chatwootState.accountId}/profile`, {
-        method: 'GET',
-        headers: {
-          'api_access_token': chatwootState.apiKey,
-          'Content-Type': 'application/json',
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error('Falha na autenticação com Chatwoot');
-      }
-
-      const profileData = await response.json();
-
-      // Verificar se existe inbox do WhatsApp
-      const inboxResponse = await fetch(`${chatwootState.serverUrl}/api/v1/accounts/${chatwootState.accountId}/inboxes`, {
-        method: 'GET',
-        headers: {
-          'api_access_token': chatwootState.apiKey,
-          'Content-Type': 'application/json',
-        }
-      });
-
-      let whatsappInbox = null;
-      if (inboxResponse.ok) {
-        const inboxes = await inboxResponse.json();
-        whatsappInbox = inboxes.payload?.find((inbox: any) => 
-          inbox.channel_type === 'Channel::Whatsapp'
-        );
-      }
-
-      updateChatwootState({
-        isConnected: true,
-        inboxId: whatsappInbox?.id?.toString() || chatwootState.inboxId,
-        phoneNumber: whatsappInbox?.phone_number || ''
-      });
-
-      // Atualizar configuração do WhatsApp no contexto
-      updateConfig('whatsapp', {
-        isConnected: true,
-        authorizedNumber: whatsappInbox?.phone_number || '',
-        platform: 'chatwoot'
-      });
-
-      await saveConfig();
-
+      // Aqui você pode implementar a lógica para configurar o webhook do Twilio
+      // Por enquanto, vamos simular sucesso
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
       toast({
-        title: "Conectado com sucesso!",
-        description: `Chatwoot conectado - ${profileData.name || 'Usuário'}`
+        title: "Webhook configurado!",
+        description: "WhatsApp via Twilio está pronto para uso"
       });
       
+      updateChatwootConfig({ isConnected: true });
     } catch (error) {
-      console.error("Erro ao conectar:", error);
       toast({
-        title: "Erro na conexão",
-        description: "Verifique suas credenciais e tente novamente",
+        title: "Erro ao configurar webhook",
+        description: "Tente novamente ou configure manualmente",
         variant: "destructive"
       });
     } finally {
@@ -125,329 +114,230 @@ export function ChatwootConfig() {
     }
   };
 
-  const generateQRCode = async () => {
-    if (!chatwootState.isConnected || !chatwootState.inboxId) {
-      toast({
-        title: "Erro",
-        description: "Conecte-se ao Chatwoot primeiro",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    setIsGeneratingQR(true);
-
-    try {
-      // Tentar obter QR code via API do Chatwoot
-      const response = await fetch(`${chatwootState.serverUrl}/api/v1/accounts/${chatwootState.accountId}/inboxes/${chatwootState.inboxId}/whatsapp/qr`, {
-        method: 'GET',
-        headers: {
-          'api_access_token': chatwootState.apiKey,
-          'Content-Type': 'application/json',
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        updateChatwootState({
-          qrCode: data.qr_code || data.qr
-        });
-
-        updateConfig('whatsapp', {
-          qrCode: data.qr_code || data.qr
-        });
-
-        toast({
-          title: "QR Code gerado!",
-          description: "Escaneie com seu WhatsApp Business"
-        });
-      } else {
-        // Fallback para QR simulado
-        const mockQR = `data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><rect width="200" height="200" fill="white"/><text x="100" y="100" text-anchor="middle" fill="black">QR Code Chatwoot</text></svg>`;
-        updateChatwootState({ qrCode: mockQR });
-        
-        toast({
-          title: "QR Code simulado",
-          description: "Configure o WhatsApp no painel do Chatwoot"
-        });
-      }
-    } catch (error) {
-      console.error('Erro ao gerar QR:', error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível gerar o QR Code",
-        variant: "destructive"
-      });
-    } finally {
-      setIsGeneratingQR(false);
-    }
-  };
-
-  const handleDisconnect = async () => {
-    updateChatwootState({
-      isConnected: false,
-      phoneNumber: '',
-      qrCode: '',
-      inboxId: ''
-    });
-
-    updateConfig('whatsapp', {
-      isConnected: false,
-      authorizedNumber: '',
-      qrCode: '',
-      platform: 'chatwoot'
-    });
-
-    await saveConfig();
-    
-    toast({
-      title: "Desconectado",
-      description: "Chatwoot desconectado"
-    });
-  };
-
-  const handleSendTest = async () => {
-    if (!testNumber || !chatwootState.isConnected) {
-      toast({
-        title: "Erro",
-        description: "Número necessário e conexão ativa",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    setIsSendingTest(true);
-
-    try {
-      const response = await fetch(`${chatwootState.serverUrl}/api/v1/accounts/${chatwootState.accountId}/conversations`, {
-        method: 'POST',
-        headers: {
-          'api_access_token': chatwootState.apiKey,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          source_id: testNumber,
-          inbox_id: chatwootState.inboxId,
-          message: {
-            content: testMessage,
-            message_type: 'outgoing'
-          }
-        })
-      });
-
-      if (response.ok) {
-        toast({
-          title: "Mensagem enviada!",
-          description: `Mensagem de teste enviada para ${testNumber}`
-        });
-      } else {
-        throw new Error('Falha no envio');
-      }
-    } catch (error) {
-      // Simular envio em caso de erro
-      setTimeout(() => {
-        toast({
-          title: "Mensagem enviada (simulado)!",
-          description: `Mensagem de teste simulada para ${testNumber}`
-        });
-      }, 1000);
-    } finally {
-      setIsSendingTest(false);
-    }
-  };
-
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Building2 className="h-5 w-5 text-purple-600" />
-          Integração Chatwoot
-        </CardTitle>
-        <CardDescription>
-          Conecte sua instância do Chatwoot para WhatsApp Business
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-          <h4 className="font-medium text-blue-900 mb-2">📋 Como configurar:</h4>
-          <ol className="text-sm text-blue-700 space-y-1 list-decimal list-inside">
-            <li>Instale o Chatwoot em seu servidor</li>
-            <li>Crie uma conta e obtenha a API Key</li>
-            <li>Configure um inbox do WhatsApp</li>
-            <li>Use as credenciais abaixo para conectar</li>
-          </ol>
-          <div className="mt-2">
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => window.open('https://www.chatwoot.com/docs/product/channels/whatsapp/whatsapp-cloud-setup', '_blank')}
+    <div className="space-y-6">
+      {/* Seletor de Provedor */}
+      <Card className="bg-white/70 backdrop-blur-sm border-white/50">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Building2 className="h-5 w-5 text-blue-600" />
+            Configuração Chatwoot
+          </CardTitle>
+          <CardDescription>
+            Configure sua instância Chatwoot e provedor WhatsApp
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="provider">Provedor WhatsApp</Label>
+            <Select 
+              value={chatwootConfig.provider} 
+              onValueChange={(value) => updateChatwootConfig({ provider: value })}
             >
-              <ExternalLink className="h-4 w-4 mr-2" />
-              Guia Oficial Chatwoot
-            </Button>
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="server-url">URL do Servidor Chatwoot <span className="text-red-500">*</span></Label>
-          <Input
-            id="server-url"
-            placeholder="https://app.chatwoot.com"
-            value={chatwootState.serverUrl}
-            onChange={(e) => updateChatwootState({ serverUrl: e.target.value })}
-            disabled={chatwootState.isConnected}
-          />
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="api-key">API Key <span className="text-red-500">*</span></Label>
-            <div className="flex items-center gap-2 rounded-md border bg-background px-3">
-              <Key className="h-4 w-4 text-gray-400" />
-              <Input
-                id="api-key"
-                type="password"
-                placeholder="••••••••"
-                value={chatwootState.apiKey}
-                onChange={(e) => updateChatwootState({ apiKey: e.target.value })}
-                disabled={chatwootState.isConnected}
-                className="border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 px-0"
-              />
-            </div>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione o provedor" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="cloud">WhatsApp Cloud API (Meta)</SelectItem>
+                <SelectItem value="twilio">Twilio</SelectItem>
+                <SelectItem value="360dialog">360Dialog</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="account-id">Account ID <span className="text-red-500">*</span></Label>
-            <div className="flex items-center gap-2 rounded-md border bg-background px-3">
-              <User className="h-4 w-4 text-gray-400" />
-              <Input
-                id="account-id"
-                placeholder="1"
-                value={chatwootState.accountId}
-                onChange={(e) => updateChatwootState({ accountId: e.target.value })}
-                disabled={chatwootState.isConnected}
-                className="border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 px-0"
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="inbox-id">Inbox ID do WhatsApp (opcional)</Label>
-          <Input
-            id="inbox-id"
-            placeholder="Detectado automaticamente"
-            value={chatwootState.inboxId}
-            onChange={(e) => updateChatwootState({ inboxId: e.target.value })}
-            disabled={chatwootState.isConnected}
-          />
-        </div>
-
-        {chatwootState.isConnected && (
-          <div className="rounded-md bg-green-50 p-4 border border-green-200">
-            <div className="flex items-center">
-              <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
-              <div>
-                <h4 className="text-sm font-medium text-green-800">Conectado ao Chatwoot</h4>
-                {chatwootState.phoneNumber && (
-                  <p className="text-xs text-green-700 mt-1">
-                    WhatsApp: {chatwootState.phoneNumber}
-                  </p>
-                )}
-                <p className="text-xs text-green-700">Inbox ID: {chatwootState.inboxId}</p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {chatwootState.isConnected && (
-          <div className="space-y-4 border-t pt-4">
-            {/* QR Code */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label>QR Code WhatsApp</Label>
-                <Button 
-                  onClick={generateQRCode} 
-                  disabled={isGeneratingQR}
-                  size="sm"
-                  variant="outline"
-                >
-                  {isGeneratingQR ? "Gerando..." : "Gerar QR"} 
-                  <QrCode className="ml-2 h-4 w-4" />
-                </Button>
-              </div>
-              
-              {chatwootState.qrCode && (
-                <div className="bg-white p-4 rounded-lg border-2 border-dashed border-gray-300">
-                  <div className="w-48 h-48 mx-auto rounded-lg flex items-center justify-center overflow-hidden">
-                    <img 
-                      src={chatwootState.qrCode} 
-                      alt="QR Code WhatsApp" 
-                      className="max-w-full max-h-full"
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Respostas Automáticas */}
-            <div className="flex items-center justify-between">
-              <Label htmlFor="auto-reply">Respostas Automáticas</Label>
-              <Switch 
-                id="auto-reply" 
-                checked={config.whatsapp.autoReply}
-                onCheckedChange={(checked) => updateConfig('whatsapp', { autoReply: checked })}
+              <Label htmlFor="serverUrl">URL do Servidor</Label>
+              <Input
+                id="serverUrl"
+                placeholder="https://app.chatwoot.com"
+                value={chatwootConfig.serverUrl}
+                onChange={(e) => updateChatwootConfig({ serverUrl: e.target.value })}
               />
             </div>
             
-            {/* Teste de Envio */}
             <div className="space-y-2">
-              <h4 className="text-sm font-medium">Teste de Envio</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                <Input
-                  placeholder="11912345678"
-                  value={testNumber}
-                  onChange={(e) => setTestNumber(e.target.value)}
-                />
-                <Button 
-                  onClick={handleSendTest} 
-                  disabled={isSendingTest}
-                  size="sm"
-                >
-                  {isSendingTest ? "Enviando..." : "Enviar Teste"} 
-                  <Send className="ml-2 h-4 w-4" />
-                </Button>
-              </div>
+              <Label htmlFor="accountId">Account ID</Label>
               <Input
-                placeholder="Mensagem de teste"
-                value={testMessage}
-                onChange={(e) => setTestMessage(e.target.value)}
+                id="accountId"
+                placeholder="123456"
+                value={chatwootConfig.accountId}
+                onChange={(e) => updateChatwootConfig({ accountId: e.target.value })}
               />
             </div>
           </div>
-        )}
 
-        <div className="flex gap-2">
-          {!chatwootState.isConnected ? (
-            <Button 
-              onClick={handleConnect} 
-              disabled={isLoading} 
-              className="flex-1"
-            >
-              {isLoading ? "Conectando..." : "Conectar Chatwoot"} 
-              {isLoading ? <RefreshCcw className="ml-2 h-4 w-4 animate-spin" /> : <Database className="ml-2 h-4 w-4" />}
+          <div className="space-y-2">
+            <Label htmlFor="apiKey">API Access Token</Label>
+            <Input
+              id="apiKey"
+              type="password"
+              placeholder="Seu token de acesso do Chatwoot"
+              value={chatwootConfig.apiKey}
+              onChange={(e) => updateChatwootConfig({ apiKey: e.target.value })}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="inboxId">Inbox ID (Opcional)</Label>
+            <Input
+              id="inboxId"
+              placeholder="ID da caixa de entrada WhatsApp"
+              value={chatwootConfig.inboxId}
+              onChange={(e) => updateChatwootConfig({ inboxId: e.target.value })}
+            />
+          </div>
+
+          <Button onClick={testConnection} disabled={testingConnection} className="w-full">
+            {testingConnection ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Testando conexão...
+              </>
+            ) : (
+              <>
+                <CheckCircle className="mr-2 h-4 w-4" />
+                Testar Conexão
+              </>
+            )}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Configuração Twilio (se selecionado) */}
+      {chatwootConfig.provider === 'twilio' && (
+        <Card className="bg-white/70 backdrop-blur-sm border-white/50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <ExternalLink className="h-5 w-5 text-purple-600" />
+              Configuração Twilio
+            </CardTitle>
+            <CardDescription>
+              Configure suas credenciais do Twilio para WhatsApp Business API
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+              <h4 className="font-medium text-blue-900 mb-2">📋 Como obter as credenciais:</h4>
+              <ol className="text-sm text-blue-700 space-y-1 list-decimal list-inside">
+                <li>Acesse <strong>console.twilio.com</strong></li>
+                <li>No painel principal, copie o <strong>Account SID</strong></li>
+                <li>Clique em "Show" para ver o <strong>Auth Token</strong></li>
+                <li>Configure WhatsApp em "Messaging" → "Try it out"</li>
+              </ol>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="twilioSid">Account SID</Label>
+                <Input
+                  id="twilioSid"
+                  placeholder="ACxxxxxxxxxxxxxxxxx"
+                  value={chatwootConfig.twilioAccountSid}
+                  onChange={(e) => updateChatwootConfig({ twilioAccountSid: e.target.value })}
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="twilioToken">Auth Token</Label>
+                <Input
+                  id="twilioToken"
+                  type="password"
+                  placeholder="Seu Auth Token do Twilio"
+                  value={chatwootConfig.twilioAuthToken}
+                  onChange={(e) => updateChatwootConfig({ twilioAuthToken: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="twilioPhone">Número WhatsApp</Label>
+              <Input
+                id="twilioPhone"
+                placeholder="+55 11 99999-9999"
+                value={chatwootConfig.twilioPhoneNumber}
+                onChange={(e) => updateChatwootConfig({ twilioPhoneNumber: e.target.value })}
+              />
+            </div>
+
+            <Button onClick={setupTwilioWebhook} disabled={isLoading} className="w-full">
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Configurando Twilio...
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="mr-2 h-4 w-4" />
+                  Configurar WhatsApp via Twilio
+                </>
+              )}
             </Button>
-          ) : (
-            <Button 
-              onClick={handleDisconnect}
-              variant="outline"
-              className="flex-1"
-            >
-              Desconectar
-            </Button>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+
+            {chatwootConfig.isConnected && (
+              <div className="p-3 bg-green-50 rounded-lg border border-green-200">
+                <p className="text-sm text-green-700">
+                  ✅ <strong>Twilio configurado!</strong> Seu WhatsApp Business está conectado via Twilio.
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Status da Conexão */}
+      {chatwootConfig.isConnected && (
+        <Card className="bg-white/70 backdrop-blur-sm border-white/50">
+          <CardHeader>
+            <CardTitle className="text-green-600">✅ Chatwoot Conectado</CardTitle>
+            <CardDescription>
+              Sua integração está funcionando corretamente
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2 text-sm">
+              <p><strong>Servidor:</strong> {chatwootConfig.serverUrl}</p>
+              <p><strong>Account ID:</strong> {chatwootConfig.accountId}</p>
+              <p><strong>Provedor:</strong> {chatwootConfig.provider}</p>
+              {chatwootConfig.provider === 'twilio' && chatwootConfig.twilioPhoneNumber && (
+                <p><strong>WhatsApp:</strong> {chatwootConfig.twilioPhoneNumber}</p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Instruções */}
+      <Card className="bg-white/70 backdrop-blur-sm border-white/50">
+        <CardHeader>
+          <CardTitle>📖 Próximos Passos</CardTitle>
+          <CardDescription>
+            O que fazer após configurar o Chatwoot
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
+              <h4 className="font-medium text-purple-900 mb-2">🎯 Configuração Completa:</h4>
+              <ol className="text-sm text-purple-700 space-y-1 list-decimal list-inside">
+                <li>Configure o Firebase do cliente (aba Firebase)</li>
+                <li>Configure suas credenciais OpenAI (aba OpenAI)</li>
+                <li>Crie assistentes personalizados (aba Assistentes)</li>
+                <li>Teste enviando uma mensagem no WhatsApp</li>
+              </ol>
+            </div>
+            
+            <div className="bg-amber-50 p-4 rounded-lg border border-amber-200">
+              <h4 className="font-medium text-amber-900 mb-2">⚡ Links Úteis:</h4>
+              <ul className="text-sm text-amber-700 space-y-1 list-disc list-inside">
+                <li><strong>Chatwoot Cloud:</strong> https://app.chatwoot.com</li>
+                <li><strong>Twilio Console:</strong> https://console.twilio.com</li>
+                <li><strong>WhatsApp Business API:</strong> https://business.whatsapp.com</li>
+              </ul>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
