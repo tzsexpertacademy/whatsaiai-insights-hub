@@ -28,6 +28,7 @@ export function useConfigPersistence({
       const { error } = await supabase
         .from('client_configs')
         .insert({
+          user_id: user.id,
           whatsapp_config: defaultConfig.whatsapp as any,
           openai_config: defaultConfig.openai as any,
           firebase_config: defaultConfig.firebase as any
@@ -41,11 +42,6 @@ export function useConfigPersistence({
       console.log('✅ Configuração inicial criada com sucesso');
     } catch (error) {
       console.error('❌ Falha ao criar configuração inicial:', error);
-      toast({
-        title: "Erro de inicialização",
-        description: "Não foi possível criar as configurações iniciais",
-        variant: "destructive"
-      });
     }
   };
 
@@ -59,34 +55,27 @@ export function useConfigPersistence({
       setIsLoading(true);
       console.log('📥 Carregando configurações para usuário:', user.id);
       
-      // Buscar configuração existente do usuário
       const { data, error } = await supabase
         .from('client_configs')
         .select('*')
+        .eq('user_id', user.id)
         .limit(1)
         .maybeSingle();
 
       if (error) {
         console.error('❌ Erro ao carregar configurações:', error);
-        toast({
-          title: "Erro ao carregar configurações",
-          description: "Usando configurações padrão",
-          variant: "destructive"
-        });
+        setConfig(defaultConfig);
         return;
       }
 
       if (!data) {
         console.log('ℹ️ Nenhuma configuração encontrada, criando registro inicial...');
         await createInitialConfig();
+        setConfig(defaultConfig);
         return;
       }
 
-      console.log('✅ Configurações carregadas com sucesso:', {
-        hasWhatsApp: !!data.whatsapp_config,
-        hasOpenAI: !!data.openai_config,
-        hasFirebase: !!data.firebase_config
-      });
+      console.log('✅ Configurações carregadas com sucesso');
 
       const loadedConfig = {
         whatsapp: { ...defaultConfig.whatsapp, ...(data.whatsapp_config as any || {}) },
@@ -96,43 +85,29 @@ export function useConfigPersistence({
 
       setConfig(loadedConfig);
 
-      toast({
-        title: "Configurações carregadas",
-        description: "Suas configurações foram restauradas com sucesso"
-      });
     } catch (error) {
       console.error('❌ Erro inesperado ao carregar configurações:', error);
-      toast({
-        title: "Erro inesperado",
-        description: "Não foi possível carregar as configurações",
-        variant: "destructive"
-      });
+      setConfig(defaultConfig);
     } finally {
       setIsLoading(false);
     }
-  }, [user?.id, setConfig, setIsLoading, toast]);
+  }, [user?.id, setConfig, setIsLoading]);
 
   const saveConfigToDatabase = async (config: ClientConfig, userId: string, setIsLoading: (loading: boolean) => void) => {
     try {
       setIsLoading(true);
       console.log('💾 Salvando configurações para usuário:', userId);
-      console.log('📋 Dados a salvar:', {
-        whatsapp: Object.keys(config.whatsapp).length,
-        openai: Object.keys(config.openai).length,
-        firebase: Object.keys(config.firebase).length
-      });
       
-      // Primeiro, verificar se já existe uma configuração
       const { data: existingConfig } = await supabase
         .from('client_configs')
         .select('id')
+        .eq('user_id', userId)
         .limit(1)
         .maybeSingle();
 
       let result;
       
       if (existingConfig) {
-        // Atualizar configuração existente
         result = await supabase
           .from('client_configs')
           .update({
@@ -143,10 +118,10 @@ export function useConfigPersistence({
           })
           .eq('id', existingConfig.id);
       } else {
-        // Inserir nova configuração
         result = await supabase
           .from('client_configs')
           .insert({
+            user_id: userId,
             whatsapp_config: config.whatsapp as any,
             openai_config: config.openai as any,
             firebase_config: config.firebase as any
@@ -159,20 +134,9 @@ export function useConfigPersistence({
       }
 
       console.log('✅ Configurações salvas com sucesso!');
-      
-      toast({
-        title: "Configurações salvas",
-        description: "Suas configurações foram salvas no seu perfil",
-        duration: 2000
-      });
 
     } catch (error) {
       console.error('❌ Erro ao salvar configurações:', error);
-      toast({
-        title: "Erro ao salvar",
-        description: "Não foi possível salvar as configurações",
-        variant: "destructive"
-      });
       throw error;
     } finally {
       setIsLoading(false);

@@ -36,17 +36,26 @@ export function ClientConfigProvider({ children }: { children: React.ReactNode }
   const { isFirebaseConnected, testFirebaseConnection } = useFirebaseConnection(config.firebase);
 
   useEffect(() => {
-    if (isInitialized) return; // Evitar múltiplas inicializações
+    if (isInitialized) return;
 
-    if (isAuthenticated && user) {
-      console.log('🔄 Usuário autenticado, carregando configurações...');
-      loadConfig().finally(() => setIsInitialized(true));
-    } else {
-      console.log('❌ Usuário não autenticado, resetando configurações');
-      setConfig(defaultConfig);
+    const initializeConfig = async () => {
+      if (isAuthenticated && user?.id) {
+        console.log('🔄 Usuário autenticado, carregando configurações...');
+        try {
+          await loadConfig();
+        } catch (error) {
+          console.error('❌ Erro ao carregar configurações:', error);
+          setConfig(defaultConfig);
+        }
+      } else {
+        console.log('ℹ️ Usando configurações padrão');
+        setConfig(defaultConfig);
+      }
       setIsInitialized(true);
-    }
-  }, [isAuthenticated, user, loadConfig, isInitialized]);
+    };
+
+    initializeConfig();
+  }, [isAuthenticated, user?.id, loadConfig, isInitialized]);
 
   const updateConfig = (section: keyof ClientConfig, updates: Partial<ClientConfig[keyof ClientConfig]>) => {
     console.log(`🔧 Atualizando seção ${section}:`, updates);

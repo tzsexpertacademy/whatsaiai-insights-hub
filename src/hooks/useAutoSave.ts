@@ -8,13 +8,13 @@ export function useAutoSave() {
   const { toast } = useToast();
   const timeoutRef = useRef<NodeJS.Timeout>();
   const lastConfigRef = useRef<string>('');
+  const isSavingRef = useRef(false);
 
   useEffect(() => {
-    // Serializar config para comparação
     const configString = JSON.stringify(config);
     
-    // Só executar se a configuração realmente mudou
-    if (configString === lastConfigRef.current) {
+    // Só executar se a configuração realmente mudou e não está salvando
+    if (configString === lastConfigRef.current || isSavingRef.current) {
       return;
     }
     
@@ -27,11 +27,16 @@ export function useAutoSave() {
 
     // Auto-save após 3 segundos de inatividade
     timeoutRef.current = setTimeout(async () => {
+      if (isSavingRef.current) return;
+      
       try {
+        isSavingRef.current = true;
         await saveConfig();
         console.log('✅ Configurações salvas automaticamente');
       } catch (error) {
         console.error('❌ Erro no auto-save:', error);
+      } finally {
+        isSavingRef.current = false;
       }
     }, 3000);
 
@@ -43,7 +48,10 @@ export function useAutoSave() {
   }, [config, saveConfig]);
 
   const forceSave = async () => {
+    if (isSavingRef.current) return;
+
     try {
+      isSavingRef.current = true;
       await saveConfig();
       toast({
         title: "Configurações salvas",
@@ -55,6 +63,8 @@ export function useAutoSave() {
         description: "Não foi possível salvar as configurações",
         variant: "destructive"
       });
+    } finally {
+      isSavingRef.current = false;
     }
   };
 
