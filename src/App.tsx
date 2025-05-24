@@ -5,30 +5,34 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
-import { ClientConfigProvider } from "@/contexts/ClientConfigContext";
 import { AdminProvider } from "@/contexts/AdminContext";
-import { AppRouter } from "@/components/AppRouter";
+import { ClientConfigProvider } from "@/contexts/ClientConfigContext";
+import { AnalysisDataProvider } from "@/contexts/AnalysisDataContext";
+import { ThemeProvider } from "@/contexts/ThemeProvider";
+import AppRouter from "@/components/AppRouter";
 
 const queryClient = new QueryClient();
 
-function App() {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
+const App = () => (
+  <QueryClientProvider client={queryClient}>
+    <TooltipProvider>
+      <Toaster />
+      <Sonner />
+      <BrowserRouter>
+        <ThemeProvider defaultTheme="light" storageKey="vite-ui-theme">
           <AuthProvider>
             <AdminProvider>
               <ClientConfigProvider>
-                <AppRouter />
+                <AnalysisDataProvider>
+                  <AppRouter />
+                </AnalysisDataProvider>
               </ClientConfigProvider>
             </AdminProvider>
           </AuthProvider>
-        </BrowserRouter>
-      </TooltipProvider>
-    </QueryClientProvider>
-  );
-}
+        </ThemeProvider>
+      </BrowserRouter>
+    </TooltipProvider>
+  </QueryClientProvider>
+);
 
 export default App;

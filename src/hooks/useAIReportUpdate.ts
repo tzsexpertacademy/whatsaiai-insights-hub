@@ -61,22 +61,17 @@ export function useAIReportUpdate() {
 
       console.log('✅ Resposta da IA:', data);
 
-      // Forçar re-render dos componentes de dashboard
+      // Disparar evento para atualizar componentes
       window.dispatchEvent(new CustomEvent('ai-analysis-complete', { 
         detail: data 
       }));
 
       toast({
         title: "Relatório atualizado",
-        description: "Análise por IA concluída com sucesso",
+        description: "Análise por IA concluída com sucesso. Os dados do dashboard foram atualizados.",
       });
 
       console.log('✅ Relatório atualizado com sucesso');
-      
-      // Aguardar um pouco antes de recarregar para mostrar o toast
-      setTimeout(() => {
-        window.location.reload();
-      }, 2000);
       
     } catch (error) {
       console.error('❌ Erro ao atualizar relatório:', error);
