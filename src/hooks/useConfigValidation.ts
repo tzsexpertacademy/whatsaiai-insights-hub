@@ -7,11 +7,16 @@ export function useConfigValidation() {
   const { config } = useClientConfig();
   const { toast } = useToast();
   const lastValidationRef = useRef<string>('');
+  const hasValidated = useRef(false);
 
   useEffect(() => {
-    // Só validar se a configuração mudou
+    // Só validar se a configuração mudou e não é o primeiro carregamento
     const configString = JSON.stringify(config);
-    if (configString === lastValidationRef.current) {
+    if (configString === lastValidationRef.current || !hasValidated.current) {
+      if (configString !== '{}') {
+        hasValidated.current = true;
+      }
+      lastValidationRef.current = configString;
       return;
     }
     

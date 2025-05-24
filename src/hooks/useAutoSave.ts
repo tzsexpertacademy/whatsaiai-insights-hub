@@ -7,9 +7,17 @@ export function useAutoSave() {
   const timeoutRef = useRef<NodeJS.Timeout>();
   const lastConfigRef = useRef<string>('');
   const isSavingRef = useRef(false);
+  const isInitialLoad = useRef(true);
 
   useEffect(() => {
     const configString = JSON.stringify(config);
+    
+    // Pular o primeiro carregamento para evitar auto-save desnecessário
+    if (isInitialLoad.current) {
+      lastConfigRef.current = configString;
+      isInitialLoad.current = false;
+      return;
+    }
     
     // Só salvar se a configuração mudou e não está salvando
     if (configString === lastConfigRef.current || isSavingRef.current) {
