@@ -8,8 +8,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { Brain, Edit, Save, X, Plus, Eye, MessageCircle } from 'lucide-react';
-import { useToast } from "@/hooks/use-toast";
+import { Edit, Save, X, Plus, Eye, MessageCircle } from 'lucide-react';
+import { useAssistantsConfig } from '@/hooks/useAssistantsConfig';
 
 interface Assistant {
   id: string;
@@ -21,134 +21,38 @@ interface Assistant {
   canRespond: boolean;
   icon: string;
   color: string;
+  area?: string;
 }
 
-const defaultAssistants: Assistant[] = [
-  {
-    id: 'kairon',
-    name: 'Kairon',
-    description: 'Conselheiro Principal - Responde no WhatsApp',
-    prompt: 'Você é Kairon, o conselheiro principal. Sua função é fornecer orientações práticas e compassivas baseadas nas análises dos outros assistentes. Mantenha um tom acolhedor mas direto.',
-    model: 'gpt-4o',
-    isActive: true,
-    canRespond: true,
-    icon: '🧠',
-    color: 'blue'
-  },
-  {
-    id: 'oracle',
-    name: 'Oráculo das Sombras',
-    description: 'Assistente Terapêutico - Análise apenas',
-    prompt: 'Você é o Oráculo das Sombras, especialista em psicologia profunda. Analise padrões inconscientes, traumas não resolvidos e aspectos sombrios da personalidade. Sua análise é usada internamente.',
-    model: 'gpt-4o',
-    isActive: true,
-    canRespond: false,
-    icon: '🔮',
-    color: 'purple'
-  },
-  {
-    id: 'guardian',
-    name: 'Guardião dos Recursos',
-    description: 'Mentor Financeiro - Análise apenas',
-    prompt: 'Você é o Guardião dos Recursos, mentor financeiro especializado. Analise padrões de gastos, decisões financeiras e relacionamento com dinheiro. Identifique oportunidades de crescimento financeiro.',
-    model: 'gpt-4o-mini',
-    isActive: true,
-    canRespond: false,
-    icon: '💰',
-    color: 'green'
-  },
-  {
-    id: 'engineer',
-    name: 'Engenheiro do Corpo',
-    description: 'Biohacker - Análise apenas',
-    prompt: 'Você é o Engenheiro do Corpo, especialista em biohacking e otimização física. Analise padrões de saúde, sono, alimentação e exercícios mencionados nas conversas.',
-    model: 'gpt-4o-mini',
-    isActive: true,
-    canRespond: false,
-    icon: '⚡',
-    color: 'red'
-  },
-  {
-    id: 'architect',
-    name: 'Arquiteto do Jogo',
-    description: 'Estratégia de Vida - Análise apenas',
-    prompt: 'Você é o Arquiteto do Jogo, estrategista de vida. Analise padrões de tomada de decisão, planejamento e execução de metas. Identifique pontos de melhoria na estratégia de vida.',
-    model: 'gpt-4o-mini',
-    isActive: true,
-    canRespond: false,
-    icon: '🎯',
-    color: 'orange'
-  },
-  {
-    id: 'weaver',
-    name: 'Tecelão da Alma',
-    description: 'Propósito e Legado - Análise apenas',
-    prompt: 'Você é o Tecelão da Alma, especialista em propósito e legado. Analise conexões com propósito de vida, valores fundamentais e direcionamento existencial.',
-    model: 'gpt-4o-mini',
-    isActive: true,
-    canRespond: false,
-    icon: '✨',
-    color: 'yellow'
-  },
-  {
-    id: 'catalyst',
-    name: 'Catalisador',
-    description: 'Criatividade - Análise apenas',
-    prompt: 'Você é o Catalisador, especialista em criatividade e inovação. Analise padrões criativos, bloqueios e potencial de inovação nas conversas.',
-    model: 'gpt-4o-mini',
-    isActive: true,
-    canRespond: false,
-    icon: '🎨',
-    color: 'pink'
-  },
-  {
-    id: 'mirror',
-    name: 'Espelho Social',
-    description: 'Relacionamentos - Análise apenas',
-    prompt: 'Você é o Espelho Social, especialista em relacionamentos. Analise padrões de comunicação, vínculos sociais e dinâmicas relacionais mencionadas.',
-    model: 'gpt-4o-mini',
-    isActive: true,
-    canRespond: false,
-    icon: '👥',
-    color: 'indigo'
-  }
-];
-
 export function AssistantsConfig() {
-  const [assistants, setAssistants] = useState<Assistant[]>(defaultAssistants);
+  const { assistants, setAssistants, saveAssistants, isLoading } = useAssistantsConfig();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [newAssistant, setNewAssistant] = useState<Partial<Assistant>>({});
   const [showNewForm, setShowNewForm] = useState(false);
-  const { toast } = useToast();
 
   const handleEdit = (id: string) => {
     setEditingId(id);
   };
 
   const handleSave = (id: string, updatedAssistant: Partial<Assistant>) => {
-    setAssistants(prev => prev.map(assistant => 
+    const updatedAssistants = assistants.map(assistant => 
       assistant.id === id ? { ...assistant, ...updatedAssistant } : assistant
-    ));
+    );
+    setAssistants(updatedAssistants);
+    saveAssistants(updatedAssistants);
     setEditingId(null);
-    toast({
-      title: "Assistente atualizado",
-      description: "Configurações salvas com sucesso",
-    });
   };
 
   const handleToggleActive = (id: string) => {
-    setAssistants(prev => prev.map(assistant => 
+    const updatedAssistants = assistants.map(assistant => 
       assistant.id === id ? { ...assistant, isActive: !assistant.isActive } : assistant
-    ));
+    );
+    setAssistants(updatedAssistants);
+    saveAssistants(updatedAssistants);
   };
 
   const handleAddAssistant = () => {
     if (!newAssistant.name || !newAssistant.prompt) {
-      toast({
-        title: "Erro",
-        description: "Nome e prompt são obrigatórios",
-        variant: "destructive",
-      });
       return;
     }
 
@@ -161,24 +65,34 @@ export function AssistantsConfig() {
       isActive: true,
       canRespond: newAssistant.canRespond || false,
       icon: newAssistant.icon || '🤖',
-      color: newAssistant.color || 'gray'
+      color: newAssistant.color || 'gray',
+      area: newAssistant.area || 'geral'
     };
 
-    setAssistants(prev => [...prev, assistant]);
+    const updatedAssistants = [...assistants, assistant];
+    setAssistants(updatedAssistants);
+    saveAssistants(updatedAssistants);
     setNewAssistant({});
     setShowNewForm(false);
-    toast({
-      title: "Assistente criado",
-      description: "Novo assistente adicionado com sucesso",
-    });
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
+          <p>Carregando assistentes...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-bold text-slate-800">Assistentes do Sistema</h2>
-          <p className="text-slate-600">Configure personalidades e prompts dos assistentes</p>
+          <p className="text-slate-600">Configure personalidades e prompts dos assistentes que analisam suas conversas</p>
         </div>
         <Button onClick={() => setShowNewForm(true)} className="flex items-center gap-2">
           <Plus className="h-4 w-4" />
@@ -225,6 +139,25 @@ export function AssistantsConfig() {
             </div>
 
             <div>
+              <Label htmlFor="new-area">Área de Especialidade</Label>
+              <Select value={newAssistant.area || 'geral'} onValueChange={(value) => setNewAssistant(prev => ({ ...prev, area: value }))}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="geral">Geral</SelectItem>
+                  <SelectItem value="psicologia">Psicologia</SelectItem>
+                  <SelectItem value="financeiro">Financeiro</SelectItem>
+                  <SelectItem value="saude">Saúde</SelectItem>
+                  <SelectItem value="estrategia">Estratégia</SelectItem>
+                  <SelectItem value="proposito">Propósito</SelectItem>
+                  <SelectItem value="criatividade">Criatividade</SelectItem>
+                  <SelectItem value="relacionamentos">Relacionamentos</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
               <Label htmlFor="new-prompt">Prompt / Personalidade *</Label>
               <Textarea
                 id="new-prompt"
@@ -245,7 +178,6 @@ export function AssistantsConfig() {
                   <SelectContent>
                     <SelectItem value="gpt-4o">GPT-4o</SelectItem>
                     <SelectItem value="gpt-4o-mini">GPT-4o Mini</SelectItem>
-                    <SelectItem value="gpt-4.5-preview">GPT-4.5 Preview</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -308,6 +240,9 @@ export function AssistantsConfig() {
                 <Badge variant="outline">
                   {assistant.model}
                 </Badge>
+                <Badge variant="outline">
+                  {assistant.area || 'geral'}
+                </Badge>
                 {assistant.canRespond ? (
                   <Badge className="bg-green-100 text-green-800">
                     <MessageCircle className="h-3 w-3 mr-1" />
@@ -340,6 +275,24 @@ export function AssistantsConfig() {
               {editingId === assistant.id && (
                 <div className="space-y-3">
                   <div>
+                    <Label>Área de Especialidade</Label>
+                    <Select defaultValue={assistant.area || 'geral'} onValueChange={(value) => handleSave(assistant.id, { area: value })}>
+                      <SelectTrigger className="mt-2">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="geral">Geral</SelectItem>
+                        <SelectItem value="psicologia">Psicologia</SelectItem>
+                        <SelectItem value="financeiro">Financeiro</SelectItem>
+                        <SelectItem value="saude">Saúde</SelectItem>
+                        <SelectItem value="estrategia">Estratégia</SelectItem>
+                        <SelectItem value="proposito">Propósito</SelectItem>
+                        <SelectItem value="criatividade">Criatividade</SelectItem>
+                        <SelectItem value="relacionamentos">Relacionamentos</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
                     <Label>Modelo</Label>
                     <Select defaultValue={assistant.model} onValueChange={(value) => handleSave(assistant.id, { model: value })}>
                       <SelectTrigger className="mt-2">
@@ -348,7 +301,6 @@ export function AssistantsConfig() {
                       <SelectContent>
                         <SelectItem value="gpt-4o">GPT-4o</SelectItem>
                         <SelectItem value="gpt-4o-mini">GPT-4o Mini</SelectItem>
-                        <SelectItem value="gpt-4.5-preview">GPT-4.5 Preview</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
