@@ -23,7 +23,7 @@ export function ClientConfigProvider({ children }: { children: React.ReactNode }
   const { user, isAuthenticated } = useAuth();
   const { toast } = useToast();
 
-  // Carregar configurações apenas UMA vez quando o usuário estiver autenticado
+  // Carregar configurações apenas quando o usuário estiver autenticado
   useEffect(() => {
     if (!isAuthenticated || !user?.id) {
       console.log('🔄 Usuário não autenticado, usando config padrão');
@@ -39,7 +39,7 @@ export function ClientConfigProvider({ children }: { children: React.ReactNode }
         const { data, error } = await supabase
           .from('client_configs')
           .select('*')
-          .eq('user_id', user.id)
+          .eq('id', user.id)
           .maybeSingle();
 
         if (error) {
@@ -50,9 +50,18 @@ export function ClientConfigProvider({ children }: { children: React.ReactNode }
 
         if (data) {
           const loadedConfig = {
-            whatsapp: { ...defaultConfig.whatsapp, ...(data.whatsapp_config || {}) },
-            openai: { ...defaultConfig.openai, ...(data.openai_config || {}) },
-            firebase: { ...defaultConfig.firebase, ...(data.firebase_config || {}) }
+            whatsapp: { 
+              ...defaultConfig.whatsapp, 
+              ...(typeof data.whatsapp_config === 'object' && data.whatsapp_config !== null ? data.whatsapp_config as any : {})
+            },
+            openai: { 
+              ...defaultConfig.openai, 
+              ...(typeof data.openai_config === 'object' && data.openai_config !== null ? data.openai_config as any : {})
+            },
+            firebase: { 
+              ...defaultConfig.firebase, 
+              ...(typeof data.firebase_config === 'object' && data.firebase_config !== null ? data.firebase_config as any : {})
+            }
           };
           setConfig(loadedConfig);
           console.log('✅ Configurações carregadas');
@@ -61,7 +70,7 @@ export function ClientConfigProvider({ children }: { children: React.ReactNode }
           await supabase
             .from('client_configs')
             .insert({
-              user_id: user.id,
+              id: user.id,
               whatsapp_config: defaultConfig.whatsapp,
               openai_config: defaultConfig.openai,
               firebase_config: defaultConfig.firebase
@@ -77,7 +86,7 @@ export function ClientConfigProvider({ children }: { children: React.ReactNode }
     };
 
     loadUserConfig();
-  }, [user?.id, isAuthenticated]); // Dependências simples e claras
+  }, [user?.id, isAuthenticated]);
 
   const updateConfig = (section: keyof ClientConfig, updates: Partial<ClientConfig[keyof ClientConfig]>) => {
     setConfig(prev => ({
@@ -97,7 +106,7 @@ export function ClientConfigProvider({ children }: { children: React.ReactNode }
       const { error } = await supabase
         .from('client_configs')
         .upsert({
-          user_id: user.id,
+          id: user.id,
           whatsapp_config: config.whatsapp,
           openai_config: config.openai,
           firebase_config: config.firebase,

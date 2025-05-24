@@ -32,7 +32,7 @@ export function useConfigPersistence({
       const { data, error } = await supabase
         .from('client_configs')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('id', user.id)
         .maybeSingle();
 
       if (error) {
@@ -43,9 +43,18 @@ export function useConfigPersistence({
 
       if (data) {
         const loadedConfig = {
-          whatsapp: { ...defaultConfig.whatsapp, ...(data.whatsapp_config || {}) },
-          openai: { ...defaultConfig.openai, ...(data.openai_config || {}) },
-          firebase: { ...defaultConfig.firebase, ...(data.firebase_config || {}) }
+          whatsapp: { 
+            ...defaultConfig.whatsapp, 
+            ...(typeof data.whatsapp_config === 'object' && data.whatsapp_config !== null ? data.whatsapp_config as any : {})
+          },
+          openai: { 
+            ...defaultConfig.openai, 
+            ...(typeof data.openai_config === 'object' && data.openai_config !== null ? data.openai_config as any : {})
+          },
+          firebase: { 
+            ...defaultConfig.firebase, 
+            ...(typeof data.firebase_config === 'object' && data.firebase_config !== null ? data.firebase_config as any : {})
+          }
         };
         setConfig(loadedConfig);
         console.log('✅ Configurações carregadas');
@@ -54,7 +63,7 @@ export function useConfigPersistence({
         await supabase
           .from('client_configs')
           .insert({
-            user_id: user.id,
+            id: user.id,
             whatsapp_config: defaultConfig.whatsapp,
             openai_config: defaultConfig.openai,
             firebase_config: defaultConfig.firebase
@@ -77,7 +86,7 @@ export function useConfigPersistence({
       const { error } = await supabase
         .from('client_configs')
         .upsert({
-          user_id: userId,
+          id: userId,
           whatsapp_config: config.whatsapp,
           openai_config: config.openai,
           firebase_config: config.firebase,

@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Button } from "@/components/ui/button";
 import { SidebarTrigger } from "@/components/ui/sidebar";
@@ -6,6 +7,7 @@ import { LogOut, User, RefreshCw, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useCacheManager } from '@/hooks/useCacheManager';
 import { AIAnalysisButton } from '@/components/AIAnalysisButton';
+import { useNavigate } from 'react-router-dom';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,10 +22,15 @@ export function DashboardHeader() {
   const { user, logout } = useAuth();
   const { toast } = useToast();
   const { forceRefreshWithCacheClear } = useCacheManager();
+  const navigate = useNavigate();
 
   const handleLogout = async () => {
     try {
       await logout();
+      // Limpar localStorage para evitar problemas de cache
+      localStorage.clear();
+      // Redirecionar para login
+      navigate('/auth');
       toast({
         title: "Logout realizado",
         description: "Você foi desconectado com sucesso"
@@ -35,6 +42,10 @@ export function DashboardHeader() {
         variant: "destructive"
       });
     }
+  };
+
+  const handleProfileClick = () => {
+    navigate('/user-profile');
   };
 
   const formatDate = (date: Date | string) => {
@@ -107,6 +118,10 @@ export function DashboardHeader() {
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleProfileClick} className="cursor-pointer">
+                <User className="mr-2 h-4 w-4" />
+                <span>Perfil</span>
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
                 <LogOut className="mr-2 h-4 w-4" />
                 <span>Sair</span>
