@@ -19,7 +19,7 @@ interface Assistant {
 
 interface OpenAIConfig {
   assistants?: Assistant[];
-  commercial_assistants?: any[]; // Mantém os assistentes comerciais separados
+  commercial_assistants?: any[];
   [key: string]: any;
 }
 
@@ -38,7 +38,7 @@ export function useAssistantsConfig() {
       model: 'gpt-4o',
       isActive: true,
       canRespond: true,
-      icon: '🧠',
+      icon: '🏛️',
       color: 'blue',
       area: 'geral'
     },
@@ -50,7 +50,7 @@ export function useAssistantsConfig() {
       model: 'gpt-4o',
       isActive: true,
       canRespond: false,
-      icon: '🔮',
+      icon: '🧠',
       color: 'purple',
       area: 'psicologia'
     },
@@ -74,7 +74,7 @@ export function useAssistantsConfig() {
       model: 'gpt-4o-mini',
       isActive: true,
       canRespond: false,
-      icon: '⚡',
+      icon: '🏋️',
       color: 'red',
       area: 'saude'
     },
@@ -86,7 +86,7 @@ export function useAssistantsConfig() {
       model: 'gpt-4o-mini',
       isActive: true,
       canRespond: false,
-      icon: '🎯',
+      icon: '💼',
       color: 'orange',
       area: 'estrategia'
     },
@@ -98,7 +98,7 @@ export function useAssistantsConfig() {
       model: 'gpt-4o-mini',
       isActive: true,
       canRespond: false,
-      icon: '✨',
+      icon: '🌌',
       color: 'yellow',
       area: 'proposito'
     },
@@ -110,7 +110,7 @@ export function useAssistantsConfig() {
       model: 'gpt-4o-mini',
       isActive: true,
       canRespond: false,
-      icon: '🎨',
+      icon: '🔥',
       color: 'pink',
       area: 'criatividade'
     },
@@ -122,7 +122,7 @@ export function useAssistantsConfig() {
       model: 'gpt-4o-mini',
       isActive: true,
       canRespond: false,
-      icon: '👥',
+      icon: '🫂',
       color: 'indigo',
       area: 'relacionamentos'
     }
@@ -142,11 +142,9 @@ export function useAssistantsConfig() {
 
       const openaiConfig = config?.openai_config as OpenAIConfig | null;
       
-      // Busca especificamente os assistentes do observatório (chave 'assistants')
       if (openaiConfig?.assistants && openaiConfig.assistants.length > 0) {
         setAssistants(openaiConfig.assistants);
       } else {
-        // Se não tem assistentes do observatório salvos, carrega os padrões e salva
         setAssistants(defaultAssistants);
         await saveAssistants(defaultAssistants);
       }
@@ -164,7 +162,6 @@ export function useAssistantsConfig() {
     try {
       setIsLoading(true);
 
-      // Primeiro, busca a configuração atual para preservar os assistentes comerciais
       const { data: currentConfig } = await supabase
         .from('client_configs')
         .select('openai_config')
@@ -173,7 +170,6 @@ export function useAssistantsConfig() {
 
       const existingConfig = currentConfig?.openai_config as OpenAIConfig || {};
 
-      // Preserva os assistentes comerciais e atualiza apenas os do observatório
       const updatedConfig: OpenAIConfig = {
         ...existingConfig,
         assistants: updatedAssistants
