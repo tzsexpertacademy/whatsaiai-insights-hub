@@ -23,18 +23,43 @@ export function useCommercialAIAnalysis() {
       setIsAnalyzing(true);
       console.log('💼 Iniciando análise comercial por IA para usuário:', user.id);
 
-      // Limpar dados comerciais antigos
+      // Verificar se existem conversas comerciais para analisar
+      const { data: existingConversations, error: checkError } = await supabase
+        .from('commercial_conversations')
+        .select('id')
+        .eq('user_id', user.id)
+        .limit(1);
+
+      if (checkError) {
+        console.error('❌ Erro ao verificar conversas existentes:', checkError);
+        throw checkError;
+      }
+
+      // Se não há conversas, não há dados para analisar
+      if (!existingConversations || existingConversations.length === 0) {
+        toast({
+          title: "Nenhum dado para analisar",
+          description: "Não há conversas comerciais para processar. Conecte o sistema e aguarde dados chegarem.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Limpar TODOS os dados comerciais antigos antes de gerar novos
+      console.log('🧹 Limpando dados comerciais antigos antes da análise...');
+      
       await Promise.all([
         supabase.from('commercial_insights').delete().eq('user_id', user.id),
         supabase.from('sales_metrics').delete().eq('user_id', user.id),
         supabase.from('sales_funnel_data').delete().eq('user_id', user.id)
       ]);
-      console.log('🧹 Dados comerciais antigos limpos');
+      
+      console.log('✅ Dados comerciais antigos limpos');
 
       // Simular análise por IA comercial
       await new Promise(resolve => setTimeout(resolve, 2500));
 
-      // Gerar dados comerciais simulados
+      // Gerar dados comerciais simulados APENAS se há conversas válidas
       const today = new Date().toISOString().split('T')[0];
       
       // Inserir métricas de vendas
