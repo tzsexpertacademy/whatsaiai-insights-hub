@@ -1,3 +1,4 @@
+
 import { Brain, BarChart3, User, Heart, Target, MessageSquare, Settings, UserCircle, Users, FileSearch } from 'lucide-react';
 import {
   Sidebar,
@@ -18,19 +19,19 @@ export function AppSidebar() {
   const { user } = useAuth();
 
   const mainNavItems = [
-    { title: 'Dashboard', icon: BarChart3, href: '/' },
-    { title: 'Áreas da Vida', icon: Target, href: '/areas' },
-    { title: 'Perfil Comportamental', icon: Brain, href: '/profile' },
-    { title: 'Termômetro Emocional', icon: Heart, href: '/emotions' },
-    { title: 'Recomendações', icon: MessageSquare, href: '/recommendations' },
-    { title: 'Análise de Documentos', icon: FileSearch, href: '/document-analysis' },
+    { title: 'Dashboard', icon: BarChart3, url: '/' },
+    { title: 'Áreas da Vida', icon: Target, url: '/areas' },
+    { title: 'Perfil Comportamental', icon: Brain, url: '/profile' },
+    { title: 'Termômetro Emocional', icon: Heart, url: '/emotions' },
+    { title: 'Recomendações', icon: MessageSquare, url: '/recommendations' },
+    { title: 'Análise de Documentos', icon: FileSearch, url: '/document-analysis' },
   ];
 
   const configNavItems = [
-    { title: 'Conexão WhatsApp', icon: MessageSquare, href: '/connection' },
-    { title: 'Chat com IA', icon: Brain, href: '/chat' },
-    { title: 'Configurações', icon: Settings, href: '/settings' },
-    { title: 'Perfil', icon: UserCircle, href: '/user-profile' },
+    { title: 'Conexão WhatsApp', icon: MessageSquare, url: '/connection' },
+    { title: 'Chat com IA', icon: Brain, url: '/chat' },
+    { title: 'Configurações', icon: Settings, url: '/settings' },
+    { title: 'Perfil', icon: UserCircle, url: '/user-profile' },
   ];
 
   const isAdmin = user?.email === 'admin@kairon.ai';
@@ -55,7 +56,7 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {mainNavItems.map((item) => (
-                <SidebarMenuItem key={item.href}>
+                <SidebarMenuItem key={item.url}>
                   <SidebarMenuButton asChild>
                     <SidebarNavItem {...item} />
                   </SidebarMenuButton>
@@ -70,7 +71,7 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {configNavItems.map((item) => (
-                <SidebarMenuItem key={item.href}>
+                <SidebarMenuItem key={item.url}>
                   <SidebarMenuButton asChild>
                     <SidebarNavItem {...item} />
                   </SidebarMenuButton>
@@ -87,7 +88,7 @@ export function AppSidebar() {
               <SidebarMenu>
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild>
-                    <SidebarNavItem title="Gerenciar Clientes" icon={Users} href="/admin/clients" />
+                    <SidebarNavItem title="Gerenciar Clientes" icon={Users} url="/admin/clients" />
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               </SidebarMenu>

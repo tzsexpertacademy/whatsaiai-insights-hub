@@ -65,7 +65,9 @@ export function DocumentAnalysis() {
         .eq('user_id', user.id)
         .single();
 
-      const openaiApiKey = config?.openai_config?.api_key;
+      // Tipo seguro para acessar api_key
+      const openaiConfig = config?.openai_config as { api_key?: string } | null;
+      const openaiApiKey = openaiConfig?.api_key;
       
       if (!openaiApiKey) {
         toast({
