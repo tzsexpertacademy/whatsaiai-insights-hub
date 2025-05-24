@@ -121,7 +121,7 @@ export function CommercialSettingsPage() {
                 </div>
               </CardContent>
             </Card>
-            <OpenAI Config />
+            <OpenAIConfig />
           </div>
         </TabsContent>
 
