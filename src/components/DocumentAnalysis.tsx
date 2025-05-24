@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,7 +17,6 @@ export function DocumentAnalysis() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedAssistant, setSelectedAssistant] = useState<string>('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [isTestingApi, setIsTestingApi] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<string | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
@@ -49,87 +49,16 @@ export function DocumentAnalysis() {
     });
   };
 
-  const testOpenAIConnection = async () => {
-    if (!user?.id) return;
-
-    setIsTestingApi(true);
-
-    try {
-      console.log('🔍 Testando conexão com OpenAI...');
-      console.log('🔑 API Key do contexto:', config.openai.apiKey ? 'Configurada' : 'Não configurada');
-      console.log('🔑 API Key formato:', config.openai.apiKey ? (config.openai.apiKey.startsWith('sk-') ? 'Válido' : 'Inválido') : 'N/A');
-
-      if (!config.openai.apiKey) {
-        toast({
-          title: "API Key não encontrada",
-          description: "Configure sua API Key do OpenAI nas configurações",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      if (!config.openai.apiKey.startsWith('sk-')) {
-        toast({
-          title: "API Key inválida",
-          description: "A API Key deve começar com 'sk-'",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // Testar conexão real com OpenAI
-      console.log('🌐 Fazendo teste de conexão com OpenAI...');
-      
-      const response = await fetch('https://api.openai.com/v1/models', {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${config.openai.apiKey}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      console.log('📡 Status da resposta:', response.status);
-      console.log('📡 Headers da resposta:', Object.fromEntries(response.headers.entries()));
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ Erro na resposta da OpenAI:', errorText);
-        
-        let errorMessage = 'Erro na conexão com OpenAI';
-        if (response.status === 401) {
-          errorMessage = 'API Key inválida ou sem permissões';
-        } else if (response.status === 429) {
-          errorMessage = 'Limite de rate excedido';
-        } else if (response.status === 403) {
-          errorMessage = 'Acesso negado - verifique as permissões da API Key';
-        }
-        
-        toast({
-          title: "Falha no teste",
-          description: `${errorMessage} (Status: ${response.status})`,
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const data = await response.json();
-      console.log('✅ Resposta da OpenAI:', data);
-      
-      toast({
-        title: "Conexão bem-sucedida!",
-        description: `API OpenAI está funcionando. ${data.data?.length || 0} modelos disponíveis.`,
-      });
-
-    } catch (error) {
-      console.error('❌ Erro inesperado no teste:', error);
-      toast({
-        title: "Erro no teste",
-        description: `Erro inesperado: ${error.message}`,
-        variant: "destructive",
-      });
-    } finally {
-      setIsTestingApi(false);
+  const truncateContent = (content: string, maxTokens: number = 100000): string => {
+    // Estimativa: 1 token ≈ 4 caracteres
+    const maxChars = maxTokens * 4;
+    
+    if (content.length <= maxChars) {
+      return content;
     }
+    
+    // Truncar e adicionar indicação
+    return content.substring(0, maxChars) + "\n\n[DOCUMENTO TRUNCADO DEVIDO AO TAMANHO]";
   };
 
   const analyzeDocument = async () => {
@@ -140,25 +69,44 @@ export function DocumentAnalysis() {
     try {
       console.log('📄 Iniciando análise do documento...');
       
+      // Verificar se a API está configurada
+      if (!config.openai.apiKey) {
+        toast({
+          title: "API Key não configurada",
+          description: "Configure sua API Key do OpenAI na aba 'Configurações > OpenAI'",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (!connectionStatus.openai) {
+        toast({
+          title: "Problema com a conexão",
+          description: "Teste a conexão OpenAI na aba 'Configurações > OpenAI'",
+          variant: "destructive",
+        });
+        return;
+      }
+      
       // Ler conteúdo do arquivo
       const fileContent = await readFileContent(selectedFile);
       console.log('📖 Conteúdo do arquivo lido:', fileContent.length, 'caracteres');
+      
+      // Truncar conteúdo se muito grande
+      const truncatedContent = truncateContent(fileContent);
+      if (truncatedContent !== fileContent) {
+        console.log('✂️ Conteúdo truncado para:', truncatedContent.length, 'caracteres');
+        toast({
+          title: "Documento grande",
+          description: "O documento foi truncado para análise devido ao tamanho",
+        });
+      }
       
       // Buscar o assistente selecionado
       const assistant = assistants.find(a => a.id === selectedAssistant);
       if (!assistant) throw new Error('Assistente não encontrado');
 
       console.log('🤖 Assistente selecionado:', assistant.name);
-
-      if (!config.openai.apiKey) {
-        toast({
-          title: "API Key não configurada",
-          description: "Configure sua API Key do OpenAI nas configurações",
-          variant: "destructive",
-        });
-        return;
-      }
-
       console.log('🚀 Enviando para OpenAI...');
 
       // Fazer análise via OpenAI
@@ -173,11 +121,11 @@ export function DocumentAnalysis() {
           messages: [
             { 
               role: 'system', 
-              content: `${assistant.prompt}\n\nVocê receberá um documento para análise. Forneça insights detalhados da sua área de especialidade.` 
+              content: `${assistant.prompt}\n\nVocê receberá um documento para análise. Forneça insights detalhados da sua área de especialidade. Seja conciso mas informativo.` 
             },
             { 
               role: 'user', 
-              content: `Analise o seguinte documento:\n\n${fileContent}` 
+              content: `Analise o seguinte documento:\n\n${truncatedContent}` 
             }
           ],
           temperature: 0.7,
@@ -190,7 +138,17 @@ export function DocumentAnalysis() {
       if (!response.ok) {
         const errorText = await response.text();
         console.error('❌ Erro na análise:', errorText);
-        throw new Error(`Erro na análise do documento (${response.status})`);
+        
+        let errorMessage = 'Erro na análise do documento';
+        if (response.status === 401) {
+          errorMessage = 'API Key inválida - verifique nas configurações';
+        } else if (response.status === 429) {
+          errorMessage = 'Limite de rate excedido - tente novamente em alguns minutos';
+        } else if (response.status === 400) {
+          errorMessage = 'Documento muito grande ou formato inválido';
+        }
+        
+        throw new Error(`${errorMessage} (${response.status})`);
       }
 
       const data = await response.json();
@@ -209,7 +167,7 @@ export function DocumentAnalysis() {
       console.error('❌ Erro na análise:', error);
       toast({
         title: "Erro na análise",
-        description: `Não foi possível analisar o documento: ${error.message}`,
+        description: error.message || "Não foi possível analisar o documento",
         variant: "destructive",
       });
     } finally {
@@ -235,7 +193,7 @@ export function DocumentAnalysis() {
         <p className="text-slate-600">Faça upload de documentos e escolha um assistente para análise especializada</p>
       </div>
 
-      {/* Status da API OpenAI */}
+      {/* Status da API OpenAI - Simplificado */}
       <Card className="border-l-4 border-l-blue-500">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -264,20 +222,19 @@ export function DocumentAnalysis() {
               </>
             )}
           </div>
-          
-          <Button 
-            onClick={testOpenAIConnection} 
-            disabled={isTestingApi || !config.openai.apiKey}
-            variant="outline"
-            className="w-full"
-          >
-            {isTestingApi ? 'Testando Conexão...' : 'Testar Conexão OpenAI'}
-          </Button>
 
           {!config.openai.apiKey && (
             <div className="p-3 bg-yellow-50 rounded-md">
               <p className="text-sm text-yellow-800">
-                Configure sua API Key do OpenAI na aba "Configurações" para usar este recurso.
+                Configure sua API Key do OpenAI na aba "Configurações > OpenAI" para usar este recurso.
+              </p>
+            </div>
+          )}
+
+          {apiStatus !== 'valid' && config.openai.apiKey && (
+            <div className="p-3 bg-red-50 rounded-md">
+              <p className="text-sm text-red-800">
+                Há um problema com sua API Key. Teste a conexão na aba "Configurações > OpenAI".
               </p>
             </div>
           )}
