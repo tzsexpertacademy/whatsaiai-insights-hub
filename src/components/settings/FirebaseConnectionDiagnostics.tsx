@@ -32,8 +32,8 @@ export function FirebaseConnectionDiagnostics({ config }: FirebaseConnectionDiag
 
     const diagnostics: DiagnosticResult[] = [
       { step: 'Validação de Configuração', status: 'pending', message: 'Verificando campos obrigatórios...' },
-      { step: 'Teste de API Key', status: 'pending', message: 'Validando chave de API...' },
       { step: 'Teste de Project ID', status: 'pending', message: 'Verificando projeto...' },
+      { step: 'Teste de API Key', status: 'pending', message: 'Validando chave de API...' },
       { step: 'Teste de Database URL', status: 'pending', message: 'Testando acesso ao banco...' },
       { step: 'Teste de Regras', status: 'pending', message: 'Verificando permissões...' }
     ];
@@ -57,43 +57,43 @@ export function FirebaseConnectionDiagnostics({ config }: FirebaseConnectionDiag
       return;
     }
 
-    // 2. Teste de API Key
+    // 2. Teste de Project ID (usando REST API do Firebase)
     await new Promise(resolve => setTimeout(resolve, 1000));
     
     try {
-      const apiKeyTest = await testApiKey(config.projectId, config.apiKey);
+      const projectTest = await testProjectId(config.projectId, config.apiKey);
       diagnostics[1] = {
         ...diagnostics[1],
-        status: apiKeyTest.isValid ? 'success' : 'error',
-        message: apiKeyTest.message,
-        details: apiKeyTest.details
-      };
-    } catch (error) {
-      diagnostics[1] = {
-        ...diagnostics[1],
-        status: 'error',
-        message: 'Erro ao testar API Key',
-        details: error.message
-      };
-    }
-    setResults([...diagnostics]);
-
-    // 3. Teste de Project ID
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    try {
-      const projectTest = await testProject(config.projectId, config.apiKey);
-      diagnostics[2] = {
-        ...diagnostics[2],
         status: projectTest.isValid ? 'success' : 'error',
         message: projectTest.message,
         details: projectTest.details
       };
     } catch (error) {
+      diagnostics[1] = {
+        ...diagnostics[1],
+        status: 'error',
+        message: '❌ Erro ao verificar projeto',
+        details: error.message
+      };
+    }
+    setResults([...diagnostics]);
+
+    // 3. Teste de API Key (usando Realtime Database)
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    try {
+      const apiKeyTest = await testApiKeyWithDatabase(config.databaseURL, config.apiKey);
+      diagnostics[2] = {
+        ...diagnostics[2],
+        status: apiKeyTest.isValid ? 'success' : 'error',
+        message: apiKeyTest.message,
+        details: apiKeyTest.details
+      };
+    } catch (error) {
       diagnostics[2] = {
         ...diagnostics[2],
         status: 'error',
-        message: 'Erro ao verificar projeto',
+        message: '❌ Erro ao testar API Key',
         details: error.message
       };
     }
@@ -114,7 +114,7 @@ export function FirebaseConnectionDiagnostics({ config }: FirebaseConnectionDiag
       diagnostics[3] = {
         ...diagnostics[3],
         status: 'error',
-        message: 'Erro ao testar banco de dados',
+        message: '❌ Erro ao testar banco de dados',
         details: error.message
       };
     }
@@ -135,7 +135,7 @@ export function FirebaseConnectionDiagnostics({ config }: FirebaseConnectionDiag
       diagnostics[4] = {
         ...diagnostics[4],
         status: 'error',
-        message: 'Erro ao verificar regras',
+        message: '❌ Erro ao verificar regras',
         details: error.message
       };
     }
@@ -176,7 +176,7 @@ export function FirebaseConnectionDiagnostics({ config }: FirebaseConnectionDiag
     if (!config.databaseURL.includes('firebaseio.com') && !config.databaseURL.includes('firebasedatabase.app')) {
       return {
         isValid: false,
-        message: 'Database URL inválida',
+        message: '❌ Database URL inválida',
         details: 'A URL deve terminar com .firebaseio.com ou .firebasedatabase.app'
       };
     }
@@ -185,7 +185,7 @@ export function FirebaseConnectionDiagnostics({ config }: FirebaseConnectionDiag
     if (!config.apiKey.startsWith('AIza')) {
       return {
         isValid: false,
-        message: 'API Key inválida',
+        message: '❌ API Key inválida',
         details: 'A API Key deve começar com "AIza"'
       };
     }
@@ -197,9 +197,16 @@ export function FirebaseConnectionDiagnostics({ config }: FirebaseConnectionDiag
     };
   };
 
-  const testApiKey = async (projectId: string, apiKey: string) => {
+  const testProjectId = async (projectId: string, apiKey: string) => {
     try {
-      const response = await fetch(`https://identitytoolkit.googleapis.com/v1/projects/${projectId}?key=${apiKey}`);
+      // Testar usando a REST API do Realtime Database
+      const testUrl = `https://${projectId}-default-rtdb.firebaseio.com/.json?auth=${apiKey}`;
+      const response = await fetch(testUrl, { 
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
       
       if (response.status === 404) {
         return {
@@ -212,8 +219,58 @@ export function FirebaseConnectionDiagnostics({ config }: FirebaseConnectionDiag
       if (response.status === 401) {
         return {
           isValid: false,
-          message: '❌ API Key inválida',
-          details: 'Verifique se a API Key está correta e ativa'
+          message: '❌ Não autorizado',
+          details: 'Verifique se a API Key está correta e sem restrições'
+        };
+      }
+
+      if (response.status === 403) {
+        return {
+          isValid: false,
+          message: '❌ Acesso negado',
+          details: 'Verifique as regras do Realtime Database'
+        };
+      }
+
+      if (response.ok || response.status === 401) {
+        return {
+          isValid: true,
+          message: '✅ Project ID válido',
+          details: 'Projeto Firebase encontrado e acessível'
+        };
+      }
+
+      return {
+        isValid: false,
+        message: `❌ Erro inesperado (${response.status})`,
+        details: `Status HTTP: ${response.status}`
+      };
+    } catch (error) {
+      return {
+        isValid: false,
+        message: '❌ Erro de rede',
+        details: 'Verifique sua conexão com a internet'
+      };
+    }
+  };
+
+  const testApiKeyWithDatabase = async (databaseURL: string, apiKey: string) => {
+    try {
+      const cleanUrl = databaseURL.replace(/\/$/, '');
+      const testUrl = `${cleanUrl}/.json?auth=${apiKey}`;
+      
+      const response = await fetch(testUrl, { 
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.status === 401) {
+        return {
+          isValid: false,
+          message: '❌ API Key inválida ou com restrições',
+          details: 'Verifique se a API Key está correta e sem restrições no Google Cloud Console'
         };
       }
 
@@ -221,10 +278,11 @@ export function FirebaseConnectionDiagnostics({ config }: FirebaseConnectionDiag
         return {
           isValid: false,
           message: '❌ API Key sem permissões',
-          details: 'A API Key não tem permissões para este projeto'
+          details: 'A API Key não tem permissões para acessar este banco de dados'
         };
       }
 
+      // Se chegou até aqui sem erro 401/403, a API Key é válida
       return {
         isValid: true,
         message: '✅ API Key válida',
@@ -239,50 +297,24 @@ export function FirebaseConnectionDiagnostics({ config }: FirebaseConnectionDiag
     }
   };
 
-  const testProject = async (projectId: string, apiKey: string) => {
-    try {
-      const response = await fetch(`https://firebase.googleapis.com/v1beta1/projects/${projectId}?key=${apiKey}`);
-      
-      if (response.ok) {
-        return {
-          isValid: true,
-          message: '✅ Projeto acessível',
-          details: 'Projeto Firebase encontrado e acessível'
-        };
-      } else {
-        return {
-          isValid: false,
-          message: '❌ Projeto inacessível',
-          details: `Status: ${response.status}`
-        };
-      }
-    } catch (error) {
-      return {
-        isValid: false,
-        message: '❌ Erro ao verificar projeto',
-        details: error.message
-      };
-    }
-  };
-
   const testDatabase = async (databaseURL: string) => {
     try {
       const testUrl = `${databaseURL.replace(/\/$/, '')}/.json`;
       const response = await fetch(testUrl);
       
-      if (response.status === 401) {
-        return {
-          isValid: false,
-          message: '❌ Banco sem permissões',
-          details: 'Configure as regras do Realtime Database para permitir acesso'
-        };
-      }
-
       if (response.status === 404) {
         return {
           isValid: false,
           message: '❌ Database não encontrado',
           details: 'Verifique se o Realtime Database está ativado no console Firebase'
+        };
+      }
+
+      if (response.status === 401) {
+        return {
+          isValid: true,
+          message: '✅ Database encontrado (requer autenticação)',
+          details: 'Realtime Database ativo, mas precisa de autenticação'
         };
       }
 
@@ -307,6 +339,9 @@ export function FirebaseConnectionDiagnostics({ config }: FirebaseConnectionDiag
       // Tentar escrever
       const writeResponse = await fetch(testUrl, {
         method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify({ timestamp: Date.now() })
       });
 
