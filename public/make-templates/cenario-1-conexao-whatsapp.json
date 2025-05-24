@@ -7,7 +7,7 @@
       "module": "webhook",
       "version": 1,
       "parameters": {
-        "hook": "custom_webhook_generate_qr",
+        "hook": "custom_webhook_qr_code",
         "maxResults": 1
       },
       "mapper": {},
@@ -17,25 +17,13 @@
           "y": 0
         },
         "restore": {},
-        "parameters": [
-          {
-            "name": "hook",
-            "type": "hook",
-            "label": "Webhook",
-            "required": true
-          }
-        ],
         "interface": [
           {
             "name": "action",
             "type": "text"
           },
           {
-            "name": "sessionId", 
-            "type": "text"
-          },
-          {
-            "name": "timestamp",
+            "name": "sessionId",
             "type": "text"
           }
         ]
@@ -46,7 +34,7 @@
       "module": "whatsapp-business",
       "version": 1,
       "parameters": {
-        "action": "generateQR",
+        "action": "generateQRCode",
         "sessionId": "{{1.sessionId}}"
       },
       "mapper": {
@@ -57,21 +45,7 @@
           "x": 300,
           "y": 0
         },
-        "restore": {},
-        "parameters": [
-          {
-            "name": "action",
-            "type": "select",
-            "label": "Action",
-            "required": true,
-            "options": [
-              {
-                "label": "Generate QR Code",
-                "value": "generateQR"
-              }
-            ]
-          }
-        ]
+        "restore": {}
       }
     },
     {
@@ -79,38 +53,12 @@
       "module": "http",
       "version": 3,
       "parameters": {
-        "url": "{{webhook_url_resposta}}",
-        "method": "POST",
-        "headers": [
-          {
-            "name": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "qs": [],
-        "bodyType": "raw",
-        "parseResponse": true,
-        "authUser": "",
-        "authPass": "",
-        "timeout": "",
-        "shareCredentials": false,
-        "ca": "",
-        "rejectUnauthorized": true,
-        "followRedirect": true,
-        "useQuerystring": false,
-        "gzip": true,
-        "useMtls": false
+        "url": "{{qr_response_webhook}}",
+        "method": "POST"
       },
       "mapper": {
         "url": "SEU_WEBHOOK_RESPOSTA_AQUI",
-        "method": "POST",
-        "headers": [
-          {
-            "name": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "body": "{\"qrCode\": \"{{2.qrCode}}\", \"sessionId\": \"{{1.sessionId}}\", \"status\": \"generated\"}"
+        "body": "{\"qrCode\": \"{{2.qrCode}}\", \"status\": \"{{2.status}}\", \"sessionId\": \"{{1.sessionId}}\", \"timestamp\": \"{{now}}\"}"
       },
       "metadata": {
         "designer": {
@@ -125,7 +73,7 @@
       "module": "whatsapp-business",
       "version": 1,
       "parameters": {
-        "action": "watchConnection",
+        "action": "checkConnection",
         "sessionId": "{{1.sessionId}}"
       },
       "mapper": {
@@ -144,12 +92,12 @@
       "module": "http",
       "version": 3,
       "parameters": {
-        "url": "{{webhook_url_resposta}}",
+        "url": "{{status_webhook}}",
         "method": "POST"
       },
       "mapper": {
-        "url": "SEU_WEBHOOK_RESPOSTA_AQUI",
-        "body": "{\"isConnected\": {{4.isConnected}}, \"phoneNumber\": \"{{4.phoneNumber}}\", \"sessionId\": \"{{1.sessionId}}\"}"
+        "url": "SEU_WEBHOOK_STATUS_AQUI",
+        "body": "{\"isConnected\": {{4.isConnected}}, \"phoneNumber\": \"{{4.phoneNumber}}\", \"sessionId\": \"{{1.sessionId}}\", \"timestamp\": \"{{now}}\"}"
       },
       "metadata": {
         "designer": {

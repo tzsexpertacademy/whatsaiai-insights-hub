@@ -1,13 +1,13 @@
 
 {
-  "name": "WhatsApp - Receber Mensagens",
+  "name": "WhatsApp - Receber e Processar Mensagens",
   "flow": [
     {
       "id": 1,
       "module": "whatsapp-business",
       "version": 1,
       "parameters": {
-        "action": "watchMessages"
+        "trigger": "onMessageReceived"
       },
       "mapper": {},
       "metadata": {
@@ -16,20 +16,6 @@
           "y": 0
         },
         "restore": {},
-        "parameters": [
-          {
-            "name": "action",
-            "type": "select",
-            "label": "Action",
-            "required": true,
-            "options": [
-              {
-                "label": "Watch Messages",
-                "value": "watchMessages"
-              }
-            ]
-          }
-        ],
         "interface": [
           {
             "name": "from",
@@ -69,15 +55,15 @@
       "module": "filter",
       "version": 1,
       "parameters": {
-        "condition": "{{1.from}} != {{1.myNumber}}"
+        "condition": "{{1.from}} != {{my_phone_number}}"
       },
       "mapper": {
-        "condition": "{{1.from}} != {{1.myNumber}}"
+        "condition": "{{1.from}} != SEU_NUMERO_AQUI"
       },
       "metadata": {
         "designer": {
-          "x": 600,
-          "y": 0
+          "x": 450,
+          "y": -50
         },
         "restore": {}
       }
@@ -87,32 +73,17 @@
       "module": "http",
       "version": 3,
       "parameters": {
-        "url": "{{webhook_url_receive}}",
-        "method": "POST",
-        "headers": [
-          {
-            "name": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "bodyType": "raw",
-        "parseResponse": true
+        "url": "{{receive_webhook}}",
+        "method": "POST"
       },
       "mapper": {
         "url": "SEU_WEBHOOK_RECEIVE_AQUI",
-        "method": "POST",
-        "headers": [
-          {
-            "name": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "body": "{\"from\": \"{{1.from}}\", \"message\": \"{{1.message}}\", \"timestamp\": \"{{1.timestamp}}\", \"messageId\": \"{{1.messageId}}\", \"action\": \"message_received\"}"
+        "body": "{\"from\": \"{{1.from}}\", \"message\": \"{{1.message}}\", \"timestamp\": \"{{1.timestamp}}\", \"messageId\": \"{{1.messageId}}\"}"
       },
       "metadata": {
         "designer": {
-          "x": 900,
-          "y": 0
+          "x": 600,
+          "y": -50
         },
         "restore": {}
       }
@@ -122,24 +93,24 @@
       "module": "http",
       "version": 3,
       "parameters": {
-        "url": "{{webhook_url_autoreply}}",
+        "url": "{{autoreply_webhook}}",
         "method": "POST"
       },
       "mapper": {
         "url": "SEU_WEBHOOK_AUTOREPLY_AQUI",
-        "body": "{\"from\": \"{{1.from}}\", \"message\": \"{{1.message}}\", \"timestamp\": \"{{1.timestamp}}\", \"trigger_ai\": true}"
+        "body": "{\"from\": \"{{1.from}}\", \"message\": \"{{1.message}}\", \"timestamp\": \"{{1.timestamp}}\"}"
       },
       "metadata": {
         "designer": {
-          "x": 900,
-          "y": 150
+          "x": 600,
+          "y": 50
         },
         "restore": {}
       }
     }
   ],
   "metadata": {
-    "instant": true,
+    "instant": false,
     "version": 1,
     "scenario": {
       "roundtrips": 1,
