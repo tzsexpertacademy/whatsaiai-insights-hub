@@ -7,8 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 import { supabase } from '@/integrations/supabase/client';
-import { User, Save, Sparkles } from 'lucide-react';
+import { User, Save, Sparkles, RefreshCw } from 'lucide-react';
 
 interface UserProfile {
   id: string;
@@ -21,6 +22,7 @@ interface UserProfile {
 export function ProfileSettings() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { refreshAfterUpdate, quickRefresh } = useAutoRefresh();
   const [profile, setProfile] = useState<UserProfile>({
     id: '',
     full_name: '',
@@ -108,8 +110,16 @@ export function ProfileSettings() {
       console.log('✅ Perfil salvo com sucesso!');
       toast({
         title: "Perfil atualizado",
-        description: "Suas informações foram salvas com sucesso"
+        description: "Atualizando sistema em 2 segundos...",
+        duration: 2000
       });
+
+      // Auto-refresh após salvar perfil
+      refreshAfterUpdate({
+        redirectTo: '/user-profile',
+        delay: 2000
+      });
+
     } catch (error) {
       console.error('❌ Erro ao salvar perfil:', error);
       toast({
@@ -148,9 +158,21 @@ export function ProfileSettings() {
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
-      <div>
-        <h1 className="text-3xl font-bold text-slate-800 mb-2">Perfil do Usuário</h1>
-        <p className="text-slate-600">Gerencie suas informações pessoais e configurações</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-800 mb-2">Perfil do Usuário</h1>
+          <p className="text-slate-600">Gerencie suas informações pessoais e configurações</p>
+        </div>
+        
+        <Button 
+          onClick={quickRefresh}
+          variant="outline"
+          size="sm"
+          className="flex items-center gap-2"
+        >
+          <RefreshCw className="h-4 w-4" />
+          Atualizar Página
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

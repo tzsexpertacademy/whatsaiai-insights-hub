@@ -1,7 +1,7 @@
-
 import { useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { ClientConfig, defaultConfig } from '@/types/clientConfig';
+import { useAutoRefresh } from './useAutoRefresh';
 
 interface UseConfigPersistenceProps {
   user: any;
@@ -18,6 +18,8 @@ export function useConfigPersistence({
   setIsLoading,
   toast
 }: UseConfigPersistenceProps) {
+  
+  const { refreshAfterUpdate } = useAutoRefresh();
   
   const createInitialConfig = async () => {
     if (!user?.id) return;
@@ -162,8 +164,17 @@ export function useConfigPersistence({
       
       toast({
         title: "Configurações salvas",
-        description: "Suas configurações foram salvas com sucesso e não serão perdidas"
+        description: "Atualizando sistema em 2 segundos...",
+        duration: 2000
       });
+
+      // Auto-refresh após salvar configurações importantes
+      refreshAfterUpdate({
+        redirectTo: '/',
+        delay: 2000,
+        forceReload: true
+      });
+
     } catch (error) {
       console.error('❌ Erro ao salvar configurações:', error);
       toast({
