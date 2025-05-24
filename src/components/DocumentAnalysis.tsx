@@ -49,8 +49,8 @@ export function DocumentAnalysis() {
     });
   };
 
-  const truncateContent = (content: string, maxTokens: number = 100000): string => {
-    // Estimativa: 1 token ≈ 4 caracteres
+  const truncateContent = (content: string, maxTokens: number = 30000): string => {
+    // Estimativa mais conservadora: 1 token ≈ 4 caracteres
     const maxChars = maxTokens * 4;
     
     if (content.length <= maxChars) {
@@ -68,6 +68,9 @@ export function DocumentAnalysis() {
     
     try {
       console.log('📄 Iniciando análise do documento...');
+      console.log('🔑 API Key disponível:', !!config.openai.apiKey);
+      console.log('🔗 Status de conexão OpenAI:', connectionStatus.openai);
+      console.log('🤖 Assistente selecionado:', selectedAssistant);
       
       // Verificar se a API está configurada
       if (!config.openai.apiKey) {
@@ -92,7 +95,7 @@ export function DocumentAnalysis() {
       const fileContent = await readFileContent(selectedFile);
       console.log('📖 Conteúdo do arquivo lido:', fileContent.length, 'caracteres');
       
-      // Truncar conteúdo se muito grande
+      // Truncar conteúdo se muito grande (mais conservador)
       const truncatedContent = truncateContent(fileContent);
       if (truncatedContent !== fileContent) {
         console.log('✂️ Conteúdo truncado para:', truncatedContent.length, 'caracteres');
@@ -106,8 +109,9 @@ export function DocumentAnalysis() {
       const assistant = assistants.find(a => a.id === selectedAssistant);
       if (!assistant) throw new Error('Assistente não encontrado');
 
-      console.log('🤖 Assistente selecionado:', assistant.name);
+      console.log('🤖 Assistente encontrado:', assistant.name);
       console.log('🚀 Enviando para OpenAI...');
+      console.log('📊 Tamanho final do conteúdo:', truncatedContent.length, 'caracteres');
 
       // Fazer análise via OpenAI
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -125,19 +129,19 @@ export function DocumentAnalysis() {
             },
             { 
               role: 'user', 
-              content: `Analise o seguinte documento:\n\n${truncatedContent}` 
+              content: `Analise o seguinte documento da perspectiva de ${assistant.area}:\n\n${truncatedContent}` 
             }
           ],
-          temperature: 0.7,
-          max_tokens: 2000
+          temperature: config.openai.temperature || 0.7,
+          max_tokens: Math.min(config.openai.maxTokens || 2000, 2000)
         }),
       });
 
-      console.log('📡 Status da análise:', response.status);
+      console.log('📡 Status da resposta OpenAI:', response.status);
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('❌ Erro na análise:', errorText);
+        console.error('❌ Erro detalhado da OpenAI:', errorText);
         
         let errorMessage = 'Erro na análise do documento';
         if (response.status === 401) {
@@ -152,7 +156,13 @@ export function DocumentAnalysis() {
       }
 
       const data = await response.json();
-      const analysis = data.choices[0].message.content;
+      console.log('📥 Resposta completa da OpenAI:', data);
+      
+      const analysis = data.choices?.[0]?.message?.content;
+      
+      if (!analysis) {
+        throw new Error('Resposta vazia da OpenAI');
+      }
       
       console.log('✅ Análise concluída:', analysis.length, 'caracteres');
       
@@ -164,7 +174,7 @@ export function DocumentAnalysis() {
       });
 
     } catch (error) {
-      console.error('❌ Erro na análise:', error);
+      console.error('❌ Erro completo na análise:', error);
       toast({
         title: "Erro na análise",
         description: error.message || "Não foi possível analisar o documento",
@@ -226,7 +236,7 @@ export function DocumentAnalysis() {
           {!config.openai.apiKey && (
             <div className="p-3 bg-yellow-50 rounded-md">
               <p className="text-sm text-yellow-800">
-                Configure sua API Key do OpenAI na aba "Configurações > OpenAI" para usar este recurso.
+                Configure sua API Key do OpenAI na aba "Configurações {'>'}OpenAI" para usar este recurso.
               </p>
             </div>
           )}
@@ -234,7 +244,7 @@ export function DocumentAnalysis() {
           {apiStatus !== 'valid' && config.openai.apiKey && (
             <div className="p-3 bg-red-50 rounded-md">
               <p className="text-sm text-red-800">
-                Há um problema com sua API Key. Teste a conexão na aba "Configurações > OpenAI".
+                Há um problema com sua API Key. Teste a conexão na aba "Configurações {'>'}OpenAI".
               </p>
             </div>
           )}
