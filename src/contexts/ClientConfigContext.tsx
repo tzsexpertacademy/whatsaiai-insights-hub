@@ -135,21 +135,55 @@ export function ClientConfigProvider({ children }: { children: React.ReactNode }
   };
 
   const testFirebaseConnection = async (): Promise<boolean> => {
-    const { projectId, apiKey } = config.firebase;
+    const { projectId, apiKey, databaseURL } = config.firebase;
     
     if (!projectId || !apiKey) {
+      console.log('Firebase - Campos obrigatórios ausentes');
+      setIsFirebaseConnected(false);
       return false;
     }
 
     try {
-      const testUrl = `https://identitytoolkit.googleapis.com/v1/projects/${projectId}?key=${apiKey}`;
-      const response = await fetch(testUrl, { method: 'GET' });
+      // Usar a mesma lógica do diagnóstico que está funcionando
+      const cleanUrl = databaseURL.replace(/\/$/, '');
+      const testUrl = `${cleanUrl}/.json?auth=${apiKey}`;
       
-      const isConnected = response.status !== 404 && response.status !== 401;
-      setIsFirebaseConnected(isConnected);
-      return isConnected;
+      console.log('Firebase - Testando conexão:', testUrl);
+      
+      const response = await fetch(testUrl, { 
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      console.log('Firebase - Status da resposta:', response.status);
+      
+      if (response.status === 404) {
+        console.log('Firebase - Project ID não encontrado');
+        setIsFirebaseConnected(false);
+        return false;
+      }
+
+      if (response.status === 401) {
+        console.log('Firebase - API Key inválida ou com restrições');
+        setIsFirebaseConnected(false);
+        return false;
+      }
+
+      if (response.status === 403) {
+        console.log('Firebase - Acesso negado - verificar regras');
+        setIsFirebaseConnected(false);
+        return false;
+      }
+
+      // Se chegou até aqui sem erro 401/403/404, está conectado
+      console.log('Firebase - Conexão bem-sucedida!');
+      setIsFirebaseConnected(true);
+      return true;
+      
     } catch (error) {
-      console.error('Firebase connection test failed:', error);
+      console.error('Firebase - Erro de rede:', error);
       setIsFirebaseConnected(false);
       return false;
     }
