@@ -8,8 +8,8 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { AdminProvider } from "@/contexts/AdminContext";
 import { ClientConfigProvider } from "@/contexts/ClientConfigContext";
 import { AnalysisDataProvider } from "@/contexts/AnalysisDataContext";
-import { ThemeProvider } from "@/contexts/ThemeProvider";
-import AppRouter from "@/components/AppRouter";
+import { ThemeProvider } from "@/hooks/useTheme";
+import { AppRouter } from "@/components/AppRouter";
 
 const queryClient = new QueryClient();
 
