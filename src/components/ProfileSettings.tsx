@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -29,12 +30,20 @@ export function ProfileSettings() {
     plan: 'basic',
     ai_analysis_enabled: false
   });
-  const [isLoading, setIsLoading] = useState(true); // Começar como true
+  const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    console.log('🔄 ProfileSettings useEffect - user:', user?.id);
+    console.log('🔄 ProfileSettings useEffect iniciado');
+    console.log('👤 Usuário atual:', { 
+      id: user?.id, 
+      email: user?.email, 
+      name: user?.name,
+      isAuthenticated: !!user 
+    });
+    
     if (user?.id) {
+      console.log('✅ Usuário encontrado, carregando perfil...');
       loadProfile();
     } else {
       console.log('❌ Usuário não encontrado, parando carregamento');
@@ -50,7 +59,7 @@ export function ProfileSettings() {
     }
 
     try {
-      console.log('📥 Carregando perfil do usuário:', user.id);
+      console.log('📥 Iniciando carregamento do perfil para usuário:', user.id);
 
       const { data, error } = await supabase
         .from('profiles')
@@ -58,11 +67,13 @@ export function ProfileSettings() {
         .eq('id', user.id)
         .maybeSingle();
 
+      console.log('📊 Resposta do Supabase:', { data, error });
+
       if (error) {
         console.error('❌ Erro ao carregar perfil:', error);
         toast({
           title: "Erro ao carregar perfil",
-          description: "Não foi possível carregar as informações do perfil",
+          description: `Erro: ${error.message}`,
           variant: "destructive"
         });
         setIsLoading(false);
@@ -70,7 +81,7 @@ export function ProfileSettings() {
       }
 
       if (data) {
-        console.log('✅ Perfil encontrado:', data);
+        console.log('✅ Perfil encontrado no banco:', data);
         setProfile({
           id: data.id,
           full_name: data.full_name || '',
@@ -79,7 +90,7 @@ export function ProfileSettings() {
           ai_analysis_enabled: data.ai_analysis_enabled || false
         });
       } else {
-        console.log('ℹ️ Nenhum perfil encontrado, usando dados do auth');
+        console.log('ℹ️ Nenhum perfil encontrado no banco, usando dados do auth');
         setProfile({
           id: user.id,
           full_name: user.name || '',
@@ -89,15 +100,16 @@ export function ProfileSettings() {
         });
       }
       
-      console.log('✅ Perfil carregado com sucesso');
+      console.log('✅ Perfil configurado com sucesso');
     } catch (error) {
       console.error('❌ Erro inesperado ao carregar perfil:', error);
       toast({
         title: "Erro inesperado",
-        description: "Não foi possível carregar o perfil",
+        description: `Não foi possível carregar o perfil: ${error.message}`,
         variant: "destructive"
       });
     } finally {
+      console.log('🏁 Finalizando carregamento do perfil');
       setIsLoading(false);
     }
   };
@@ -164,17 +176,22 @@ export function ProfileSettings() {
   };
 
   if (isLoading) {
+    console.log('⏳ Renderizando estado de carregamento');
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Carregando perfil...</p>
+          <p className="text-sm text-gray-400 mt-2">
+            ID do usuário: {user?.id || 'Não disponível'}
+          </p>
         </div>
       </div>
     );
   }
 
   if (!user) {
+    console.log('❌ Renderizando erro: usuário não encontrado');
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
@@ -185,12 +202,17 @@ export function ProfileSettings() {
     );
   }
 
+  console.log('✅ Renderizando interface do perfil para usuário:', user.email);
+
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-slate-800 mb-2">Perfil do Usuário</h1>
           <p className="text-slate-600">Gerencie suas informações pessoais e configurações</p>
+          <p className="text-sm text-blue-600 mt-1">
+            Logado como: {user.email} | ID: {user.id?.substring(0, 8)}...
+          </p>
         </div>
         
         <Button 

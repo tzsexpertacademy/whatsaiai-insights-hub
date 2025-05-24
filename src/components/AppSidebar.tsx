@@ -11,7 +11,8 @@ import {
   Settings,
   MessageCircle,
   Smartphone,
-  Shield
+  Shield,
+  UserCircle
 } from 'lucide-react';
 import {
   Sidebar,
@@ -39,6 +40,7 @@ const whatsappItems = [
 ];
 
 const configItems = [
+  { title: "Meu Perfil", url: "/user-profile", icon: UserCircle },
   { title: "Configurações", url: "/settings", icon: Settings },
   { title: "Painel Admin", url: "/admin/clients", icon: Shield },
 ];
@@ -107,7 +109,7 @@ export function AppSidebar() {
 
         <SidebarGroup>
           <SidebarGroupLabel className="text-gray-800 dark:text-white font-semibold text-xs mb-2 px-2 uppercase tracking-wide">
-            {!isCollapsed ? "SISTEMA" : ""}
+            {!isCollapsed ? "CONTA" : ""}
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu className="space-y-1">
