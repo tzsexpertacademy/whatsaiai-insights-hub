@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -42,6 +43,30 @@ interface AnalysisData {
     score: number;
     insights: string[];
   }>;
+  // Dados para os gráficos
+  emotionalData: Array<{
+    name: string;
+    level: number;
+    emotion: string;
+  }>;
+  lifeAreasData: Array<{
+    subject: string;
+    A: number;
+  }>;
+  bigFiveData: Array<{
+    name: string;
+    value: number;
+  }>;
+  skillsData: Array<{
+    title: string;
+    value: string;
+    trend: string;
+  }>;
+  // Estados derivados
+  psychologicalProfile: string;
+  emotionalState: string;
+  mainFocus: string;
+  relationalAwareness: number;
   hasRealData: boolean;
 }
 
@@ -64,10 +89,54 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
     emotionalStates: [],
     behavioralTraits: [],
     lifeAreas: [],
+    emotionalData: [],
+    lifeAreasData: [],
+    bigFiveData: [],
+    skillsData: [],
+    psychologicalProfile: 'Aguardando análise',
+    emotionalState: 'Neutro',
+    mainFocus: 'Indefinido',
+    relationalAwareness: 0,
     hasRealData: false
   });
 
   // Funções para gerar dados mock
+  const generateMockEmotionalData = () => {
+    const days = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+    const emotions = ['Alegria', 'Tranquilidade', 'Energia', 'Reflexão', 'Esperança', 'Gratidão', 'Serenidade'];
+    return days.map((day, index) => ({
+      name: day,
+      level: Math.floor(Math.random() * 40) + 60, // Entre 60-100
+      emotion: emotions[index]
+    }));
+  };
+
+  const generateMockLifeAreasData = () => {
+    const areas = ['Carreira', 'Saúde', 'Relacionamentos', 'Finanças', 'Desenvolvimento', 'Lazer'];
+    return areas.map(area => ({
+      subject: area,
+      A: Math.floor(Math.random() * 50) + 50 // Entre 50-100
+    }));
+  };
+
+  const generateMockBigFiveData = () => {
+    return [
+      { name: 'Extroversão', value: Math.floor(Math.random() * 40) + 60 },
+      { name: 'Amabilidade', value: Math.floor(Math.random() * 40) + 60 },
+      { name: 'Conscienciosidade', value: Math.floor(Math.random() * 40) + 60 },
+      { name: 'Neuroticismo', value: Math.floor(Math.random() * 40) + 30 },
+      { name: 'Abertura', value: Math.floor(Math.random() * 40) + 60 }
+    ];
+  };
+
+  const generateMockSkillsData = () => {
+    return [
+      { title: 'Inteligência Emocional', value: '85%', trend: '+12%' },
+      { title: 'Autoconhecimento', value: '78%', trend: '+8%' },
+      { title: 'Comunicação', value: '92%', trend: '+5%' }
+    ];
+  };
+
   const generateMockEmotionalStates = () => {
     const states = ['Alegria', 'Tristeza', 'Raiva', 'Medo', 'Surpresa'];
     return states.map(state => ({
@@ -110,46 +179,49 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
 
       if (insightsError) throw insightsError;
 
-      // Buscar recomendações
-      const { data: recommendationsData, error: recommendationsError } = await supabase
-        .from('recommendations')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (recommendationsError) throw recommendationsError;
-
       console.log('✅ Dados carregados:', { 
-        insights: insightsData?.length || 0, 
-        recommendations: recommendationsData?.length || 0 
+        insights: insightsData?.length || 0
       });
 
-      const hasRealData = (insightsData && insightsData.length > 0) || 
-                         (recommendationsData && recommendationsData.length > 0);
+      const hasRealData = insightsData && insightsData.length > 0;
 
       if (hasRealData) {
         // Processar insights com informações do assistente
-        const insightsWithAssistant = (insightsData || []).map(insight => ({
+        const processedInsights = insightsData.map(insight => ({
+          id: insight.id,
           text: insight.description || insight.title,
+          priority: insight.priority,
+          created_at: insight.created_at,
+          metadata: insight.metadata || {}
+        }));
+
+        const insightsWithAssistant = processedInsights.map(insight => ({
+          text: insight.text,
           assistantName: insight.metadata?.assistantName,
           assistantArea: insight.metadata?.assistantArea
         }));
 
-        // Processar recomendações com informações do assistente
-        const recommendationsWithAssistant = (recommendationsData || []).map(recommendation => ({
-          text: recommendation.description || recommendation.title,
-          assistantName: recommendation.metadata?.assistantName,
-          assistantArea: recommendation.metadata?.assistantArea
-        }));
+        // Gerar dados derivados baseados nos insights reais
+        const profiles = ['Analítico', 'Criativo', 'Estratégico', 'Empático', 'Focado'];
+        const emotions = ['Equilibrado', 'Confiante', 'Reflexivo', 'Determinado'];
+        const focuses = ['Crescimento', 'Relacionamentos', 'Carreira', 'Bem-estar'];
 
         setData({
-          insights: insightsData || [],
+          insights: processedInsights,
           insightsWithAssistant,
-          recommendations: recommendationsData || [],
-          recommendationsWithAssistant,
+          recommendations: [], // Por enquanto vazio, pois a tabela recommendations não existe
+          recommendationsWithAssistant: [],
           emotionalStates: generateMockEmotionalStates(),
           behavioralTraits: generateMockBehavioralTraits(),
           lifeAreas: generateMockLifeAreas(),
+          emotionalData: generateMockEmotionalData(),
+          lifeAreasData: generateMockLifeAreasData(),
+          bigFiveData: generateMockBigFiveData(),
+          skillsData: generateMockSkillsData(),
+          psychologicalProfile: profiles[Math.floor(Math.random() * profiles.length)],
+          emotionalState: emotions[Math.floor(Math.random() * emotions.length)],
+          mainFocus: focuses[Math.floor(Math.random() * focuses.length)],
+          relationalAwareness: Math.floor(Math.random() * 30) + 70,
           hasRealData: true
         });
       } else {
@@ -162,6 +234,14 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
           emotionalStates: generateMockEmotionalStates(),
           behavioralTraits: generateMockBehavioralTraits(),
           lifeAreas: generateMockLifeAreas(),
+          emotionalData: generateMockEmotionalData(),
+          lifeAreasData: generateMockLifeAreasData(),
+          bigFiveData: generateMockBigFiveData(),
+          skillsData: generateMockSkillsData(),
+          psychologicalProfile: 'Aguardando análise',
+          emotionalState: 'Neutro',
+          mainFocus: 'Indefinido',
+          relationalAwareness: 0,
           hasRealData: false
         });
       }
@@ -177,6 +257,14 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
         emotionalStates: generateMockEmotionalStates(),
         behavioralTraits: generateMockBehavioralTraits(),
         lifeAreas: generateMockLifeAreas(),
+        emotionalData: generateMockEmotionalData(),
+        lifeAreasData: generateMockLifeAreasData(),
+        bigFiveData: generateMockBigFiveData(),
+        skillsData: generateMockSkillsData(),
+        psychologicalProfile: 'Aguardando análise',
+        emotionalState: 'Neutro',
+        mainFocus: 'Indefinido',
+        relationalAwareness: 0,
         hasRealData: false
       });
     }
