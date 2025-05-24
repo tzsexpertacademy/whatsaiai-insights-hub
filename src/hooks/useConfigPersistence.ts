@@ -62,12 +62,12 @@ export function useConfigPersistence({
         console.log('ℹ️ Criando configuração inicial');
         await supabase
           .from('client_configs')
-          .insert([{
+          .insert({
             user_id: user.id,
             whatsapp_config: defaultConfig.whatsapp,
             openai_config: defaultConfig.openai,
             firebase_config: defaultConfig.firebase
-          }]);
+          });
         setConfig(defaultConfig);
       }
     } catch (error) {
@@ -85,13 +85,13 @@ export function useConfigPersistence({
       
       const { error } = await supabase
         .from('client_configs')
-        .upsert([{
+        .upsert({
           user_id: userId,
           whatsapp_config: config.whatsapp,
           openai_config: config.openai,
           firebase_config: config.firebase,
           updated_at: new Date().toISOString()
-        }]);
+        });
 
       if (error) {
         console.error('❌ Erro ao salvar configurações:', error);
