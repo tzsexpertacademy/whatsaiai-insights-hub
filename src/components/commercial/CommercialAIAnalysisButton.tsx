@@ -2,26 +2,26 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Brain, Loader2 } from 'lucide-react';
-import { useAIAnalysis } from '@/hooks/useAIAnalysis';
+import { useCommercialAIAnalysis } from '@/hooks/useCommercialAIAnalysis';
 
-export function AIAnalysisButton() {
-  const { isAnalyzing, triggerAIAnalysis } = useAIAnalysis();
+export function CommercialAIAnalysisButton() {
+  const { isAnalyzing, triggerCommercialAnalysis } = useCommercialAIAnalysis();
 
   return (
     <Button 
-      onClick={triggerAIAnalysis}
+      onClick={triggerCommercialAnalysis}
       disabled={isAnalyzing}
-      className="bg-purple-600 hover:bg-purple-700 text-white"
+      className="bg-green-600 hover:bg-green-700 text-white"
     >
       {isAnalyzing ? (
         <>
           <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-          Analisando...
+          Analisando Dados Comerciais...
         </>
       ) : (
         <>
           <Brain className="h-4 w-4 mr-2" />
-          Análise por IA
+          Análise Comercial por IA
         </>
       )}
     </Button>

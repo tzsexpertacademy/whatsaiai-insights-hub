@@ -54,46 +54,22 @@ export function DatabaseCleanup() {
         return;
       }
 
-      console.log('🗑️ Iniciando limpeza do banco de dados para usuário:', user.id);
+      console.log('🗑️ Iniciando limpeza do banco do Observatório para usuário:', user.id);
 
-      // Deletar conversas do WhatsApp
-      const { error: conversationsError } = await supabase
-        .from('whatsapp_conversations')
-        .delete()
-        .eq('user_id', user.id);
+      // Deletar dados específicos do Observatório da Consciência
+      const deletionPromises = [
+        supabase.from('whatsapp_conversations').delete().eq('user_id', user.id),
+        supabase.from('whatsapp_messages').delete().eq('user_id', user.id),
+        supabase.from('insights').delete().eq('user_id', user.id)
+      ];
 
-      if (conversationsError) {
-        console.error('❌ Erro ao deletar conversas:', conversationsError);
-        throw conversationsError;
-      }
+      await Promise.all(deletionPromises);
 
-      // Deletar mensagens do WhatsApp
-      const { error: messagesError } = await supabase
-        .from('whatsapp_messages')
-        .delete()
-        .eq('user_id', user.id);
-
-      if (messagesError) {
-        console.error('❌ Erro ao deletar mensagens:', messagesError);
-        throw messagesError;
-      }
-
-      // Deletar insights
-      const { error: insightsError } = await supabase
-        .from('insights')
-        .delete()
-        .eq('user_id', user.id);
-
-      if (insightsError) {
-        console.error('❌ Erro ao deletar insights:', insightsError);
-        throw insightsError;
-      }
-
-      console.log('✅ Banco de dados limpo com sucesso');
+      console.log('✅ Dados do Observatório da Consciência limpos com sucesso');
 
       toast({
-        title: "Dados excluídos com sucesso!",
-        description: "Todas as conversas, mensagens e análises foram removidas. Agora você pode testar novamente.",
+        title: "Dados do Observatório excluídos!",
+        description: "Todas as conversas, mensagens e análises do Observatório foram removidas. O sistema está pronto para novos dados.",
       });
 
       // Limpar formulário
@@ -106,10 +82,10 @@ export function DatabaseCleanup() {
       }, 2000);
 
     } catch (error) {
-      console.error('❌ Erro durante limpeza do banco:', error);
+      console.error('❌ Erro durante limpeza do banco do Observatório:', error);
       toast({
         title: "Erro ao excluir dados",
-        description: "Não foi possível excluir os dados. Tente novamente.",
+        description: "Não foi possível excluir os dados do Observatório. Tente novamente.",
         variant: "destructive"
       });
     } finally {
@@ -123,23 +99,23 @@ export function DatabaseCleanup() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-red-800">
             <Database className="h-5 w-5" />
-            Limpeza do Banco de Dados
+            Limpeza de Dados do Observatório
           </CardTitle>
           <CardDescription className="text-red-700">
-            Use esta função para testar se os assistentes estão funcionando corretamente
+            Use esta função para limpar todos os dados do Observatório da Consciência
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <Alert>
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription>
-              Esta ação irá excluir todas as conversas, mensagens e análises existentes. 
-              Use apenas para testes dos assistentes.
+              Esta ação irá excluir todos os dados relacionados exclusivamente ao Observatório da Consciência.
+              Os dados do módulo comercial não serão afetados.
             </AlertDescription>
           </Alert>
 
           <div className="space-y-3">
-            <h4 className="font-medium text-red-800">O que será excluído:</h4>
+            <h4 className="font-medium text-red-800">O que será excluído do Observatório:</h4>
             <ul className="text-sm text-red-700 space-y-1 list-disc list-inside">
               <li>Todas as conversas do WhatsApp</li>
               <li>Todas as mensagens armazenadas</li>
@@ -154,7 +130,7 @@ export function DatabaseCleanup() {
             className="w-full"
           >
             <Trash2 className="h-4 w-4 mr-2" />
-            Limpar Dados para Teste
+            Limpar Dados do Observatório
           </Button>
         </CardContent>
       </Card>
@@ -166,17 +142,17 @@ export function DatabaseCleanup() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-red-800">
           <AlertTriangle className="h-5 w-5" />
-          Confirmar Exclusão
+          Confirmar Exclusão dos Dados do Observatório
         </CardTitle>
         <CardDescription className="text-red-700">
-          Digite sua senha para confirmar a exclusão de todos os dados
+          Digite sua senha para confirmar a exclusão de todos os dados do Observatório
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <Alert>
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription className="text-red-800 font-medium">
-            ⚠️ ATENÇÃO: Esta ação não pode ser desfeita!
+            ⚠️ ATENÇÃO: Esta ação não pode ser desfeita! Todos os dados do Observatório serão perdidos.
           </AlertDescription>
         </Alert>
 
@@ -202,7 +178,7 @@ export function DatabaseCleanup() {
             {isDeleting ? (
               <>
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                Excluindo...
+                Excluindo Dados do Observatório...
               </>
             ) : (
               <>

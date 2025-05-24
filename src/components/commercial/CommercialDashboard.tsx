@@ -1,10 +1,10 @@
-
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
 import { TrendingUp, TrendingDown, Users, Target, DollarSign, Clock, AlertCircle, CheckCircle } from 'lucide-react';
+import { CommercialAIAnalysisButton } from './CommercialAIAnalysisButton';
 
 const mockVolumeData = [
   { name: 'Jan', leads: 120, qualified: 85, meetings: 65 },
@@ -59,6 +59,7 @@ export function CommercialDashboard() {
         <div className="flex items-center gap-3">
           <Badge className="bg-green-100 text-green-800">Operacional</Badge>
           <Badge className="bg-blue-100 text-blue-800">Pipeline Saudável</Badge>
+          <CommercialAIAnalysisButton />
         </div>
       </div>
 
