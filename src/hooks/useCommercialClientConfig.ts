@@ -42,13 +42,19 @@ export function useCommercialClientConfig() {
 
       if (data) {
         console.log('✅ Configuração comercial carregada:', data);
+        
+        // Fazer casting seguro das configurações JSON
+        const whatsappConfig = data.whatsapp_config as any || {};
+        const openaiConfig = data.openai_config as any || {};
+        const firebaseConfig = data.firebase_config as any || {};
+        
         // Extrair configurações comerciais dos campos existentes
         const commercialConfig = {
           id: data.id,
           user_id: data.user_id,
-          commercial_whatsapp_config: data.whatsapp_config?.commercial || {},
-          commercial_openai_config: data.openai_config?.commercial || {},
-          commercial_firebase_config: data.firebase_config?.commercial || {},
+          commercial_whatsapp_config: whatsappConfig.commercial || {},
+          commercial_openai_config: openaiConfig.commercial || {},
+          commercial_firebase_config: firebaseConfig.commercial || {},
           created_at: data.created_at,
           updated_at: data.updated_at
         };
@@ -111,20 +117,25 @@ export function useCommercialClientConfig() {
 
       if (!currentData) throw new Error('Configuração não encontrada');
 
+      // Fazer casting seguro dos dados atuais
+      const currentWhatsapp = currentData.whatsapp_config as any || {};
+      const currentOpenAI = currentData.openai_config as any || {};
+      const currentFirebase = currentData.firebase_config as any || {};
+
       // Mesclar as atualizações com a configuração existente
       const updatedWhatsappConfig = {
-        ...currentData.whatsapp_config,
-        commercial: updates.commercial_whatsapp_config || currentData.whatsapp_config?.commercial || {}
+        ...currentWhatsapp,
+        commercial: updates.commercial_whatsapp_config || currentWhatsapp.commercial || {}
       };
 
       const updatedOpenAIConfig = {
-        ...currentData.openai_config,
-        commercial: updates.commercial_openai_config || currentData.openai_config?.commercial || {}
+        ...currentOpenAI,
+        commercial: updates.commercial_openai_config || currentOpenAI.commercial || {}
       };
 
       const updatedFirebaseConfig = {
-        ...currentData.firebase_config,
-        commercial: updates.commercial_firebase_config || currentData.firebase_config?.commercial || {}
+        ...currentFirebase,
+        commercial: updates.commercial_firebase_config || currentFirebase.commercial || {}
       };
 
       const { data, error } = await supabase
@@ -145,12 +156,17 @@ export function useCommercialClientConfig() {
 
       console.log('✅ Configuração comercial atualizada:', data);
       
+      // Fazer casting seguro dos dados atualizados
+      const updatedWhatsapp = data.whatsapp_config as any || {};
+      const updatedOpenai = data.openai_config as any || {};
+      const updatedFirebaseData = data.firebase_config as any || {};
+      
       const commercialConfig = {
         id: data.id,
         user_id: data.user_id,
-        commercial_whatsapp_config: data.whatsapp_config?.commercial || {},
-        commercial_openai_config: data.openai_config?.commercial || {},
-        commercial_firebase_config: data.firebase_config?.commercial || {},
+        commercial_whatsapp_config: updatedWhatsapp.commercial || {},
+        commercial_openai_config: updatedOpenai.commercial || {},
+        commercial_firebase_config: updatedFirebaseData.commercial || {},
         created_at: data.created_at,
         updated_at: data.updated_at
       };
