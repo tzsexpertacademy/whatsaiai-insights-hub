@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -192,13 +191,13 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
           text: insight.description || insight.title,
           priority: insight.priority,
           created_at: insight.created_at,
-          metadata: insight.metadata || {}
+          metadata: {} // Usar objeto vazio como fallback já que a coluna metadata não existe
         }));
 
         const insightsWithAssistant = processedInsights.map(insight => ({
           text: insight.text,
-          assistantName: insight.metadata?.assistantName,
-          assistantArea: insight.metadata?.assistantArea
+          assistantName: undefined, // Remover referência a metadata que não existe
+          assistantArea: undefined
         }));
 
         // Gerar dados derivados baseados nos insights reais

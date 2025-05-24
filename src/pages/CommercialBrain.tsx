@@ -1,0 +1,39 @@
+
+import React from 'react';
+import { Routes, Route } from 'react-router-dom';
+import { SidebarProvider } from "@/components/ui/sidebar";
+import { CommercialSidebar } from '@/components/commercial/CommercialSidebar';
+import { DashboardHeader } from '@/components/DashboardHeader';
+import { CommercialDashboard } from '@/components/commercial/CommercialDashboard';
+import { FunnelAnalysis } from '@/components/commercial/FunnelAnalysis';
+import { SalesPerformance } from '@/components/commercial/SalesPerformance';
+import { BehavioralMetrics } from '@/components/commercial/BehavioralMetrics';
+import { TeamCulture } from '@/components/commercial/TeamCulture';
+import { StrategicMetrics } from '@/components/commercial/StrategicMetrics';
+
+export function CommercialBrain() {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-background via-background/95 to-background/90">
+      <SidebarProvider defaultOpen={true}>
+        <div className="flex min-h-screen w-full">
+          <CommercialSidebar />
+          <div className="flex-1 flex flex-col min-w-0">
+            <DashboardHeader />
+            <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-auto">
+              <div className="max-w-7xl mx-auto">
+                <Routes>
+                  <Route path="/" element={<CommercialDashboard />} />
+                  <Route path="/funnel" element={<FunnelAnalysis />} />
+                  <Route path="/performance" element={<SalesPerformance />} />
+                  <Route path="/behavioral" element={<BehavioralMetrics />} />
+                  <Route path="/culture" element={<TeamCulture />} />
+                  <Route path="/strategic" element={<StrategicMetrics />} />
+                </Routes>
+              </div>
+            </main>
+          </div>
+        </div>
+      </SidebarProvider>
+    </div>
+  );
+}

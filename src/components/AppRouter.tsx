@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { LoginPage } from './auth/LoginPage';
 import { SolutionsHub } from '@/pages/SolutionsHub';
 import Index from '@/pages/Index';
+import { CommercialBrain } from '@/pages/CommercialBrain';
 import { AdminDashboard } from './admin/AdminDashboard';
 import { AdminRoute } from './AdminRoute';
 
@@ -43,6 +44,10 @@ export function AppRouter() {
       <Route 
         path="/dashboard/*" 
         element={isAuthenticated ? <Index /> : <Navigate to="/auth" replace />} 
+      />
+      <Route 
+        path="/commercial/*" 
+        element={isAuthenticated ? <CommercialBrain /> : <Navigate to="/auth" replace />} 
       />
       <Route 
         path="/" 
