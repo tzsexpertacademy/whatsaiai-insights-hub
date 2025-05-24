@@ -1,11 +1,10 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Database, CheckCircle, AlertCircle, Upload, Copy, Shield, Cloud } from 'lucide-react';
+import { Database, CheckCircle, AlertCircle, Upload, Copy, Shield, Cloud, Loader2 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { useClientConfig } from '@/contexts/ClientConfigContext';
 import { FirebaseConnectionDiagnostics } from './FirebaseConnectionDiagnostics';
@@ -225,7 +224,12 @@ export function FirebaseConfig() {
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-3 mb-4">
-              {isFirebaseConnected ? (
+              {isLoading ? (
+                <>
+                  <Loader2 className="h-6 w-6 text-blue-500 animate-spin" />
+                  <span className="text-blue-600 font-medium">Verificando...</span>
+                </>
+              ) : isFirebaseConnected ? (
                 <>
                   <CheckCircle className="h-6 w-6 text-green-500" />
                   <span className="text-green-600 font-medium">Conectado</span>
@@ -280,7 +284,14 @@ export function FirebaseConfig() {
                   disabled={isTestingConnection || isLoading}
                   className="flex-1"
                 >
-                  {isTestingConnection ? "Testando..." : "Testar e Salvar"}
+                  {isTestingConnection ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Testando...
+                    </>
+                  ) : (
+                    "Testar e Salvar"
+                  )}
                 </Button>
               ) : (
                 <Button 
@@ -358,7 +369,14 @@ export function FirebaseConfig() {
                 className="w-full mt-4"
                 disabled={isLoading}
               >
-                Salvar Configurações
+                {isLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Salvando...
+                  </>
+                ) : (
+                  "Salvar Configurações"
+                )}
               </Button>
             )}
           </CardContent>

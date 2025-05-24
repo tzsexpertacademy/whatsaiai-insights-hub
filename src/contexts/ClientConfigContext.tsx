@@ -24,7 +24,7 @@ export function ClientConfigProvider({ children }: { children: React.ReactNode }
   const mountedRef = useRef(true);
   
   const { loadConfig, saveConfig: saveConfigToDb } = useConfigPersistence();
-  const { isFirebaseConnected, testFirebaseConnection: testFirebase } = useFirebaseTest();
+  const { isFirebaseConnected, testFirebaseConnection: testFirebase, checkConnectionStatus } = useFirebaseTest();
 
   // Cleanup on unmount
   useEffect(() => {
@@ -48,6 +48,10 @@ export function ClientConfigProvider({ children }: { children: React.ReactNode }
         
         if (mountedRef.current) {
           setConfig(loadedConfig);
+          // Verificar status de conexão Firebase após carregar config
+          if (loadedConfig.firebase.projectId && loadedConfig.firebase.apiKey) {
+            await checkConnectionStatus(loadedConfig);
+          }
           initialized.current = true;
         }
       } catch (error) {
@@ -63,7 +67,7 @@ export function ClientConfigProvider({ children }: { children: React.ReactNode }
     };
 
     initializeConfig();
-  }, [user?.id, isAuthenticated, loadConfig]);
+  }, [user?.id, isAuthenticated, loadConfig, checkConnectionStatus]);
 
   // Reset when user changes
   useEffect(() => {
@@ -78,10 +82,19 @@ export function ClientConfigProvider({ children }: { children: React.ReactNode }
   const updateConfig = (section: keyof ClientConfig, updates: Partial<ClientConfig[keyof ClientConfig]>) => {
     if (!mountedRef.current) return;
     
-    setConfig(prev => ({
-      ...prev,
-      [section]: { ...prev[section], ...updates }
-    }));
+    setConfig(prev => {
+      const newConfig = {
+        ...prev,
+        [section]: { ...prev[section], ...updates }
+      };
+      
+      // Se atualizou configurações do Firebase, verificar conexão
+      if (section === 'firebase' && newConfig.firebase.projectId && newConfig.firebase.apiKey) {
+        checkConnectionStatus(newConfig);
+      }
+      
+      return newConfig;
+    });
   };
 
   const saveConfig = async (): Promise<void> => {
@@ -92,6 +105,10 @@ export function ClientConfigProvider({ children }: { children: React.ReactNode }
     try {
       setIsLoading(true);
       await saveConfigToDb(config, user.id);
+      // Verificar conexão Firebase após salvar
+      if (config.firebase.projectId && config.firebase.apiKey) {
+        await checkConnectionStatus(config);
+      }
     } catch (error) {
       console.error('❌ Erro ao salvar:', error);
       throw error;
