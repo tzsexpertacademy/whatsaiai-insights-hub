@@ -133,21 +133,12 @@ export function useAssistantsConfig() {
 
     try {
       setIsLoading(true);
-
-      const { data: config } = await supabase
-        .from('client_configs')
-        .select('openai_config')
-        .eq('user_id', user.id)
-        .single();
-
-      const openaiConfig = config?.openai_config as OpenAIConfig | null;
       
-      if (openaiConfig?.assistants && openaiConfig.assistants.length > 0) {
-        setAssistants(openaiConfig.assistants);
-      } else {
-        setAssistants(defaultAssistants);
-        await saveAssistants(defaultAssistants);
-      }
+      // FORÇA atualização com os novos assistentes
+      console.log('🔄 Forçando atualização dos assistentes do Observatório da Consciência');
+      setAssistants(defaultAssistants);
+      await saveAssistants(defaultAssistants);
+      
     } catch (error) {
       console.error('Erro ao carregar assistentes do observatório:', error);
       setAssistants(defaultAssistants);
@@ -186,9 +177,11 @@ export function useAssistantsConfig() {
 
       setAssistants(updatedAssistants);
       
+      console.log('✅ Novos assistentes salvos no banco:', updatedAssistants.length);
+      
       toast({
-        title: "Assistentes salvos",
-        description: "Configurações dos assistentes atualizadas com sucesso",
+        title: "Assistentes atualizados",
+        description: "Novos assistentes do Observatório da Consciência carregados com sucesso",
       });
     } catch (error) {
       console.error('Erro ao salvar assistentes:', error);
