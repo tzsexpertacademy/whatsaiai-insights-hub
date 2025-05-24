@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Database, CheckCircle, AlertCircle, Upload, Copy, Shield, Cloud } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { useClientConfig } from '@/contexts/ClientConfigContext';
+import { FirebaseConnectionDiagnostics } from './FirebaseConnectionDiagnostics';
 
 export function FirebaseClientConfig() {
   const { config, updateConfig, saveConfig, isLoading, isFirebaseConnected, testFirebaseConnection } = useClientConfig();
@@ -81,7 +82,6 @@ export function FirebaseClientConfig() {
   const handleSaveConfig = async () => {
     try {
       await saveConfig();
-      // Testar conexão após salvar
       await testFirebaseConnection();
     } catch (error) {
       console.error('Erro ao salvar configuração:', error);
@@ -289,17 +289,23 @@ export function FirebaseClientConfig() {
             </div>
 
             <div>
-              <Label htmlFor="databaseURL">Database URL</Label>
+              <Label htmlFor="databaseURL">Database URL *</Label>
               <Input
                 id="databaseURL"
-                placeholder="https://projeto-do-cliente.firebaseio.com"
+                placeholder="https://projeto-do-cliente-default-rtdb.firebaseio.com/"
                 value={config.firebase.databaseURL}
                 onChange={(e) => updateConfig('firebase', { databaseURL: e.target.value })}
               />
+              <p className="text-xs text-gray-500 mt-1">
+                Deve terminar com .firebaseio.com/ (com barra no final)
+              </p>
             </div>
           </CardContent>
         </Card>
       </div>
+
+      {/* Diagnóstico de Conexão */}
+      <FirebaseConnectionDiagnostics config={config.firebase} />
 
       <Card className="bg-white/70 backdrop-blur-sm border-white/50">
         <CardHeader>
