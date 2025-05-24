@@ -56,23 +56,9 @@ export function CommercialDatabaseCleanup() {
 
       console.log('🗑️ Iniciando limpeza do banco comercial para usuário:', user.id);
 
-      // Para o módulo comercial, vamos deletar dados específicos relacionados a vendas
-      // Por enquanto, vamos limpar dados gerais que podem ser usados pelo comercial
-      
-      // Deletar conversas do WhatsApp relacionadas ao comercial
-      const { error: conversationsError } = await supabase
-        .from('whatsapp_conversations')
-        .delete()
-        .eq('user_id', user.id);
-
-      if (conversationsError) {
-        console.error('❌ Erro ao deletar conversas comerciais:', conversationsError);
-        throw conversationsError;
-      }
-
-      // Deletar mensagens do WhatsApp relacionadas ao comercial
+      // Deletar mensagens comerciais
       const { error: messagesError } = await supabase
-        .from('whatsapp_messages')
+        .from('commercial_messages')
         .delete()
         .eq('user_id', user.id);
 
@@ -81,9 +67,9 @@ export function CommercialDatabaseCleanup() {
         throw messagesError;
       }
 
-      // Deletar insights relacionados ao comercial
+      // Deletar insights comerciais
       const { error: insightsError } = await supabase
-        .from('insights')
+        .from('commercial_insights')
         .delete()
         .eq('user_id', user.id);
 
@@ -92,11 +78,55 @@ export function CommercialDatabaseCleanup() {
         throw insightsError;
       }
 
+      // Deletar conversas comerciais
+      const { error: conversationsError } = await supabase
+        .from('commercial_conversations')
+        .delete()
+        .eq('user_id', user.id);
+
+      if (conversationsError) {
+        console.error('❌ Erro ao deletar conversas comerciais:', conversationsError);
+        throw conversationsError;
+      }
+
+      // Deletar métricas de vendas
+      const { error: metricsError } = await supabase
+        .from('sales_metrics')
+        .delete()
+        .eq('user_id', user.id);
+
+      if (metricsError) {
+        console.error('❌ Erro ao deletar métricas de vendas:', metricsError);
+        throw metricsError;
+      }
+
+      // Deletar dados do funil de vendas
+      const { error: funnelError } = await supabase
+        .from('sales_funnel_data')
+        .delete()
+        .eq('user_id', user.id);
+
+      if (funnelError) {
+        console.error('❌ Erro ao deletar dados do funil:', funnelError);
+        throw funnelError;
+      }
+
+      // Deletar configurações de assistentes comerciais
+      const { error: assistantsError } = await supabase
+        .from('commercial_assistants_config')
+        .delete()
+        .eq('user_id', user.id);
+
+      if (assistantsError) {
+        console.error('❌ Erro ao deletar configurações de assistentes:', assistantsError);
+        throw assistantsError;
+      }
+
       console.log('✅ Dados comerciais limpos com sucesso');
 
       toast({
         title: "Dados comerciais excluídos!",
-        description: "Todos os dados comerciais foram removidos. O sistema está pronto para novos testes.",
+        description: "Todos os dados do módulo comercial foram removidos. O sistema está pronto para novos testes.",
       });
 
       // Limpar formulário
@@ -136,20 +166,20 @@ export function CommercialDatabaseCleanup() {
           <Alert>
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription>
-              Esta ação irá excluir todos os dados relacionados ao módulo comercial, incluindo 
-              conversas, análises de vendas e métricas comerciais.
+              Esta ação irá excluir todos os dados relacionados exclusivamente ao módulo comercial.
+              Os dados do Observatório da Consciência não serão afetados.
             </AlertDescription>
           </Alert>
 
           <div className="space-y-3">
             <h4 className="font-medium text-red-800">O que será excluído do módulo comercial:</h4>
             <ul className="text-sm text-red-700 space-y-1 list-disc list-inside">
-              <li>Todas as conversas comerciais do WhatsApp</li>
-              <li>Todas as mensagens e análises de vendas</li>
+              <li>Todas as conversas comerciais</li>
+              <li>Todas as mensagens comerciais</li>
               <li>Todos os insights comerciais gerados</li>
-              <li>Dados de métricas comerciais</li>
-              <li>Análises de funil de vendas</li>
-              <li>Dados de performance comercial</li>
+              <li>Todas as métricas de vendas</li>
+              <li>Dados do funil de vendas</li>
+              <li>Configurações dos assistentes comerciais</li>
             </ul>
           </div>
 

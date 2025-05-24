@@ -39,6 +39,175 @@ export type Database = {
         }
         Relationships: []
       }
+      commercial_assistants_config: {
+        Row: {
+          assistant_name: string
+          assistant_role: string
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          prompt: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          assistant_name: string
+          assistant_role: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          prompt: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          assistant_name?: string
+          assistant_role?: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          prompt?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      commercial_conversations: {
+        Row: {
+          contact_name: string
+          contact_phone: string
+          conversion_metrics: Json | null
+          created_at: string
+          id: string
+          lead_status: string | null
+          messages: Json | null
+          sales_analysis: Json | null
+          sales_stage: string | null
+          session_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          contact_name: string
+          contact_phone: string
+          conversion_metrics?: Json | null
+          created_at?: string
+          id?: string
+          lead_status?: string | null
+          messages?: Json | null
+          sales_analysis?: Json | null
+          sales_stage?: string | null
+          session_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          contact_name?: string
+          contact_phone?: string
+          conversion_metrics?: Json | null
+          created_at?: string
+          id?: string
+          lead_status?: string | null
+          messages?: Json | null
+          sales_analysis?: Json | null
+          sales_stage?: string | null
+          session_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      commercial_insights: {
+        Row: {
+          conversation_id: string | null
+          created_at: string | null
+          description: string
+          id: string
+          insight_type: string
+          priority: string | null
+          sales_impact: string | null
+          status: string | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          conversation_id?: string | null
+          created_at?: string | null
+          description: string
+          id?: string
+          insight_type: string
+          priority?: string | null
+          sales_impact?: string | null
+          status?: string | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          conversation_id?: string | null
+          created_at?: string | null
+          description?: string
+          id?: string
+          insight_type?: string
+          priority?: string | null
+          sales_impact?: string | null
+          status?: string | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commercial_insights_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "commercial_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      commercial_messages: {
+        Row: {
+          ai_generated: boolean | null
+          conversation_id: string | null
+          conversion_score: number | null
+          id: string
+          message_text: string
+          sales_intent: Json | null
+          sender_type: string | null
+          timestamp: string | null
+          user_id: string
+        }
+        Insert: {
+          ai_generated?: boolean | null
+          conversation_id?: string | null
+          conversion_score?: number | null
+          id?: string
+          message_text: string
+          sales_intent?: Json | null
+          sender_type?: string | null
+          timestamp?: string | null
+          user_id: string
+        }
+        Update: {
+          ai_generated?: boolean | null
+          conversation_id?: string | null
+          conversion_score?: number | null
+          id?: string
+          message_text?: string
+          sales_intent?: Json | null
+          sender_type?: string | null
+          timestamp?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commercial_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "commercial_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       insights: {
         Row: {
           conversation_id: string | null
@@ -110,6 +279,90 @@ export type Database = {
           id?: string
           plan?: string | null
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      sales_funnel_data: {
+        Row: {
+          average_time_in_stage: number | null
+          conversion_rate: number | null
+          created_at: string | null
+          id: string
+          leads_count: number | null
+          stage_name: string
+          stage_order: number
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          average_time_in_stage?: number | null
+          conversion_rate?: number | null
+          created_at?: string | null
+          id?: string
+          leads_count?: number | null
+          stage_name: string
+          stage_order: number
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          average_time_in_stage?: number | null
+          conversion_rate?: number | null
+          created_at?: string | null
+          id?: string
+          leads_count?: number | null
+          stage_name?: string
+          stage_order?: number
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      sales_metrics: {
+        Row: {
+          average_deal_size: number | null
+          conversations_started: number | null
+          conversion_rate: number | null
+          conversions: number | null
+          created_at: string | null
+          id: string
+          leads_generated: number | null
+          metric_date: string
+          qualified_leads: number | null
+          revenue_generated: number | null
+          sales_cycle_days: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          average_deal_size?: number | null
+          conversations_started?: number | null
+          conversion_rate?: number | null
+          conversions?: number | null
+          created_at?: string | null
+          id?: string
+          leads_generated?: number | null
+          metric_date: string
+          qualified_leads?: number | null
+          revenue_generated?: number | null
+          sales_cycle_days?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          average_deal_size?: number | null
+          conversations_started?: number | null
+          conversion_rate?: number | null
+          conversions?: number | null
+          created_at?: string | null
+          id?: string
+          leads_generated?: number | null
+          metric_date?: string
+          qualified_leads?: number | null
+          revenue_generated?: number | null
+          sales_cycle_days?: number | null
+          updated_at?: string | null
+          user_id?: string
         }
         Relationships: []
       }
