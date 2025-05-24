@@ -1,5 +1,5 @@
 
-import { Brain, BarChart3, User, Heart, Target, MessageSquare, Settings, UserCircle, Users, FileSearch } from 'lucide-react';
+import { Brain, BarChart3, User, Heart, Target, MessageSquare, Settings, UserCircle, Users, FileSearch, ArrowLeft } from 'lucide-react';
 import {
   Sidebar,
   SidebarContent,
@@ -14,24 +14,27 @@ import {
 } from "@/components/ui/sidebar";
 import { SidebarNavItem } from './SidebarNavItem';
 import { useAuth } from '@/contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import { Button } from "@/components/ui/button";
 
 export function AppSidebar() {
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   const mainNavItems = [
-    { title: 'Dashboard', icon: BarChart3, url: '/' },
-    { title: 'Áreas da Vida', icon: Target, url: '/areas' },
-    { title: 'Perfil Comportamental', icon: Brain, url: '/profile' },
-    { title: 'Termômetro Emocional', icon: Heart, url: '/emotions' },
-    { title: 'Recomendações', icon: MessageSquare, url: '/recommendations' },
-    { title: 'Análise de Documentos', icon: FileSearch, url: '/document-analysis' },
+    { title: 'Dashboard', icon: BarChart3, url: '/dashboard/' },
+    { title: 'Áreas da Vida', icon: Target, url: '/dashboard/areas' },
+    { title: 'Perfil Comportamental', icon: Brain, url: '/dashboard/profile' },
+    { title: 'Termômetro Emocional', icon: Heart, url: '/dashboard/emotions' },
+    { title: 'Recomendações', icon: MessageSquare, url: '/dashboard/recommendations' },
+    { title: 'Análise de Documentos', icon: FileSearch, url: '/dashboard/document-analysis' },
   ];
 
   const configNavItems = [
-    { title: 'Conexão WhatsApp', icon: MessageSquare, url: '/connection' },
-    { title: 'Chat com IA', icon: Brain, url: '/chat' },
-    { title: 'Configurações', icon: Settings, url: '/settings' },
-    { title: 'Perfil', icon: UserCircle, url: '/user-profile' },
+    { title: 'Conexão WhatsApp', icon: MessageSquare, url: '/dashboard/connection' },
+    { title: 'Chat com IA', icon: Brain, url: '/dashboard/chat' },
+    { title: 'Configurações', icon: Settings, url: '/dashboard/settings' },
+    { title: 'Perfil', icon: UserCircle, url: '/dashboard/user-profile' },
   ];
 
   const isAdmin = user?.email === 'admin@kairon.ai';
@@ -39,15 +42,25 @@ export function AppSidebar() {
   return (
     <Sidebar>
       <SidebarHeader className="p-6">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-blue-600 rounded-lg flex items-center justify-center">
             <Brain className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h1 className="font-bold text-lg">LifeSync AI</h1>
-            <p className="text-xs text-muted-foreground">Insights Inteligentes</p>
+            <h1 className="font-bold text-lg">Observatório da Consciência</h1>
+            <p className="text-xs text-muted-foreground">Análise Comportamental</p>
           </div>
         </div>
+        
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={() => navigate('/')}
+          className="w-full justify-start"
+        >
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Voltar ao Hub
+        </Button>
       </SidebarHeader>
 
       <SidebarContent>
@@ -88,7 +101,7 @@ export function AppSidebar() {
               <SidebarMenu>
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild>
-                    <SidebarNavItem title="Gerenciar Clientes" icon={Users} url="/admin/clients" />
+                    <SidebarNavItem title="Gerenciar Clientes" icon={Users} url="/dashboard/admin/clients" />
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               </SidebarMenu>

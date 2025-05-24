@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { SidebarProvider } from "@/components/ui/sidebar";
@@ -31,10 +32,10 @@ const DynamicComponentLoader = ({ Component }) => {
 };
 
 const Index = () => {
-  console.log('Index component rendering - current path:', window.location.pathname);
+  console.log('Dashboard component rendering - current path:', window.location.pathname);
   
   try {
-    console.log('Index - Rendering main layout');
+    console.log('Dashboard - Rendering main layout');
     return (
       <div className="min-h-screen bg-gradient-to-br from-background via-background/95 to-background/90">
         <SidebarProvider defaultOpen={true}>
@@ -47,73 +48,73 @@ const Index = () => {
                   <Routes>
                     <Route path="/" element={
                       <>
-                        {console.log('Index - Rendering InsightsDashboard')}
+                        {console.log('Dashboard - Rendering InsightsDashboard')}
                         <InsightsDashboard />
                       </>
                     } />
                     <Route path="/areas" element={
                       <>
-                        {console.log('Index - Rendering AreasOfLife')}
+                        {console.log('Dashboard - Rendering AreasOfLife')}
                         <AreasOfLife />
                       </>
                     } />
                     <Route path="/profile" element={
                       <>
-                        {console.log('Index - Rendering BehavioralProfile')}
+                        {console.log('Dashboard - Rendering BehavioralProfile')}
                         <BehavioralProfile />
                       </>
                     } />
                     <Route path="/emotions" element={
                       <>
-                        {console.log('Index - Rendering EmotionalThermometer')}
+                        {console.log('Dashboard - Rendering EmotionalThermometer')}
                         <EmotionalThermometer />
                       </>
                     } />
                     <Route path="/recommendations" element={
                       <>
-                        {console.log('Index - Rendering Recommendations')}
+                        {console.log('Dashboard - Rendering Recommendations')}
                         <Recommendations />
                       </>
                     } />
                     <Route path="/connection" element={
                       <>
-                        {console.log('Index - Rendering WhatsAppConnection')}
+                        {console.log('Dashboard - Rendering WhatsAppConnection')}
                         <WhatsAppConnection />
                       </>
                     } />
                     <Route path="/chat" element={
                       <>
-                        {console.log('Index - Rendering ChatInterface')}
+                        {console.log('Dashboard - Rendering ChatInterface')}
                         <DynamicComponentLoader Component={ChatInterface} />
                       </>
                     } />
                     <Route path="/settings" element={
                       <>
-                        {console.log('Index - Rendering SettingsPage')}
+                        {console.log('Dashboard - Rendering SettingsPage')}
                         <DynamicComponentLoader Component={SettingsPage} />
                       </>
                     } />
                     <Route path="/user-profile" element={
                       <>
-                        {console.log('Index - Rendering ProfilePage (user-profile)')}
+                        {console.log('Dashboard - Rendering ProfilePage (user-profile)')}
                         <ProfilePage />
                       </>
                     } />
                     <Route path="/perfil" element={
                       <>
-                        {console.log('Index - Rendering ProfilePage (perfil)')}
+                        {console.log('Dashboard - Rendering ProfilePage (perfil)')}
                         <ProfilePage />
                       </>
                     } />
                     <Route path="/admin/clients" element={
                       <>
-                        {console.log('Index - Rendering ClientManagement')}
+                        {console.log('Dashboard - Rendering ClientManagement')}
                         <ClientManagement />
                       </>
                     } />
                     <Route path="/document-analysis" element={
                       <>
-                        {console.log('Index - Rendering DocumentAnalysis')}
+                        {console.log('Dashboard - Rendering DocumentAnalysis')}
                         <DocumentAnalysis />
                       </>
                     } />
@@ -126,11 +127,11 @@ const Index = () => {
       </div>
     );
   } catch (error) {
-    console.error('Error in Index component:', error);
+    console.error('Error in Dashboard component:', error);
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-red-600 mb-4">Erro de Renderização no Index</h1>
+          <h1 className="text-2xl font-bold text-red-600 mb-4">Erro de Renderização no Dashboard</h1>
           <p className="text-gray-600">Erro: {error.message}</p>
           <p className="text-gray-500">Verifique o console para mais detalhes</p>
         </div>

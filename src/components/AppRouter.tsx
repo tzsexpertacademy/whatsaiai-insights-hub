@@ -3,6 +3,7 @@ import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { LoginPage } from './auth/LoginPage';
+import { SolutionsHub } from '@/pages/SolutionsHub';
 import Index from '@/pages/Index';
 import { AdminDashboard } from './admin/AdminDashboard';
 import { AdminRoute } from './AdminRoute';
@@ -40,8 +41,16 @@ export function AppRouter() {
         } 
       />
       <Route 
-        path="/*" 
+        path="/dashboard/*" 
         element={isAuthenticated ? <Index /> : <Navigate to="/auth" replace />} 
+      />
+      <Route 
+        path="/" 
+        element={isAuthenticated ? <SolutionsHub /> : <Navigate to="/auth" replace />} 
+      />
+      <Route 
+        path="*" 
+        element={<Navigate to="/" replace />} 
       />
     </Routes>
   );
