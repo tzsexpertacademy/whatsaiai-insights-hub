@@ -22,86 +22,95 @@ export function ClientConfigProvider({ children }: { children: React.ReactNode }
   const [isFirebaseConnected, setIsFirebaseConnected] = useState(false);
   const { user, isAuthenticated } = useAuth();
   const { toast } = useToast();
-  const hasLoadedRef = useRef(false);
-  const isLoadingRef = useRef(false);
+  const loadedRef = useRef(false);
+  const loadingRef = useRef(false);
+  const mountedRef = useRef(true);
 
-  // Carregar configurações apenas uma vez quando o usuário estiver autenticado
+  // Reset quando usuário muda
   useEffect(() => {
-    if (!isAuthenticated || !user?.id || hasLoadedRef.current || isLoadingRef.current) {
-      if (!isAuthenticated) {
-        console.log('🔄 Usuário não autenticado, usando config padrão');
-        setConfig(defaultConfig);
-        hasLoadedRef.current = false;
-      }
+    loadedRef.current = false;
+    loadingRef.current = false;
+    setConfig(defaultConfig);
+  }, [user?.id]);
+
+  // Carregar configurações apenas quando necessário
+  useEffect(() => {
+    if (!isAuthenticated || !user?.id || loadedRef.current || loadingRef.current) {
       return;
     }
 
-    const loadUserConfig = async () => {
-      if (isLoadingRef.current) return;
+    const loadConfig = async () => {
+      if (loadingRef.current || !mountedRef.current) return;
       
       try {
-        isLoadingRef.current = true;
+        loadingRef.current = true;
         setIsLoading(true);
-        console.log('📥 Carregando configurações do usuário:', user.id);
         
-        // Primeiro, tentar buscar pelo user_id
-        let { data, error } = await supabase
+        console.log('📋 Carregando configurações para:', user.id);
+        
+        const { data, error } = await supabase
           .from('client_configs')
           .select('*')
           .eq('user_id', user.id)
           .maybeSingle();
 
-        if (error) {
-          console.error('❌ Erro ao carregar configurações:', error);
-          setConfig(defaultConfig);
+        if (error && error.code !== 'PGRST116') {
+          console.error('❌ Erro ao carregar config:', error);
           return;
         }
 
+        if (!mountedRef.current) return;
+
         if (data) {
-          const loadedConfig = {
-            whatsapp: { 
-              ...defaultConfig.whatsapp, 
-              ...(typeof data.whatsapp_config === 'object' && data.whatsapp_config !== null ? data.whatsapp_config as any : {})
+          const loadedConfig: ClientConfig = {
+            whatsapp: {
+              ...defaultConfig.whatsapp,
+              ...(typeof data.whatsapp_config === 'object' && data.whatsapp_config ? data.whatsapp_config : {})
             },
-            openai: { 
-              ...defaultConfig.openai, 
-              ...(typeof data.openai_config === 'object' && data.openai_config !== null ? data.openai_config as any : {})
+            openai: {
+              ...defaultConfig.openai,
+              ...(typeof data.openai_config === 'object' && data.openai_config ? data.openai_config : {})
             },
-            firebase: { 
-              ...defaultConfig.firebase, 
-              ...(typeof data.firebase_config === 'object' && data.firebase_config !== null ? data.firebase_config as any : {})
+            firebase: {
+              ...defaultConfig.firebase,
+              ...(typeof data.firebase_config === 'object' && data.firebase_config ? data.firebase_config : {})
             }
           };
           setConfig(loadedConfig);
-          console.log('✅ Configurações carregadas com sucesso');
+          console.log('✅ Configurações carregadas');
         } else {
           console.log('ℹ️ Criando configuração inicial');
+          
           const { error: insertError } = await supabase
             .from('client_configs')
             .insert({
               user_id: user.id,
-              whatsapp_config: defaultConfig.whatsapp as any,
-              openai_config: defaultConfig.openai as any,
-              firebase_config: defaultConfig.firebase as any
+              whatsapp_config: defaultConfig.whatsapp,
+              openai_config: defaultConfig.openai,
+              firebase_config: defaultConfig.firebase
             });
           
           if (insertError) {
-            console.error('❌ Erro ao criar configuração:', insertError);
+            console.error('❌ Erro ao criar config:', insertError);
           }
-          setConfig(defaultConfig);
         }
         
-        hasLoadedRef.current = true;
+        loadedRef.current = true;
       } catch (error) {
         console.error('❌ Erro inesperado:', error);
-        setConfig(defaultConfig);
       } finally {
-        setIsLoading(false);
-        isLoadingRef.current = false;
+        if (mountedRef.current) {
+          setIsLoading(false);
+        }
+        loadingRef.current = false;
       }
     };
 
-    loadUserConfig();
+    loadConfig();
+
+    return () => {
+      mountedRef.current = false;
+    };
   }, [user?.id, isAuthenticated]);
 
   const updateConfig = (section: keyof ClientConfig, updates: Partial<ClientConfig[keyof ClientConfig]>) => {
@@ -124,9 +133,9 @@ export function ClientConfigProvider({ children }: { children: React.ReactNode }
         .from('client_configs')
         .upsert({
           user_id: user.id,
-          whatsapp_config: config.whatsapp as any,
-          openai_config: config.openai as any,
-          firebase_config: config.firebase as any,
+          whatsapp_config: config.whatsapp,
+          openai_config: config.openai,
+          firebase_config: config.firebase,
           updated_at: new Date().toISOString()
         });
 

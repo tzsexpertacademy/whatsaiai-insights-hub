@@ -1,5 +1,5 @@
 
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { ClientConfig, defaultConfig } from '@/types/clientConfig';
 
@@ -18,14 +18,16 @@ export function useConfigPersistence({
   setIsLoading,
   toast
 }: UseConfigPersistenceProps) {
+  const operationRef = useRef(false);
   
   const loadConfig = useCallback(async () => {
-    if (!user?.id) {
-      console.log('❌ LoadConfig: user.id não disponível');
+    if (!user?.id || operationRef.current) {
+      console.log('❌ LoadConfig: condições não atendidas');
       return;
     }
 
     try {
+      operationRef.current = true;
       setIsLoading(true);
       console.log('📥 Carregando configurações para usuário:', user.id);
       
@@ -35,43 +37,31 @@ export function useConfigPersistence({
         .eq('user_id', user.id)
         .maybeSingle();
 
-      if (error) {
+      if (error && error.code !== 'PGRST116') {
         console.error('❌ Erro ao carregar configurações:', error);
         setConfig(defaultConfig);
         return;
       }
 
       if (data) {
-        const loadedConfig = {
+        const loadedConfig: ClientConfig = {
           whatsapp: { 
             ...defaultConfig.whatsapp, 
-            ...(typeof data.whatsapp_config === 'object' && data.whatsapp_config !== null ? data.whatsapp_config as any : {})
+            ...(typeof data.whatsapp_config === 'object' && data.whatsapp_config ? data.whatsapp_config : {})
           },
           openai: { 
             ...defaultConfig.openai, 
-            ...(typeof data.openai_config === 'object' && data.openai_config !== null ? data.openai_config as any : {})
+            ...(typeof data.openai_config === 'object' && data.openai_config ? data.openai_config : {})
           },
           firebase: { 
             ...defaultConfig.firebase, 
-            ...(typeof data.firebase_config === 'object' && data.firebase_config !== null ? data.firebase_config as any : {})
+            ...(typeof data.firebase_config === 'object' && data.firebase_config ? data.firebase_config : {})
           }
         };
         setConfig(loadedConfig);
         console.log('✅ Configurações carregadas');
       } else {
-        console.log('ℹ️ Criando configuração inicial');
-        const { error: insertError } = await supabase
-          .from('client_configs')
-          .insert({
-            user_id: user.id,
-            whatsapp_config: defaultConfig.whatsapp as any,
-            openai_config: defaultConfig.openai as any,
-            firebase_config: defaultConfig.firebase as any
-          });
-        
-        if (insertError) {
-          console.error('❌ Erro ao criar configuração:', insertError);
-        }
+        console.log('ℹ️ Nenhuma configuração encontrada, usando padrão');
         setConfig(defaultConfig);
       }
     } catch (error) {
@@ -79,11 +69,18 @@ export function useConfigPersistence({
       setConfig(defaultConfig);
     } finally {
       setIsLoading(false);
+      operationRef.current = false;
     }
   }, [user?.id, setConfig, setIsLoading]);
 
   const saveConfigToDatabase = async (config: ClientConfig, userId: string, setIsLoading: (loading: boolean) => void) => {
+    if (operationRef.current) {
+      console.log('⏳ Operação já em andamento, pulando...');
+      return;
+    }
+
     try {
+      operationRef.current = true;
       setIsLoading(true);
       console.log('💾 Salvando configurações para usuário:', userId);
       
@@ -91,9 +88,9 @@ export function useConfigPersistence({
         .from('client_configs')
         .upsert({
           user_id: userId,
-          whatsapp_config: config.whatsapp as any,
-          openai_config: config.openai as any,
-          firebase_config: config.firebase as any,
+          whatsapp_config: config.whatsapp,
+          openai_config: config.openai,
+          firebase_config: config.firebase,
           updated_at: new Date().toISOString()
         });
 
@@ -108,6 +105,7 @@ export function useConfigPersistence({
       throw error;
     } finally {
       setIsLoading(false);
+      operationRef.current = false;
     }
   };
 

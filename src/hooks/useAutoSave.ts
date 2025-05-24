@@ -8,18 +8,27 @@ export function useAutoSave() {
   const lastConfigRef = useRef<string>('');
   const isSavingRef = useRef(false);
   const isInitialLoad = useRef(true);
+  const mountedRef = useRef(true);
 
   useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!mountedRef.current) return;
+    
     const configString = JSON.stringify(config);
     
-    // Pular o primeiro carregamento para evitar auto-save desnecessário
+    // Pular o primeiro carregamento
     if (isInitialLoad.current) {
       lastConfigRef.current = configString;
       isInitialLoad.current = false;
       return;
     }
     
-    // Só salvar se a configuração mudou e não está salvando
+    // Só salvar se mudou e não está salvando
     if (configString === lastConfigRef.current || isSavingRef.current) {
       return;
     }
@@ -33,7 +42,7 @@ export function useAutoSave() {
 
     // Auto-save após 3 segundos
     timeoutRef.current = setTimeout(async () => {
-      if (isSavingRef.current) return;
+      if (!mountedRef.current || isSavingRef.current) return;
       
       try {
         isSavingRef.current = true;
@@ -42,7 +51,9 @@ export function useAutoSave() {
       } catch (error) {
         console.error('❌ Erro no auto-save:', error);
       } finally {
-        isSavingRef.current = false;
+        if (mountedRef.current) {
+          isSavingRef.current = false;
+        }
       }
     }, 3000);
 
@@ -54,7 +65,7 @@ export function useAutoSave() {
   }, [config, saveConfig]);
 
   const forceSave = async () => {
-    if (isSavingRef.current) return;
+    if (!mountedRef.current || isSavingRef.current) return;
 
     try {
       isSavingRef.current = true;
@@ -64,7 +75,9 @@ export function useAutoSave() {
       console.error('❌ Erro no save manual:', error);
       throw error;
     } finally {
-      isSavingRef.current = false;
+      if (mountedRef.current) {
+        isSavingRef.current = false;
+      }
     }
   };
 
