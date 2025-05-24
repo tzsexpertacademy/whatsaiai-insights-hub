@@ -282,18 +282,14 @@ export function ClientConfigProvider({ children }: { children: React.ReactNode }
         firebase: Object.keys(config.firebase).length
       });
       
-      const configData = {
-        whatsapp_config: config.whatsapp as any,
-        openai_config: config.openai as any,
-        firebase_config: config.firebase as any,
-        updated_at: new Date().toISOString()
-      };
-
       const { error } = await supabase
         .from('client_configs')
         .upsert({
-          ...configData,
-          user_id: user.id
+          user_id: user.id,
+          whatsapp_config: config.whatsapp as any,
+          openai_config: config.openai as any,
+          firebase_config: config.firebase as any,
+          updated_at: new Date().toISOString()
         }, {
           onConflict: 'user_id'
         });
