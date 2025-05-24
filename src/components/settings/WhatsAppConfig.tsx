@@ -23,7 +23,7 @@ export function WhatsAppConfig() {
       <WhatsAppConnectionStatus />
 
       <Tabs defaultValue="platform" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="platform" className="flex items-center gap-2">
             <Smartphone className="h-4 w-4" />
             Plataforma
@@ -31,10 +31,6 @@ export function WhatsAppConfig() {
           <TabsTrigger value="make" className="flex items-center gap-2">
             <Zap className="h-4 w-4" />
             Make.com
-          </TabsTrigger>
-          <TabsTrigger value="settings" className="flex items-center gap-2">
-            <Settings className="h-4 w-4" />
-            Configurações
           </TabsTrigger>
         </TabsList>
 
@@ -44,12 +40,6 @@ export function WhatsAppConfig() {
 
         <TabsContent value="make">
           <MakeConfig />
-        </TabsContent>
-
-        <TabsContent value="settings">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Configurações adicionais do WhatsApp podem ser adicionadas aqui */}
-          </div>
         </TabsContent>
       </Tabs>
     </div>

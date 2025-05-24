@@ -10,7 +10,6 @@ import { BehavioralProfile } from '@/components/BehavioralProfile';
 import { EmotionalThermometer } from '@/components/EmotionalThermometer';
 import { Recommendations } from '@/components/Recommendations';
 import { WhatsAppConnection } from '@/components/WhatsAppConnection';
-import { ChatInterface } from '@/components/ChatInterface';
 import { SettingsPage } from '@/components/SettingsPage';
 import { ProfilePage } from '@/components/ProfilePage';
 import { ClientManagement } from '@/components/admin/ClientManagement';
@@ -82,10 +81,10 @@ const Index = () => {
                         <WhatsAppConnection />
                       </>
                     } />
-                    <Route path="/chat" element={
+                    <Route path="/analysis" element={
                       <>
-                        {console.log('Dashboard - Rendering ChatInterface')}
-                        <DynamicComponentLoader Component={ChatInterface} />
+                        {console.log('Dashboard - Rendering DocumentAnalysis')}
+                        <DocumentAnalysis />
                       </>
                     } />
                     <Route path="/settings" element={
@@ -110,12 +109,6 @@ const Index = () => {
                       <>
                         {console.log('Dashboard - Rendering ClientManagement')}
                         <ClientManagement />
-                      </>
-                    } />
-                    <Route path="/document-analysis" element={
-                      <>
-                        {console.log('Dashboard - Rendering DocumentAnalysis')}
-                        <DocumentAnalysis />
                       </>
                     } />
                   </Routes>

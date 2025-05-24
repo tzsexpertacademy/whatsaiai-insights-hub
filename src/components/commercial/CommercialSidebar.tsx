@@ -1,5 +1,5 @@
 
-import { TrendingUp, TrendingDown, Target, Brain, Users, BarChart3, ArrowLeft, DollarSign, Settings, FileSearch, MessageSquare } from 'lucide-react';
+import { TrendingUp, TrendingDown, Target, Brain, Users, BarChart3, ArrowLeft, DollarSign, Settings, FileSearch } from 'lucide-react';
 import {
   Sidebar,
   SidebarContent,
@@ -29,8 +29,7 @@ export function CommercialSidebar() {
   ];
 
   const analysisNavItems = [
-    { title: 'Análise de Documentos', icon: FileSearch, url: '/commercial/document-analysis' },
-    { title: 'Chat com IA', icon: MessageSquare, url: '/commercial/chat' },
+    { title: 'Análise e Conselho', icon: FileSearch, url: '/commercial/analysis' },
   ];
 
   const configNavItems = [

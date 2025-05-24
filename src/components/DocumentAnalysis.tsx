@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { FileText, Upload, Brain, AlertCircle, CheckCircle, XCircle, Info, Settings } from 'lucide-react';
+import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { FileText, Upload, Brain, AlertCircle, CheckCircle, XCircle, Info, Settings, Send, User, Bot, MessageSquare } from 'lucide-react';
 import { useAssistantsConfig } from '@/hooks/useAssistantsConfig';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
@@ -27,6 +29,14 @@ const LLM_MODELS = [
   }
 ];
 
+interface ChatMessage {
+  id: string;
+  text: string;
+  sender: 'user' | 'assistant';
+  timestamp: Date;
+  assistantName?: string;
+}
+
 export function DocumentAnalysis() {
   const { assistants, isLoading } = useAssistantsConfig();
   const { config, connectionStatus } = useClientConfig();
@@ -38,6 +48,14 @@ export function DocumentAnalysis() {
   const [analysisResult, setAnalysisResult] = useState<string | null>(null);
   const [currentAnalysisAssistant, setCurrentAnalysisAssistant] = useState<string | null>(null);
   const [documentInfo, setDocumentInfo] = useState<{ size: number; willBeTruncated: boolean; estimatedTokens: number } | null>(null);
+  
+  // Chat states
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [newMessage, setNewMessage] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
+  const [chatAssistant, setChatAssistant] = useState<string>('');
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -51,6 +69,14 @@ export function DocumentAnalysis() {
 
   // Use the connection status from the client config context
   const apiStatus = connectionStatus.openai ? 'valid' : (config.openai.apiKey ? 'invalid' : 'unknown');
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [chatMessages]);
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -343,6 +369,19 @@ ${processedContent}`;
       setAnalysisResult(analysis);
       setCurrentAnalysisAssistant(assistant.name);
       
+      // Adicionar a análise como primeira mensagem do chat se ainda não há mensagens
+      if (chatMessages.length === 0) {
+        const analysisMessage: ChatMessage = {
+          id: Date.now().toString(),
+          text: analysis,
+          sender: 'assistant',
+          timestamp: new Date(),
+          assistantName: assistant.name
+        };
+        setChatMessages([analysisMessage]);
+        setChatAssistant(selectedAssistant); // Definir o assistente do chat como o mesmo da análise
+      }
+      
       toast({
         title: "Análise concluída",
         description: `${assistant.name} analisou seu documento com sucesso usando ${selectedModel}${wasTruncated ? ' (parcialmente devido ao limite de tokens)' : ''}`,
@@ -360,6 +399,117 @@ ${processedContent}`;
     }
   };
 
+  const sendChatMessage = async () => {
+    if (!newMessage.trim()) return;
+
+    // Verificar se há assistente selecionado para o chat
+    const activeAssistant = chatAssistant || selectedAssistant;
+    if (!activeAssistant) {
+      toast({
+        title: "Selecione um assistente",
+        description: "Escolha um assistente para conversar",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const userMessage: ChatMessage = {
+      id: Date.now().toString(),
+      text: newMessage,
+      sender: 'user',
+      timestamp: new Date()
+    };
+
+    setChatMessages(prev => [...prev, userMessage]);
+    const messageText = newMessage;
+    setNewMessage('');
+    setIsTyping(true);
+
+    try {
+      // Buscar o assistente selecionado
+      const assistant = assistants.find(a => a.id === activeAssistant);
+      if (!assistant) {
+        throw new Error('Assistente não encontrado');
+      }
+
+      // Construir histórico de mensagens para contexto
+      const chatHistory = chatMessages.map(msg => ({
+        role: msg.sender === 'user' ? 'user' : 'assistant',
+        content: msg.text
+      }));
+
+      const systemPrompt = `Você é ${assistant.name}, ${assistant.description}.
+
+${assistant.prompt}
+
+Você está conversando com o usuário. ${analysisResult ? 'Você já analisou um documento anteriormente nesta sessão.' : 'O usuário pode fazer perguntas gerais ou sobre análise de documentos.'}
+
+INSTRUÇÕES:
+- Seja conversacional e prestativo
+- Use seu conhecimento de ${assistant.area}
+- Mantenha as respostas concisas mas informativas
+- Se relevante, mencione insights da análise anterior`;
+
+      const messages = [
+        { role: 'system' as const, content: systemPrompt },
+        ...chatHistory,
+        { role: 'user' as const, content: messageText }
+      ];
+
+      const requestBody = {
+        model: selectedModel,
+        messages: messages,
+        temperature: config.openai.temperature || 0.7,
+        max_tokens: Math.min(config.openai.maxTokens || 1000, 2000)
+      };
+
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${config.openai.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Erro na API: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const assistantResponse = data.choices?.[0]?.message?.content;
+
+      if (assistantResponse) {
+        const assistantMessage: ChatMessage = {
+          id: (Date.now() + 1).toString(),
+          text: assistantResponse,
+          sender: 'assistant',
+          timestamp: new Date(),
+          assistantName: assistant.name
+        };
+
+        setChatMessages(prev => [...prev, assistantMessage]);
+      }
+
+    } catch (error) {
+      console.error('Erro no chat:', error);
+      toast({
+        title: "Erro no chat",
+        description: "Não foi possível enviar a mensagem",
+        variant: "destructive",
+      });
+    } finally {
+      setIsTyping(false);
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendChatMessage();
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -374,8 +524,8 @@ ${processedContent}`;
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-slate-800">Análise de Documentos</h2>
-        <p className="text-slate-600">Faça upload de qualquer documento de texto para análise especializada</p>
+        <h2 className="text-2xl font-bold text-slate-800">Análise e Conselho</h2>
+        <p className="text-slate-600">Analise documentos e converse com assistentes especializados</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -509,44 +659,115 @@ ${processedContent}`;
           </CardContent>
         </Card>
 
-        {/* Resultado da Análise */}
+        {/* Chat com IA */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Brain className="h-5 w-5" />
-              Resultado da Análise
+              <MessageSquare className="h-5 w-5" />
+              Chat com IA
             </CardTitle>
             <CardDescription>
-              Insights do assistente sobre seu documento
+              Converse com o assistente sobre o documento ou faça perguntas gerais
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            {!analysisResult ? (
-              <div className="text-center py-8 text-gray-500">
-                <AlertCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>Selecione um arquivo e assistente para ver a análise aqui</p>
+          <CardContent className="space-y-4">
+            {/* Seletor de assistente para chat se não há análise */}
+            {!analysisResult && (
+              <div>
+                <Label>Assistente para Conversa</Label>
+                <Select value={chatAssistant} onValueChange={setChatAssistant}>
+                  <SelectTrigger className="mt-2">
+                    <SelectValue placeholder="Escolha um assistente para conversar" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {assistants.filter(a => a.isActive).map((assistant) => (
+                      <SelectItem key={assistant.id} value={assistant.id}>
+                        <div className="flex items-center gap-2">
+                          <span>{assistant.icon}</span>
+                          <span>{assistant.name}</span>
+                          <Badge variant="outline" className="ml-2">
+                            {assistant.area}
+                          </Badge>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-            ) : (
+            )}
+
+            {/* Área de mensagens */}
+            <ScrollArea className="h-96 border rounded-md p-4">
               <div className="space-y-4">
-                <div className="p-4 bg-blue-50 rounded-md border border-blue-200">
-                  <h4 className="font-semibold text-blue-900 mb-2">
-                    Análise realizada por: {currentAnalysisAssistant}
-                  </h4>
-                  <div className="text-sm text-blue-800 whitespace-pre-wrap">
-                    {analysisResult}
+                {chatMessages.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>Inicie uma conversa ou analise um documento primeiro</p>
                   </div>
-                </div>
+                ) : (
+                  chatMessages.map((message) => (
+                    <div
+                      key={message.id}
+                      className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                    >
+                      <div
+                        className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                          message.sender === 'user'
+                            ? 'bg-blue-500 text-white'
+                            : 'bg-gray-200 text-gray-800'
+                        }`}
+                      >
+                        {message.sender === 'assistant' && message.assistantName && (
+                          <div className="flex items-center gap-1 mb-1">
+                            <Bot className="h-3 w-3" />
+                            <span className="text-xs font-bold">{message.assistantName}</span>
+                          </div>
+                        )}
+                        <p className="text-sm whitespace-pre-wrap">{message.text}</p>
+                        <p className="text-xs opacity-70 mt-1">
+                          {message.timestamp.toLocaleTimeString()}
+                        </p>
+                      </div>
+                    </div>
+                  ))
+                )}
                 
-                <Button 
-                  variant="outline" 
-                  onClick={() => {
-                    setAnalysisResult(null);
-                    setCurrentAnalysisAssistant(null);
-                  }}
-                  className="w-full"
-                >
-                  Nova Análise
-                </Button>
+                {isTyping && (
+                  <div className="flex justify-start">
+                    <div className="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg">
+                      <div className="flex space-x-1">
+                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                <div ref={messagesEndRef} />
+              </div>
+            </ScrollArea>
+
+            {/* Campo de entrada de mensagem */}
+            <div className="flex gap-2">
+              <Input
+                placeholder="Digite sua mensagem..."
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                onKeyPress={handleKeyPress}
+                className="flex-1"
+              />
+              <Button 
+                onClick={sendChatMessage} 
+                disabled={!newMessage.trim() || isTyping || (!chatAssistant && !selectedAssistant) || apiStatus !== 'valid'}
+              >
+                <Send className="h-4 w-4" />
+              </Button>
+            </div>
+
+            {apiStatus !== 'valid' && (
+              <div className="text-center text-sm text-red-600">
+                Configure a API do OpenAI nas configurações para usar o chat
               </div>
             )}
           </CardContent>
@@ -568,7 +789,7 @@ ${processedContent}`;
         <CardHeader>
           <CardTitle>Assistentes Disponíveis</CardTitle>
           <CardDescription>
-            Cada assistente oferece uma perspectiva especializada na análise
+            Cada assistente oferece uma perspectiva especializada na análise e conversa
           </CardDescription>
         </CardHeader>
         <CardContent>
