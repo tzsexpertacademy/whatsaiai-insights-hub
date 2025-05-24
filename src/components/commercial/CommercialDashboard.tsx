@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
-import { TrendingUp, TrendingDown, Users, Target, DollarSign, Clock, AlertCircle, CheckCircle } from 'lucide-react';
+import { TrendingUp, TrendingDown, Users, Target, DollarSign, Clock, AlertCircle, CheckCircle, Database } from 'lucide-react';
 import { CommercialAIAnalysisButton } from './CommercialAIAnalysisButton';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 const mockVolumeData = [
   { name: 'Jan', leads: 120, qualified: 85, meetings: 65 },
@@ -48,6 +50,171 @@ const mockLossReasons = [
 ];
 
 export function CommercialDashboard() {
+  const [hasCommercialData, setHasCommercialData] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const { user } = useAuth();
+
+  useEffect(() => {
+    const checkCommercialData = async () => {
+      if (!user?.id) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        console.log('🔍 Verificando dados comerciais para usuário:', user.id);
+        
+        // Verificar se existem conversas comerciais
+        const { data: conversations, error: convError } = await supabase
+          .from('commercial_conversations')
+          .select('id')
+          .eq('user_id', user.id)
+          .limit(1);
+
+        // Verificar se existem métricas de vendas
+        const { data: metrics, error: metricsError } = await supabase
+          .from('sales_metrics')
+          .select('id')
+          .eq('user_id', user.id)
+          .limit(1);
+
+        if (convError) {
+          console.error('❌ Erro ao verificar conversas:', convError);
+        }
+        
+        if (metricsError) {
+          console.error('❌ Erro ao verificar métricas:', metricsError);
+        }
+
+        const hasData = (conversations && conversations.length > 0) || (metrics && metrics.length > 0);
+        console.log('📊 Dados comerciais encontrados:', hasData);
+        setHasCommercialData(hasData);
+      } catch (error) {
+        console.error('❌ Erro ao verificar dados comerciais:', error);
+        setHasCommercialData(false);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    checkCommercialData();
+  }, [user?.id]);
+
+  // Se ainda estiver carregando
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-slate-800 mb-2">Cérebro Comercial</h1>
+            <p className="text-slate-600">Centro de comando neural da operação de receita</p>
+          </div>
+        </div>
+        <Card>
+          <CardContent className="p-6">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto mb-4"></div>
+              <p>Carregando dados comerciais...</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Se não há dados comerciais, exibir dashboard vazio
+  if (!hasCommercialData) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-slate-800 mb-2">Cérebro Comercial</h1>
+            <p className="text-slate-600">Centro de comando neural da operação de receita</p>
+          </div>
+          
+          <div className="flex items-center gap-3">
+            <Badge className="bg-gray-100 text-gray-800">Sem Dados</Badge>
+            <CommercialAIAnalysisButton />
+          </div>
+        </div>
+
+        {/* Dashboard vazio - sem dados */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Leads Gerados</CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">0</div>
+              <p className="text-xs text-muted-foreground">Nenhum dado disponível</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Taxa de Conversão</CardTitle>
+              <Target className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">0%</div>
+              <p className="text-xs text-muted-foreground">Nenhum dado disponível</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Receita Gerada</CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">R$ 0</div>
+              <p className="text-xs text-muted-foreground">Nenhum dado disponível</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Ciclo de Venda</CardTitle>
+              <Clock className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">0 dias</div>
+              <p className="text-xs text-muted-foreground">Nenhum dado disponível</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Database className="h-5 w-5 text-blue-500" />
+              Dashboard Comercial Vazio
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-center py-8">
+              <Database className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum dado comercial encontrado</h3>
+              <p className="text-gray-600 mb-6">
+                Para visualizar métricas e relatórios comerciais, você precisa:
+              </p>
+              <div className="text-left max-w-md mx-auto space-y-2">
+                <p className="text-sm text-gray-600">• Conectar o sistema comercial</p>
+                <p className="text-sm text-gray-600">• Gerar conversas comerciais</p>
+                <p className="text-sm text-gray-600">• Executar análise por IA</p>
+              </div>
+              <div className="mt-6">
+                <CommercialAIAnalysisButton />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Dashboard com dados (código existente)
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">

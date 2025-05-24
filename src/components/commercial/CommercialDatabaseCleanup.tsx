@@ -53,54 +53,85 @@ export function CommercialDatabaseCleanup() {
         return;
       }
 
-      console.log('🗑️ Iniciando limpeza COMPLETA do banco comercial para usuário:', user.id);
+      console.log('🗑️ Iniciando limpeza COMPLETA dos dados comerciais para usuário:', user.id);
 
-      // Deletar TODOS os dados comerciais em sequência para evitar conflitos de referência
-      const deletionPromises = [
-        // Primeiro: mensagens (podem ter referências para conversas)
-        supabase.from('commercial_messages').delete().eq('user_id', user.id),
-        // Segundo: insights (podem ter referências para conversas)
-        supabase.from('commercial_insights').delete().eq('user_id', user.id),
-        // Terceiro: conversas
-        supabase.from('commercial_conversations').delete().eq('user_id', user.id),
-        // Quarto: métricas de vendas
-        supabase.from('sales_metrics').delete().eq('user_id', user.id),
-        // Quinto: dados do funil de vendas
-        supabase.from('sales_funnel_data').delete().eq('user_id', user.id),
-        // Sexto: configurações de assistentes comerciais
-        supabase.from('commercial_assistants_config').delete().eq('user_id', user.id)
-      ];
+      // Deletar APENAS os dados comerciais em sequência específica
+      console.log('🧹 Removendo mensagens comerciais...');
+      const { error: messagesError } = await supabase
+        .from('commercial_messages')
+        .delete()
+        .eq('user_id', user.id);
 
-      // Executar todas as exclusões
-      const results = await Promise.allSettled(deletionPromises);
-      
-      // Verificar se alguma exclusão falhou
-      const errors = results.filter(result => result.status === 'rejected');
-      if (errors.length > 0) {
-        console.error('❌ Alguns dados não foram excluídos:', errors);
-        toast({
-          title: "Aviso",
-          description: "Alguns dados podem não ter sido completamente removidos. Tente novamente se necessário.",
-          variant: "destructive"
-        });
+      if (messagesError) {
+        console.error('❌ Erro ao deletar mensagens comerciais:', messagesError);
       }
 
-      console.log('✅ Limpeza comercial executada');
+      console.log('🧹 Removendo insights comerciais...');
+      const { error: insightsError } = await supabase
+        .from('commercial_insights')
+        .delete()
+        .eq('user_id', user.id);
+
+      if (insightsError) {
+        console.error('❌ Erro ao deletar insights comerciais:', insightsError);
+      }
+
+      console.log('🧹 Removendo conversas comerciais...');
+      const { error: conversationsError } = await supabase
+        .from('commercial_conversations')
+        .delete()
+        .eq('user_id', user.id);
+
+      if (conversationsError) {
+        console.error('❌ Erro ao deletar conversas comerciais:', conversationsError);
+      }
+
+      console.log('🧹 Removendo métricas de vendas...');
+      const { error: metricsError } = await supabase
+        .from('sales_metrics')
+        .delete()
+        .eq('user_id', user.id);
+
+      if (metricsError) {
+        console.error('❌ Erro ao deletar métricas de vendas:', metricsError);
+      }
+
+      console.log('🧹 Removendo dados do funil de vendas...');
+      const { error: funnelError } = await supabase
+        .from('sales_funnel_data')
+        .delete()
+        .eq('user_id', user.id);
+
+      if (funnelError) {
+        console.error('❌ Erro ao deletar dados do funil:', funnelError);
+      }
+
+      console.log('🧹 Removendo configurações de assistentes comerciais...');
+      const { error: assistantsError } = await supabase
+        .from('commercial_assistants_config')
+        .delete()
+        .eq('user_id', user.id);
+
+      if (assistantsError) {
+        console.error('❌ Erro ao deletar configurações de assistentes:', assistantsError);
+      }
+
+      console.log('✅ Limpeza comercial executada com sucesso');
 
       toast({
         title: "Dados comerciais excluídos!",
-        description: "Todos os dados do módulo comercial foram removidos. Os relatórios foram zerados.",
+        description: "Todos os dados do módulo comercial foram removidos. Os relatórios foram zerados completamente.",
       });
 
       // Limpar formulário
       setPassword('');
       setIsConfirming(false);
 
-      // Recarregar a página após alguns segundos para garantir que todos os componentes sejam atualizados
+      // Forçar atualização completa da página
       setTimeout(() => {
-        console.log('🔄 Recarregando página para atualizar interface...');
+        console.log('🔄 Recarregando página para zerar dashboards...');
         window.location.reload();
-      }, 2000);
+      }, 1500);
 
     } catch (error) {
       console.error('❌ Erro durante limpeza do banco comercial:', error);
@@ -123,28 +154,28 @@ export function CommercialDatabaseCleanup() {
             Limpeza de Dados Comerciais
           </CardTitle>
           <CardDescription className="text-red-700">
-            Use esta função para limpar todos os dados comerciais e zerar os relatórios
+            Use esta função para limpar APENAS os dados comerciais e zerar os relatórios
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <Alert>
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription>
-              Esta ação irá excluir todos os dados relacionados exclusivamente ao módulo comercial.
-              Os dados do Observatório da Consciência não serão afetados.
+              Esta ação irá excluir APENAS os dados relacionados ao módulo comercial.
+              Os dados do Observatório da Consciência NÃO serão afetados.
             </AlertDescription>
           </Alert>
 
           <div className="space-y-3">
-            <h4 className="font-medium text-red-800">O que será excluído do módulo comercial:</h4>
+            <h4 className="font-medium text-red-800">O que será excluído APENAS do módulo comercial:</h4>
             <ul className="text-sm text-red-700 space-y-1 list-disc list-inside">
-              <li>Todas as conversas comerciais</li>
-              <li>Todas as mensagens comerciais</li>
-              <li>Todos os insights comerciais gerados</li>
-              <li>Todas as métricas de vendas</li>
-              <li>Dados do funil de vendas</li>
-              <li>Configurações dos assistentes comerciais</li>
-              <li>📊 Todos os relatórios serão zerados</li>
+              <li>✅ Conversas comerciais</li>
+              <li>✅ Mensagens comerciais</li>
+              <li>✅ Insights comerciais gerados</li>
+              <li>✅ Métricas de vendas</li>
+              <li>✅ Dados do funil de vendas</li>
+              <li>✅ Configurações dos assistentes comerciais</li>
+              <li>🚫 NÃO toca nos dados do Observatório</li>
             </ul>
           </div>
 
@@ -154,7 +185,7 @@ export function CommercialDatabaseCleanup() {
             className="w-full"
           >
             <Trash2 className="h-4 w-4 mr-2" />
-            Limpar Dados Comerciais e Zerar Relatórios
+            Limpar APENAS Dados Comerciais
           </Button>
         </CardContent>
       </Card>
@@ -166,17 +197,17 @@ export function CommercialDatabaseCleanup() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-red-800">
           <AlertTriangle className="h-5 w-5" />
-          Confirmar Exclusão de Dados Comerciais
+          Confirmar Exclusão APENAS de Dados Comerciais
         </CardTitle>
         <CardDescription className="text-red-700">
-          Digite sua senha para confirmar a exclusão de todos os dados comerciais e zerar relatórios
+          Digite sua senha para confirmar a exclusão APENAS dos dados comerciais
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <Alert>
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription className="text-red-800 font-medium">
-            ⚠️ ATENÇÃO: Esta ação não pode ser desfeita! Todos os dados comerciais e relatórios serão perdidos.
+            ⚠️ ATENÇÃO: Esta ação não pode ser desfeita! APENAS dados comerciais serão perdidos.
           </AlertDescription>
         </Alert>
 
@@ -202,12 +233,12 @@ export function CommercialDatabaseCleanup() {
             {isDeleting ? (
               <>
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                Excluindo Dados Comerciais...
+                Excluindo APENAS Dados Comerciais...
               </>
             ) : (
               <>
                 <Trash2 className="h-4 w-4 mr-2" />
-                Confirmar Exclusão Total
+                Confirmar Exclusão Comercial
               </>
             )}
           </Button>
