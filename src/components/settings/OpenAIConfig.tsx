@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Bot, CheckCircle, AlertCircle, Brain } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
+import { useClientConfig } from '@/contexts/ClientConfigContext';
 
 const availableModels = [
   { id: 'gpt-4o', name: 'GPT-4o', description: 'Mais poderoso e caro, com visão' },
@@ -14,35 +15,38 @@ const availableModels = [
 ];
 
 export function OpenAIConfig() {
+  const { config, updateConfig, saveConfig, isLoading } = useClientConfig();
   const [isConnected, setIsConnected] = useState(false);
-  const [apiKey, setApiKey] = useState('');
-  const [defaultModel, setDefaultModel] = useState('gpt-4o-mini');
-  const [organization, setOrganization] = useState('');
-  const [maxTokens, setMaxTokens] = useState('4000');
-  const [temperature, setTemperature] = useState('0.7');
+  const [isTesting, setIsTesting] = useState(false);
   const { toast } = useToast();
 
-  // Carregar configurações salvas ao inicializar
+  // Verificar conexão quando o componente carrega ou config muda
   useEffect(() => {
-    const savedApiKey = localStorage.getItem('openai_api_key');
-    const savedModel = localStorage.getItem('openai_model') || 'gpt-4o-mini';
-    const savedOrg = localStorage.getItem('openai_organization') || '';
-    const savedTokens = localStorage.getItem('openai_max_tokens') || '4000';
-    const savedTemp = localStorage.getItem('openai_temperature') || '0.7';
-    
-    if (savedApiKey) {
-      setApiKey(savedApiKey);
-      setIsConnected(true);
+    checkConnection();
+  }, [config.openai.apiKey]);
+
+  const checkConnection = async () => {
+    if (!config.openai.apiKey || !config.openai.apiKey.startsWith('sk-')) {
+      setIsConnected(false);
+      return;
     }
-    
-    setDefaultModel(savedModel);
-    setOrganization(savedOrg);
-    setMaxTokens(savedTokens);
-    setTemperature(savedTemp);
-  }, []);
+
+    try {
+      const response = await fetch('https://api.openai.com/v1/models', {
+        headers: {
+          'Authorization': `Bearer ${config.openai.apiKey}`,
+        }
+      });
+      
+      setIsConnected(response.ok);
+    } catch (error) {
+      console.error('Erro ao verificar conexão OpenAI:', error);
+      setIsConnected(false);
+    }
+  };
 
   const testConnection = async () => {
-    if (!apiKey.startsWith('sk-')) {
+    if (!config.openai.apiKey.startsWith('sk-')) {
       toast({
         title: "Erro",
         description: "Chave API OpenAI inválida. Deve começar com 'sk-'",
@@ -51,28 +55,24 @@ export function OpenAIConfig() {
       return;
     }
 
+    setIsTesting(true);
+
     try {
-      // Tentar fazer uma chamada simples para a API OpenAI
       const response = await fetch('https://api.openai.com/v1/models', {
         headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          ...(organization && { 'OpenAI-Organization': organization })
+          'Authorization': `Bearer ${config.openai.apiKey}`,
         }
       });
       
       if (response.ok) {
         setIsConnected(true);
         
-        // Salvar configurações
-        localStorage.setItem('openai_api_key', apiKey);
-        localStorage.setItem('openai_model', defaultModel);
-        localStorage.setItem('openai_organization', organization);
-        localStorage.setItem('openai_max_tokens', maxTokens);
-        localStorage.setItem('openai_temperature', temperature);
+        // Salvar configurações no banco de dados
+        await saveConfig();
         
         toast({
           title: "Conectado!",
-          description: "OpenAI API configurada com sucesso",
+          description: "OpenAI API configurada e salva com sucesso",
         });
       } else {
         throw new Error(`Erro ${response.status}: ${response.statusText}`);
@@ -84,17 +84,27 @@ export function OpenAIConfig() {
         description: "Não foi possível conectar à API da OpenAI",
         variant: "destructive",
       });
+    } finally {
+      setIsTesting(false);
     }
   };
 
-  const disconnect = () => {
+  const disconnect = async () => {
+    updateConfig('openai', {
+      apiKey: '',
+      model: 'gpt-4o-mini',
+      temperature: 0.7,
+      maxTokens: 1000
+    });
+
     setIsConnected(false);
-    setApiKey('');
-    localStorage.removeItem('openai_api_key');
+    
+    // Salvar as configurações vazias no banco
+    await saveConfig();
     
     toast({
       title: "Desconectado",
-      description: "Conexão com OpenAI removida",
+      description: "Conexão com OpenAI removida e salva",
     });
   };
 
@@ -129,10 +139,10 @@ export function OpenAIConfig() {
             {isConnected && (
               <div className="bg-green-50 p-3 rounded-lg border border-green-200">
                 <p className="text-sm text-green-700">
-                  Modelo padrão: {availableModels.find(m => m.id === defaultModel)?.name}
+                  Modelo padrão: {availableModels.find(m => m.id === config.openai.model)?.name}
                 </p>
                 <p className="text-sm text-green-700">
-                  Processamento de conversas ativado
+                  Configuração salva no seu perfil
                 </p>
               </div>
             )}
@@ -144,19 +154,8 @@ export function OpenAIConfig() {
                   id="apikey"
                   type="password"
                   placeholder="sk-..."
-                  value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
-                  disabled={isConnected}
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="organization">ID da Organização (opcional)</Label>
-                <Input
-                  id="organization"
-                  placeholder="org-..."
-                  value={organization}
-                  onChange={(e) => setOrganization(e.target.value)}
+                  value={config.openai.apiKey}
+                  onChange={(e) => updateConfig('openai', { apiKey: e.target.value })}
                   disabled={isConnected}
                 />
               </div>
@@ -164,11 +163,20 @@ export function OpenAIConfig() {
 
             <div className="flex gap-2 mt-4">
               {!isConnected ? (
-                <Button onClick={testConnection} className="flex-1" disabled={!apiKey}>
-                  Testar Conexão
+                <Button 
+                  onClick={testConnection} 
+                  className="flex-1" 
+                  disabled={!config.openai.apiKey || isTesting || isLoading}
+                >
+                  {isTesting ? 'Testando...' : 'Testar e Salvar'}
                 </Button>
               ) : (
-                <Button onClick={disconnect} variant="destructive" className="flex-1">
+                <Button 
+                  onClick={disconnect} 
+                  variant="destructive" 
+                  className="flex-1"
+                  disabled={isLoading}
+                >
                   Desconectar
                 </Button>
               )}
@@ -186,7 +194,11 @@ export function OpenAIConfig() {
           <CardContent className="space-y-4">
             <div>
               <Label htmlFor="model">Modelo Padrão</Label>
-              <Select value={defaultModel} onValueChange={setDefaultModel} disabled={isConnected}>
+              <Select 
+                value={config.openai.model} 
+                onValueChange={(value) => updateConfig('openai', { model: value })}
+                disabled={isConnected}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione o modelo" />
                 </SelectTrigger>
@@ -208,13 +220,13 @@ export function OpenAIConfig() {
               <Input
                 id="maxTokens"
                 type="number"
-                placeholder="4000"
-                value={maxTokens}
-                onChange={(e) => setMaxTokens(e.target.value)}
+                placeholder="1000"
+                value={config.openai.maxTokens}
+                onChange={(e) => updateConfig('openai', { maxTokens: parseInt(e.target.value) || 1000 })}
                 disabled={isConnected}
               />
               <p className="text-xs text-gray-500 mt-1">
-                Máximo de tokens por resposta (recomendado: 4000)
+                Máximo de tokens por resposta (recomendado: 1000-4000)
               </p>
             </div>
 
@@ -227,14 +239,24 @@ export function OpenAIConfig() {
                 min="0"
                 max="2"
                 placeholder="0.7"
-                value={temperature}
-                onChange={(e) => setTemperature(e.target.value)}
+                value={config.openai.temperature}
+                onChange={(e) => updateConfig('openai', { temperature: parseFloat(e.target.value) || 0.7 })}
                 disabled={isConnected}
               />
               <p className="text-xs text-gray-500 mt-1">
                 Criatividade das respostas (0 = preciso, 2 = criativo)
               </p>
             </div>
+
+            {!isConnected && (
+              <Button 
+                onClick={saveConfig} 
+                className="w-full mt-4"
+                disabled={isLoading}
+              >
+                Salvar Configurações
+              </Button>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -255,7 +277,7 @@ export function OpenAIConfig() {
                   <h3 className="font-medium">{model.name}</h3>
                 </div>
                 <p className="text-sm text-gray-600">{model.description}</p>
-                {model.id === defaultModel && (
+                {model.id === config.openai.model && (
                   <div className="mt-2">
                     <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
                       Modelo Padrão
