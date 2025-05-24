@@ -5,9 +5,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { MessageSquare, Database, Bot, Settings, Users } from 'lucide-react';
 import { CommercialAssistantsConfig } from './CommercialAssistantsConfig';
 import { CommercialDatabaseCleanup } from './CommercialDatabaseCleanup';
-import { WhatsAppConfig } from '@/components/settings/WhatsAppConfig';
-import { FirebaseConfig } from '@/components/settings/FirebaseConfig';
-import { OpenAIConfig } from '@/components/settings/OpenAIConfig';
+import { CommercialWhatsAppConfig } from './settings/CommercialWhatsAppConfig';
+import { CommercialFirebaseConfig } from './settings/CommercialFirebaseConfig';
+import { CommercialOpenAIConfig } from './settings/CommercialOpenAIConfig';
 
 export function CommercialSettingsPage() {
   return (
@@ -65,7 +65,7 @@ export function CommercialSettingsPage() {
                 </div>
               </CardContent>
             </Card>
-            <WhatsAppConfig />
+            <CommercialWhatsAppConfig />
           </div>
         </TabsContent>
 
@@ -93,7 +93,7 @@ export function CommercialSettingsPage() {
                 </div>
               </CardContent>
             </Card>
-            <FirebaseConfig />
+            <CommercialFirebaseConfig />
           </div>
         </TabsContent>
 
@@ -121,7 +121,7 @@ export function CommercialSettingsPage() {
                 </div>
               </CardContent>
             </Card>
-            <OpenAIConfig />
+            <CommercialOpenAIConfig />
           </div>
         </TabsContent>
 
