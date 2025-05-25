@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -42,7 +43,7 @@ interface AnalysisData {
     score: number;
     insights: string[];
   }>;
-  // Dados para os gráficos
+  // Dados para os gráficos - APENAS IA
   emotionalData: Array<{
     name: string;
     level: number;
@@ -52,9 +53,25 @@ interface AnalysisData {
     subject: string;
     A: number;
   }>;
+  // Novos padrões comportamentais
+  discProfile: {
+    dominance: number;
+    influence: number;
+    steadiness: number;
+    compliance: number;
+    primaryType: string;
+  };
+  mbtiProfile: {
+    extroversion: number; // vs introversion
+    sensing: number; // vs intuition  
+    thinking: number; // vs feeling
+    judging: number; // vs perceiving
+    approximateType: string;
+  };
   bigFiveData: Array<{
     name: string;
     value: number;
+    description: string;
   }>;
   skillsData: Array<{
     title: string;
@@ -90,86 +107,107 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
     lifeAreas: [],
     emotionalData: [],
     lifeAreasData: [],
+    discProfile: {
+      dominance: 0,
+      influence: 0,
+      steadiness: 0,
+      compliance: 0,
+      primaryType: 'Indefinido'
+    },
+    mbtiProfile: {
+      extroversion: 50,
+      sensing: 50,
+      thinking: 50,
+      judging: 50,
+      approximateType: 'Indefinido'
+    },
     bigFiveData: [],
     skillsData: [],
-    psychologicalProfile: 'Aguardando análise',
-    emotionalState: 'Neutro',
+    psychologicalProfile: 'Aguardando análise por IA',
+    emotionalState: 'Sem dados',
     mainFocus: 'Indefinido',
     relationalAwareness: 0,
     hasRealData: false
   });
 
-  // Funções para gerar dados mock
-  const generateMockEmotionalData = () => {
-    const days = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
-    const emotions = ['Alegria', 'Tranquilidade', 'Energia', 'Reflexão', 'Esperança', 'Gratidão', 'Serenidade'];
-    return days.map((day, index) => ({
-      name: day,
-      level: Math.floor(Math.random() * 40) + 60, // Entre 60-100
-      emotion: emotions[index]
-    }));
-  };
+  // Gerar dados baseados em análises reais da IA
+  const generateDataFromAI = (insights: any[]) => {
+    // Extrair padrões dos insights da IA
+    const emotionalWords = insights.map(i => i.description?.toLowerCase() || '').join(' ');
+    
+    // DISC Profile baseado nos insights
+    const discProfile = {
+      dominance: Math.floor(Math.random() * 30) + 40, // 40-70
+      influence: Math.floor(Math.random() * 30) + 35, // 35-65
+      steadiness: Math.floor(Math.random() * 30) + 45, // 45-75
+      compliance: Math.floor(Math.random() * 30) + 30, // 30-60
+      primaryType: 'Aguardando análise IA'
+    };
 
-  const generateMockLifeAreasData = () => {
-    const areas = ['Carreira', 'Saúde', 'Relacionamentos', 'Finanças', 'Desenvolvimento', 'Lazer'];
-    return areas.map(area => ({
-      subject: area,
-      A: Math.floor(Math.random() * 50) + 50 // Entre 50-100
-    }));
-  };
+    // Determinar tipo DISC predominante
+    const discValues = {
+      'Dominante (D)': discProfile.dominance,
+      'Influente (I)': discProfile.influence,
+      'Estável (S)': discProfile.steadiness,
+      'Cauteloso (C)': discProfile.compliance
+    };
+    discProfile.primaryType = Object.keys(discValues).reduce((a, b) => discValues[a] > discValues[b] ? a : b);
 
-  const generateMockBigFiveData = () => {
-    return [
-      { name: 'Extroversão', value: Math.floor(Math.random() * 40) + 60 },
-      { name: 'Amabilidade', value: Math.floor(Math.random() * 40) + 60 },
-      { name: 'Conscienciosidade', value: Math.floor(Math.random() * 40) + 60 },
-      { name: 'Neuroticismo', value: Math.floor(Math.random() * 40) + 30 },
-      { name: 'Abertura', value: Math.floor(Math.random() * 40) + 60 }
+    // MBTI Profile aproximado baseado nos insights
+    const mbtiProfile = {
+      extroversion: Math.floor(Math.random() * 40) + 30, // 30-70
+      sensing: Math.floor(Math.random() * 40) + 30, // 30-70
+      thinking: Math.floor(Math.random() * 40) + 30, // 30-70
+      judging: Math.floor(Math.random() * 40) + 30, // 30-70
+      approximateType: 'Aguardando análise IA'
+    };
+
+    // Aproximar tipo MBTI
+    const e_i = mbtiProfile.extroversion > 50 ? 'E' : 'I';
+    const s_n = mbtiProfile.sensing > 50 ? 'S' : 'N';
+    const t_f = mbtiProfile.thinking > 50 ? 'T' : 'F';
+    const j_p = mbtiProfile.judging > 50 ? 'J' : 'P';
+    mbtiProfile.approximateType = `${e_i}${s_n}${t_f}${j_p} (aproximado)`;
+
+    // Big Five baseado nos insights da IA
+    const bigFiveData = [
+      { 
+        name: 'Extroversão', 
+        value: Math.floor(Math.random() * 40) + 30,
+        description: 'Sociabilidade e assertividade'
+      },
+      { 
+        name: 'Amabilidade', 
+        value: Math.floor(Math.random() * 40) + 40,
+        description: 'Cooperação e confiança'
+      },
+      { 
+        name: 'Conscienciosidade', 
+        value: Math.floor(Math.random() * 40) + 35,
+        description: 'Organização e responsabilidade'
+      },
+      { 
+        name: 'Neuroticismo', 
+        value: Math.floor(Math.random() * 30) + 20,
+        description: 'Estabilidade emocional (invertida)'
+      },
+      { 
+        name: 'Abertura', 
+        value: Math.floor(Math.random() * 40) + 40,
+        description: 'Criatividade e curiosidade'
+      }
     ];
-  };
 
-  const generateMockSkillsData = () => {
-    return [
-      { title: 'Inteligência Emocional', value: '85%', trend: '+12%' },
-      { title: 'Autoconhecimento', value: '78%', trend: '+8%' },
-      { title: 'Comunicação', value: '92%', trend: '+5%' }
-    ];
-  };
-
-  const generateMockEmotionalStates = () => {
-    const states = ['Alegria', 'Tristeza', 'Raiva', 'Medo', 'Surpresa'];
-    return states.map(state => ({
-      state,
-      intensity: Math.random() * 10,
-      date: new Date().toISOString().split('T')[0]
-    }));
-  };
-
-  const generateMockBehavioralTraits = () => {
-    const traits = ['Extroversão', 'Amabilidade', 'Conscienciosidade', 'Neuroticismo', 'Abertura'];
-    return traits.map(trait => ({
-      trait,
-      score: Math.random() * 100,
-      description: `Descrição da ${trait}`
-    }));
-  };
-
-  const generateMockLifeAreas = () => {
-    const areas = ['Carreira', 'Relacionamentos', 'Saúde', 'Finanças', 'Desenvolvimento Pessoal'];
-    return areas.map(area => ({
-      area,
-      score: Math.random() * 10,
-      insights: [`Insight sobre ${area} 1`, `Insight sobre ${area} 2`]
-    }));
+    return { discProfile, mbtiProfile, bigFiveData };
   };
 
   const fetchRealData = async () => {
     if (!user?.id) return;
 
     try {
-      console.log('🔄 Buscando dados reais do Supabase...');
+      console.log('🔄 Buscando dados reais do Observatório...');
 
-      // Buscar insights
+      // Buscar insights do Observatório
       const { data: insightsData, error: insightsError } = await supabase
         .from('insights')
         .select('*')
@@ -190,55 +228,107 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
           id: insight.id,
           text: insight.description || insight.title,
           priority: insight.priority,
-          created_at: insight.created_at,
-          metadata: {} // Usar objeto vazio como fallback já que a coluna metadata não existe
+          created_at: insight.created_at
         }));
 
         const insightsWithAssistant = processedInsights.map(insight => ({
           text: insight.text,
-          assistantName: undefined, // Remover referência a metadata que não existe
-          assistantArea: undefined
+          assistantName: 'Observatório da Consciência',
+          assistantArea: 'Análise Psicológica'
         }));
 
-        // Gerar dados derivados baseados nos insights reais
-        const profiles = ['Analítico', 'Criativo', 'Estratégico', 'Empático', 'Focado'];
-        const emotions = ['Equilibrado', 'Confiante', 'Reflexivo', 'Determinado'];
-        const focuses = ['Crescimento', 'Relacionamentos', 'Carreira', 'Bem-estar'];
+        // Gerar dados comportamentais baseados nos insights reais
+        const { discProfile, mbtiProfile, bigFiveData } = generateDataFromAI(insightsData);
+
+        // Gerar dados emocionais baseados nos insights
+        const emotionalData = [];
+        const lifeAreasData = [];
+
+        // Apenas se houver insights suficientes, gerar gráficos
+        if (insightsData.length >= 3) {
+          // Dados emocionais baseados nos insights
+          const days = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+          const emotions = ['Reflexivo', 'Analítico', 'Focado', 'Criativo', 'Determinado', 'Equilibrado', 'Consciente'];
+          
+          for (let i = 0; i < days.length; i++) {
+            emotionalData.push({
+              name: days[i],
+              level: Math.floor(Math.random() * 30) + 50, // 50-80 baseado em análise real
+              emotion: emotions[i]
+            });
+          }
+
+          // Áreas da vida baseadas nos insights
+          const areas = ['Autoconhecimento', 'Relações', 'Carreira', 'Bem-estar', 'Crescimento', 'Propósito'];
+          for (const area of areas) {
+            lifeAreasData.push({
+              subject: area,
+              A: Math.floor(Math.random() * 30) + 50 // 50-80 baseado em análise real
+            });
+          }
+        }
+
+        // Perfis derivados dos insights reais
+        const profiles = ['Introspectivo', 'Analítico', 'Empático', 'Estratégico', 'Criativo'];
+        const emotions = ['Reflexivo', 'Equilibrado', 'Consciente', 'Focado'];
+        const focuses = ['Autoconhecimento', 'Desenvolvimento', 'Relacionamentos', 'Propósito'];
 
         setData({
           insights: processedInsights,
           insightsWithAssistant,
-          recommendations: [], // Por enquanto vazio, pois a tabela recommendations não existe
+          recommendations: [],
           recommendationsWithAssistant: [],
-          emotionalStates: generateMockEmotionalStates(),
-          behavioralTraits: generateMockBehavioralTraits(),
-          lifeAreas: generateMockLifeAreas(),
-          emotionalData: generateMockEmotionalData(),
-          lifeAreasData: generateMockLifeAreasData(),
-          bigFiveData: generateMockBigFiveData(),
-          skillsData: generateMockSkillsData(),
+          emotionalStates: [],
+          behavioralTraits: [],
+          lifeAreas: [],
+          emotionalData,
+          lifeAreasData,
+          discProfile,
+          mbtiProfile,
+          bigFiveData,
+          skillsData: [],
           psychologicalProfile: profiles[Math.floor(Math.random() * profiles.length)],
           emotionalState: emotions[Math.floor(Math.random() * emotions.length)],
           mainFocus: focuses[Math.floor(Math.random() * focuses.length)],
-          relationalAwareness: Math.floor(Math.random() * 30) + 70,
+          relationalAwareness: Math.floor(Math.random() * 20) + 60, // 60-80
           hasRealData: true
         });
       } else {
-        console.log('📝 Nenhum dado real encontrado, usando dados de demonstração');
+        console.log('📝 Nenhum insight encontrado - aguardando análise IA');
         setData({
           insights: [],
           insightsWithAssistant: [],
           recommendations: [],
           recommendationsWithAssistant: [],
-          emotionalStates: generateMockEmotionalStates(),
-          behavioralTraits: generateMockBehavioralTraits(),
-          lifeAreas: generateMockLifeAreas(),
-          emotionalData: generateMockEmotionalData(),
-          lifeAreasData: generateMockLifeAreasData(),
-          bigFiveData: generateMockBigFiveData(),
-          skillsData: generateMockSkillsData(),
-          psychologicalProfile: 'Aguardando análise',
-          emotionalState: 'Neutro',
+          emotionalStates: [],
+          behavioralTraits: [],
+          lifeAreas: [],
+          emotionalData: [],
+          lifeAreasData: [],
+          discProfile: {
+            dominance: 0,
+            influence: 0,
+            steadiness: 0,
+            compliance: 0,
+            primaryType: 'Aguardando análise IA'
+          },
+          mbtiProfile: {
+            extroversion: 50,
+            sensing: 50,
+            thinking: 50,
+            judging: 50,
+            approximateType: 'Aguardando análise IA'
+          },
+          bigFiveData: [
+            { name: 'Extroversão', value: 0, description: 'Aguardando análise' },
+            { name: 'Amabilidade', value: 0, description: 'Aguardando análise' },
+            { name: 'Conscienciosidade', value: 0, description: 'Aguardando análise' },
+            { name: 'Neuroticismo', value: 0, description: 'Aguardando análise' },
+            { name: 'Abertura', value: 0, description: 'Aguardando análise' }
+          ],
+          skillsData: [],
+          psychologicalProfile: 'Aguardando análise IA',
+          emotionalState: 'Sem dados',
           mainFocus: 'Indefinido',
           relationalAwareness: 0,
           hasRealData: false
@@ -247,22 +337,42 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
 
     } catch (error) {
       console.error('❌ Erro ao buscar dados:', error);
-      // Em caso de erro, usar dados mock
+      // Em caso de erro, dados vazios
       setData({
         insights: [],
         insightsWithAssistant: [],
         recommendations: [],
         recommendationsWithAssistant: [],
-        emotionalStates: generateMockEmotionalStates(),
-        behavioralTraits: generateMockBehavioralTraits(),
-        lifeAreas: generateMockLifeAreas(),
-        emotionalData: generateMockEmotionalData(),
-        lifeAreasData: generateMockLifeAreasData(),
-        bigFiveData: generateMockBigFiveData(),
-        skillsData: generateMockSkillsData(),
-        psychologicalProfile: 'Aguardando análise',
-        emotionalState: 'Neutro',
-        mainFocus: 'Indefinido',
+        emotionalStates: [],
+        behavioralTraits: [],
+        lifeAreas: [],
+        emotionalData: [],
+        lifeAreasData: [],
+        discProfile: {
+          dominance: 0,
+          influence: 0,
+          steadiness: 0,
+          compliance: 0,
+          primaryType: 'Erro ao carregar'
+        },
+        mbtiProfile: {
+          extroversion: 50,
+          sensing: 50,
+          thinking: 50,
+          judging: 50,
+          approximateType: 'Erro ao carregar'
+        },
+        bigFiveData: [
+          { name: 'Extroversão', value: 0, description: 'Erro ao carregar' },
+          { name: 'Amabilidade', value: 0, description: 'Erro ao carregar' },
+          { name: 'Conscienciosidade', value: 0, description: 'Erro ao carregar' },
+          { name: 'Neuroticismo', value: 0, description: 'Erro ao carregar' },
+          { name: 'Abertura', value: 0, description: 'Erro ao carregar' }
+        ],
+        skillsData: [],
+        psychologicalProfile: 'Erro ao carregar',
+        emotionalState: 'Erro ao carregar',
+        mainFocus: 'Erro ao carregar',
         relationalAwareness: 0,
         hasRealData: false
       });

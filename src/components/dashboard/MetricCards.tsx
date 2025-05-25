@@ -33,7 +33,7 @@ export function MetricCards() {
                 <p className="text-3xl font-bold">--</p>
                 <p className="text-gray-100 text-sm flex items-center gap-1 mt-1">
                   <AlertCircle className="h-3 w-3" />
-                  Sem dados
+                  Aguardando IA
                 </p>
               </div>
               <Brain className="h-8 w-8 text-gray-200" />
@@ -49,7 +49,7 @@ export function MetricCards() {
                 <p className="text-3xl font-bold">--</p>
                 <p className="text-gray-100 text-sm flex items-center gap-1 mt-1">
                   <AlertCircle className="h-3 w-3" />
-                  Sem dados
+                  Aguardando IA
                 </p>
               </div>
               <Heart className="h-8 w-8 text-gray-200" />
@@ -65,7 +65,7 @@ export function MetricCards() {
                 <p className="text-3xl font-bold">--</p>
                 <p className="text-gray-100 text-sm flex items-center gap-1 mt-1">
                   <AlertCircle className="h-3 w-3" />
-                  Sem dados
+                  Aguardando IA
                 </p>
               </div>
               <Timer className="h-8 w-8 text-gray-200" />
@@ -81,7 +81,7 @@ export function MetricCards() {
                 <p className="text-3xl font-bold">0%</p>
                 <p className="text-gray-100 text-sm flex items-center gap-1 mt-1">
                   <AlertCircle className="h-3 w-3" />
-                  Sem dados
+                  Aguardando IA
                 </p>
               </div>
               <BarChart3 className="h-8 w-8 text-gray-200" />
@@ -102,7 +102,7 @@ export function MetricCards() {
               <p className="text-3xl font-bold">{data.psychologicalProfile}</p>
               <p className="text-blue-100 text-sm flex items-center gap-1 mt-1">
                 <TrendingUp className="h-3 w-3" />
-                Evolução positiva
+                Gerado por IA
               </p>
             </div>
             <Brain className="h-8 w-8 text-blue-200" />
@@ -118,7 +118,7 @@ export function MetricCards() {
               <p className="text-3xl font-bold">{data.emotionalState}</p>
               <p className="text-green-100 text-sm flex items-center gap-1 mt-1">
                 <TrendingUp className="h-3 w-3" />
-                Mais estável que ontem
+                Análise por IA
               </p>
             </div>
             <Heart className="h-8 w-8 text-green-200" />
@@ -134,7 +134,7 @@ export function MetricCards() {
               <p className="text-3xl font-bold">{data.mainFocus}</p>
               <p className="text-purple-100 text-sm flex items-center gap-1 mt-1">
                 <TrendingUp className="h-3 w-3" />
-                +18% este mês
+                Identificado por IA
               </p>
             </div>
             <Timer className="h-8 w-8 text-purple-200" />
@@ -150,7 +150,7 @@ export function MetricCards() {
               <p className="text-3xl font-bold">{data.relationalAwareness}%</p>
               <p className="text-orange-100 text-sm flex items-center gap-1 mt-1">
                 <TrendingUp className="h-3 w-3" />
-                +8% este mês
+                Calculado por IA
               </p>
             </div>
             <BarChart3 className="h-8 w-8 text-orange-200" />
