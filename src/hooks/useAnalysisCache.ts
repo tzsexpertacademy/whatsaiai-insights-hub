@@ -1,7 +1,8 @@
 
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { useFirebaseStorage } from './useFirebaseStorage';
+import { useCommercialClientConfig } from './useCommercialClientConfig';
+import { useClientConfig } from '@/contexts/ClientConfigContext';
 
 interface CacheEntry {
   conversation_id: string;
@@ -22,7 +23,8 @@ interface AnalysisCacheStats {
 export function useAnalysisCache(module: 'commercial' | 'observatory' = 'observatory') {
   const [cacheStats, setCacheStats] = useState<AnalysisCacheStats | null>(null);
   const { toast } = useToast();
-  const firebaseStorage = useFirebaseStorage(module);
+  const { config: commercialConfig } = useCommercialClientConfig();
+  const { config: observatoryConfig } = useClientConfig();
 
   // Gerar hash simples do conteúdo da conversa para detectar mudanças
   const generateContentHash = (conversation: any): string => {
@@ -42,12 +44,18 @@ export function useAnalysisCache(module: 'commercial' | 'observatory' = 'observa
     return Math.abs(hash).toString(36);
   };
 
+  // Obter configuração do Firebase baseada no módulo
+  const getFirebaseConfig = () => {
+    if (module === 'commercial') {
+      return commercialConfig?.commercial_firebase_config;
+    }
+    return observatoryConfig?.firebase;
+  };
+
   // Buscar cache existente do Firebase
   const getCacheData = async (): Promise<Record<string, CacheEntry>> => {
     try {
-      const firebaseConfig = module === 'commercial' 
-        ? firebaseStorage.getFirebaseConfig?.() 
-        : firebaseStorage.getFirebaseConfig?.();
+      const firebaseConfig = getFirebaseConfig();
       
       if (!firebaseConfig?.databaseURL || !firebaseConfig?.apiKey) {
         return {};
@@ -79,9 +87,7 @@ export function useAnalysisCache(module: 'commercial' | 'observatory' = 'observa
   // Salvar cache no Firebase
   const saveCacheData = async (cacheData: Record<string, CacheEntry>): Promise<void> => {
     try {
-      const firebaseConfig = module === 'commercial' 
-        ? firebaseStorage.getFirebaseConfig?.() 
-        : firebaseStorage.getFirebaseConfig?.();
+      const firebaseConfig = getFirebaseConfig();
       
       if (!firebaseConfig?.databaseURL || !firebaseConfig?.apiKey) {
         throw new Error('Firebase não configurado');
