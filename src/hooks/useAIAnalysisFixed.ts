@@ -5,18 +5,18 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useFirebaseStorage } from './useFirebaseStorage';
 import { useAnalysisCache } from './useAnalysisCache';
 
-export function useCommercialAIAnalysisFixed() {
+export function useAIAnalysisFixed() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
-  const { getConversations, saveAnalysis } = useFirebaseStorage('commercial');
+  const { getConversations, saveAnalysis } = useFirebaseStorage('observatory');
   const { 
     analyzeConversationsForCache, 
     updateCacheAfterAnalysis, 
     cacheStats 
-  } = useAnalysisCache('commercial');
+  } = useAnalysisCache('observatory');
 
-  const triggerCommercialAnalysis = async () => {
+  const triggerAIAnalysis = async () => {
     if (!user?.id) {
       toast({
         title: "Erro de autenticação",
@@ -28,7 +28,7 @@ export function useCommercialAIAnalysisFixed() {
 
     try {
       setIsAnalyzing(true);
-      console.log('💼 Iniciando análise comercial INTELIGENTE com cache');
+      console.log('🔬 Iniciando análise do Observatório INTELIGENTE com cache');
 
       // Buscar conversas do Firebase do cliente
       const conversations = await getConversations();
@@ -42,7 +42,7 @@ export function useCommercialAIAnalysisFixed() {
         return;
       }
 
-      console.log(`📊 Verificando cache para ${conversations.length} conversas`);
+      console.log(`📊 Verificando cache para ${conversations.length} conversas do Observatório`);
 
       // Analisar cache - quais conversas precisam ser processadas
       const { toAnalyze, cached, stats } = await analyzeConversationsForCache(conversations);
@@ -56,21 +56,24 @@ export function useCommercialAIAnalysisFixed() {
         });
       }
 
-      console.log(`🎯 Analisando apenas ${toAnalyze.length} conversas (${cached.length} em cache)`);
+      console.log(`🎯 Analisando apenas ${toAnalyze.length} conversas do Observatório (${cached.length} em cache)`);
 
       // Simular análise apenas das conversas que precisam
       if (toAnalyze.length > 0) {
-        await new Promise(resolve => setTimeout(resolve, Math.min(2500, toAnalyze.length * 500)));
+        await new Promise(resolve => setTimeout(resolve, Math.min(2000, toAnalyze.length * 400)));
       }
 
       // Gerar insights apenas para conversas novas/modificadas
       const newAnalysisResults = toAnalyze.map(conv => ({
         conversation_id: conv.id,
         insights_generated: Math.floor(Math.random() * 5) + 1,
-        emotional_state: ['ansioso', 'calmo', 'motivado'][Math.floor(Math.random() * 3)],
+        emotional_state: ['ansioso', 'calmo', 'motivado', 'estressado', 'confiante'][Math.floor(Math.random() * 5)],
         conversation_quality: Math.floor(Math.random() * 10) + 1,
-        sales_intent: Math.floor(Math.random() * 10) + 1,
-        conversion_probability: Math.floor(Math.random() * 100),
+        psychological_insights: {
+          personality_traits: ['introspectivo', 'analítico', 'empático'][Math.floor(Math.random() * 3)],
+          emotional_patterns: ['estável', 'variável', 'crescente'][Math.floor(Math.random() * 3)],
+          communication_style: ['direto', 'reflexivo', 'expressivo'][Math.floor(Math.random() * 3)]
+        },
         analysis_timestamp: new Date().toISOString()
       }));
 
@@ -80,12 +83,6 @@ export function useCommercialAIAnalysisFixed() {
         ...cached.map(conv => conv.cached_analysis).filter(Boolean)
       ];
 
-      // Calcular métricas consolidadas baseadas em TODOS os resultados
-      const totalMessages = conversations.reduce((sum, conv) => sum + conv.messages.length, 0);
-      const leadsGenerated = conversations.length;
-      const qualifiedLeads = Math.floor(leadsGenerated * 0.7);
-      const conversions = Math.floor(qualifiedLeads * 0.25);
-
       // Salvar análise consolidada
       const consolidatedAnalysis = {
         analysis_date: new Date().toISOString().split('T')[0],
@@ -93,15 +90,14 @@ export function useCommercialAIAnalysisFixed() {
         conversations_from_cache: cached.length,
         conversations_newly_analyzed: toAnalyze.length,
         cache_efficiency: stats.estimatedSavings,
-        total_messages: totalMessages,
-        leads_generated: leadsGenerated,
-        qualified_leads: qualifiedLeads,
-        conversions: conversions,
-        conversion_rate: ((conversions / leadsGenerated) * 100).toFixed(1),
-        revenue_generated: conversions * 15625,
+        total_insights_generated: allResults.reduce((sum, result) => sum + (result.insights_generated || 0), 0),
+        emotional_analysis_summary: {
+          dominant_states: allResults.map(r => r.emotional_state).filter(Boolean),
+          psychological_patterns: allResults.map(r => r.psychological_insights).filter(Boolean)
+        },
         insights: [
           {
-            type: 'conversion',
+            type: 'behavioral',
             title: 'Análise Inteligente com Cache',
             description: `${conversations.length} conversas processadas (${cached.length} do cache, ${toAnalyze.length} novas análises)`,
             impact: 'high'
@@ -123,14 +119,14 @@ export function useCommercialAIAnalysisFixed() {
         await updateCacheAfterAnalysis(toAnalyze, newAnalysisResults);
       }
 
-      console.log('✅ Análise comercial INTELIGENTE concluída');
+      console.log('✅ Análise do Observatório INTELIGENTE concluída');
       
       const economyMessage = stats.cachedConversations > 0 
         ? ` (economia de ${stats.estimatedSavings}% com cache inteligente)`
         : ' (primeira análise - cache criado para próximas)';
 
       toast({
-        title: "Análise comercial concluída! 🎯",
+        title: "Análise do Observatório concluída! 🔬",
         description: `${conversations.length} conversas processadas usando sistema de cache${economyMessage}`,
         duration: 3000
       });
@@ -141,9 +137,9 @@ export function useCommercialAIAnalysisFixed() {
       }, 1500);
 
     } catch (error) {
-      console.error('❌ Erro durante análise comercial:', error);
+      console.error('❌ Erro durante análise do Observatório:', error);
       toast({
-        title: "Erro na análise comercial",
+        title: "Erro na análise",
         description: "Verifique a configuração do Firebase do cliente",
         variant: "destructive"
       });
@@ -154,7 +150,7 @@ export function useCommercialAIAnalysisFixed() {
 
   return {
     isAnalyzing,
-    triggerCommercialAnalysis,
+    triggerAIAnalysis,
     cacheStats
   };
 }

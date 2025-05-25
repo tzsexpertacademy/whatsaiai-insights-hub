@@ -2,18 +2,18 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Brain, Loader2, Zap } from 'lucide-react';
-import { useCommercialAIAnalysisFixed } from '@/hooks/useCommercialAIAnalysisFixed';
+import { useAIAnalysisFixed } from '@/hooks/useAIAnalysisFixed';
 import { Badge } from '@/components/ui/badge';
 
-export function CommercialAIAnalysisButton() {
-  const { isAnalyzing, triggerCommercialAnalysis, cacheStats } = useCommercialAIAnalysisFixed();
+export function AIAnalysisButtonFixed() {
+  const { isAnalyzing, triggerAIAnalysis, cacheStats } = useAIAnalysisFixed();
 
   return (
     <div className="space-y-2">
       <Button 
-        onClick={triggerCommercialAnalysis}
+        onClick={triggerAIAnalysis}
         disabled={isAnalyzing}
-        className="bg-green-600 hover:bg-green-700 text-white relative"
+        className="bg-blue-600 hover:bg-blue-700 text-white relative"
       >
         {isAnalyzing ? (
           <>
@@ -24,7 +24,7 @@ export function CommercialAIAnalysisButton() {
           <>
             <Brain className="h-4 w-4 mr-2" />
             <Zap className="h-3 w-3 mr-1" />
-            Análise Comercial Inteligente
+            Análise Observatório Inteligente
           </>
         )}
       </Button>
