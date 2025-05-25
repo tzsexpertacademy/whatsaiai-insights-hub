@@ -7,6 +7,7 @@ import { SolutionsHub } from '@/pages/SolutionsHub';
 import Index from '@/pages/Index';
 import { CommercialBrain } from '@/pages/CommercialBrain';
 import { AdminDashboard } from './admin/AdminDashboard';
+import AdminMaster from '@/pages/AdminMaster';
 import { AdminRoute } from './AdminRoute';
 
 export function AppRouter() {
@@ -35,6 +36,18 @@ export function AppRouter() {
           isAuthenticated ? (
             <AdminRoute>
               <AdminDashboard />
+            </AdminRoute>
+          ) : (
+            <Navigate to="/auth" replace />
+          )
+        } 
+      />
+      <Route 
+        path="/admin/master" 
+        element={
+          isAuthenticated ? (
+            <AdminRoute requiredLevel="super">
+              <AdminMaster />
             </AdminRoute>
           ) : (
             <Navigate to="/auth" replace />
