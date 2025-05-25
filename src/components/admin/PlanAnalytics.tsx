@@ -17,7 +17,7 @@ import {
   ArrowDownRight
 } from 'lucide-react';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, AreaChart, Area, BarChart, Bar, PieChart as RechartsPieChart, Cell } from "recharts";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, AreaChart, Area, BarChart, Bar, PieChart as RechartsPieChart, Cell, Pie } from "recharts";
 
 export function PlanAnalytics() {
   const [selectedPlan, setSelectedPlan] = useState('all');

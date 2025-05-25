@@ -19,7 +19,7 @@ import {
   Zap
 } from 'lucide-react';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, AreaChart, Area, BarChart, Bar, PieChart as RechartsPieChart, Cell } from "recharts";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, AreaChart, Area, BarChart, Bar, PieChart as RechartsPieChart, Cell, Pie } from "recharts";
 import { ClientManagement } from './ClientManagement';
 import { FinancialMetrics } from './FinancialMetrics';
 import { PlanAnalytics } from './PlanAnalytics';
