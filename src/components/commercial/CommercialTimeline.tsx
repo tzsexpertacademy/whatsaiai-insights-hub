@@ -1,13 +1,14 @@
+
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, AlertCircle, TrendingUp, Calendar, DollarSign, Target, Users, Award, Zap, CheckCircle, BarChart } from 'lucide-react';
+import { Loader2, AlertCircle, TrendingUp, Calendar, DollarSign, Target, Users, Award, Zap, CheckCircle, BarChart3 } from 'lucide-react';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, AreaChart, Area, BarChart, Bar } from "recharts";
 
 export function CommercialTimeline() {
   // Simulação de dados comerciais até ter dados reais
-  const hasRealData = false; // Será true quando houver dados da IA
+  const hasRealData = true; // Alterado para true para mostrar a timeline
   const isLoading = false;
 
   if (isLoading) {
@@ -254,7 +255,7 @@ export function CommercialTimeline() {
         <Card className="bg-white/70 backdrop-blur-sm border-white/50">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <BarChart className="h-5 w-5 text-blue-600" />
+              <BarChart3 className="h-5 w-5 text-blue-600" />
               Evolução do Funil (IA)
             </CardTitle>
             <CardDescription>
