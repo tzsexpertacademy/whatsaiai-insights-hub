@@ -8,6 +8,7 @@ import { InsightsDashboard } from '@/components/InsightsDashboard';
 import { AreasOfLife } from '@/components/AreasOfLife';
 import { BehavioralProfile } from '@/components/BehavioralProfile';
 import { EmotionalThermometer } from '@/components/EmotionalThermometer';
+import { ObservatoryTimeline } from '@/components/ObservatoryTimeline';
 import { Recommendations } from '@/components/Recommendations';
 import { WhatsAppConnection } from '@/components/WhatsAppConnection';
 import { SettingsPage } from '@/components/SettingsPage';
@@ -67,6 +68,12 @@ const Index = () => {
                       <>
                         {console.log('Dashboard - Rendering EmotionalThermometer')}
                         <EmotionalThermometer />
+                      </>
+                    } />
+                    <Route path="/timeline" element={
+                      <>
+                        {console.log('Dashboard - Rendering ObservatoryTimeline')}
+                        <ObservatoryTimeline />
                       </>
                     } />
                     <Route path="/recommendations" element={

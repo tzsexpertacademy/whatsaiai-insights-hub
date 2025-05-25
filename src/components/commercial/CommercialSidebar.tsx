@@ -1,5 +1,4 @@
-
-import { TrendingUp, TrendingDown, Target, Brain, Users, BarChart3, ArrowLeft, DollarSign, Settings, FileSearch } from 'lucide-react';
+import { TrendingUp, TrendingDown, Target, Brain, Users, BarChart3, ArrowLeft, DollarSign, Settings, FileSearch, Timeline } from 'lucide-react';
 import {
   Sidebar,
   SidebarContent,
@@ -25,6 +24,7 @@ export function CommercialSidebar() {
     { title: 'Performance de Vendas', icon: TrendingUp, url: '/commercial/performance' },
     { title: 'Métricas Comportamentais', icon: Brain, url: '/commercial/behavioral' },
     { title: 'Cultura do Time', icon: Users, url: '/commercial/culture' },
+    { title: 'Linha do Tempo', icon: Timeline, url: '/commercial/timeline' },
     { title: 'Métricas Estratégicas', icon: Target, url: '/commercial/strategic' },
   ];
 

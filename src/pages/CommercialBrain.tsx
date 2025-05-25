@@ -9,6 +9,7 @@ import { FunnelAnalysis } from '@/components/commercial/FunnelAnalysis';
 import { SalesPerformance } from '@/components/commercial/SalesPerformance';
 import { BehavioralMetrics } from '@/components/commercial/BehavioralMetrics';
 import { TeamCulture } from '@/components/commercial/TeamCulture';
+import { CommercialTimeline } from '@/components/commercial/CommercialTimeline';
 import { StrategicMetrics } from '@/components/commercial/StrategicMetrics';
 import { CommercialSettingsPage } from '@/components/commercial/CommercialSettingsPage';
 import { CommercialDocumentAnalysis } from '@/components/commercial/CommercialDocumentAnalysis';
@@ -31,6 +32,7 @@ export function CommercialBrain() {
                   <Route path="/performance" element={<SalesPerformance />} />
                   <Route path="/behavioral" element={<BehavioralMetrics />} />
                   <Route path="/culture" element={<TeamCulture />} />
+                  <Route path="/timeline" element={<CommercialTimeline />} />
                   <Route path="/strategic" element={<StrategicMetrics />} />
                   <Route path="/analysis" element={<CommercialDocumentAnalysis />} />
                   <Route path="/settings" element={<CommercialSettingsPage />} />

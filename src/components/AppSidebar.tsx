@@ -1,5 +1,4 @@
-
-import { Brain, BarChart3, User, Heart, Target, MessageSquare, Settings, UserCircle, Users, FileSearch, ArrowLeft } from 'lucide-react';
+import { Brain, BarChart3, User, Heart, Target, MessageSquare, Settings, UserCircle, Users, FileSearch, ArrowLeft, Timeline } from 'lucide-react';
 import {
   Sidebar,
   SidebarContent,
@@ -26,6 +25,7 @@ export function AppSidebar() {
     { title: 'Áreas da Vida', icon: Target, url: '/dashboard/areas' },
     { title: 'Perfil Comportamental', icon: Brain, url: '/dashboard/profile' },
     { title: 'Termômetro Emocional', icon: Heart, url: '/dashboard/emotions' },
+    { title: 'Linha do Tempo', icon: Timeline, url: '/dashboard/timeline' },
     { title: 'Recomendações', icon: MessageSquare, url: '/dashboard/recommendations' },
   ];
 
