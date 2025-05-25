@@ -3,7 +3,7 @@ import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useAnalysisData } from '@/contexts/AnalysisDataContext';
-import { Loader2, AlertCircle, TrendingUp, Calendar, Brain, Heart, Target, Award, Sparkles, CheckCircle } from 'lucide-react';
+import { Loader2, AlertCircle, TrendingUp, Calendar, Brain, Heart, Target, Award, Sparkles, CheckCircle, Clock } from 'lucide-react';
 
 export function ObservatoryTimeline() {
   const { data, isLoading } = useAnalysisData();
@@ -184,7 +184,7 @@ export function ObservatoryTimeline() {
       <Card className="bg-white/70 backdrop-blur-sm border-white/50">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Timeline className="h-6 w-6" />
+            <Clock className="h-6 w-6" />
             Marcos da Sua Evolução
           </CardTitle>
           <CardDescription>
