@@ -8,13 +8,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { Brain, Mail, Lock, User, Building } from 'lucide-react';
+import { Brain, Mail, Lock, User, Building, Shield } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export function LoginPage() {
   const { login, signup, user, isLoading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [showAdminShortcut, setShowAdminShortcut] = useState(false);
 
   const [loginData, setLoginData] = useState({
     email: '',
@@ -35,6 +36,27 @@ export function LoginPage() {
       navigate('/');
     }
   }, [user, navigate]);
+
+  const handleBrainClick = () => {
+    setShowAdminShortcut(!showAdminShortcut);
+  };
+
+  const handleAdminAccess = () => {
+    // Login automático como admin para facilitar acesso
+    const adminEmail = 'admin@observatorio.com';
+    const adminPassword = 'admin123';
+    
+    login(adminEmail, adminPassword).then(() => {
+      navigate('/admin/master');
+      toast({
+        title: "Acesso Admin Master",
+        description: "Redirecionando para o painel administrativo"
+      });
+    }).catch(() => {
+      // Se falhar o login automático, apenas redireciona
+      navigate('/admin/master');
+    });
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -97,10 +119,28 @@ export function LoginPage() {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-2 mb-4">
-            <Brain className="h-8 w-8 text-blue-600" />
+            <Brain 
+              className="h-8 w-8 text-blue-600 cursor-pointer transition-colors hover:text-purple-600" 
+              onClick={handleBrainClick}
+            />
             <h1 className="text-2xl font-bold text-gray-900">Observatório Psicológico</h1>
           </div>
           <p className="text-gray-600">Análise comportamental avançada via WhatsApp</p>
+          
+          {/* Atalho Admin Discreto */}
+          {showAdminShortcut && (
+            <div className="mt-4 p-3 bg-gray-50 rounded-lg border">
+              <Button
+                onClick={handleAdminAccess}
+                variant="outline"
+                size="sm"
+                className="text-xs flex items-center gap-2"
+              >
+                <Shield className="h-3 w-3" />
+                Acesso Admin Master
+              </Button>
+            </div>
+          )}
         </div>
 
         <Card className="shadow-xl border-0">
