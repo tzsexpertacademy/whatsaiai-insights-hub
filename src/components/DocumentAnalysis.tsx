@@ -281,7 +281,7 @@ export function DocumentAnalysis() {
     }
   };
 
-  // Função para iniciar gravação do chat
+  // Função para iniciar gravação do chat - CORRIGIDA
   const startChatRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ 
@@ -345,17 +345,44 @@ export function DocumentAnalysis() {
     }
   };
 
-  // Função para transcrever áudio do chat
+  // Função para transcrever áudio do chat - CORRIGIDA
   const transcribeChatAudio = async (audioBlob: Blob) => {
     setIsTranscribingChat(true);
     
     try {
-      // Converter blob para base64
+      console.log('Iniciando transcrição do áudio do chat:', {
+        size: audioBlob.size,
+        type: audioBlob.type
+      });
+
+      // Verificar se o blob tem conteúdo
+      if (audioBlob.size === 0) {
+        throw new Error('Áudio vazio - tente gravar novamente');
+      }
+
+      // Converter blob para base64 de forma mais robusta
       const arrayBuffer = await audioBlob.arrayBuffer();
-      const uint8Array = new Uint8Array(arrayBuffer);
-      const binaryString = Array.from(uint8Array).map(byte => String.fromCharCode(byte)).join('');
-      const base64Audio = btoa(binaryString);
+      console.log('ArrayBuffer size:', arrayBuffer.byteLength);
       
+      if (arrayBuffer.byteLength === 0) {
+        throw new Error('Dados de áudio vazios');
+      }
+
+      // Usar FileReader para conversão mais confiável
+      const base64Audio = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const result = reader.result as string;
+          // Remover o prefixo data:audio/webm;base64,
+          const base64 = result.split(',')[1];
+          resolve(base64);
+        };
+        reader.onerror = () => reject(new Error('Erro ao converter áudio'));
+        reader.readAsDataURL(audioBlob);
+      });
+
+      console.log('Base64 audio length:', base64Audio.length);
+
       const response = await fetch('https://duyxbtfknilgrvgsvlyy.functions.supabase.co/functions/v1/voice-to-text', {
         method: 'POST',
         headers: {
@@ -364,26 +391,36 @@ export function DocumentAnalysis() {
         body: JSON.stringify({ audio: base64Audio }),
       });
       
+      console.log('Response status:', response.status);
+      
       if (!response.ok) {
-        throw new Error('Erro na transcrição');
+        const errorText = await response.text();
+        console.error('Erro na API:', errorText);
+        throw new Error(`Erro na transcrição: ${response.status} - ${errorText}`);
       }
       
       const data = await response.json();
-      setNewMessage(data.text);
+      console.log('Resposta da transcrição:', data);
       
-      toast({
-        title: "Transcrição concluída",
-        description: "O áudio foi convertido em texto com sucesso.",
-      });
+      if (data.text) {
+        setNewMessage(data.text);
+        toast({
+          title: "Transcrição concluída",
+          description: "O áudio foi convertido em texto com sucesso.",
+        });
+      } else {
+        throw new Error('Nenhum texto foi transcrito');
+      }
     } catch (error) {
-      console.error('Erro na transcrição:', error);
+      console.error('Erro na transcrição do chat:', error);
       toast({
         title: "Erro na transcrição",
-        description: "Não foi possível transcrever o áudio.",
+        description: error instanceof Error ? error.message : "Não foi possível transcrever o áudio.",
         variant: "destructive",
       });
     } finally {
       setIsTranscribingChat(false);
+      setChatAudioBlob(null);
     }
   };
 
@@ -1342,6 +1379,7 @@ INSTRUÇÕES:
                   size="icon"
                   onClick={isChatRecording ? stopChatRecording : startChatRecording}
                   disabled={isTranscribingChat || apiStatus !== 'valid'}
+                  title={isChatRecording ? "Parar gravação" : "Gravar áudio"}
                 >
                   {isChatRecording ? (
                     <Square className="h-4 w-4" />
