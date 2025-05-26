@@ -281,6 +281,112 @@ export function DocumentAnalysis() {
     }
   };
 
+  // Função para iniciar gravação do chat
+  const startChatRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          sampleRate: 44100,
+          channelCount: 1,
+          echoCancellation: true,
+          noiseSuppression: true
+        }
+      });
+      
+      const mimeType = window.MediaRecorder.isTypeSupported('audio/webm;codecs=opus') 
+        ? 'audio/webm;codecs=opus' 
+        : 'audio/webm';
+      
+      const recorder = new window.MediaRecorder(stream, { mimeType });
+      const chunks: Blob[] = [];
+      
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          chunks.push(event.data);
+        }
+      };
+      
+      recorder.onstop = () => {
+        const blob = new Blob(chunks, { type: mimeType });
+        setChatAudioBlob(blob);
+        stream.getTracks().forEach(track => track.stop());
+        transcribeChatAudio(blob);
+      };
+      
+      recorder.start();
+      setChatMediaRecorder(recorder);
+      setIsChatRecording(true);
+      
+      toast({
+        title: "Gravação iniciada",
+        description: "Fale agora. Clique em parar quando terminar.",
+      });
+    } catch (error) {
+      console.error('Erro ao acessar microfone:', error);
+      toast({
+        title: "Erro no microfone",
+        description: "Não foi possível acessar o microfone. Verifique as permissões.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Função para parar gravação do chat
+  const stopChatRecording = () => {
+    if (chatMediaRecorder && chatMediaRecorder.state === 'recording') {
+      chatMediaRecorder.stop();
+      setIsChatRecording(false);
+      setChatMediaRecorder(null);
+      
+      toast({
+        title: "Gravação finalizada",
+        description: "Áudio capturado com sucesso. Transcrevendo...",
+      });
+    }
+  };
+
+  // Função para transcrever áudio do chat
+  const transcribeChatAudio = async (audioBlob: Blob) => {
+    setIsTranscribingChat(true);
+    
+    try {
+      // Converter blob para base64
+      const arrayBuffer = await audioBlob.arrayBuffer();
+      const uint8Array = new Uint8Array(arrayBuffer);
+      const binaryString = Array.from(uint8Array).map(byte => String.fromCharCode(byte)).join('');
+      const base64Audio = btoa(binaryString);
+      
+      const response = await fetch('https://duyxbtfknilgrvgsvlyy.functions.supabase.co/functions/v1/voice-to-text', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ audio: base64Audio }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Erro na transcrição');
+      }
+      
+      const data = await response.json();
+      setNewMessage(data.text);
+      
+      toast({
+        title: "Transcrição concluída",
+        description: "O áudio foi convertido em texto com sucesso.",
+      });
+    } catch (error) {
+      console.error('Erro na transcrição:', error);
+      toast({
+        title: "Erro na transcrição",
+        description: "Não foi possível transcrever o áudio.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsTranscribingChat(false);
+    }
+  };
+
   // Função para processar URL
   const processUrl = async () => {
     if (!urlInput.trim() || !selectedAssistant) {
