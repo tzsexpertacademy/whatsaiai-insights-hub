@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -24,6 +23,8 @@ import { ClientManagement } from './ClientManagement';
 import { FinancialMetrics } from './FinancialMetrics';
 import { PlanAnalytics } from './PlanAnalytics';
 import { ChurnAnalysis } from './ChurnAnalysis';
+import { AdminHeader } from './AdminHeader';
+import { PlanManagement } from './PlanManagement';
 
 export function AdminMasterDashboard() {
   const [timeRange, setTimeRange] = useState('30d');
@@ -86,19 +87,15 @@ export function AdminMasterDashboard() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-6">
       <div className="max-w-7xl mx-auto space-y-6">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-slate-800 mb-2">Painel Master - CEO</h1>
-            <p className="text-slate-600">Visão completa do negócio e métricas estratégicas</p>
-          </div>
-          <div className="flex gap-2">
-            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-              Sistema Operacional
-            </Badge>
-            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-              {businessMetrics.totalClients} Clientes Ativos
-            </Badge>
-          </div>
+        <AdminHeader />
+
+        <div className="flex gap-2">
+          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+            Sistema Operacional
+          </Badge>
+          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+            {businessMetrics.totalClients} Clientes Ativos
+          </Badge>
         </div>
 
         {/* Métricas Principais de Negócio */}
@@ -199,8 +196,9 @@ export function AdminMasterDashboard() {
         </div>
 
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="overview">Visão Geral</TabsTrigger>
+            <TabsTrigger value="plans-mgmt">Planos</TabsTrigger>
             <TabsTrigger value="clients">Clientes</TabsTrigger>
             <TabsTrigger value="financial">Financeiro</TabsTrigger>
             <TabsTrigger value="plans">Análise de Planos</TabsTrigger>
@@ -322,6 +320,10 @@ export function AdminMasterDashboard() {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="plans-mgmt">
+            <PlanManagement />
           </TabsContent>
 
           <TabsContent value="clients">
