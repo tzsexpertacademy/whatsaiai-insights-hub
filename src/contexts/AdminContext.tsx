@@ -19,33 +19,57 @@ const ADMIN_EMAILS = [
   'suporte@observatoriopsicologico.com'
 ];
 
+// Função para verificar se é um email admin temporário
+const isTemporaryAdminEmail = (email: string): boolean => {
+  return email.startsWith('admin.temp.') && email.endsWith('@observatorio.com');
+};
+
 export function AdminProvider({ children }: { children: React.ReactNode }) {
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminLevel, setAdminLevel] = useState<'none' | 'support' | 'admin' | 'super'>('none');
   const { user, isAuthenticated } = useAuth();
 
   const checkAdminStatus = async (): Promise<boolean> => {
+    console.log('🔍 Verificando status admin:', { isAuthenticated, user: user ? { id: user.id, email: user.email } : null });
+    
     if (!isAuthenticated || !user) {
+      console.log('❌ Usuário não autenticado ou sem dados');
       setIsAdmin(false);
       setAdminLevel('none');
       return false;
     }
 
-    // Verificar se o email está na lista de administradores
     const userEmail = user.email || '';
-    const isUserAdmin = ADMIN_EMAILS.includes(userEmail);
+    console.log('📧 Email do usuário:', userEmail);
+    
+    // Verificar se é admin permanente ou temporário
+    const isPermanentAdmin = ADMIN_EMAILS.includes(userEmail);
+    const isTempAdmin = isTemporaryAdminEmail(userEmail);
+    const isUserAdmin = isPermanentAdmin || isTempAdmin;
+    
+    console.log('🔐 Verificação admin:', {
+      isPermanentAdmin,
+      isTempAdmin,
+      isUserAdmin,
+      userEmail
+    });
     
     if (isUserAdmin) {
       setIsAdmin(true);
+      
       // Definir nível baseado no email
-      if (userEmail.includes('admin@')) {
+      if (userEmail.includes('admin@') || isTempAdmin) {
         setAdminLevel('super');
+        console.log('✅ Admin super detectado');
       } else if (userEmail.includes('suporte@')) {
         setAdminLevel('support');
+        console.log('✅ Admin suporte detectado');
       } else {
         setAdminLevel('admin');
+        console.log('✅ Admin padrão detectado');
       }
     } else {
+      console.log('❌ Usuário não é admin');
       setIsAdmin(false);
       setAdminLevel('none');
     }
@@ -54,6 +78,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
+    console.log('🔄 AdminContext - Verificando status admin devido a mudança no usuário');
     checkAdminStatus();
   }, [user, isAuthenticated]);
 
