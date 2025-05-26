@@ -15,6 +15,7 @@ export function LoginPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [showAdminShortcut, setShowAdminShortcut] = useState(false);
+  const [isProcessingAdmin, setIsProcessingAdmin] = useState(false);
 
   const [loginData, setLoginData] = useState({
     email: '',
@@ -31,29 +32,97 @@ export function LoginPage() {
 
   // Redirecionar se já estiver logado
   useEffect(() => {
-    if (user) {
+    if (user && !isProcessingAdmin) {
       navigate('/');
     }
-  }, [user, navigate]);
+  }, [user, navigate, isProcessingAdmin]);
 
   const handleBrainClick = () => {
     setShowAdminShortcut(!showAdminShortcut);
   };
 
-  const handleAdminAccess = () => {
-    console.log('🔧 Acesso admin direto ativado');
+  const handleAdminAccess = async () => {
+    console.log('🔧 Iniciando acesso admin automático');
+    setIsProcessingAdmin(true);
     
-    toast({
-      title: "Acesso Admin Ativado",
-      description: "Redirecionando para painel administrativo...",
-      duration: 2000
-    });
+    const adminEmail = 'admin@observatorio.com';
+    const adminPassword = 'admin123';
 
-    // Redireciona diretamente para o admin master após um breve delay
-    setTimeout(() => {
-      console.log('🚀 Redirecionando para /admin/master');
-      navigate('/admin/master');
-    }, 1500);
+    try {
+      toast({
+        title: "Processando Acesso Admin",
+        description: "Fazendo login automático...",
+        duration: 3000
+      });
+
+      // Tenta fazer login primeiro
+      console.log('🔄 Tentando login com credenciais admin...');
+      await login(adminEmail, adminPassword);
+      
+      console.log('✅ Login admin bem-sucedido!');
+      toast({
+        title: "Acesso Autorizado",
+        description: "Redirecionando para painel administrativo...",
+        duration: 2000
+      });
+
+      // Aguarda um pouco para garantir que o estado foi atualizado
+      setTimeout(() => {
+        console.log('🚀 Redirecionando para /admin/master');
+        navigate('/admin/master');
+        setIsProcessingAdmin(false);
+      }, 1000);
+
+    } catch (error) {
+      console.log('❌ Login falhou, tentando criar conta admin:', error);
+      
+      try {
+        // Se login falhar, tenta criar a conta
+        console.log('🔄 Criando conta admin...');
+        await signup(adminEmail, adminPassword, {
+          fullName: 'Administrador Master',
+          companyName: 'Observatório Psicológico'
+        });
+
+        console.log('✅ Conta admin criada! Fazendo login...');
+        toast({
+          title: "Conta Criada",
+          description: "Fazendo login automaticamente...",
+          duration: 2000
+        });
+
+        // Aguarda e faz login
+        setTimeout(async () => {
+          try {
+            await login(adminEmail, adminPassword);
+            console.log('✅ Login após criação bem-sucedido!');
+            
+            setTimeout(() => {
+              console.log('🚀 Redirecionando para /admin/master');
+              navigate('/admin/master');
+              setIsProcessingAdmin(false);
+            }, 1000);
+          } catch (loginError) {
+            console.error('❌ Erro no login após criação:', loginError);
+            setIsProcessingAdmin(false);
+            toast({
+              title: "Erro",
+              description: "Não foi possível fazer login. Tente manualmente.",
+              variant: "destructive"
+            });
+          }
+        }, 2000);
+
+      } catch (signupError) {
+        console.error('❌ Erro ao criar conta admin:', signupError);
+        setIsProcessingAdmin(false);
+        toast({
+          title: "Erro",
+          description: "Não foi possível criar conta admin. Tente fazer login manualmente.",
+          variant: "destructive"
+        });
+      }
+    }
   };
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -132,10 +201,11 @@ export function LoginPage() {
                 onClick={handleAdminAccess}
                 variant="outline"
                 size="sm"
-                className="text-xs flex items-center gap-2 hover:bg-blue-50"
+                disabled={isProcessingAdmin}
+                className="text-xs flex items-center gap-2 hover:bg-blue-50 disabled:opacity-50"
               >
                 <Shield className="h-3 w-3" />
-                Acesso Admin Master
+                {isProcessingAdmin ? 'Processando...' : 'Acesso Admin Master'}
               </Button>
             </div>
           )}
