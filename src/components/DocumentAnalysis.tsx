@@ -97,6 +97,14 @@ export function DocumentAnalysis() {
   const [isTranscribing, setIsTranscribing] = useState(false);
   const recordingInterval = useRef<NodeJS.Timeout | null>(null);
   
+  // Estados para áudio do chat
+  const [isChatRecording, setIsChatRecording] = useState(false);
+  const [chatAudioBlob, setChatAudioBlob] = useState<Blob | null>(null);
+  const [chatMediaRecorder, setChatMediaRecorder] = useState<MediaRecorder | null>(null);
+  const [chatRecordingTime, setChatRecordingTime] = useState(0);
+  const [isTranscribingChat, setIsTranscribingChat] = useState(false);
+  const chatRecordingInterval = useRef<NodeJS.Timeout | null>(null);
+  
   // Estados para URL
   const [urlInput, setUrlInput] = useState('');
   const [isProcessingUrl, setIsProcessingUrl] = useState(false);
@@ -145,6 +153,26 @@ export function DocumentAnalysis() {
       }
     };
   }, [isRecording]);
+
+  // Timer para gravação do chat
+  useEffect(() => {
+    if (isChatRecording) {
+      chatRecordingInterval.current = setInterval(() => {
+        setChatRecordingTime(prev => prev + 1);
+      }, 1000);
+    } else {
+      if (chatRecordingInterval.current) {
+        clearInterval(chatRecordingInterval.current);
+      }
+      setChatRecordingTime(0);
+    }
+
+    return () => {
+      if (chatRecordingInterval.current) {
+        clearInterval(chatRecordingInterval.current);
+      }
+    };
+  }, [isChatRecording]);
 
   // Função para iniciar gravação
   const startRecording = async () => {
@@ -1170,21 +1198,52 @@ INSTRUÇÕES:
             </ScrollArea>
 
             <div className="space-y-2">
-              {audioBlob && (
+              {chatAudioBlob && !isTranscribingChat && (
                 <div className="flex items-center gap-2 p-2 bg-green-50 rounded-md">
                   <FileAudio className="h-4 w-4 text-green-600" />
-                  <span className="text-sm text-green-700">Áudio transcrito disponível</span>
+                  <span className="text-sm text-green-700">Áudio transcrito e adicionado à mensagem</span>
+                </div>
+              )}
+
+              {isTranscribingChat && (
+                <div className="flex items-center gap-2 p-2 bg-blue-50 rounded-md">
+                  <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                  <span className="text-sm text-blue-700">Transcrevendo áudio...</span>
+                </div>
+              )}
+
+              {isChatRecording && (
+                <div className="flex items-center gap-2 p-2 bg-red-50 rounded-md">
+                  <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+                  <span className="text-sm text-red-700">
+                    Gravando: {formatTime(chatRecordingTime)}
+                  </span>
                 </div>
               )}
               
               <div className="flex gap-2">
                 <Input
-                  placeholder="Digite sua mensagem ou use o áudio gravado..."
+                  placeholder="Digite sua mensagem ou grave um áudio..."
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
                   onKeyPress={handleKeyPress}
                   className="flex-1"
                 />
+                
+                {/* Botão de gravação de áudio */}
+                <Button
+                  variant={isChatRecording ? "destructive" : "outline"}
+                  size="icon"
+                  onClick={isChatRecording ? stopChatRecording : startChatRecording}
+                  disabled={isTranscribingChat || apiStatus !== 'valid'}
+                >
+                  {isChatRecording ? (
+                    <Square className="h-4 w-4" />
+                  ) : (
+                    <Mic className="h-4 w-4" />
+                  )}
+                </Button>
+
                 <Button 
                   onClick={sendChatMessage} 
                   disabled={!newMessage.trim() || isTyping || (!chatAssistant && !selectedAssistant) || apiStatus !== 'valid'}
