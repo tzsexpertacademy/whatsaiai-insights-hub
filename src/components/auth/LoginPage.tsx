@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -42,20 +41,71 @@ export function LoginPage() {
   };
 
   const handleAdminAccess = () => {
-    // Login automático como admin para facilitar acesso
+    console.log('🔧 Tentando acesso admin...');
+    
+    // Primeiro tenta criar a conta se não existir
     const adminEmail = 'admin@observatorio.com';
     const adminPassword = 'admin123';
     
-    login(adminEmail, adminPassword).then(() => {
-      navigate('/admin/master');
-      toast({
-        title: "Acesso Admin Master",
-        description: "Redirecionando para o painel administrativo"
-      });
-    }).catch(() => {
-      // Se falhar o login automático, apenas redireciona
-      navigate('/admin/master');
+    toast({
+      title: "Processando...",
+      description: "Configurando acesso administrativo"
     });
+
+    // Primeiro tenta fazer login
+    login(adminEmail, adminPassword)
+      .then(() => {
+        console.log('✅ Login admin bem-sucedido');
+        toast({
+          title: "Acesso Admin Master",
+          description: "Redirecionando para o painel administrativo"
+        });
+        setTimeout(() => {
+          navigate('/admin/master');
+        }, 1000);
+      })
+      .catch((error) => {
+        console.log('❌ Login falhou, tentando criar conta:', error);
+        
+        // Se login falhar, tenta criar a conta
+        signup(adminEmail, adminPassword, {
+          fullName: 'Administrador Master',
+          companyName: 'Observatório Psicológico'
+        })
+          .then(() => {
+            console.log('✅ Conta admin criada, fazendo login...');
+            toast({
+              title: "Conta Criada",
+              description: "Fazendo login automaticamente..."
+            });
+            
+            // Aguarda um pouco e tenta login novamente
+            setTimeout(() => {
+              login(adminEmail, adminPassword)
+                .then(() => {
+                  console.log('✅ Login após criação bem-sucedido');
+                  setTimeout(() => {
+                    navigate('/admin/master');
+                  }, 1000);
+                })
+                .catch(() => {
+                  console.log('❌ Login após criação falhou, redirecionando direto');
+                  navigate('/admin/master');
+                });
+            }, 2000);
+          })
+          .catch((signupError) => {
+            console.log('❌ Criação de conta falhou:', signupError);
+            toast({
+              title: "Acesso Direto",
+              description: "Redirecionando para painel admin"
+            });
+            // Se tudo falhar, apenas redireciona
+            setTimeout(() => {
+              navigate('/admin/master');
+            }, 1000);
+          });
+      });
   };
 
   const handleLogin = async (e: React.FormEvent) => {
