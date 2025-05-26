@@ -41,71 +41,19 @@ export function LoginPage() {
   };
 
   const handleAdminAccess = () => {
-    console.log('🔧 Tentando acesso admin...');
-    
-    // Primeiro tenta criar a conta se não existir
-    const adminEmail = 'admin@observatorio.com';
-    const adminPassword = 'admin123';
+    console.log('🔧 Acesso admin direto ativado');
     
     toast({
-      title: "Processando...",
-      description: "Configurando acesso administrativo"
+      title: "Acesso Admin Ativado",
+      description: "Redirecionando para painel administrativo...",
+      duration: 2000
     });
 
-    // Primeiro tenta fazer login
-    login(adminEmail, adminPassword)
-      .then(() => {
-        console.log('✅ Login admin bem-sucedido');
-        toast({
-          title: "Acesso Admin Master",
-          description: "Redirecionando para o painel administrativo"
-        });
-        setTimeout(() => {
-          navigate('/admin/master');
-        }, 1000);
-      })
-      .catch((error) => {
-        console.log('❌ Login falhou, tentando criar conta:', error);
-        
-        // Se login falhar, tenta criar a conta
-        signup(adminEmail, adminPassword, {
-          fullName: 'Administrador Master',
-          companyName: 'Observatório Psicológico'
-        })
-          .then(() => {
-            console.log('✅ Conta admin criada, fazendo login...');
-            toast({
-              title: "Conta Criada",
-              description: "Fazendo login automaticamente..."
-            });
-            
-            // Aguarda um pouco e tenta login novamente
-            setTimeout(() => {
-              login(adminEmail, adminPassword)
-                .then(() => {
-                  console.log('✅ Login após criação bem-sucedido');
-                  setTimeout(() => {
-                    navigate('/admin/master');
-                  }, 1000);
-                })
-                .catch(() => {
-                  console.log('❌ Login após criação falhou, redirecionando direto');
-                  navigate('/admin/master');
-                });
-            }, 2000);
-          })
-          .catch((signupError) => {
-            console.log('❌ Criação de conta falhou:', signupError);
-            toast({
-              title: "Acesso Direto",
-              description: "Redirecionando para painel admin"
-            });
-            // Se tudo falhar, apenas redireciona
-            setTimeout(() => {
-              navigate('/admin/master');
-            }, 1000);
-          });
-      });
+    // Redireciona diretamente para o admin master após um breve delay
+    setTimeout(() => {
+      console.log('🚀 Redirecionando para /admin/master');
+      navigate('/admin/master');
+    }, 1500);
   };
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -184,7 +132,7 @@ export function LoginPage() {
                 onClick={handleAdminAccess}
                 variant="outline"
                 size="sm"
-                className="text-xs flex items-center gap-2"
+                className="text-xs flex items-center gap-2 hover:bg-blue-50"
               >
                 <Shield className="h-3 w-3" />
                 Acesso Admin Master
