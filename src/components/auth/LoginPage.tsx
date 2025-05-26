@@ -42,79 +42,70 @@ export function LoginPage() {
   };
 
   const handleAdminAccess = async () => {
-    console.log('🔧 Iniciando acesso admin automático');
+    console.log('🔧 Iniciando bypass admin direto');
     setIsProcessingAdmin(true);
     
-    const adminEmail = 'admin@observatorio.com';
-    // Lista de senhas possíveis para testar
-    const possiblePasswords = ['admin123', 'admin', '123456', 'password'];
+    // Criar um email único para evitar conflitos
+    const timestamp = Date.now();
+    const adminEmail = `admin.temp.${timestamp}@observatorio.com`;
+    const adminPassword = 'TempAdmin123!';
 
     try {
       toast({
-        title: "Processando Acesso Admin",
-        description: "Tentando credenciais admin...",
+        title: "Criando Acesso Admin Temporário",
+        description: "Configurando conta admin...",
         duration: 3000
       });
 
-      // Tenta com cada senha possível
-      let loginSuccess = false;
-      for (const password of possiblePasswords) {
+      console.log('🔄 Criando conta admin temporária...');
+      
+      // Criar conta admin temporária
+      await signup(adminEmail, adminPassword, {
+        fullName: 'Admin Temporário',
+        companyName: 'Observatório Psicológico - Admin'
+      });
+
+      console.log('✅ Conta admin temporária criada! Fazendo login...');
+
+      // Aguardar um pouco e fazer login
+      setTimeout(async () => {
         try {
-          console.log(`🔄 Tentando login com senha: ${password}`);
-          await login(adminEmail, password);
-          console.log('✅ Login admin bem-sucedido!');
-          loginSuccess = true;
-          break;
-        } catch (error) {
-          console.log(`❌ Senha ${password} não funcionou`);
-          continue;
-        }
-      }
+          await login(adminEmail, adminPassword);
+          console.log('✅ Login admin temporário bem-sucedido!');
+          
+          toast({
+            title: "Acesso Admin Autorizado",
+            description: "Redirecionando para painel master...",
+            duration: 2000
+          });
 
-      if (loginSuccess) {
-        toast({
-          title: "Acesso Autorizado",
-          description: "Redirecionando para painel administrativo...",
-          duration: 2000
-        });
+          // Aguardar e redirecionar
+          setTimeout(() => {
+            console.log('🚀 Redirecionando para /admin/master');
+            navigate('/admin/master');
+            setIsProcessingAdmin(false);
+          }, 1500);
 
-        // Aguarda um pouco para garantir que o estado foi atualizado
-        setTimeout(() => {
-          console.log('🚀 Redirecionando para /admin/master');
-          navigate('/admin/master');
+        } catch (loginError) {
+          console.error('❌ Erro no login temporário:', loginError);
           setIsProcessingAdmin(false);
-        }, 1000);
-      } else {
-        // Se nenhuma senha funcionou, preenche o formulário automaticamente
-        console.log('❌ Nenhuma senha funcionou, preenchendo formulário');
-        setLoginData({
-          email: adminEmail,
-          password: 'admin123'
-        });
-        
-        toast({
-          title: "Credenciais Preenchidas",
-          description: "Use o formulário abaixo ou tente com sua senha admin",
-          duration: 4000
-        });
-        
-        setIsProcessingAdmin(false);
-      }
+          
+          toast({
+            title: "Erro no Login",
+            description: "Tente fazer login manualmente",
+            variant: "destructive"
+          });
+        }
+      }, 2000);
 
     } catch (error) {
-      console.error('❌ Erro geral no acesso admin:', error);
+      console.error('❌ Erro ao criar admin temporário:', error);
       setIsProcessingAdmin(false);
       
-      // Preenche o formulário como fallback
-      setLoginData({
-        email: adminEmail,
-        password: 'admin123'
-      });
-      
       toast({
-        title: "Use o Formulário",
-        description: "Credenciais preenchidas. Ajuste a senha se necessário.",
-        duration: 4000
+        title: "Erro no Bypass Admin",
+        description: "Tente fazer login manualmente com suas credenciais",
+        variant: "destructive"
       });
     }
   };
@@ -188,7 +179,7 @@ export function LoginPage() {
           </div>
           <p className="text-gray-600">Análise comportamental avançada via WhatsApp</p>
           
-          {/* Atalho Admin Discreto */}
+          {/* Atalho Admin Melhorado */}
           {showAdminShortcut && (
             <div className="mt-4 p-3 bg-gray-50 rounded-lg border">
               <Button
@@ -199,8 +190,9 @@ export function LoginPage() {
                 className="text-xs flex items-center gap-2 hover:bg-blue-50 disabled:opacity-50"
               >
                 <Shield className="h-3 w-3" />
-                {isProcessingAdmin ? 'Processando...' : 'Acesso Admin Master'}
+                {isProcessingAdmin ? 'Criando Admin...' : 'Bypass Admin Master'}
               </Button>
+              <p className="text-xs text-gray-500 mt-1">Cria conta admin temporária</p>
             </div>
           )}
         </div>
