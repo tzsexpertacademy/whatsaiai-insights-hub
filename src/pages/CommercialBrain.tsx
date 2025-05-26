@@ -14,6 +14,7 @@ import { CommercialTimeline } from '@/components/commercial/CommercialTimeline';
 import { StrategicMetrics } from '@/components/commercial/StrategicMetrics';
 import { CommercialSettingsPage } from '@/components/commercial/CommercialSettingsPage';
 import { CommercialDocumentAnalysis } from '@/components/commercial/CommercialDocumentAnalysis';
+import { CommercialRecommendations } from '@/components/commercial/CommercialRecommendations';
 
 export function CommercialBrain() {
   console.log('CommercialBrain component rendering');
@@ -37,6 +38,7 @@ export function CommercialBrain() {
                   <Route path="/timeline" element={<CommercialTimeline />} />
                   <Route path="/strategic" element={<StrategicMetrics />} />
                   <Route path="/analysis" element={<CommercialDocumentAnalysis />} />
+                  <Route path="/recommendations" element={<CommercialRecommendations />} />
                   <Route path="/settings" element={<CommercialSettingsPage />} />
                 </Routes>
               </div>

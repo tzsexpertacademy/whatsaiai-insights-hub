@@ -26,13 +26,16 @@ export function AppSidebar() {
     { title: 'Áreas da Vida', icon: Target, url: '/dashboard/areas' },
     { title: 'Perfil Comportamental', icon: Brain, url: '/dashboard/profile' },
     { title: 'Termômetro Emocional', icon: Heart, url: '/dashboard/emotions' },
-    { title: 'Dores do Cliente', icon: AlertTriangle, url: '/dashboard/pain-points' },
-    { title: 'Linha do Tempo', icon: Clock, url: '/dashboard/timeline' },
-    { title: 'Recomendações', icon: MessageSquare, url: '/dashboard/recommendations' },
   ];
 
   const analysisNavItems = [
     { title: 'Análise e Conselho', icon: FileSearch, url: '/dashboard/analysis' },
+  ];
+
+  const standardNavItems = [
+    { title: 'Dores do Cliente', icon: AlertTriangle, url: '/dashboard/pain-points' },
+    { title: 'Linha do Tempo', icon: Clock, url: '/dashboard/timeline' },
+    { title: 'Recomendações', icon: MessageSquare, url: '/dashboard/recommendations' },
   ];
 
   const configNavItems = [
@@ -88,6 +91,21 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {analysisNavItems.map((item) => (
+                <SidebarMenuItem key={item.url}>
+                  <SidebarMenuButton asChild>
+                    <SidebarNavItem {...item} />
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Insights e Ações</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {standardNavItems.map((item) => (
                 <SidebarMenuItem key={item.url}>
                   <SidebarMenuButton asChild>
                     <SidebarNavItem {...item} />

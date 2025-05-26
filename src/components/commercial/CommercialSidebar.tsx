@@ -1,5 +1,5 @@
 
-import { TrendingUp, TrendingDown, Target, Brain, Users, BarChart3, ArrowLeft, DollarSign, Settings, FileSearch, Clock, AlertTriangle } from 'lucide-react';
+import { TrendingUp, TrendingDown, Target, Brain, Users, BarChart3, ArrowLeft, DollarSign, Settings, FileSearch, Clock, AlertTriangle, MessageSquare } from 'lucide-react';
 import {
   Sidebar,
   SidebarContent,
@@ -25,13 +25,17 @@ export function CommercialSidebar() {
     { title: 'Performance de Vendas', icon: TrendingUp, url: '/commercial/performance' },
     { title: 'Métricas Comportamentais', icon: Brain, url: '/commercial/behavioral' },
     { title: 'Cultura do Time', icon: Users, url: '/commercial/culture' },
-    { title: 'Dores do Cliente', icon: AlertTriangle, url: '/commercial/pain-points' },
-    { title: 'Linha do Tempo', icon: Clock, url: '/commercial/timeline' },
     { title: 'Métricas Estratégicas', icon: Target, url: '/commercial/strategic' },
   ];
 
   const analysisNavItems = [
     { title: 'Análise e Conselho', icon: FileSearch, url: '/commercial/analysis' },
+  ];
+
+  const standardNavItems = [
+    { title: 'Dores do Cliente', icon: AlertTriangle, url: '/commercial/pain-points' },
+    { title: 'Linha do Tempo', icon: Clock, url: '/commercial/timeline' },
+    { title: 'Recomendações', icon: MessageSquare, url: '/commercial/recommendations' },
   ];
 
   const configNavItems = [
@@ -83,6 +87,21 @@ export function CommercialSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {analysisNavItems.map((item) => (
+                <SidebarMenuItem key={item.url}>
+                  <SidebarMenuButton asChild>
+                    <SidebarNavItem {...item} />
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Insights e Ações</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {standardNavItems.map((item) => (
                 <SidebarMenuItem key={item.url}>
                   <SidebarMenuButton asChild>
                     <SidebarNavItem {...item} />
