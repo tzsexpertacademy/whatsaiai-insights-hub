@@ -54,7 +54,7 @@ serve(async (req) => {
 
     const origin = req.headers.get("origin") || "http://localhost:3000";
     
-    // Create checkout session with 7-day trial and FORCED card collection
+    // Create checkout session with REQUIRED payment method collection
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       customer_email: customerId ? undefined : user.email,
@@ -79,21 +79,26 @@ serve(async (req) => {
       subscription_data: {
         trial_period_days: 7, // 7 days free trial
       },
-      // FORÇAR coleta do cartão mesmo no trial
+      // FORÇAR coleta do cartão - OBRIGATÓRIO mesmo no trial
       payment_method_collection: 'always',
-      invoice_creation: {
-        enabled: true,
-      },
+      payment_method_configuration: undefined, // Remove any custom config that might interfere
+      
       success_url: `${origin}/dashboard?checkout=success&trial=true`,
       cancel_url: `${origin}/observatory?checkout=cancelled`,
       allow_promotion_codes: true,
       billing_address_collection: 'auto',
-      // Configurações extras para garantir coleta do cartão
-      setup_intent_data: {
-        metadata: {
-          customer_id: customerId || 'new_customer',
-          subscription_type: 'trial'
-        },
+      
+      // Configurações adicionais para garantir coleta do cartão
+      customer_update: {
+        address: 'auto',
+        name: 'auto'
+      },
+      
+      // Metadados para tracking
+      metadata: {
+        user_id: user.id,
+        subscription_type: 'trial_with_card',
+        trial_days: '7'
       },
     });
 
