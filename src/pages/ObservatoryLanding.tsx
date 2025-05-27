@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -20,7 +19,7 @@ import {
   Activity,
   Map,
   BarChart3,
-  Timeline,
+  Calendar,
   Lightbulb,
   Search,
   Flame,
