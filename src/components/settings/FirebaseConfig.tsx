@@ -1,10 +1,11 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Database, CheckCircle, AlertCircle, Upload, Copy, Shield, Cloud, Loader2, BookOpen, ExternalLink } from 'lucide-react';
+import { Database, CheckCircle, AlertCircle, Upload, Copy, Shield, Cloud, Loader2, BookOpen, ExternalLink, Key } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { useClientConfig } from '@/contexts/ClientConfigContext';
 import { FirebaseConnectionDiagnostics } from './FirebaseConnectionDiagnostics';
@@ -540,10 +541,10 @@ export function FirebaseConfig() {
               <div className="border-l-4 border-red-500 pl-4">
                 <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
                   <span className="bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm">5</span>
-                  Obter Configurações
+                  Obter e Configurar API Key
                 </h3>
                 <div className="space-y-2">
-                  <p className="text-gray-700">Copie as configurações do Firebase:</p>
+                  <p className="text-gray-700">Copie as configurações e configure a API Key corretamente:</p>
                   <div className="bg-gray-50 p-3 rounded-lg">
                     <ol className="list-decimal list-inside space-y-1 text-sm">
                       <li>Após registrar o app, você verá um objeto JavaScript com as configurações</li>
@@ -551,6 +552,30 @@ export function FirebaseConfig() {
                       <li>Ou vá em <strong>Configurações do projeto → Geral → Seus apps</strong></li>
                       <li>Clique no ícone de configuração do seu app web</li>
                     </ol>
+                  </div>
+                  <div className="bg-red-50 p-3 rounded-lg border border-red-200">
+                    <h4 className="font-semibold text-red-900 mb-2 flex items-center gap-2">
+                      <Key className="h-4 w-4" />
+                      🚨 CRÍTICO: Liberar API Key
+                    </h4>
+                    <p className="text-sm text-red-700 mb-2">
+                      <strong>Sem este passo a API Key será bloqueada!</strong>
+                    </p>
+                    <ol className="text-sm text-red-700 space-y-1 list-decimal list-inside">
+                      <li>Vá em <strong>Google Cloud Console</strong> → <strong>APIs e Serviços</strong> → <strong>Credenciais</strong></li>
+                      <li>Encontre sua API Key e clique no ícone de <strong>editar (lápis)</strong></li>
+                      <li>Em <strong>"Restrições de aplicativo"</strong>, selecione <strong>"Nenhuma"</strong></li>
+                      <li>Em <strong>"Restrições de API"</strong>, selecione <strong>"Não restringir chave"</strong></li>
+                      <li>Clique em <strong>"Salvar"</strong></li>
+                    </ol>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => window.open('https://console.cloud.google.com/apis/credentials', '_blank')}
+                      className="mt-2 flex items-center gap-2"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                      Google Cloud Console - Credenciais
+                    </Button>
                   </div>
                   <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
                     <p className="text-sm text-blue-700">
@@ -627,6 +652,7 @@ export function FirebaseConfig() {
                 <h4 className="font-semibold text-blue-900 mb-2">📋 Informações Importantes</h4>
                 <ul className="text-sm text-blue-700 space-y-1 list-disc list-inside">
                   <li><strong>Custo:</strong> Firebase tem uma camada gratuita generosa (até 1GB de dados)</li>
+                  <li><strong>API Key:</strong> SEMPRE libere a API Key no Google Cloud Console</li>
                   <li><strong>Backup:</strong> Recomendamos configurar backups automáticos</li>
                   <li><strong>Monitoramento:</strong> Ative alertas de uso no console do Firebase</li>
                   <li><strong>Acesso:</strong> Adicione outros usuários como colaboradores se necessário</li>
@@ -638,13 +664,16 @@ export function FirebaseConfig() {
                 <h4 className="font-semibold text-red-900 mb-2">🚨 Problemas Comuns</h4>
                 <div className="text-sm text-red-700 space-y-2">
                   <div>
+                    <strong>❌ API Key bloqueada:</strong> Libere a API Key no Google Cloud Console (Passo 5)
+                  </div>
+                  <div>
                     <strong>Erro 403 (Acesso negado):</strong> Verifique as regras de segurança
                   </div>
                   <div>
                     <strong>Erro 404 (Projeto não encontrado):</strong> Confirme o Project ID
                   </div>
                   <div>
-                    <strong>Erro 401 (Não autorizado):</strong> Verifique a API Key
+                    <strong>Erro 401 (Não autorizado):</strong> Verifique se a API Key foi liberada
                   </div>
                   <div>
                     <strong>URL inválida:</strong> Certifique-se que a Database URL termina com "/"
