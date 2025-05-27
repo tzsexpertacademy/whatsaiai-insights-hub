@@ -31,10 +31,19 @@ export default function Index() {
     skipOnboarding 
   } = useOnboarding();
 
+  console.log('📊 Estado do Index:', {
+    isFirstVisit,
+    showTour,
+    completed
+  });
+
   // Show welcome experience for first-time users
   if (isFirstVisit && !completed) {
+    console.log('🎬 Mostrando WelcomeExperience');
     return <WelcomeExperience />;
   }
+
+  console.log('📱 Mostrando Dashboard Principal');
 
   return (
     <SidebarProvider>

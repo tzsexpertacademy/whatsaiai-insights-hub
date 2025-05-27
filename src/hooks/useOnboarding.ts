@@ -24,9 +24,15 @@ export function useOnboarding() {
     const onboardingStep = localStorage.getItem('onboarding_step');
     const hasSeenWelcome = localStorage.getItem('welcome_seen') === 'true';
 
+    console.log('🔍 Status do onboarding:', {
+      onboardingCompleted,
+      onboardingStep,
+      hasSeenWelcome
+    });
+
     setState(prev => ({
       ...prev,
-      isFirstVisit: !hasSeenWelcome,
+      isFirstVisit: !hasSeenWelcome && !onboardingCompleted,
       completed: onboardingCompleted,
       showTour: onboardingStep === '1' && !onboardingCompleted,
       currentStep: onboardingStep ? parseInt(onboardingStep) : 0
@@ -34,27 +40,39 @@ export function useOnboarding() {
   }, []);
 
   const markWelcomeSeen = () => {
+    console.log('✅ Marcando welcome como visto');
     localStorage.setItem('welcome_seen', 'true');
     setState(prev => ({ ...prev, isFirstVisit: false }));
   };
 
   const startTour = () => {
+    console.log('🚀 Iniciando tour');
     localStorage.setItem('onboarding_step', '1');
-    setState(prev => ({ ...prev, showTour: true, currentStep: 1 }));
+    localStorage.setItem('welcome_seen', 'true');
+    setState(prev => ({ 
+      ...prev, 
+      showTour: true, 
+      currentStep: 1,
+      isFirstVisit: false 
+    }));
   };
 
   const completeTour = () => {
+    console.log('✅ Completando tour');
     localStorage.setItem('onboarding_completed', 'true');
+    localStorage.setItem('welcome_seen', 'true');
     localStorage.removeItem('onboarding_step');
     setState(prev => ({ 
       ...prev, 
       showTour: false, 
       completed: true,
-      currentStep: 0
+      currentStep: 0,
+      isFirstVisit: false
     }));
   };
 
   const skipOnboarding = () => {
+    console.log('⏭️ Pulando onboarding');
     localStorage.setItem('onboarding_completed', 'true');
     localStorage.setItem('welcome_seen', 'true');
     localStorage.removeItem('onboarding_step');
@@ -68,6 +86,7 @@ export function useOnboarding() {
   };
 
   const resetOnboarding = () => {
+    console.log('🔄 Resetando onboarding');
     localStorage.removeItem('onboarding_completed');
     localStorage.removeItem('onboarding_step');
     localStorage.removeItem('welcome_seen');

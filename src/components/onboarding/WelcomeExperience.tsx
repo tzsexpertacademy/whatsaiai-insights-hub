@@ -40,12 +40,17 @@ export function WelcomeExperience() {
   }, []);
 
   const handleStartJourney = () => {
+    console.log('🚀 Iniciando jornada - definindo step 1');
     localStorage.setItem('onboarding_step', '1');
+    localStorage.setItem('welcome_seen', 'true');
     navigate('/dashboard');
   };
 
   const handleSkip = () => {
+    console.log('⏭️ Pulando onboarding completo');
     localStorage.setItem('onboarding_completed', 'true');
+    localStorage.setItem('welcome_seen', 'true');
+    localStorage.removeItem('onboarding_step');
     navigate('/dashboard');
   };
 
@@ -238,7 +243,7 @@ export function WelcomeExperience() {
             <Button 
               onClick={handleStartJourney}
               size="lg" 
-              className="relative bg-gradient-to-r from-blue-600 via-purple-600 to-cyan-600 hover:from-blue-700 hover:via-purple-700 hover:to-cyan-700 text-white px-12 py-6 text-xl font-bold shadow-2xl hover:shadow-blue-500/25 transition-all duration-500 hover:scale-110 border-0"
+              className="relative bg-gradient-to-r from-blue-600 via-purple-600 to-cyan-600 hover:from-blue-700 hover:via-purple-700 hover:to-cyan-700 text-white px-12 py-6 text-xl font-bold shadow-2xl hover:shadow-blue-500/25 transition-all duration-500 hover:scale-110 border-0 group"
             >
               <div className="flex items-center gap-3">
                 <Atom className="w-6 h-6 animate-spin" style={{ animationDuration: '3s' }} />
