@@ -173,7 +173,7 @@ export function ObservatoryLanding() {
             await createCheckout();
           } catch (error) {
             console.error('Error creating checkout after signup:', error);
-            // Fallback para dashboard se houver erro
+            // Fallback direto para dashboard se houver erro
             navigate('/dashboard');
           }
         }, 2000);
@@ -182,11 +182,11 @@ export function ObservatoryLanding() {
       console.error('Error in handleAccessObservatory:', error);
       toast({
         title: "Erro",
-        description: "Houve um problema. Tente novamente ou faça login manualmente.",
+        description: "Houve um problema. Redirecionando para o dashboard...",
         variant: "destructive"
       });
-      // Fallback para página de auth
-      navigate('/auth');
+      // Fallback direto para dashboard
+      navigate('/dashboard');
     }
   };
 

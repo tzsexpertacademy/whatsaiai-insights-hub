@@ -54,7 +54,7 @@ serve(async (req) => {
 
     const origin = req.headers.get("origin") || "http://localhost:3000";
     
-    // Create checkout session with 7-day trial
+    // Create checkout session with 7-day trial - SUCCESS VAI PARA DASHBOARD
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       customer_email: customerId ? undefined : user.email,
