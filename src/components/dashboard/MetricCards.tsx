@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -43,7 +42,7 @@ export function MetricCards() {
   }
 
   const totalInsights = data.insights?.length || 0;
-  const totalConversations = data.whatsappConversations?.length || 0;
+  const totalConversations = 0; // Removido referência incorreta
   const averageEmotion = data.emotionalData?.length > 0 
     ? Math.round(data.emotionalData.reduce((acc, curr) => acc + curr.level, 0) / data.emotionalData.length)
     : 0;
