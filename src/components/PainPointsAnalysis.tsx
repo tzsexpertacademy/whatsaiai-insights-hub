@@ -11,7 +11,7 @@ interface PainPoint {
   id: string;
   title: string;
   description: string;
-  severity: 'baixa' | 'média' | 'alta' | 'crítica';
+  severity: 'baixa' | 'média' | 'alta';
   category: string;
   firstDetected: string;
   frequency: number;
@@ -28,25 +28,23 @@ export function PainPointsAnalysis() {
 
     return data.insights
       .filter(insight => 
-        insight.description?.toLowerCase().includes('dor') ||
-        insight.description?.toLowerCase().includes('problema') ||
-        insight.description?.toLowerCase().includes('dificuldade') ||
-        insight.description?.toLowerCase().includes('ansiedade') ||
-        insight.description?.toLowerCase().includes('estresse') ||
-        insight.description?.toLowerCase().includes('preocupação') ||
-        insight.title?.toLowerCase().includes('problema') ||
-        insight.insight_type === 'pain_point'
+        insight.text?.toLowerCase().includes('dor') ||
+        insight.text?.toLowerCase().includes('problema') ||
+        insight.text?.toLowerCase().includes('dificuldade') ||
+        insight.text?.toLowerCase().includes('ansiedade') ||
+        insight.text?.toLowerCase().includes('estresse') ||
+        insight.text?.toLowerCase().includes('preocupação')
       )
       .map((insight, index) => ({
         id: insight.id,
-        title: insight.title || 'Dor Identificada',
-        description: insight.description,
+        title: insight.text?.substring(0, 50) + '...' || 'Dor Identificada',
+        description: insight.text,
         severity: insight.priority === 'high' ? 'alta' as const : 
                  insight.priority === 'low' ? 'baixa' as const : 'média' as const,
-        category: insight.insight_type || 'Emocional',
+        category: 'Emocional',
         firstDetected: insight.created_at,
-        frequency: Math.floor(Math.random() * 10) + 1, // Simulado por enquanto
-        assistantName: 'Oráculo das Sombras', // Assistente que identifica dores
+        frequency: Math.floor(Math.random() * 10) + 1,
+        assistantName: 'Oráculo das Sombras',
         assistantArea: 'Psicologia'
       }));
   };
@@ -56,8 +54,7 @@ export function PainPointsAnalysis() {
   const severityColors = {
     'baixa': '#10B981',
     'média': '#F59E0B',
-    'alta': '#EF4444',
-    'crítica': '#7C2D12'
+    'alta': '#EF4444'
   };
 
   const severityData = [
@@ -75,11 +72,6 @@ export function PainPointsAnalysis() {
       name: 'Alta', 
       value: painPoints.filter(p => p.severity === 'alta').length, 
       color: '#EF4444' 
-    },
-    { 
-      name: 'Crítica', 
-      value: painPoints.filter(p => p.severity === 'crítica').length, 
-      color: '#7C2D12' 
     }
   ];
 
@@ -179,7 +171,7 @@ export function PainPointsAnalysis() {
               <div>
                 <p className="text-sm text-gray-600">Dores Críticas</p>
                 <p className="text-2xl font-bold text-red-600">
-                  {painPoints.filter(p => p.severity === 'alta' || p.severity === 'crítica').length}
+                  {painPoints.filter(p => p.severity === 'alta').length}
                 </p>
               </div>
               <AlertCircle className="h-8 w-8 text-red-500" />

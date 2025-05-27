@@ -28,42 +28,14 @@ export function ObservatoryTimeline() {
     return data.insights.map((insight) => ({
       id: insight.id,
       date: insight.created_at,
-      title: insight.title || 'Marco de Evolução',
-      description: insight.description,
-      type: insight.insight_type === 'growth' ? 'growth' as const :
-            insight.insight_type === 'behavioral' ? 'pattern' as const :
-            insight.insight_type === 'emotional' ? 'breakthrough' as const : 'insight' as const,
-      assistantName: getAssistantByType(insight.insight_type),
-      assistantArea: getAssistantArea(insight.insight_type),
+      title: insight.text || 'Marco de Evolução',
+      description: insight.text,
+      type: 'insight' as const,
+      assistantName: 'Observatório da Consciência',
+      assistantArea: 'Análise Psicológica',
       impact: insight.priority === 'high' ? 'alto' as const :
               insight.priority === 'low' ? 'baixo' as const : 'médio' as const
     })).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  };
-
-  const getAssistantByType = (type: string) => {
-    const assistantMap: { [key: string]: string } = {
-      'emotional': 'Oráculo das Sombras',
-      'behavioral': 'Guardião dos Recursos',
-      'growth': 'Mestre do Propósito',
-      'financial': 'Guardião dos Recursos',
-      'health': 'Guardião da Vitalidade',
-      'relationships': 'Tecelão de Laços',
-      'creativity': 'Catalisador Criativo'
-    };
-    return assistantMap[type] || 'Observatório da Consciência';
-  };
-
-  const getAssistantArea = (type: string) => {
-    const areaMap: { [key: string]: string } = {
-      'emotional': 'Psicologia',
-      'behavioral': 'Financeiro',
-      'growth': 'Propósito',
-      'financial': 'Financeiro',
-      'health': 'Saúde',
-      'relationships': 'Relacionamentos',
-      'creativity': 'Criatividade'
-    };
-    return areaMap[type] || 'Análise Geral';
   };
 
   const timelineEvents = createTimelineFromInsights();

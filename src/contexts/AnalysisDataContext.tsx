@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -237,6 +236,15 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
           assistantArea: 'Análise Psicológica'
         }));
 
+        // Gerar recomendações baseadas nos insights
+        const recommendationsWithAssistant = insightsData
+          .slice(0, 3)
+          .map(insight => ({
+            text: `Baseado na análise "${insight.description?.substring(0, 50)}...", recomendamos focar em autoconhecimento e reflexão pessoal.`,
+            assistantName: 'Observatório da Consciência',
+            assistantArea: 'psicologia'
+          }));
+
         // Gerar dados comportamentais baseados nos insights reais
         const { discProfile, mbtiProfile, bigFiveData } = generateDataFromAI(insightsData);
 
@@ -277,7 +285,7 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
           insights: processedInsights,
           insightsWithAssistant,
           recommendations: [],
-          recommendationsWithAssistant: [],
+          recommendationsWithAssistant,
           emotionalStates: [],
           behavioralTraits: [],
           lifeAreas: [],
@@ -337,7 +345,6 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
 
     } catch (error) {
       console.error('❌ Erro ao buscar dados:', error);
-      // Em caso de erro, dados vazios
       setData({
         insights: [],
         insightsWithAssistant: [],
