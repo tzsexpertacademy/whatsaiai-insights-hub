@@ -26,7 +26,9 @@ import {
   Lightbulb,
   Search,
   Flame,
-  Rocket
+  Rocket,
+  Shield,
+  Clock
 } from 'lucide-react';
 
 export function ObservatoryLanding() {
@@ -256,10 +258,13 @@ export function ObservatoryLanding() {
               <div className="flex flex-col gap-4 sm:gap-8 justify-center items-center mb-8 sm:mb-12 px-4">
                 <Button 
                   onClick={handleAccessObservatory}
-                  className="w-full sm:w-auto bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-8 sm:px-16 py-6 sm:py-8 text-lg sm:text-2xl font-bold rounded-2xl shadow-2xl shadow-blue-500/30 border-2 border-blue-400/30 backdrop-blur-sm glow-button-soft group transform hover:scale-105 transition-all duration-500"
+                  className="w-full sm:w-auto bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-8 sm:px-16 py-6 sm:py-8 text-lg sm:text-2xl font-bold rounded-2xl shadow-2xl shadow-green-500/30 border-2 border-green-400/30 backdrop-blur-sm glow-button-soft group transform hover:scale-105 transition-all duration-500"
                 >
-                  <Brain className="w-6 h-6 sm:w-8 sm:h-8 mr-2 sm:mr-4 group-hover:rotate-12 transition-transform" />
-                  <span className="text-center">ACESSAR MEU OBSERVATÓRIO AGORA</span>
+                  <Shield className="w-6 h-6 sm:w-8 sm:h-8 mr-2 sm:mr-4 group-hover:rotate-12 transition-transform" />
+                  <div className="text-center">
+                    <div className="font-black">TESTE GRÁTIS 7 DIAS</div>
+                    <div className="text-sm sm:text-base font-normal opacity-90">Depois apenas R$ 47/mês</div>
+                  </div>
                   <ArrowRight className="w-6 h-6 sm:w-8 sm:h-8 ml-2 sm:ml-4 group-hover:translate-x-2 transition-transform" />
                 </Button>
                 
@@ -405,39 +410,66 @@ export function ObservatoryLanding() {
         </div>
       </section>
 
-      {/* CTA FINAL - O PORTAL */}
-      <section className="relative py-20 sm:py-40 px-4 sm:px-6 z-10">
+      {/* CTA FINAL - O PORTAL (Nova Seção de Vendas) */}
+      <section className="relative py-20 sm:py-40 px-4 sm:px-6 z-10 bg-black">
         <div className="max-w-6xl mx-auto text-center">
-          {/* Glow central mais suave com parallax */}
+          {/* Mapa neural pulsando no fundo */}
           <div 
-            className="absolute inset-0 bg-gradient-to-r from-blue-500/25 via-purple-500/25 to-cyan-500/25 blur-3xl glow-pulse-soft" 
+            className="absolute inset-0 bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-cyan-500/20 blur-3xl glow-pulse-soft opacity-40" 
             style={{ transform: `translateY(${scrollY * 0.2}px)` }}
           />
           
           <div className="relative z-10">
-            <ScrollReveal id="final-title" direction="scale" delay={200}>
+            <ScrollReveal id="final-cta-title" direction="scale" delay={200}>
               <h2 className="text-4xl sm:text-6xl md:text-8xl font-black mb-8 sm:mb-12 leading-tight">
                 <span className="block text-white mb-2 sm:mb-4">O que você não vê...</span>
-                <span className="block text-cyan-400 glow-text-soft glow-pulse-soft">te controla.</span>
+                <span className="block text-red-400 glow-text-soft glow-pulse-soft">te controla.</span>
                 <span className="block text-white mb-2 sm:mb-4 mt-4 sm:mt-8">O que você vê...</span>
                 <span className="block text-green-400 glow-text-soft glow-pulse-soft">te liberta.</span>
               </h2>
             </ScrollReveal>
 
-            <ScrollReveal id="final-button" direction="up" delay={600}>
+            <ScrollReveal id="final-cta-subtitle" direction="up" delay={400}>
+              <div className="mb-12 sm:mb-16 space-y-4 sm:space-y-6">
+                <p className="text-2xl sm:text-4xl md:text-5xl font-bold text-white leading-tight">
+                  Ative seu Observatório.
+                </p>
+                <p className="text-xl sm:text-3xl md:text-4xl text-cyan-400 font-bold leading-tight">
+                  Veja sua própria mente funcionando.
+                </p>
+                
+                <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 backdrop-blur-sm border border-green-400/30 rounded-2xl p-6 sm:p-8 mx-auto max-w-2xl mt-8 sm:mt-12">
+                  <div className="flex items-center justify-center mb-4">
+                    <Clock className="w-6 h-6 sm:w-8 sm:h-8 text-green-400 mr-3" />
+                    <span className="text-2xl sm:text-3xl font-bold text-green-400">7 dias grátis</span>
+                  </div>
+                  <p className="text-lg sm:text-xl text-white mb-2">
+                    Depois, apenas <span className="font-black text-green-400">R$ 47/mês</span>
+                  </p>
+                  <p className="text-base sm:text-lg text-gray-300">
+                    Sem contratos. Sem pegadinhas.
+                  </p>
+                </div>
+              </div>
+            </ScrollReveal>
+
+            <ScrollReveal id="final-cta-button" direction="up" delay={600}>
               <Button 
                 onClick={handleAccessObservatory}
-                className="w-full sm:w-auto bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-12 sm:px-20 py-8 sm:py-12 text-xl sm:text-3xl font-black rounded-3xl shadow-2xl shadow-blue-500/40 border-4 border-blue-400/30 backdrop-blur-sm glow-button-soft group transform hover:scale-110 transition-all duration-700 mb-6 sm:mb-8"
+                className="w-full sm:w-auto bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-12 sm:px-20 py-8 sm:py-12 text-xl sm:text-3xl font-black rounded-3xl shadow-2xl shadow-green-500/40 border-4 border-green-400/30 backdrop-blur-sm glow-button-soft group transform hover:scale-110 transition-all duration-700 mb-6 sm:mb-8"
               >
-                <Rocket className="w-8 h-8 sm:w-10 sm:h-10 mr-4 sm:mr-6 group-hover:rotate-12 transition-transform duration-500" />
-                <span className="text-center">ACESSAR MEU OBSERVATÓRIO AGORA</span>
+                <Shield className="w-8 h-8 sm:w-10 sm:h-10 mr-4 sm:mr-6 group-hover:rotate-12 transition-transform duration-500" />
+                <div className="text-center">
+                  <div className="font-black">ACESSAR MEU OBSERVATÓRIO AGORA</div>
+                  <div className="text-lg sm:text-xl font-normal opacity-90">7 DIAS GRÁTIS</div>
+                </div>
                 <Flame className="w-8 h-8 sm:w-10 sm:h-10 ml-4 sm:ml-6 group-hover:scale-110 transition-transform duration-500" />
               </Button>
             </ScrollReveal>
 
-            <ScrollReveal id="final-subtitle" direction="up" delay={800}>
+            <ScrollReveal id="final-cta-tagline" direction="up" delay={800}>
               <p className="text-lg sm:text-xl md:text-2xl text-gray-400 italic font-light px-4">
-                Consciência não é um luxo. É um direito vitalício.
+                Consciência não é luxo. É sobrevivência mental.
               </p>
             </ScrollReveal>
           </div>
@@ -451,11 +483,11 @@ export function ObservatoryLanding() {
         }
         
         .glow-button-soft {
-          box-shadow: 0 0 15px rgba(59, 130, 246, 0.25), 0 0 30px rgba(147, 51, 234, 0.12);
+          box-shadow: 0 0 15px rgba(34, 197, 94, 0.25), 0 0 30px rgba(16, 185, 129, 0.12);
         }
         
         .glow-button-soft:hover {
-          box-shadow: 0 0 20px rgba(59, 130, 246, 0.35), 0 0 40px rgba(147, 51, 234, 0.2);
+          box-shadow: 0 0 20px rgba(34, 197, 94, 0.35), 0 0 40px rgba(16, 185, 129, 0.2);
         }
         
         .glow-card-soft {
@@ -491,7 +523,7 @@ export function ObservatoryLanding() {
           }
           
           .glow-button-soft {
-            box-shadow: 0 0 10px rgba(59, 130, 246, 0.25), 0 0 20px rgba(147, 51, 234, 0.12);
+            box-shadow: 0 0 10px rgba(34, 197, 94, 0.25), 0 0 20px rgba(16, 185, 129, 0.12);
           }
         }
       `}</style>
