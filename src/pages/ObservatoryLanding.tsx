@@ -207,20 +207,20 @@ export function ObservatoryLanding() {
       {/* Seção 1 - ABERTURA BRUTAL */}
       <section ref={heroRef} className="relative min-h-screen flex items-center justify-center px-4 sm:px-6 z-10">
         <div className="text-center max-w-6xl mx-auto w-full">
-          {/* Glow central mais intenso */}
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-500/30 via-purple-500/30 to-cyan-500/30 blur-3xl animate-pulse" />
+          {/* Glow central mais suave */}
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-cyan-500/20 blur-3xl opacity-70" />
           
           <div className="relative z-10">
-            <Badge className="mb-8 sm:mb-12 bg-gradient-to-r from-blue-500 to-purple-600 text-white border-0 px-4 sm:px-8 py-2 sm:py-3 text-sm sm:text-xl animate-pulse glow-intense">
-              <Sparkles className="w-4 h-4 sm:w-6 sm:h-6 mr-2 sm:mr-3 animate-spin" />
+            <Badge className="mb-8 sm:mb-12 bg-gradient-to-r from-slate-600 to-slate-700 text-slate-200 border-0 px-4 sm:px-6 py-2 sm:py-2 text-xs sm:text-sm opacity-80">
+              <Sparkles className="w-3 h-3 sm:w-4 sm:h-4 mr-2 sm:mr-2" />
               Powered by Yumer IA™ - IA de Consciência Humana
             </Badge>
 
             <h1 className="text-4xl sm:text-6xl md:text-8xl font-black mb-8 sm:mb-12 leading-tight">
               <span className="block text-white mb-2 sm:mb-4">O que você não vê...</span>
-              <span className="block text-cyan-400 glow-text-intense animate-pulse">te controla.</span>
+              <span className="block text-cyan-400 glow-text">te controla.</span>
               <span className="block text-white mb-2 sm:mb-4 mt-4 sm:mt-8">O que você vê...</span>
-              <span className="block text-green-400 glow-text-intense animate-pulse">te liberta.</span>
+              <span className="block text-green-400 glow-text">te liberta.</span>
             </h1>
 
             <div className="mb-12 sm:mb-16 space-y-4 sm:space-y-6">
@@ -239,7 +239,7 @@ export function ObservatoryLanding() {
             <div className="flex flex-col gap-4 sm:gap-8 justify-center items-center mb-8 sm:mb-12 px-4">
               <Button 
                 onClick={handleAccessObservatory}
-                className="w-full sm:w-auto bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-8 sm:px-16 py-6 sm:py-8 text-lg sm:text-2xl font-bold rounded-2xl shadow-2xl shadow-blue-500/50 border-2 border-blue-400/50 backdrop-blur-sm glow-button group transform hover:scale-105 transition-all duration-300 animate-pulse"
+                className="w-full sm:w-auto bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-8 sm:px-16 py-6 sm:py-8 text-lg sm:text-2xl font-bold rounded-2xl shadow-2xl shadow-blue-500/50 border-2 border-blue-400/50 backdrop-blur-sm glow-button group transform hover:scale-105 transition-all duration-300"
               >
                 <Brain className="w-6 h-6 sm:w-8 sm:h-8 mr-2 sm:mr-4 group-hover:animate-spin" />
                 <span className="text-center">ACESSAR MEU OBSERVATÓRIO AGORA</span>
@@ -385,7 +385,7 @@ export function ObservatoryLanding() {
 
             <Button 
               onClick={handleAccessObservatory}
-              className="w-full sm:w-auto bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-12 sm:px-20 py-8 sm:py-12 text-xl sm:text-3xl font-black rounded-3xl shadow-2xl shadow-blue-500/50 border-4 border-blue-400/50 backdrop-blur-sm glow-button-intense group transform hover:scale-110 transition-all duration-500 animate-pulse mb-6 sm:mb-8"
+              className="w-full sm:w-auto bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-12 sm:px-20 py-8 sm:py-12 text-xl sm:text-3xl font-black rounded-3xl shadow-2xl shadow-blue-500/50 border-4 border-blue-400/50 backdrop-blur-sm glow-button-intense group transform hover:scale-110 transition-all duration-500 mb-6 sm:mb-8"
             >
               <Rocket className="w-8 h-8 sm:w-10 sm:h-10 mr-4 sm:mr-6 group-hover:animate-bounce" />
               <span className="text-center">ACESSAR MEU OBSERVATÓRIO AGORA</span>
@@ -399,26 +399,26 @@ export function ObservatoryLanding() {
         </div>
       </section>
 
-      {/* Estilos CSS customizados mais intensos */}
+      {/* Estilos CSS customizados mais suaves */}
       <style>{`
         .glow-text {
-          text-shadow: 0 0 20px currentColor, 0 0 40px currentColor;
+          text-shadow: 0 0 15px currentColor, 0 0 30px currentColor;
         }
         
         .glow-text-intense {
-          text-shadow: 0 0 30px currentColor, 0 0 60px currentColor, 0 0 90px currentColor;
+          text-shadow: 0 0 20px currentColor, 0 0 40px currentColor, 0 0 60px currentColor;
         }
         
         .glow-button {
-          box-shadow: 0 0 30px rgba(59, 130, 246, 0.5), 0 0 60px rgba(147, 51, 234, 0.3);
+          box-shadow: 0 0 20px rgba(59, 130, 246, 0.4), 0 0 40px rgba(147, 51, 234, 0.2);
         }
         
         .glow-button-intense {
-          box-shadow: 0 0 50px rgba(59, 130, 246, 0.8), 0 0 100px rgba(147, 51, 234, 0.6), 0 0 150px rgba(6, 182, 212, 0.4);
+          box-shadow: 0 0 30px rgba(59, 130, 246, 0.6), 0 0 60px rgba(147, 51, 234, 0.4), 0 0 90px rgba(6, 182, 212, 0.3);
         }
         
         .glow-button:hover {
-          box-shadow: 0 0 40px rgba(59, 130, 246, 0.8), 0 0 80px rgba(147, 51, 234, 0.6);
+          box-shadow: 0 0 25px rgba(59, 130, 246, 0.6), 0 0 50px rgba(147, 51, 234, 0.4);
         }
         
         .glow-card {
@@ -430,7 +430,7 @@ export function ObservatoryLanding() {
         }
         
         .glow-intense {
-          box-shadow: 0 0 20px currentColor, 0 0 40px currentColor;
+          box-shadow: 0 0 15px currentColor, 0 0 30px currentColor;
         }
         
         @keyframes float {
@@ -443,8 +443,8 @@ export function ObservatoryLanding() {
         }
         
         @keyframes pulse-glow {
-          0%, 100% { box-shadow: 0 0 20px currentColor; }
-          50% { box-shadow: 0 0 40px currentColor, 0 0 60px currentColor; }
+          0%, 100% { box-shadow: 0 0 15px currentColor; }
+          50% { box-shadow: 0 0 30px currentColor, 0 0 45px currentColor; }
         }
       `}</style>
     </div>
