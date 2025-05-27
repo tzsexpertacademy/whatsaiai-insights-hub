@@ -375,7 +375,7 @@ export function ObservatoryLanding() {
           <div className="absolute inset-0 bg-gradient-to-r from-blue-500/40 via-purple-500/40 to-cyan-500/40 blur-3xl animate-pulse" />
           
           <div className="relative z-10">
-            <h2 className="text-7xl md:text-9xl font-black mb-12 leading-tight">
+            <h2 className="text-6xl md:text-8xl font-black mb-12 leading-tight">
               <span className="block text-white mb-4">O que você não vê...</span>
               <span className="block text-cyan-400 glow-text-intense animate-pulse">te controla.</span>
               <span className="block text-white mb-4 mt-8">O que você vê...</span>
