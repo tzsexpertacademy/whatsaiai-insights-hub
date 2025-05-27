@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -145,9 +146,14 @@ export function ObservatoryLanding() {
     try {
       if (isAuthenticated) {
         // Se já está logado, vai direto para o checkout
+        toast({
+          title: "Redirecionando para checkout",
+          description: "Iniciando seu trial gratuito de 7 dias",
+          duration: 3000
+        });
         await createCheckout();
       } else {
-        // Se não está logado, redireciona para cadastro
+        // Se não está logado, vai para tela de cadastro/login
         toast({
           title: "Criar sua conta",
           description: "Vamos criar sua conta para começar o trial gratuito",

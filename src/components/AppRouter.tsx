@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -64,7 +65,7 @@ export function AppRouter() {
       />
       <Route 
         path="/hub" 
-        element={isAuthenticated ? <SolutionsHub /> : <Navigate to="/" replace />} 
+        element={isAuthenticated ? <SolutionsHub /> : <Navigate to="/auth" replace />} 
       />
       <Route 
         path="/observatory" 
