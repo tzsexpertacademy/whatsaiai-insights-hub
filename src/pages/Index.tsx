@@ -1,12 +1,9 @@
 
-import React, { useEffect } from 'react';
-import { Routes, Route, useLocation } from 'react-router-dom';
+import React from 'react';
+import { Routes, Route } from 'react-router-dom';
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from '@/components/AppSidebar';
 import { DashboardHeader } from '@/components/DashboardHeader';
-import { useOnboarding } from '@/hooks/useOnboarding';
-import { WelcomeExperience } from '@/components/onboarding/WelcomeExperience';
-import { GuidedTour } from '@/components/onboarding/GuidedTour';
 
 // Dashboard pages
 import { MetricCards } from '@/components/dashboard/MetricCards';
@@ -22,30 +19,6 @@ import { SettingsPage } from '@/components/SettingsPage';
 import { ProfilePage } from '@/components/ProfilePage';
 
 export default function Index() {
-  const location = useLocation();
-  const { 
-    isFirstVisit, 
-    showTour, 
-    completed,
-    completeTour,
-    skipOnboarding 
-  } = useOnboarding();
-
-  console.log('📊 Estado atual do onboarding:', {
-    isFirstVisit,
-    showTour,
-    completed,
-    url: location.pathname,
-    currentPath: window.location.pathname
-  });
-
-  // Se é primeira visita e não completou o onboarding, mostra welcome
-  // APENAS se estiver na rota /dashboard (sem sub-rotas)
-  if (isFirstVisit && !completed && location.pathname === '/dashboard') {
-    console.log('🎬 Exibindo WelcomeExperience');
-    return <WelcomeExperience />;
-  }
-
   console.log('📱 Exibindo Dashboard Principal');
 
   return (
@@ -72,14 +45,6 @@ export default function Index() {
           </main>
         </div>
       </div>
-
-      {/* Tour guiado quando necessário */}
-      {showTour && (
-        <GuidedTour 
-          onComplete={completeTour}
-          onSkip={skipOnboarding}
-        />
-      )}
     </SidebarProvider>
   );
 }

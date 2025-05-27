@@ -1,9 +1,12 @@
+
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { useAnalysisData } from '@/contexts/AnalysisDataContext';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { DemoDashboard } from '@/components/onboarding/DemoData';
+import { AIAnalysisButton } from '@/components/AIAnalysisButton';
 import { 
   Brain, 
   Heart, 
@@ -13,12 +16,16 @@ import {
   MessageSquare,
   Sparkles,
   AlertCircle,
-  Activity
+  Activity,
+  Eye,
+  BarChart3,
+  PieChart,
+  LineChart
 } from 'lucide-react';
 
 export function MetricCards() {
   const { data, isLoading } = useAnalysisData();
-  const { showDemo } = useOnboarding();
+  const { showDemo, isFirstVisit, completeOnboarding } = useOnboarding();
 
   // Show demo data if in demo mode or no real data
   if (showDemo || !data.hasRealData) {
@@ -42,7 +49,7 @@ export function MetricCards() {
   }
 
   const totalInsights = data.insights?.length || 0;
-  const totalConversations = 0; // Removido referência incorreta
+  const totalConversations = 0;
   const averageEmotion = data.emotionalData?.length > 0 
     ? Math.round(data.emotionalData.reduce((acc, curr) => acc + curr.level, 0) / data.emotionalData.length)
     : 0;
@@ -63,8 +70,53 @@ export function MetricCards() {
               {totalInsights} Insights Gerados
             </Badge>
           )}
+          <AIAnalysisButton />
         </div>
       </div>
+
+      {/* Introdução para novos usuários */}
+      {isFirstVisit && (
+        <Card className="bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-blue-800">
+              <Eye className="h-5 w-5" />
+              Bem-vindo ao seu Observatório da Consciência!
+            </CardTitle>
+            <CardDescription className="text-blue-600">
+              Aqui você terá acesso a análises profundas da sua personalidade e comportamento
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <div className="text-center p-4 bg-white rounded-lg border border-blue-200">
+                <BarChart3 className="h-8 w-8 text-blue-600 mx-auto mb-2" />
+                <h3 className="font-medium text-blue-800 mb-1">Métricas Comportamentais</h3>
+                <p className="text-sm text-blue-600">Acompanhe sua evolução emocional e cognitiva</p>
+              </div>
+              <div className="text-center p-4 bg-white rounded-lg border border-purple-200">
+                <PieChart className="h-8 w-8 text-purple-600 mx-auto mb-2" />
+                <h3 className="font-medium text-purple-800 mb-1">Áreas da Vida</h3>
+                <p className="text-sm text-purple-600">Mapeamento completo dos seus focos</p>
+              </div>
+              <div className="text-center p-4 bg-white rounded-lg border border-green-200">
+                <LineChart className="h-8 w-8 text-green-600 mx-auto mb-2" />
+                <h3 className="font-medium text-green-800 mb-1">Insights Personalizados</h3>
+                <p className="text-sm text-green-600">Descobertas únicas sobre sua personalidade</p>
+              </div>
+            </div>
+            
+            <div className="text-center">
+              <Button 
+                onClick={completeOnboarding}
+                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-6 py-2"
+              >
+                <Sparkles className="w-4 h-4 mr-2" />
+                Começar a Explorar
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Métricas principais */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6" data-tour="metrics">
@@ -129,49 +181,26 @@ export function MetricCards() {
         </Card>
       </div>
 
-      {/* Card de boas-vindas se não houver dados */}
-      {!data.hasRealData && (
-        <Card className="bg-gradient-to-r from-indigo-50 to-purple-50 border-indigo-200" data-tour="welcome-card">
+      {/* Card de instruções se não houver dados */}
+      {!data.hasRealData && !isFirstVisit && (
+        <Card className="bg-gradient-to-r from-indigo-50 to-cyan-50 border-indigo-200">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-indigo-800">
-              <Sparkles className="h-5 w-5" />
-              Bem-vindo ao seu Observatório da Consciência!
+              <Activity className="h-5 w-5" />
+              Pronto para começar sua análise?
             </CardTitle>
             <CardDescription className="text-indigo-600">
-              Comece sua jornada de autoconhecimento fazendo a primeira análise
+              Faça upload das suas conversas para gerar insights personalizados
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                    <Brain className="w-4 h-4 text-blue-600" />
-                  </div>
-                  <span className="text-gray-700">Assistentes IA especializados</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                    <Activity className="w-4 h-4 text-green-600" />
-                  </div>
-                  <span className="text-gray-700">Análise emocional em tempo real</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
-                    <TrendingUp className="w-4 h-4 text-purple-600" />
-                  </div>
-                  <span className="text-gray-700">Evolução personalizada</span>
-                </div>
-              </div>
-              
-              <div className="text-center p-4 bg-white rounded-lg border border-indigo-200">
-                <p className="text-sm text-gray-600 mb-2">
-                  💡 <strong>Próximo passo:</strong> Clique no botão "Análise por IA" para fazer upload das suas conversas
-                </p>
-                <p className="text-xs text-gray-500">
-                  Seus dados são 100% privados e processados com segurança máxima
-                </p>
-              </div>
+            <div className="text-center p-4 bg-white rounded-lg border border-indigo-200">
+              <p className="text-sm text-gray-600 mb-2">
+                💡 <strong>Próximo passo:</strong> Clique no botão "Análise por IA" para fazer upload das suas conversas
+              </p>
+              <p className="text-xs text-gray-500">
+                Seus dados são 100% privados e processados com segurança máxima
+              </p>
             </div>
           </CardContent>
         </Card>

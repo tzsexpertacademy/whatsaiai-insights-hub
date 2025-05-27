@@ -1,98 +1,44 @@
 
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 
 interface OnboardingState {
   isFirstVisit: boolean;
-  currentStep: number;
-  showTour: boolean;
   showDemo: boolean;
   completed: boolean;
 }
 
 export function useOnboarding() {
-  const navigate = useNavigate();
   const [state, setState] = useState<OnboardingState>({
     isFirstVisit: true,
-    currentStep: 0,
-    showTour: false,
     showDemo: false,
     completed: false
   });
 
   useEffect(() => {
     const onboardingCompleted = localStorage.getItem('onboarding_completed') === 'true';
-    const hasSeenWelcome = localStorage.getItem('welcome_seen') === 'true';
-
+    
     console.log('🔍 Verificando onboarding:', {
       onboardingCompleted,
-      hasSeenWelcome,
       url: window.location.pathname
     });
 
     setState(prev => ({
       ...prev,
-      isFirstVisit: !onboardingCompleted && !hasSeenWelcome,
+      isFirstVisit: !onboardingCompleted,
       completed: onboardingCompleted,
-      showTour: false
+      showDemo: !onboardingCompleted
     }));
   }, []);
 
-  const completeWelcome = () => {
-    console.log('✅ Completando welcome - redirecionando para dashboard');
-    localStorage.setItem('welcome_seen', 'true');
+  const completeOnboarding = () => {
+    console.log('✅ Completando onboarding');
+    localStorage.setItem('onboarding_completed', 'true');
     setState(prev => ({ 
       ...prev, 
       isFirstVisit: false,
-      showTour: true,
-      currentStep: 1
-    }));
-    
-    // Redirecionar imediatamente para o dashboard
-    setTimeout(() => {
-      navigate('/dashboard');
-    }, 100);
-  };
-
-  const startTour = () => {
-    console.log('🚀 Iniciando tour guiado');
-    setState(prev => ({ 
-      ...prev, 
-      showTour: true, 
-      currentStep: 1
-    }));
-  };
-
-  const completeTour = () => {
-    console.log('✅ Tour completado - redirecionando para dashboard');
-    localStorage.setItem('onboarding_completed', 'true');
-    localStorage.setItem('welcome_seen', 'true');
-    setState(prev => ({ 
-      ...prev, 
-      showTour: false, 
       completed: true,
-      currentStep: 0,
-      isFirstVisit: false
+      showDemo: false
     }));
-    
-    // Redirecionar para o dashboard
-    navigate('/dashboard');
-  };
-
-  const skipOnboarding = () => {
-    console.log('⏭️ Pulando todo o onboarding - redirecionando para dashboard');
-    localStorage.setItem('onboarding_completed', 'true');
-    localStorage.setItem('welcome_seen', 'true');
-    setState(prev => ({ 
-      ...prev, 
-      isFirstVisit: false,
-      showTour: false, 
-      completed: true,
-      currentStep: 0
-    }));
-    
-    // Redirecionar imediatamente para o dashboard
-    navigate('/dashboard');
   };
 
   const resetOnboarding = () => {
@@ -100,12 +46,9 @@ export function useOnboarding() {
     localStorage.clear();
     setState({
       isFirstVisit: true,
-      currentStep: 0,
-      showTour: false,
       showDemo: false,
       completed: false
     });
-    navigate('/dashboard');
     window.location.reload();
   };
 
@@ -119,10 +62,7 @@ export function useOnboarding() {
 
   return {
     ...state,
-    completeWelcome,
-    startTour,
-    completeTour,
-    skipOnboarding,
+    completeOnboarding,
     resetOnboarding,
     showDemoData,
     hideDemoData
