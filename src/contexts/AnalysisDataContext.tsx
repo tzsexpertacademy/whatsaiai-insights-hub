@@ -221,6 +221,11 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
 
       const hasRealData = insightsData && insightsData.length > 0;
 
+      // Marcar que dados reais estão disponíveis no localStorage
+      if (hasRealData) {
+        localStorage.setItem('has_real_analysis_data', 'true');
+      }
+
       if (hasRealData) {
         // Processar insights com informações do assistente
         const processedInsights = insightsData.map(insight => ({
