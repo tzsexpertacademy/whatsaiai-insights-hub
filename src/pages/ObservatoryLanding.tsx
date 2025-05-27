@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -36,7 +35,7 @@ import {
 
 export function ObservatoryLanding() {
   const navigate = useNavigate();
-  const { isAuthenticated, createCheckout } = useAuth();
+  const { isAuthenticated } = useAuth();
   const { toast } = useToast();
   const heroRef = useRef<HTMLDivElement>(null);
   const particlesRef = useRef<HTMLCanvasElement>(null);
@@ -142,32 +141,23 @@ export function ObservatoryLanding() {
     };
   }, []);
 
-  const handleAccessObservatory = async () => {
-    try {
-      if (isAuthenticated) {
-        // Se já está logado, vai direto para o checkout
-        toast({
-          title: "Redirecionando para checkout",
-          description: "Iniciando seu trial gratuito de 7 dias",
-          duration: 3000
-        });
-        await createCheckout();
-      } else {
-        // Se não está logado, vai para tela de cadastro/login
-        toast({
-          title: "Criar sua conta",
-          description: "Vamos criar sua conta para começar o trial gratuito",
-          duration: 3000
-        });
-        navigate('/auth');
-      }
-    } catch (error) {
-      console.error('Error in handleAccessObservatory:', error);
+  const handleAccessObservatory = () => {
+    console.log('🚀 Botão clicado - handleAccessObservatory', { isAuthenticated });
+    
+    if (isAuthenticated) {
       toast({
-        title: "Erro",
-        description: "Houve um problema. Tente novamente.",
-        variant: "destructive"
+        title: "Bem-vindo de volta!",
+        description: "Redirecionando para seu observatório...",
+        duration: 2000
       });
+      navigate('/dashboard');
+    } else {
+      toast({
+        title: "Vamos começar!",
+        description: "Crie sua conta para acessar o observatório",
+        duration: 2000
+      });
+      navigate('/auth');
     }
   };
 
@@ -292,18 +282,23 @@ export function ObservatoryLanding() {
                 >
                   <Shield className="w-6 h-6 sm:w-8 sm:h-8 mr-2 sm:mr-4 group-hover:rotate-12 transition-transform" />
                   <div className="text-center">
-                    <div className="font-black">TESTE GRÁTIS 7 DIAS</div>
-                    <div className="text-sm sm:text-base font-normal opacity-90">Depois apenas R$ 47/mês</div>
+                    <div className="font-black">ACESSAR OBSERVATÓRIO</div>
+                    <div className="text-sm sm:text-base font-normal opacity-90">
+                      {isAuthenticated ? 'Entrar no Dashboard' : 'Criar Conta Grátis'}
+                    </div>
                   </div>
                   <ArrowRight className="w-6 h-6 sm:w-8 sm:h-8 ml-2 sm:ml-4 group-hover:translate-x-2 transition-transform" />
                 </Button>
                 
                 <Button 
+                  onClick={() => {
+                    document.getElementById('features-section')?.scrollIntoView({ behavior: 'smooth' });
+                  }}
                   variant="outline" 
                   className="w-full sm:w-auto border-2 border-cyan-400/50 text-cyan-400 hover:bg-cyan-400/10 px-6 sm:px-8 py-4 sm:py-8 text-base sm:text-lg rounded-2xl backdrop-blur-sm transform hover:scale-105 transition-all duration-300"
                 >
                   <Play className="w-5 h-5 sm:w-6 sm:h-6 mr-2 sm:mr-3" />
-                  Ou veja como funciona ↓
+                  Ver como funciona ↓
                 </Button>
               </div>
             </ScrollReveal>

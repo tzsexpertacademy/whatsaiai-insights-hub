@@ -12,7 +12,7 @@ import { Brain, Mail, Lock, User, Building } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export function LoginPage() {
-  const { login, signup, user, isLoading, createCheckout } = useAuth();
+  const { login, signup, user, isLoading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -29,36 +29,29 @@ export function LoginPage() {
     companyName: ''
   });
 
-  // Quando usuário se autentica, vai direto para o checkout
+  // Quando usuário se autentica, vai direto para o dashboard
   useEffect(() => {
     if (user) {
+      console.log('✅ Usuário autenticado, redirecionando para dashboard');
       toast({
         title: "Login realizado com sucesso!",
-        description: "Redirecionando para checkout...",
+        description: "Bem-vindo ao seu Observatório!",
         duration: 2000
       });
       
-      // Aguarda um pouco e vai para checkout
-      setTimeout(async () => {
-        try {
-          await createCheckout();
-        } catch (error) {
-          console.error('Error creating checkout:', error);
-          toast({
-            title: "Erro",
-            description: "Erro ao iniciar checkout. Tente novamente.",
-            variant: "destructive"
-          });
-        }
-      }, 1500);
+      setTimeout(() => {
+        navigate('/dashboard');
+      }, 1000);
     }
-  }, [user, createCheckout, toast]);
+  }, [user, navigate, toast]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('🔐 Tentando fazer login...');
     try {
       await login(loginData.email, loginData.password);
     } catch (error) {
+      console.error('❌ Erro no login:', error);
       toast({
         title: "Erro no login",
         description: error.message || "Credenciais inválidas",
@@ -97,12 +90,14 @@ export function LoginPage() {
       return;
     }
 
+    console.log('📝 Tentando criar conta...');
     try {
       await signup(signupData.email, signupData.password, {
         fullName: signupData.fullName,
         companyName: signupData.companyName
       });
     } catch (error) {
+      console.error('❌ Erro no cadastro:', error);
       toast({
         title: "Erro no cadastro",
         description: error.message || "Erro ao criar conta",
@@ -121,15 +116,15 @@ export function LoginPage() {
           </div>
           <p className="text-gray-600">Seu painel de consciência pessoal</p>
           <p className="text-sm text-green-600 font-medium mt-2">
-            7 dias grátis • Depois R$ 47/mês
+            Acesso completo ao seu observatório
           </p>
         </div>
 
         <Card className="shadow-xl border-0">
           <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl text-center">Comece seu trial gratuito</CardTitle>
+            <CardTitle className="text-2xl text-center">Acesse seu Observatório</CardTitle>
             <CardDescription className="text-center">
-              Crie sua conta para acessar o Observatório
+              Entre ou crie sua conta para começar
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -220,8 +215,8 @@ export function LoginPage() {
                     </div>
                   </div>
 
-                  <Button type="submit" className="w-full bg-green-600 hover:bg-green-700" disabled={isLoading}>
-                    {isLoading ? 'Criando conta...' : 'Começar Trial Grátis'}
+                  <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={isLoading}>
+                    {isLoading ? 'Criando conta...' : 'Criar Conta e Acessar'}
                   </Button>
                 </form>
               </TabsContent>
@@ -261,7 +256,7 @@ export function LoginPage() {
                   </div>
 
                   <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading ? 'Entrando...' : 'Entrar'}
+                    {isLoading ? 'Entrando...' : 'Entrar no Observatório'}
                   </Button>
                 </form>
               </TabsContent>

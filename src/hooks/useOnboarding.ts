@@ -22,23 +22,21 @@ export function useOnboarding() {
       url: window.location.pathname
     });
 
-    setState(prev => ({
-      ...prev,
+    setState({
       isFirstVisit: !onboardingCompleted,
       completed: onboardingCompleted,
       showDemo: !onboardingCompleted
-    }));
+    });
   }, []);
 
   const completeOnboarding = () => {
     console.log('✅ Completando onboarding');
     localStorage.setItem('onboarding_completed', 'true');
-    setState(prev => ({ 
-      ...prev, 
+    setState({ 
       isFirstVisit: false,
       completed: true,
       showDemo: false
-    }));
+    });
   };
 
   const resetOnboarding = () => {
