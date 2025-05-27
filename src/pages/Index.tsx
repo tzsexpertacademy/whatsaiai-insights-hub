@@ -1,9 +1,12 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from '@/components/AppSidebar';
 import { DashboardHeader } from '@/components/DashboardHeader';
+import { useOnboarding } from '@/hooks/useOnboarding';
+import { WelcomeExperience } from '@/components/onboarding/WelcomeExperience';
+import { GuidedTour } from '@/components/onboarding/GuidedTour';
 
 // Dashboard pages
 import { MetricCards } from '@/components/dashboard/MetricCards';
@@ -19,6 +22,20 @@ import { SettingsPage } from '@/components/SettingsPage';
 import { ProfilePage } from '@/components/ProfilePage';
 
 export default function Index() {
+  const { 
+    isFirstVisit, 
+    showTour, 
+    completed,
+    markWelcomeSeen,
+    completeTour,
+    skipOnboarding 
+  } = useOnboarding();
+
+  // Show welcome experience for first-time users
+  if (isFirstVisit && !completed) {
+    return <WelcomeExperience />;
+  }
+
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full bg-gray-50">
@@ -43,6 +60,14 @@ export default function Index() {
           </main>
         </div>
       </div>
+
+      {/* Guided Tour Overlay */}
+      {showTour && (
+        <GuidedTour 
+          onComplete={completeTour}
+          onSkip={skipOnboarding}
+        />
+      )}
     </SidebarProvider>
   );
 }

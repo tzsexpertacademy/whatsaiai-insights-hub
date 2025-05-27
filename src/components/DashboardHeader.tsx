@@ -79,17 +79,19 @@ export function DashboardHeader() {
           <SidebarTrigger />
           <div>
             <h1 className="text-lg font-semibold text-slate-800">
-              Bem-vindo, {user?.name || 'Usuário'}
+              Bem-vindo, {user?.email?.split('@')[0] || 'Usuário'}
             </h1>
             <p className="text-sm text-slate-600">
-              Plano {user?.plan} • Membro desde {user?.createdAt ? formatDate(user.createdAt) : 'N/A'}
+              Observatório da Consciência • Sua jornada de autoconhecimento
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
-          {/* Botão de Análise por IA */}
-          <AIAnalysisButton variant="outline" size="sm" />
+          {/* Botão de Análise por IA com data-tour */}
+          <div data-tour="ai-analysis">
+            <AIAnalysisButton variant="outline" size="sm" />
+          </div>
 
           {/* Menu do usuário */}
           <DropdownMenu>
@@ -97,7 +99,7 @@ export function DashboardHeader() {
               <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                 <Avatar className="h-10 w-10">
                   <AvatarFallback className="bg-blue-500 text-white">
-                    {user?.name ? getUserInitials(user.name) : <User className="h-4 w-4" />}
+                    {user?.email ? user.email.slice(0, 2).toUpperCase() : <User className="h-4 w-4" />}
                   </AvatarFallback>
                 </Avatar>
               </Button>
@@ -105,7 +107,7 @@ export function DashboardHeader() {
             <DropdownMenuContent className="w-56" align="end" forceMount>
               <DropdownMenuLabel className="font-normal">
                 <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium leading-none">{user?.name}</p>
+                  <p className="text-sm font-medium leading-none">{user?.email?.split('@')[0] || 'Usuário'}</p>
                   <p className="text-xs leading-none text-muted-foreground">
                     {user?.email}
                   </p>
