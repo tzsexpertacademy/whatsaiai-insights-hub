@@ -118,15 +118,30 @@ export function CommercialAnalysisDataProvider({ children }: { children: React.R
                          (metricsData && metricsData.length > 0);
 
       // Processar conversas para garantir que messages seja um array válido
-      const processedConversations = conversationsData?.map(conv => ({
-        id: conv.id,
-        contact_name: conv.contact_name,
-        contact_phone: conv.contact_phone,
-        messages: Array.isArray(conv.messages) ? conv.messages as CommercialMessage[] : [],
-        lead_status: conv.lead_status || 'new',
-        sales_stage: conv.sales_stage || 'prospecting',
-        created_at: conv.created_at
-      })) || [];
+      const processedConversations = conversationsData?.map(conv => {
+        let processedMessages: CommercialMessage[] = [];
+        
+        // Verificar se messages existe e é um array
+        if (conv.messages && Array.isArray(conv.messages)) {
+          processedMessages = conv.messages.map((msg: any) => ({
+            sender: msg.sender || '',
+            text: msg.text || msg.message_text || '',
+            timestamp: msg.timestamp || new Date().toISOString(),
+            ai_generated: msg.ai_generated || false,
+            sender_type: msg.sender_type || 'customer'
+          }));
+        }
+
+        return {
+          id: conv.id,
+          contact_name: conv.contact_name,
+          contact_phone: conv.contact_phone,
+          messages: processedMessages,
+          lead_status: conv.lead_status || 'new',
+          sales_stage: conv.sales_stage || 'prospecting',
+          created_at: conv.created_at
+        };
+      }) || [];
 
       setData({
         conversations: processedConversations,
