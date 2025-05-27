@@ -119,11 +119,11 @@ export function CommercialDashboard() {
   // Se ainda estiver carregando
   if (isLoading) {
     return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
+      <div className="space-y-6 w-full overflow-x-hidden">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-slate-800 mb-2">Cérebro Comercial</h1>
-            <p className="text-slate-600">Centro de comando neural da operação de receita</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-slate-800 mb-2">Cérebro Comercial</h1>
+            <p className="text-slate-600 text-sm sm:text-base">Centro de comando neural da operação de receita</p>
           </div>
         </div>
         <Card>
@@ -141,21 +141,21 @@ export function CommercialDashboard() {
   // Se não há dados comerciais, exibir dashboard vazio
   if (!hasCommercialData) {
     return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
+      <div className="space-y-6 w-full overflow-x-hidden">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-slate-800 mb-2">Cérebro Comercial</h1>
-            <p className="text-slate-600">Centro de comando neural da operação de receita</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-slate-800 mb-2">Cérebro Comercial</h1>
+            <p className="text-slate-600 text-sm sm:text-base">Centro de comando neural da operação de receita</p>
           </div>
           
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <Badge className="bg-gray-100 text-gray-800">Sem Dados</Badge>
             <CommercialAIAnalysisButton />
           </div>
         </div>
 
         {/* Dashboard vazio - sem dados */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Leads Gerados</CardTitle>
@@ -212,7 +212,7 @@ export function CommercialDashboard() {
             <div className="text-center py-8">
               <Database className="h-16 w-16 text-gray-300 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum dado comercial encontrado</h3>
-              <p className="text-gray-600 mb-6">
+              <p className="text-gray-600 mb-6 px-4 text-sm sm:text-base">
                 Para visualizar métricas e relatórios comerciais, você precisa:
               </p>
               <div className="text-left max-w-md mx-auto space-y-2">
@@ -230,16 +230,16 @@ export function CommercialDashboard() {
     );
   }
 
-  // Dashboard com dados (código existente)
+  // Dashboard com dados (código existente melhorado para mobile)
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 w-full overflow-x-hidden">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-800 mb-2">Cérebro Comercial</h1>
-          <p className="text-slate-600">Centro de comando neural da operação de receita</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-800 mb-2">Cérebro Comercial</h1>
+          <p className="text-slate-600 text-sm sm:text-base">Centro de comando neural da operação de receita</p>
         </div>
         
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <Badge className="bg-green-100 text-green-800">Operacional</Badge>
           <Badge className="bg-blue-100 text-blue-800">Pipeline Saudável</Badge>
           <CommercialAIAnalysisButton />
@@ -247,7 +247,7 @@ export function CommercialDashboard() {
       </div>
 
       {/* Métricas de Volume baseadas nos dados reais dos assistentes */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Leads Gerados</CardTitle>
@@ -316,12 +316,12 @@ export function CommercialDashboard() {
       </div>
 
       {/* Gráficos principais */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* Mapa do Funil */}
         <Card>
           <CardHeader>
-            <CardTitle>Mapa do Funil em Tempo Real</CardTitle>
-            <CardDescription>Conversão por etapa do pipeline - Dados dos Assistentes</CardDescription>
+            <CardTitle className="text-lg sm:text-xl">Mapa do Funil em Tempo Real</CardTitle>
+            <CardDescription className="text-sm">Conversão por etapa do pipeline - Dados dos Assistentes</CardDescription>
           </CardHeader>
           <CardContent>
             <ChartContainer
@@ -329,12 +329,12 @@ export function CommercialDashboard() {
                 value: { label: "Leads", color: "hsl(var(--chart-1))" },
                 conversion: { label: "Conversão %", color: "hsl(var(--chart-2))" }
               }}
-              className="h-[300px]"
+              className="h-[250px] sm:h-[300px] w-full"
             >
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={mockConversionData}>
-                  <XAxis dataKey="stage" />
-                  <YAxis />
+                <BarChart data={mockConversionData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+                  <XAxis dataKey="stage" tick={{ fontSize: 12 }} />
+                  <YAxis tick={{ fontSize: 12 }} />
                   <ChartTooltip content={<ChartTooltipContent />} />
                   <Bar dataKey="value" fill="var(--color-value)" />
                 </BarChart>
@@ -346,21 +346,21 @@ export function CommercialDashboard() {
         {/* Análise Comportamental */}
         <Card>
           <CardHeader>
-            <CardTitle>Radar de Performance Comportamental</CardTitle>
-            <CardDescription>Análise qualitativa da abordagem comercial - Assistentes IA</CardDescription>
+            <CardTitle className="text-lg sm:text-xl">Radar de Performance Comportamental</CardTitle>
+            <CardDescription className="text-sm">Análise qualitativa da abordagem comercial - Assistentes IA</CardDescription>
           </CardHeader>
           <CardContent>
             <ChartContainer
               config={{
                 A: { label: "Score", color: "hsl(var(--chart-1))" }
               }}
-              className="h-[300px]"
+              className="h-[250px] sm:h-[300px] w-full"
             >
               <ResponsiveContainer width="100%" height="100%">
-                <RadarChart data={mockBehavioralData}>
+                <RadarChart data={mockBehavioralData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
                   <PolarGrid />
-                  <PolarAngleAxis dataKey="subject" />
-                  <PolarRadiusAxis angle={90} domain={[0, 100]} />
+                  <PolarAngleAxis dataKey="subject" tick={{ fontSize: 10 }} />
+                  <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fontSize: 10 }} />
                   <Radar
                     name="Performance"
                     dataKey="A"
@@ -377,25 +377,25 @@ export function CommercialDashboard() {
       </div>
 
       {/* Alertas Inteligentes dos Assistentes */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
               <AlertCircle className="h-5 w-5 text-orange-500" />
               Alertas dos Assistentes Comerciais
             </CardTitle>
-            <CardDescription>Insights em tempo real dos assistentes de IA</CardDescription>
+            <CardDescription className="text-sm">Insights em tempo real dos assistentes de IA</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {commercialInsights.filter(insight => insight.priority === 'high').slice(0, 3).map((insight, index) => (
               <div key={insight.id} className="flex items-start gap-3 p-3 bg-orange-50 rounded-lg">
-                <AlertCircle className="h-4 w-4 text-orange-500 mt-0.5" />
-                <div className="text-sm flex-1">
-                  <p className="font-medium">{insight.title}</p>
-                  <p className="text-muted-foreground">{insight.description}</p>
+                <AlertCircle className="h-4 w-4 text-orange-500 mt-0.5 flex-shrink-0" />
+                <div className="text-sm flex-1 min-w-0">
+                  <p className="font-medium break-words">{insight.title}</p>
+                  <p className="text-muted-foreground break-words">{insight.description}</p>
                   <div className="flex items-center gap-2 mt-2">
-                    <Bot className="h-3 w-3 text-blue-500" />
-                    <span className="text-xs text-blue-600 font-medium">
+                    <Bot className="h-3 w-3 text-blue-500 flex-shrink-0" />
+                    <span className="text-xs text-blue-600 font-medium break-words">
                       Assistente: {getAssistantDisplayName(insight.insight_type)}
                     </span>
                   </div>
@@ -414,15 +414,15 @@ export function CommercialDashboard() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Motivos de Perda</CardTitle>
-            <CardDescription>Análise qualitativa das perdas no pipeline</CardDescription>
+            <CardTitle className="text-lg sm:text-xl">Motivos de Perda</CardTitle>
+            <CardDescription className="text-sm">Análise qualitativa das perdas no pipeline</CardDescription>
           </CardHeader>
           <CardContent>
             <ChartContainer
               config={{
                 value: { label: "Percentual", color: "hsl(var(--chart-1))" }
               }}
-              className="h-[200px]"
+              className="h-[200px] w-full"
             >
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
@@ -451,30 +451,30 @@ export function CommercialDashboard() {
       {/* Insights Qualitativos dos Assistentes */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
             <CheckCircle className="h-5 w-5 text-green-500" />
             Insights dos Assistentes Comerciais
           </CardTitle>
-          <CardDescription>Análises especializadas por cada assistente de IA</CardDescription>
+          <CardDescription className="text-sm">Análises especializadas por cada assistente de IA</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {commercialInsights.slice(0, 6).map((insight, index) => (
               <div key={insight.id} className={`p-4 rounded-lg ${getInsightColor(insight.insight_type)}`}>
-                <div className="flex items-start justify-between mb-2">
-                  <h4 className={`font-medium ${getInsightTextColor(insight.insight_type)}`}>
+                <div className="flex items-start justify-between mb-2 gap-2">
+                  <h4 className={`font-medium ${getInsightTextColor(insight.insight_type)} break-words flex-1`}>
                     {insight.title}
                   </h4>
-                  <Badge variant="outline" className="text-xs">
+                  <Badge variant="outline" className="text-xs flex-shrink-0">
                     {getAssistantDisplayName(insight.insight_type)}
                   </Badge>
                 </div>
-                <p className={`text-sm ${getInsightTextColor(insight.insight_type, true)}`}>
+                <p className={`text-sm ${getInsightTextColor(insight.insight_type, true)} break-words`}>
                   {insight.description}
                 </p>
-                <div className="flex items-center gap-2 mt-3">
-                  <Bot className="h-3 w-3 text-blue-500" />
-                  <span className="text-xs text-blue-600 font-medium">
+                <div className="flex flex-wrap items-center gap-2 mt-3">
+                  <Bot className="h-3 w-3 text-blue-500 flex-shrink-0" />
+                  <span className="text-xs text-blue-600 font-medium break-words">
                     {getAssistantIcon(insight.insight_type)} {getAssistantDisplayName(insight.insight_type)}
                   </span>
                   <Badge variant="secondary" className="text-xs">
@@ -488,7 +488,7 @@ export function CommercialDashboard() {
               <div className="col-span-2 text-center py-8">
                 <Bot className="h-16 w-16 text-gray-300 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">Assistentes Processando</h3>
-                <p className="text-gray-600">
+                <p className="text-gray-600 px-4 text-sm sm:text-base">
                   Os assistentes comerciais estão analisando os dados para gerar insights personalizados
                 </p>
               </div>
