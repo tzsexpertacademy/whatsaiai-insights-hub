@@ -152,7 +152,7 @@ export function ObservatoryLanding() {
       description: "Descubra seus loops mentais e crenças limitantes"
     },
     {
-      icon: Timeline,
+      icon: Calendar,
       title: "Linha do Tempo da Evolução",
       description: "Acompanhe sua jornada de crescimento pessoal"
     }
