@@ -3,18 +3,20 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
+interface CommercialMessage {
+  sender: string;
+  text: string;
+  timestamp: string;
+  ai_generated: boolean;
+  sender_type: string;
+}
+
 interface CommercialAnalysisData {
   conversations: Array<{
     id: string;
     contact_name: string;
     contact_phone: string;
-    messages: Array<{
-      sender: string;
-      text: string;
-      timestamp: string;
-      ai_generated: boolean;
-      sender_type: string;
-    }>;
+    messages: CommercialMessage[];
     lead_status: string;
     sales_stage: string;
     created_at: string;
@@ -115,8 +117,19 @@ export function CommercialAnalysisDataProvider({ children }: { children: React.R
                          (insightsData && insightsData.length > 0) ||
                          (metricsData && metricsData.length > 0);
 
+      // Processar conversas para garantir que messages seja um array válido
+      const processedConversations = conversationsData?.map(conv => ({
+        id: conv.id,
+        contact_name: conv.contact_name,
+        contact_phone: conv.contact_phone,
+        messages: Array.isArray(conv.messages) ? conv.messages as CommercialMessage[] : [],
+        lead_status: conv.lead_status || 'new',
+        sales_stage: conv.sales_stage || 'prospecting',
+        created_at: conv.created_at
+      })) || [];
+
       setData({
-        conversations: conversationsData || [],
+        conversations: processedConversations,
         insights: insightsData || [],
         salesMetrics: metricsData?.[0] || null,
         funnelData: funnelData || [],
