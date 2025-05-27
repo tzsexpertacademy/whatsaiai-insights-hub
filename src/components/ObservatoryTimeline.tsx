@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -181,9 +182,9 @@ export function ObservatoryTimeline() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Crescimento</p>
+                <p className="text-sm text-gray-600">Insights Totais</p>
                 <p className="text-2xl font-bold text-green-600">
-                  {timelineEvents.filter(e => e.type === 'growth').length}
+                  {timelineEvents.length}
                 </p>
               </div>
               <Target className="h-8 w-8 text-green-500" />
