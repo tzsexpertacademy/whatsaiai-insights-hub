@@ -1,4 +1,6 @@
 
+import React from 'react';
+
 /**
  * Utilitários para padrões de responsividade consistentes no projeto
  */
