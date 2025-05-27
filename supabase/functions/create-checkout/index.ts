@@ -54,13 +54,24 @@ serve(async (req) => {
 
     const origin = req.headers.get("origin") || "http://localhost:3000";
     
-    // Create checkout session with 7-day trial - SUCCESS VAI PARA DASHBOARD
+    // Create checkout session with 7-day trial and card collection
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       customer_email: customerId ? undefined : user.email,
+      payment_method_types: ['card'],
       line_items: [
         {
-          price: "prod_SOI9I7fQGPj927", // Your product ID
+          price_data: {
+            currency: "brl",
+            product_data: {
+              name: "Observatório - Plano Premium",
+              description: "Acesso completo ao seu painel de consciência pessoal"
+            },
+            unit_amount: 4700, // R$ 47,00 em centavos
+            recurring: {
+              interval: "month"
+            }
+          },
           quantity: 1,
         },
       ],
@@ -68,9 +79,11 @@ serve(async (req) => {
       subscription_data: {
         trial_period_days: 7, // 7 days free trial
       },
-      success_url: `${origin}/dashboard?checkout=success`,
+      success_url: `${origin}/dashboard?checkout=success&trial=true`,
       cancel_url: `${origin}/observatory?checkout=cancelled`,
       allow_promotion_codes: true,
+      billing_address_collection: 'auto',
+      payment_method_collection: 'always', // Força coleta do cartão mesmo no trial
     });
 
     logStep("Checkout session created", { sessionId: session.id, url: session.url });

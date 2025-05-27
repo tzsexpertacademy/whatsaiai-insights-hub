@@ -35,7 +35,7 @@ import {
 
 export function ObservatoryLanding() {
   const navigate = useNavigate();
-  const { isAuthenticated, createCheckout, signup, login } = useAuth();
+  const { isAuthenticated, createCheckout } = useAuth();
   const { toast } = useToast();
   const heroRef = useRef<HTMLDivElement>(null);
   const particlesRef = useRef<HTMLCanvasElement>(null);
@@ -147,46 +147,21 @@ export function ObservatoryLanding() {
         // Se já está logado, vai direto para o checkout
         await createCheckout();
       } else {
-        // Se não está logado, cria conta temporária e vai para checkout
-        const timestamp = Date.now();
-        const tempEmail = `temp.user.${timestamp}@observatorio.temp`;
-        const tempPassword = 'TempPass123!';
-        
+        // Se não está logado, redireciona para cadastro
         toast({
-          title: "Criando sua conta...",
-          description: "Preparando seu acesso ao Observatório",
+          title: "Criar sua conta",
+          description: "Vamos criar sua conta para começar o trial gratuito",
           duration: 3000
         });
-
-        // Criar conta temporária
-        await signup(tempEmail, tempPassword, {
-          fullName: 'Usuário Observatório',
-          companyName: 'Trial Gratuito'
-        });
-
-        // Fazer login automático
-        await login(tempEmail, tempPassword);
-        
-        // Aguardar um pouco e ir para checkout
-        setTimeout(async () => {
-          try {
-            await createCheckout();
-          } catch (error) {
-            console.error('Error creating checkout after signup:', error);
-            // Fallback direto para dashboard se houver erro
-            navigate('/dashboard');
-          }
-        }, 2000);
+        navigate('/auth');
       }
     } catch (error) {
       console.error('Error in handleAccessObservatory:', error);
       toast({
         title: "Erro",
-        description: "Houve um problema. Redirecionando para o dashboard...",
+        description: "Houve um problema. Tente novamente.",
         variant: "destructive"
       });
-      // Fallback direto para dashboard
-      navigate('/dashboard');
     }
   };
 
