@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -12,8 +13,12 @@ export default {
 	theme: {
 		container: {
 			center: true,
-			padding: '2rem',
+			padding: '1rem',
 			screens: {
+				'sm': '640px',
+				'md': '768px',
+				'lg': '1024px',
+				'xl': '1280px',
 				'2xl': '1400px'
 			}
 		},
@@ -84,13 +89,131 @@ export default {
 					to: {
 						height: '0'
 					}
+				},
+				'fade-in': {
+					'0%': {
+						opacity: '0',
+						transform: 'translateY(10px)'
+					},
+					'100%': {
+						opacity: '1',
+						transform: 'translateY(0)'
+					}
+				},
+				'scale-in': {
+					'0%': {
+						transform: 'scale(0.95)',
+						opacity: '0'
+					},
+					'100%': {
+						transform: 'scale(1)',
+						opacity: '1'
+					}
 				}
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
-				'accordion-up': 'accordion-up 0.2s ease-out'
+				'accordion-up': 'accordion-up 0.2s ease-out',
+				'fade-in': 'fade-in 0.3s ease-out',
+				'scale-in': 'scale-in 0.2s ease-out'
+			},
+			// Utilitários responsivos customizados
+			spacing: {
+				'safe-top': 'env(safe-area-inset-top)',
+				'safe-bottom': 'env(safe-area-inset-bottom)',
+				'safe-left': 'env(safe-area-inset-left)',
+				'safe-right': 'env(safe-area-inset-right)'
 			}
 		}
 	},
-	plugins: [require("tailwindcss-animate")],
+	plugins: [
+		require("tailwindcss-animate"),
+		// Plugin customizado para utilitários responsivos
+		function({ addUtilities }: any) {
+			const newUtilities = {
+				'.text-responsive-xs': {
+					fontSize: '0.75rem',
+					'@screen sm': {
+						fontSize: '0.875rem'
+					}
+				},
+				'.text-responsive-sm': {
+					fontSize: '0.875rem',
+					'@screen sm': {
+						fontSize: '1rem'
+					}
+				},
+				'.text-responsive-base': {
+					fontSize: '1rem',
+					'@screen sm': {
+						fontSize: '1.125rem'
+					}
+				},
+				'.text-responsive-lg': {
+					fontSize: '1.125rem',
+					'@screen sm': {
+						fontSize: '1.25rem'
+					},
+					'@screen lg': {
+						fontSize: '1.5rem'
+					}
+				},
+				'.text-responsive-xl': {
+					fontSize: '1.25rem',
+					'@screen sm': {
+						fontSize: '1.5rem'
+					},
+					'@screen lg': {
+						fontSize: '1.875rem'
+					}
+				},
+				'.text-responsive-2xl': {
+					fontSize: '1.5rem',
+					'@screen sm': {
+						fontSize: '1.875rem'
+					},
+					'@screen lg': {
+						fontSize: '2.25rem'
+					}
+				},
+				'.text-responsive-3xl': {
+					fontSize: '1.875rem',
+					'@screen sm': {
+						fontSize: '2.25rem'
+					},
+					'@screen lg': {
+						fontSize: '3rem'
+					}
+				},
+				'.text-responsive-4xl': {
+					fontSize: '2.25rem',
+					'@screen sm': {
+						fontSize: '3rem'
+					},
+					'@screen lg': {
+						fontSize: '3.75rem'
+					}
+				},
+				'.container-responsive': {
+					width: '100%',
+					paddingLeft: '1rem',
+					paddingRight: '1rem',
+					'@screen sm': {
+						paddingLeft: '1.5rem',
+						paddingRight: '1.5rem'
+					},
+					'@screen lg': {
+						paddingLeft: '2rem',
+						paddingRight: '2rem'
+					}
+				},
+				'.no-horizontal-scroll': {
+					overflowX: 'hidden',
+					width: '100%',
+					maxWidth: '100vw'
+				}
+			}
+			addUtilities(newUtilities, ['responsive'])
+		}
+	],
 } satisfies Config;

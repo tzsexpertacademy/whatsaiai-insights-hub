@@ -26,7 +26,7 @@ const DynamicComponentLoader = ({ Component }) => {
   }, []);
   
   if (!isClient) {
-    return <div className="p-8 text-center">Carregando...</div>;
+    return <div className="p-4 sm:p-6 lg:p-8 text-center">Carregando...</div>;
   }
   
   return <Component />;
@@ -38,14 +38,14 @@ const Index = () => {
   try {
     console.log('Dashboard - Rendering main layout');
     return (
-      <div className="min-h-screen bg-gradient-to-br from-background via-background/95 to-background/90">
+      <div className="min-h-screen bg-gradient-to-br from-background via-background/95 to-background/90 overflow-x-hidden">
         <SidebarProvider defaultOpen={true}>
           <div className="flex min-h-screen w-full">
             <AppSidebar />
             <div className="flex-1 flex flex-col min-w-0">
               <DashboardHeader />
-              <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-auto">
-                <div className="max-w-7xl mx-auto">
+              <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-auto">
+                <div className="max-w-7xl mx-auto w-full">
                   <Routes>
                     <Route path="/" element={
                       <>
@@ -136,11 +136,11 @@ const Index = () => {
   } catch (error) {
     console.error('Error in Dashboard component:', error);
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-red-600 mb-4">Erro de Renderização no Dashboard</h1>
-          <p className="text-gray-600">Erro: {error.message}</p>
-          <p className="text-gray-500">Verifique o console para mais detalhes</p>
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <div className="text-center max-w-md mx-auto">
+          <h1 className="text-xl sm:text-2xl font-bold text-red-600 mb-4">Erro de Renderização no Dashboard</h1>
+          <p className="text-sm sm:text-base text-gray-600 mb-2 break-words">Erro: {error.message}</p>
+          <p className="text-xs sm:text-sm text-gray-500">Verifique o console para mais detalhes</p>
         </div>
       </div>
     );

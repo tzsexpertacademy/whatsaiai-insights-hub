@@ -12,14 +12,14 @@ import { AIAnalysisButton } from '@/components/AIAnalysisButton';
 
 export function InsightsDashboard() {
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 w-full overflow-x-hidden">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-800 mb-2">Observatório da Consciência</h1>
-          <p className="text-slate-600">Um espelho da sua mente, comportamentos e evolução pessoal</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-800 mb-2">Observatório da Consciência</h1>
+          <p className="text-slate-600 text-sm sm:text-base">Um espelho da sua mente, comportamentos e evolução pessoal</p>
         </div>
         
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <Badge className="bg-purple-100 text-purple-800">Operacional</Badge>
           <Badge className="bg-blue-100 text-blue-800">Dados Atualizados</Badge>
           <AIAnalysisButton />
@@ -30,7 +30,7 @@ export function InsightsDashboard() {
       <MetricCards />
 
       {/* Mapa de Áreas da Vida e Termômetro Emocional */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         <LifeAreasMap />
         <EmotionalChart />
       </div>

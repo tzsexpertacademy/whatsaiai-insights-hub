@@ -1,344 +1,156 @@
+
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
 import { 
   Brain, 
-  DollarSign, 
-  Megaphone, 
-  Calculator, 
-  Cog, 
-  Package, 
+  TrendingUp, 
   Users, 
-  Target,
-  Crown,
-  LogOut
+  Target, 
+  BarChart3, 
+  Sparkles,
+  ArrowRight,
+  Zap,
+  Eye,
+  DollarSign
 } from 'lucide-react';
-
-interface Solution {
-  id: string;
-  title: string;
-  subtitle: string;
-  description: string;
-  icon: React.ElementType;
-  color: string;
-  bgGradient: string;
-  features: string[];
-  status: 'active' | 'coming-soon' | 'available';
-  route?: string;
-}
-
-const solutions: Solution[] = [
-  {
-    id: 'consciousness',
-    title: 'Observatório da Consciência',
-    subtitle: 'O Decodificador Humano',
-    description: 'Análise comportamental avançada via WhatsApp',
-    icon: Brain,
-    color: 'text-purple-600',
-    bgGradient: 'from-purple-500 to-blue-600',
-    features: [
-      'Análise de padrões comportamentais',
-      'Perfil psicológico detalhado',
-      'Insights sobre tomada de decisão',
-      'Monitoramento emocional'
-    ],
-    status: 'active',
-    route: '/dashboard'
-  },
-  {
-    id: 'commercial',
-    title: 'Cérebro Comercial',
-    subtitle: 'O Gerador de Receita',
-    description: 'Análise de funil, conversão e performance de vendas',
-    icon: DollarSign,
-    color: 'text-green-600',
-    bgGradient: 'from-green-500 to-emerald-600',
-    features: [
-      'Análise de funil de vendas',
-      'Taxa de conversão por perfil',
-      'Padrões de objeções',
-      'Diagnóstico de abordagem'
-    ],
-    status: 'active',
-    route: '/commercial'
-  },
-  {
-    id: 'marketing',
-    title: 'Cérebro de Marketing',
-    subtitle: 'O Arquitetor de Atenção',
-    description: 'Análise de copy, campanhas e engajamento',
-    icon: Megaphone,
-    color: 'text-pink-600',
-    bgGradient: 'from-pink-500 to-rose-600',
-    features: [
-      'Performance de campanhas',
-      'Análise de tom de voz',
-      'Alinhamento de persona',
-      'Padrões de retenção'
-    ],
-    status: 'coming-soon'
-  },
-  {
-    id: 'financial',
-    title: 'Cérebro Financeiro',
-    subtitle: 'O Guardião dos Recursos',
-    description: 'Análise de fluxo, margens e rentabilidade',
-    icon: Calculator,
-    color: 'text-blue-600',
-    bgGradient: 'from-blue-500 to-cyan-600',
-    features: [
-      'Análise de fluxo de caixa',
-      'Otimização de custos',
-      'Detecção de desperdícios',
-      'Sugestões de precificação'
-    ],
-    status: 'coming-soon'
-  },
-  {
-    id: 'operations',
-    title: 'Cérebro de Operações',
-    subtitle: 'O Motor da Entrega',
-    description: 'Análise de processos e produtividade',
-    icon: Cog,
-    color: 'text-orange-600',
-    bgGradient: 'from-orange-500 to-amber-600',
-    features: [
-      'Análise de processos',
-      'Detecção de gargalos',
-      'Recomendações de automação',
-      'Melhoria contínua'
-    ],
-    status: 'coming-soon'
-  },
-  {
-    id: 'product',
-    title: 'Cérebro de Produto/Serviço',
-    subtitle: 'O Mestre da Experiência',
-    description: 'Análise de feedbacks, NPS e satisfação',
-    icon: Package,
-    color: 'text-indigo-600',
-    bgGradient: 'from-indigo-500 to-purple-600',
-    features: [
-      'Análise de NPS',
-      'Gaps na entrega',
-      'Percepção de valor',
-      'Evolução de features'
-    ],
-    status: 'coming-soon'
-  },
-  {
-    id: 'hr',
-    title: 'Cérebro de RH',
-    subtitle: 'O Cultivador de Talentos',
-    description: 'Análise de clima, cultura e engajamento',
-    icon: Users,
-    color: 'text-teal-600',
-    bgGradient: 'from-teal-500 to-green-600',
-    features: [
-      'Análise de clima organizacional',
-      'Detecção de burnout',
-      'Desenvolvimento humano',
-      'Alinhamento cultural'
-    ],
-    status: 'coming-soon'
-  },
-  {
-    id: 'strategy',
-    title: 'Cérebro de Estratégia',
-    subtitle: 'O Visionário',
-    description: 'Leitura de tendências e oportunidades',
-    icon: Target,
-    color: 'text-red-600',
-    bgGradient: 'from-red-500 to-pink-600',
-    features: [
-      'Análise de tendências',
-      'Diagnóstico estratégico',
-      'Diferenciação competitiva',
-      'Visão de futuro'
-    ],
-    status: 'coming-soon'
-  }
-];
-
-const superBrain = {
-  id: 'super-brain',
-  title: 'SUPER CÉREBRO',
-  subtitle: 'O Conselheiro da Empresa',
-  description: 'Visão macro, integrada e holística de todos os cérebros',
-  icon: Crown,
-  color: 'text-yellow-600',
-  bgGradient: 'from-yellow-500 via-orange-500 to-red-500',
-  features: [
-    'Visão integrada de todos os cérebros',
-    'Detecção de riscos sistêmicos',
-    'Diagnóstico de desequilíbrios',
-    'Conselheria estratégica completa'
-  ],
-  status: 'coming-soon' as const
-};
 
 export function SolutionsHub() {
   const navigate = useNavigate();
-  const { logout, user } = useAuth();
 
-  const handleSolutionClick = (solution: Solution) => {
-    console.log(`Attempting to navigate to: ${solution.route}`);
-    if (solution.status === 'active' && solution.route) {
-      navigate(solution.route);
-    } else {
-      // Aqui você pode implementar lógica para compra/contato
-      console.log(`Interesse em: ${solution.title}`);
+  const solutions = [
+    {
+      id: 'observatory',
+      title: 'Observatório da Consciência',
+      description: 'Mapeamento completo da sua mente, comportamentos e evolução pessoal',
+      icon: Brain,
+      color: 'from-purple-500 to-blue-600',
+      features: ['Termômetro Emocional', 'Radar de Áreas da Vida', 'Padrões Cognitivos', 'Timeline da Evolução'],
+      route: '/dashboard',
+      status: 'Operacional'
+    },
+    {
+      id: 'commercial',
+      title: 'Cérebro Comercial',
+      description: 'Centro de comando neural da operação de receita e vendas',
+      icon: DollarSign,
+      color: 'from-green-500 to-emerald-600',
+      features: ['Análise de Funil', 'Performance de Vendas', 'Métricas Comportamentais', 'Cultura do Time'],
+      route: '/commercial',
+      status: 'Operacional'
     }
-  };
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'active':
-        return <Badge className="bg-green-100 text-green-800">Ativo</Badge>;
-      case 'coming-soon':
-        return <Badge className="bg-orange-100 text-orange-800">Em Breve</Badge>;
-      default:
-        return <Badge className="bg-gray-100 text-gray-800">Disponível</Badge>;
-    }
-  };
+  ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
-      {/* Header */}
-      <header className="bg-white/80 backdrop-blur-sm border-b border-white/50 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
-                <Brain className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-gray-900">Ecossistema Kairon</h1>
-                <p className="text-sm text-gray-600">Inteligência Artificial Empresarial</p>
-              </div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 overflow-x-hidden">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-16">
+        {/* Header */}
+        <div className="text-center mb-12 sm:mb-16 lg:mb-20">
+          <div className="flex items-center justify-center mb-6 sm:mb-8">
+            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-r from-purple-500 to-blue-600 rounded-xl flex items-center justify-center mr-3 sm:mr-4">
+              <Sparkles className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
             </div>
-            <div className="flex items-center gap-4">
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => navigate('/observatory')}
-                className="text-purple-600 border-purple-300 hover:bg-purple-50"
-              >
-                <Brain className="w-4 h-4 mr-2" />
-                Observatório
-              </Button>
-              <span className="text-sm text-gray-600">Olá, {user?.name}</span>
-              <Button variant="outline" size="sm" onClick={logout}>
-                <LogOut className="w-4 h-4 mr-2" />
-                Sair
-              </Button>
+            <div className="text-left">
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-800">Hub de Soluções Yumer</h1>
+              <p className="text-sm sm:text-base text-slate-600">Powered by Yumer IA™</p>
             </div>
           </div>
-        </div>
-      </header>
-
-      <main className="max-w-7xl mx-auto px-6 py-8">
-        {/* Intro */}
-        <div className="text-center mb-12">
-          <h2 className="text-4xl font-bold text-gray-900 mb-4">
-            Escolha seu <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Cérebro</span>
-          </h2>
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-            Cada solução é um cérebro especializado que analisa, diagnostica e recomenda ações estratégicas para sua empresa
+          
+          <p className="text-lg sm:text-xl lg:text-2xl text-slate-600 max-w-3xl mx-auto leading-relaxed px-4">
+            Escolha sua jornada de crescimento e transformação
           </p>
+          
+          <Badge className="mt-4 sm:mt-6 bg-gradient-to-r from-blue-500 to-purple-600 text-white border-0 px-4 sm:px-6 py-2 text-sm sm:text-base">
+            <Zap className="w-4 h-4 mr-2" />
+            Inteligência Artificial Avançada
+          </Badge>
         </div>
 
-        {/* Super Cérebro */}
-        <div className="mb-12">
-          <Card className="bg-gradient-to-r from-yellow-50 to-orange-50 border-2 border-yellow-200 shadow-xl">
-            <CardHeader className="text-center pb-4">
-              <div className="flex justify-center mb-4">
-                <div className={`w-16 h-16 bg-gradient-to-r ${superBrain.bgGradient} rounded-2xl flex items-center justify-center shadow-lg`}>
-                  <superBrain.icon className="w-8 h-8 text-white" />
-                </div>
-              </div>
-              <CardTitle className="text-2xl">{superBrain.title}</CardTitle>
-              <CardDescription className="text-lg font-medium text-gray-700">
-                {superBrain.subtitle}
-              </CardDescription>
-              <p className="text-gray-600">{superBrain.description}</p>
-            </CardHeader>
-            <CardContent>
-              <div className="grid md:grid-cols-2 gap-4 mb-6">
-                {superBrain.features.map((feature, index) => (
-                  <div key={index} className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
-                    <span className="text-sm text-gray-700">{feature}</span>
-                  </div>
-                ))}
-              </div>
-              <div className="flex items-center justify-between">
-                {getStatusBadge(superBrain.status)}
-                <Button 
-                  disabled={superBrain.status === 'coming-soon'}
-                  className="bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-600 hover:to-orange-700"
-                >
-                  {superBrain.status === 'coming-soon' ? 'Em Desenvolvimento' : 'Acessar'}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Cérebros Principais */}
-        <div className="grid lg:grid-cols-2 xl:grid-cols-3 gap-8">
+        {/* Solutions Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 lg:gap-12 mb-12 sm:mb-16">
           {solutions.map((solution) => (
             <Card 
-              key={solution.id}
-              className={`bg-white/70 backdrop-blur-sm border-white/50 shadow-lg hover:shadow-xl transition-all duration-300 ${
-                solution.status === 'active' ? 'ring-2 ring-blue-200' : ''
-              }`}
+              key={solution.id} 
+              className="group hover:shadow-2xl transition-all duration-300 border-0 bg-white/80 backdrop-blur-sm hover:scale-105 overflow-hidden"
             >
-              <CardHeader className="pb-4">
-                <div className="flex items-start justify-between mb-4">
-                  <div className={`w-12 h-12 bg-gradient-to-r ${solution.bgGradient} rounded-xl flex items-center justify-center`}>
-                    <solution.icon className="w-6 h-6 text-white" />
+              <CardHeader className="pb-4 sm:pb-6">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4 sm:mb-6">
+                  <div className={`w-14 h-14 sm:w-16 sm:h-16 bg-gradient-to-r ${solution.color} rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300 flex-shrink-0`}>
+                    <solution.icon className="w-7 h-7 sm:w-8 sm:h-8 text-white" />
                   </div>
-                  {getStatusBadge(solution.status)}
+                  <Badge variant="outline" className="text-green-700 border-green-200 bg-green-50 text-xs sm:text-sm w-fit">
+                    {solution.status}
+                  </Badge>
                 </div>
-                <CardTitle className="text-xl">{solution.title}</CardTitle>
-                <CardDescription className="text-base font-medium text-gray-700">
-                  {solution.subtitle}
+                
+                <CardTitle className="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-800 mb-3 sm:mb-4 group-hover:text-blue-600 transition-colors leading-tight">
+                  {solution.title}
+                </CardTitle>
+                
+                <CardDescription className="text-base sm:text-lg text-slate-600 leading-relaxed">
+                  {solution.description}
                 </CardDescription>
-                <p className="text-sm text-gray-600">{solution.description}</p>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-2 mb-6">
+
+              <CardContent className="space-y-4 sm:space-y-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
                   {solution.features.map((feature, index) => (
-                    <div key={index} className="flex items-center gap-2">
-                      <div className="w-1.5 h-1.5 bg-gray-400 rounded-full"></div>
-                      <span className="text-sm text-gray-600">{feature}</span>
+                    <div key={index} className="flex items-center text-sm sm:text-base text-slate-700">
+                      <Target className="w-4 h-4 text-blue-500 mr-2 sm:mr-3 flex-shrink-0" />
+                      <span className="break-words">{feature}</span>
                     </div>
                   ))}
                 </div>
+
                 <Button 
-                  onClick={() => handleSolutionClick(solution)}
-                  disabled={solution.status === 'coming-soon'}
-                  className={`w-full bg-gradient-to-r ${solution.bgGradient} hover:opacity-90`}
+                  onClick={() => navigate(solution.route)}
+                  className={`w-full bg-gradient-to-r ${solution.color} hover:opacity-90 text-white py-3 sm:py-4 text-base sm:text-lg font-semibold rounded-xl shadow-lg transition-all duration-300 group-hover:shadow-xl`}
                 >
-                  {solution.status === 'active' ? 'Acessar' : 
-                   solution.status === 'coming-soon' ? 'Em Breve' : 'Contratar'}
+                  <span className="mr-2 sm:mr-3">Acessar {solution.title}</span>
+                  <ArrowRight className="w-5 h-5 sm:w-6 sm:h-6 group-hover:translate-x-1 transition-transform" />
                 </Button>
               </CardContent>
             </Card>
           ))}
         </div>
 
-        {/* Footer */}
-        <footer className="mt-16 text-center text-gray-600">
-          <p className="text-sm">
-            © {new Date().getFullYear()} Kairon Labs - Transformando dados em inteligência estratégica
+        {/* Quick Stats */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-12 sm:mb-16">
+          {[
+            { label: 'Análises Realizadas', value: '10K+', icon: BarChart3 },
+            { label: 'Insights Gerados', value: '50K+', icon: Brain },
+            { label: 'Usuários Ativos', value: '2K+', icon: Users },
+            { label: 'Taxa de Evolução', value: '95%', icon: TrendingUp }
+          ].map((stat, index) => (
+            <Card key={index} className="text-center p-4 sm:p-6 bg-white/60 backdrop-blur-sm border-0 hover:bg-white/80 transition-all duration-300">
+              <stat.icon className="w-6 h-6 sm:w-8 sm:h-8 mx-auto mb-2 sm:mb-3 text-blue-600" />
+              <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-800 mb-1">{stat.value}</div>
+              <div className="text-xs sm:text-sm text-slate-600 break-words">{stat.label}</div>
+            </Card>
+          ))}
+        </div>
+
+        {/* Call to Action */}
+        <div className="text-center">
+          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-800 mb-4 sm:mb-6 leading-tight">
+            Pronto para transformar sua vida?
+          </h2>
+          <p className="text-base sm:text-lg lg:text-xl text-slate-600 mb-6 sm:mb-8 max-w-2xl mx-auto px-4">
+            Escolha sua solução e comece sua jornada de crescimento pessoal e profissional hoje mesmo.
           </p>
-        </footer>
-      </main>
+          
+          <Button 
+            onClick={() => navigate('/observatory')}
+            size="lg" 
+            className="bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700 text-white px-6 sm:px-8 lg:px-12 py-4 sm:py-6 text-base sm:text-lg lg:text-xl font-bold rounded-xl shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105"
+          >
+            <Eye className="w-5 h-5 sm:w-6 sm:h-6 mr-2 sm:mr-3" />
+            <span>Descobrir o Observatório</span>
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }
