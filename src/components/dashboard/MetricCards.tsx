@@ -43,9 +43,9 @@ export function MetricCards() {
   }
 
   const totalInsights = data.insights?.length || 0;
-  const totalConversations = data.conversations?.length || 0;
+  const totalConversations = data.whatsappConversations?.length || 0;
   const averageEmotion = data.emotionalData?.length > 0 
-    ? Math.round(data.emotionalData.reduce((acc, curr) => acc + curr.score, 0) / data.emotionalData.length)
+    ? Math.round(data.emotionalData.reduce((acc, curr) => acc + curr.level, 0) / data.emotionalData.length)
     : 0;
   const growthAreas = data.lifeAreas?.length || 0;
 

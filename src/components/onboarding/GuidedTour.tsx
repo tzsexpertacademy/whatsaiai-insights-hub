@@ -280,7 +280,7 @@ export function GuidedTour({ onComplete, onSkip }: GuidedTourProps) {
         </Card>
       </div>
 
-      <style jsx global>{`
+      <style>{`
         .tour-highlight {
           position: relative;
           z-index: 45;
