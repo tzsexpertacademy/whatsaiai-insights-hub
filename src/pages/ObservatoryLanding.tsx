@@ -1,9 +1,11 @@
-
 import React, { useEffect, useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from 'react-router-dom';
+import { useParallax } from '@/hooks/useParallax';
+import { CursorEffect } from '@/components/effects/CursorEffect';
+import { ScrollReveal } from '@/components/effects/ScrollReveal';
 import { 
   Brain, 
   Eye, 
@@ -31,6 +33,7 @@ export function ObservatoryLanding() {
   const navigate = useNavigate();
   const heroRef = useRef<HTMLDivElement>(null);
   const particlesRef = useRef<HTMLCanvasElement>(null);
+  const scrollY = useParallax();
 
   // Animação de partículas neurais mais intensa
   useEffect(() => {
@@ -197,63 +200,78 @@ export function ObservatoryLanding() {
 
   return (
     <div className="min-h-screen bg-black text-white overflow-x-hidden">
-      {/* Canvas de partículas neurais */}
+      <CursorEffect />
+      
+      {/* Canvas de partículas neurais com parallax */}
       <canvas
         ref={particlesRef}
         className="fixed inset-0 pointer-events-none z-0 w-full h-full"
-        style={{ background: 'radial-gradient(ellipse at center, rgba(15, 23, 42, 0.95) 0%, rgba(0, 0, 0, 1) 100%)' }}
+        style={{ 
+          background: 'radial-gradient(ellipse at center, rgba(15, 23, 42, 0.95) 0%, rgba(0, 0, 0, 1) 100%)',
+          transform: `translateY(${scrollY * 0.5}px)`
+        }}
       />
 
       {/* Seção 1 - ABERTURA BRUTAL */}
       <section ref={heroRef} className="relative min-h-screen flex items-center justify-center px-4 sm:px-6 z-10">
         <div className="text-center max-w-6xl mx-auto w-full">
-          {/* Glow central mais suave */}
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-cyan-500/20 blur-3xl opacity-70" />
+          {/* Glow central mais suave com parallax */}
+          <div 
+            className="absolute inset-0 bg-gradient-to-r from-blue-500/15 via-purple-500/15 to-cyan-500/15 blur-3xl opacity-60" 
+            style={{ transform: `translateY(${scrollY * 0.3}px)` }}
+          />
           
           <div className="relative z-10">
-            <Badge className="mb-8 sm:mb-12 bg-gradient-to-r from-slate-600 to-slate-700 text-slate-200 border-0 px-4 sm:px-6 py-2 sm:py-2 text-xs sm:text-sm opacity-80">
-              <Sparkles className="w-3 h-3 sm:w-4 sm:h-4 mr-2 sm:mr-2" />
-              Powered by Yumer IA™ - IA de Consciência Humana
-            </Badge>
+            <ScrollReveal id="hero-badge" direction="scale" delay={200}>
+              <Badge className="mb-8 sm:mb-12 bg-gradient-to-r from-slate-700 to-slate-800 text-slate-300 border-0 px-4 sm:px-6 py-2 sm:py-2 text-xs sm:text-sm opacity-70 hover:opacity-90 transition-opacity">
+                <Sparkles className="w-3 h-3 sm:w-4 sm:h-4 mr-2 sm:mr-2" />
+                Powered by Yumer IA™ - IA de Consciência Humana
+              </Badge>
+            </ScrollReveal>
 
-            <h1 className="text-4xl sm:text-6xl md:text-8xl font-black mb-8 sm:mb-12 leading-tight">
-              <span className="block text-white mb-2 sm:mb-4">O que você não vê...</span>
-              <span className="block text-cyan-400 glow-text">te controla.</span>
-              <span className="block text-white mb-2 sm:mb-4 mt-4 sm:mt-8">O que você vê...</span>
-              <span className="block text-green-400 glow-text">te liberta.</span>
-            </h1>
+            <ScrollReveal id="hero-title" direction="up" delay={400}>
+              <h1 className="text-4xl sm:text-6xl md:text-8xl font-black mb-8 sm:mb-12 leading-tight">
+                <span className="block text-white mb-2 sm:mb-4">O que você não vê...</span>
+                <span className="block text-cyan-400 glow-text-soft">te controla.</span>
+                <span className="block text-white mb-2 sm:mb-4 mt-4 sm:mt-8">O que você vê...</span>
+                <span className="block text-green-400 glow-text-soft">te liberta.</span>
+              </h1>
+            </ScrollReveal>
 
-            <div className="mb-12 sm:mb-16 space-y-4 sm:space-y-6">
-              <p className="text-xl sm:text-3xl md:text-4xl font-bold text-white px-2">
-                O primeiro Observatório da sua própria consciência.
-              </p>
-              <p className="text-lg sm:text-2xl md:text-3xl text-blue-300 px-2">
-                Um painel vivo da sua mente.
-              </p>
-              <p className="text-base sm:text-xl md:text-2xl text-gray-300 max-w-4xl mx-auto px-4">
-                Seus padrões. Suas forças. Suas sombras. Sua rota de expansão.
-              </p>
-            </div>
+            <ScrollReveal id="hero-subtitle" direction="up" delay={600}>
+              <div className="mb-12 sm:mb-16 space-y-4 sm:space-y-6">
+                <p className="text-xl sm:text-3xl md:text-4xl font-bold text-white px-2">
+                  O primeiro Observatório da sua própria consciência.
+                </p>
+                <p className="text-lg sm:text-2xl md:text-3xl text-blue-300 px-2">
+                  Um painel vivo da sua mente.
+                </p>
+                <p className="text-base sm:text-xl md:text-2xl text-gray-300 max-w-4xl mx-auto px-4">
+                  Seus padrões. Suas forças. Suas sombras. Sua rota de expansão.
+                </p>
+              </div>
+            </ScrollReveal>
 
-            {/* Botões e restante da seção hero */}
-            <div className="flex flex-col gap-4 sm:gap-8 justify-center items-center mb-8 sm:mb-12 px-4">
-              <Button 
-                onClick={handleAccessObservatory}
-                className="w-full sm:w-auto bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-8 sm:px-16 py-6 sm:py-8 text-lg sm:text-2xl font-bold rounded-2xl shadow-2xl shadow-blue-500/50 border-2 border-blue-400/50 backdrop-blur-sm glow-button group transform hover:scale-105 transition-all duration-300"
-              >
-                <Brain className="w-6 h-6 sm:w-8 sm:h-8 mr-2 sm:mr-4 group-hover:animate-spin" />
-                <span className="text-center">ACESSAR MEU OBSERVATÓRIO AGORA</span>
-                <ArrowRight className="w-6 h-6 sm:w-8 sm:h-8 ml-2 sm:ml-4 group-hover:translate-x-2 transition-transform" />
-              </Button>
-              
-              <Button 
-                variant="outline" 
-                className="w-full sm:w-auto border-2 border-cyan-400/70 text-cyan-400 hover:bg-cyan-400/20 px-6 sm:px-8 py-4 sm:py-8 text-base sm:text-lg rounded-2xl backdrop-blur-sm transform hover:scale-105 transition-all duration-300"
-              >
-                <Play className="w-5 h-5 sm:w-6 sm:h-6 mr-2 sm:mr-3" />
-                Ou veja como funciona ↓
-              </Button>
-            </div>
+            <ScrollReveal id="hero-buttons" direction="up" delay={800}>
+              <div className="flex flex-col gap-4 sm:gap-8 justify-center items-center mb-8 sm:mb-12 px-4">
+                <Button 
+                  onClick={handleAccessObservatory}
+                  className="w-full sm:w-auto bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-8 sm:px-16 py-6 sm:py-8 text-lg sm:text-2xl font-bold rounded-2xl shadow-2xl shadow-blue-500/30 border-2 border-blue-400/30 backdrop-blur-sm glow-button-soft group transform hover:scale-105 transition-all duration-500"
+                >
+                  <Brain className="w-6 h-6 sm:w-8 sm:h-8 mr-2 sm:mr-4 group-hover:rotate-12 transition-transform" />
+                  <span className="text-center">ACESSAR MEU OBSERVATÓRIO AGORA</span>
+                  <ArrowRight className="w-6 h-6 sm:w-8 sm:h-8 ml-2 sm:ml-4 group-hover:translate-x-2 transition-transform" />
+                </Button>
+                
+                <Button 
+                  variant="outline" 
+                  className="w-full sm:w-auto border-2 border-cyan-400/50 text-cyan-400 hover:bg-cyan-400/10 px-6 sm:px-8 py-4 sm:py-8 text-base sm:text-lg rounded-2xl backdrop-blur-sm transform hover:scale-105 transition-all duration-300"
+                >
+                  <Play className="w-5 h-5 sm:w-6 sm:h-6 mr-2 sm:mr-3" />
+                  Ou veja como funciona ↓
+                </Button>
+              </div>
+            </ScrollReveal>
           </div>
         </div>
       </section>
@@ -261,29 +279,33 @@ export function ObservatoryLanding() {
       {/* Seção 2 - O CHOQUE */}
       <section className="relative py-16 sm:py-32 px-4 sm:px-6 z-10">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-12 sm:mb-20">
-            <h2 className="text-4xl sm:text-6xl md:text-7xl font-black mb-6 sm:mb-8 text-white leading-tight">
-              Você nunca viu isso.
-              <br />
-              <span className="text-red-400 glow-text">Porque isso nunca existiu.</span>
-            </h2>
-            
-            <p className="text-lg sm:text-2xl md:text-3xl text-gray-300 mb-8 sm:mb-12 max-w-5xl mx-auto leading-relaxed px-4">
-              O Observatório lê suas reflexões, detecta padrões ocultos, e te entrega clareza real sobre quem você é — e quem pode se tornar.
-            </p>
-          </div>
+          <ScrollReveal id="features-title" direction="up">
+            <div className="text-center mb-12 sm:mb-20">
+              <h2 className="text-4xl sm:text-6xl md:text-7xl font-black mb-6 sm:mb-8 text-white leading-tight">
+                Você nunca viu isso.
+                <br />
+                <span className="text-red-400 glow-text-soft">Porque isso nunca existiu.</span>
+              </h2>
+              
+              <p className="text-lg sm:text-2xl md:text-3xl text-gray-300 mb-8 sm:mb-12 max-w-5xl mx-auto leading-relaxed px-4">
+                O Observatório lê suas reflexões, detecta padrões ocultos, e te entrega clareza real sobre quem você é — e quem pode se tornar.
+              </p>
+            </div>
+          </ScrollReveal>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-8">
             {observatoryFeatures.map((feature, index) => (
-              <Card key={index} className="bg-gradient-to-br from-white/10 to-white/5 border-2 border-white/20 backdrop-blur-md hover:bg-white/15 transition-all duration-500 hover:scale-110 hover:rotate-1 group glow-card">
-                <CardContent className="p-4 sm:p-8 text-center">
-                  <div className="w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-4 sm:mb-6 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center group-hover:animate-pulse">
-                    <feature.icon className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
-                  </div>
-                  <h3 className="text-lg sm:text-xl font-bold text-white mb-3 sm:mb-4">{feature.title}</h3>
-                  <p className="text-gray-300 text-sm sm:text-lg">{feature.description}</p>
-                </CardContent>
-              </Card>
+              <ScrollReveal key={index} id={`feature-${index}`} direction="up" delay={index * 200}>
+                <Card className="bg-gradient-to-br from-white/10 to-white/5 border-2 border-white/15 backdrop-blur-md hover:bg-white/15 transition-all duration-700 hover:scale-105 hover:rotate-1 group glow-card-soft">
+                  <CardContent className="p-4 sm:p-8 text-center">
+                    <div className="w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-4 sm:mb-6 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform duration-500">
+                      <feature.icon className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
+                    </div>
+                    <h3 className="text-lg sm:text-xl font-bold text-white mb-3 sm:mb-4">{feature.title}</h3>
+                    <p className="text-gray-300 text-sm sm:text-lg">{feature.description}</p>
+                  </CardContent>
+                </Card>
+              </ScrollReveal>
             ))}
           </div>
         </div>
@@ -292,24 +314,30 @@ export function ObservatoryLanding() {
       {/* Seção 3 - PARA QUEM É ISSO */}
       <section className="relative py-16 sm:py-32 px-4 sm:px-6 z-10">
         <div className="max-w-5xl mx-auto text-center">
-          <h2 className="text-4xl sm:text-6xl md:text-7xl font-black mb-12 sm:mb-16 text-white leading-tight">
-            Isso não é pra quem tá confortável
-            <br />
-            <span className="text-orange-400 glow-text">em viver no automático.</span>
-          </h2>
+          <ScrollReveal id="target-title" direction="up">
+            <h2 className="text-4xl sm:text-6xl md:text-7xl font-black mb-12 sm:mb-16 text-white leading-tight">
+              Isso não é pra quem tá confortável
+              <br />
+              <span className="text-orange-400 glow-text-soft">em viver no automático.</span>
+            </h2>
+          </ScrollReveal>
           
-          <p className="text-lg sm:text-2xl md:text-3xl text-gray-300 mb-8 sm:mb-12 leading-relaxed px-4">
-            É pra quem tá pronto pra enxergar o que evitou por anos.
-            <br />
-            <span className="text-yellow-400 font-bold">Seus padrões. Suas repetições. Suas fugas. Suas potências.</span>
-          </p>
+          <ScrollReveal id="target-subtitle" direction="up" delay={200}>
+            <p className="text-lg sm:text-2xl md:text-3xl text-gray-300 mb-8 sm:mb-12 leading-relaxed px-4">
+              É pra quem tá pronto pra enxergar o que evitou por anos.
+              <br />
+              <span className="text-yellow-400 font-bold">Seus padrões. Suas repetições. Suas fugas. Suas potências.</span>
+            </p>
+          </ScrollReveal>
 
           <div className="space-y-4 sm:space-y-6 text-lg sm:text-xl md:text-2xl text-gray-300 mb-12 sm:mb-16">
             {targetProfiles.map((profile, index) => (
-              <div key={index} className="flex items-center justify-center group px-4">
-                <Target className="w-6 h-6 sm:w-8 sm:h-8 text-orange-400 mr-3 sm:mr-4 group-hover:animate-spin flex-shrink-0" />
-                <span className="font-semibold text-center">{profile}</span>
-              </div>
+              <ScrollReveal key={index} id={`profile-${index}`} direction="left" delay={index * 150}>
+                <div className="flex items-center justify-center group px-4">
+                  <Target className="w-6 h-6 sm:w-8 sm:h-8 text-orange-400 mr-3 sm:mr-4 group-hover:rotate-45 transition-transform duration-500 flex-shrink-0" />
+                  <span className="font-semibold text-center">{profile}</span>
+                </div>
+              </ScrollReveal>
             ))}
           </div>
         </div>
@@ -318,22 +346,26 @@ export function ObservatoryLanding() {
       {/* Seção 4 - COMO FUNCIONA */}
       <section className="relative py-16 sm:py-32 px-4 sm:px-6 z-10">
         <div className="max-w-6xl mx-auto">
-          <h2 className="text-4xl sm:text-6xl md:text-7xl font-black text-center mb-12 sm:mb-20 text-white">
-            Como <span className="bg-gradient-to-r from-green-400 to-cyan-500 bg-clip-text text-transparent glow-text">Funciona</span>
-          </h2>
+          <ScrollReveal id="process-title" direction="scale">
+            <h2 className="text-4xl sm:text-6xl md:text-7xl font-black text-center mb-12 sm:mb-20 text-white">
+              Como <span className="bg-gradient-to-r from-green-400 to-cyan-500 bg-clip-text text-transparent glow-text-soft">Funciona</span>
+            </h2>
+          </ScrollReveal>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 sm:gap-16">
             {processSteps.map((step, index) => (
-              <div key={index} className="text-center group">
-                <div className="w-24 h-24 sm:w-32 sm:h-32 mx-auto mb-6 sm:mb-8 bg-gradient-to-r from-green-500 to-emerald-600 rounded-full flex items-center justify-center text-3xl sm:text-5xl font-black text-white group-hover:scale-125 transition-transform duration-500 glow-intense">
-                  {step.number}
+              <ScrollReveal key={index} id={`step-${index}`} direction="up" delay={index * 300}>
+                <div className="text-center group">
+                  <div className="w-24 h-24 sm:w-32 sm:h-32 mx-auto mb-6 sm:mb-8 bg-gradient-to-r from-green-500 to-emerald-600 rounded-full flex items-center justify-center text-3xl sm:text-5xl font-black text-white group-hover:scale-110 transition-transform duration-700 glow-soft">
+                    {step.number}
+                  </div>
+                  <div className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-4 sm:mb-6 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center group-hover:rotate-12 transition-transform duration-500">
+                    <step.icon className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
+                  </div>
+                  <h3 className="text-2xl sm:text-3xl font-bold text-white mb-4 sm:mb-6">{step.title}</h3>
+                  <p className="text-gray-300 text-base sm:text-lg leading-relaxed px-2">{step.description}</p>
                 </div>
-                <div className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-4 sm:mb-6 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center group-hover:animate-bounce">
-                  <step.icon className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
-                </div>
-                <h3 className="text-2xl sm:text-3xl font-bold text-white mb-4 sm:mb-6">{step.title}</h3>
-                <p className="text-gray-300 text-base sm:text-lg leading-relaxed px-2">{step.description}</p>
-              </div>
+              </ScrollReveal>
             ))}
           </div>
         </div>
@@ -342,28 +374,32 @@ export function ObservatoryLanding() {
       {/* Seção 5 - O VALOR INIMAGINÁVEL */}
       <section className="relative py-16 sm:py-32 px-4 sm:px-6 z-10">
         <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-12 sm:mb-20">
-            <h2 className="text-3xl sm:text-5xl md:text-6xl font-black mb-12 sm:mb-16 text-white leading-tight">
-              Você já investiu em cursos, livros, terapias, mentorias...
-              <br /><br />
-              <span className="text-yellow-400">E mesmo assim...</span>
-              <br /><br />
-              <span className="text-red-400 glow-text">Ninguém nunca te entregou um mapa real da sua própria mente.</span>
-              <br /><br />
-              <span className="text-green-400 glow-text animate-pulse">Até agora.</span>
-            </h2>
-          </div>
+          <ScrollReveal id="value-title" direction="up">
+            <div className="text-center mb-12 sm:mb-20">
+              <h2 className="text-3xl sm:text-5xl md:text-6xl font-black mb-12 sm:mb-16 text-white leading-tight">
+                Você já investiu em cursos, livros, terapias, mentorias...
+                <br /><br />
+                <span className="text-yellow-400">E mesmo assim...</span>
+                <br /><br />
+                <span className="text-red-400 glow-text-soft">Ninguém nunca te entregou um mapa real da sua própria mente.</span>
+                <br /><br />
+                <span className="text-green-400 glow-text-soft glow-pulse-soft">Até agora.</span>
+              </h2>
+            </div>
+          </ScrollReveal>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-8">
             {benefits.map((benefit, index) => (
-              <Card key={index} className="bg-gradient-to-br from-white/15 to-white/5 border-2 border-green-400/30 backdrop-blur-md hover:bg-white/20 transition-all duration-300 hover:scale-105 group glow-card">
-                <CardContent className="p-4 sm:p-8">
-                  <div className="flex items-center mb-3 sm:mb-4">
-                    <Lightbulb className="w-6 h-6 sm:w-8 sm:h-8 text-yellow-400 mr-3 sm:mr-4 group-hover:animate-pulse flex-shrink-0" />
-                    <h3 className="text-lg sm:text-xl font-bold text-white">{benefit}</h3>
-                  </div>
-                </CardContent>
-              </Card>
+              <ScrollReveal key={index} id={`benefit-${index}`} direction="up" delay={index * 200}>
+                <Card className="bg-gradient-to-br from-white/10 to-white/5 border-2 border-green-400/20 backdrop-blur-md hover:bg-white/15 transition-all duration-500 hover:scale-105 group glow-card-soft">
+                  <CardContent className="p-4 sm:p-8">
+                    <div className="flex items-center mb-3 sm:mb-4">
+                      <Lightbulb className="w-6 h-6 sm:w-8 sm:h-8 text-yellow-400 mr-3 sm:mr-4 group-hover:scale-110 transition-transform duration-300 flex-shrink-0" />
+                      <h3 className="text-lg sm:text-xl font-bold text-white">{benefit}</h3>
+                    </div>
+                  </CardContent>
+                </Card>
+              </ScrollReveal>
             ))}
           </div>
         </div>
@@ -372,79 +408,91 @@ export function ObservatoryLanding() {
       {/* CTA FINAL - O PORTAL */}
       <section className="relative py-20 sm:py-40 px-4 sm:px-6 z-10">
         <div className="max-w-6xl mx-auto text-center">
-          {/* Glow central mais dramático */}
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-500/40 via-purple-500/40 to-cyan-500/40 blur-3xl animate-pulse" />
+          {/* Glow central mais suave com parallax */}
+          <div 
+            className="absolute inset-0 bg-gradient-to-r from-blue-500/25 via-purple-500/25 to-cyan-500/25 blur-3xl glow-pulse-soft" 
+            style={{ transform: `translateY(${scrollY * 0.2}px)` }}
+          />
           
           <div className="relative z-10">
-            <h2 className="text-4xl sm:text-6xl md:text-8xl font-black mb-8 sm:mb-12 leading-tight">
-              <span className="block text-white mb-2 sm:mb-4">O que você não vê...</span>
-              <span className="block text-cyan-400 glow-text-intense animate-pulse">te controla.</span>
-              <span className="block text-white mb-2 sm:mb-4 mt-4 sm:mt-8">O que você vê...</span>
-              <span className="block text-green-400 glow-text-intense animate-pulse">te liberta.</span>
-            </h2>
+            <ScrollReveal id="final-title" direction="scale" delay={200}>
+              <h2 className="text-4xl sm:text-6xl md:text-8xl font-black mb-8 sm:mb-12 leading-tight">
+                <span className="block text-white mb-2 sm:mb-4">O que você não vê...</span>
+                <span className="block text-cyan-400 glow-text-soft glow-pulse-soft">te controla.</span>
+                <span className="block text-white mb-2 sm:mb-4 mt-4 sm:mt-8">O que você vê...</span>
+                <span className="block text-green-400 glow-text-soft glow-pulse-soft">te liberta.</span>
+              </h2>
+            </ScrollReveal>
 
-            <Button 
-              onClick={handleAccessObservatory}
-              className="w-full sm:w-auto bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-12 sm:px-20 py-8 sm:py-12 text-xl sm:text-3xl font-black rounded-3xl shadow-2xl shadow-blue-500/50 border-4 border-blue-400/50 backdrop-blur-sm glow-button-intense group transform hover:scale-110 transition-all duration-500 mb-6 sm:mb-8"
-            >
-              <Rocket className="w-8 h-8 sm:w-10 sm:h-10 mr-4 sm:mr-6 group-hover:animate-bounce" />
-              <span className="text-center">ACESSAR MEU OBSERVATÓRIO AGORA</span>
-              <Flame className="w-8 h-8 sm:w-10 sm:h-10 ml-4 sm:ml-6 group-hover:animate-spin" />
-            </Button>
+            <ScrollReveal id="final-button" direction="up" delay={600}>
+              <Button 
+                onClick={handleAccessObservatory}
+                className="w-full sm:w-auto bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-12 sm:px-20 py-8 sm:py-12 text-xl sm:text-3xl font-black rounded-3xl shadow-2xl shadow-blue-500/40 border-4 border-blue-400/30 backdrop-blur-sm glow-button-soft group transform hover:scale-110 transition-all duration-700 mb-6 sm:mb-8"
+              >
+                <Rocket className="w-8 h-8 sm:w-10 sm:h-10 mr-4 sm:mr-6 group-hover:rotate-12 transition-transform duration-500" />
+                <span className="text-center">ACESSAR MEU OBSERVATÓRIO AGORA</span>
+                <Flame className="w-8 h-8 sm:w-10 sm:h-10 ml-4 sm:ml-6 group-hover:scale-110 transition-transform duration-500" />
+              </Button>
+            </ScrollReveal>
 
-            <p className="text-lg sm:text-xl md:text-2xl text-gray-400 italic font-light px-4">
-              Consciência não é um luxo. É um direito vitalício.
-            </p>
+            <ScrollReveal id="final-subtitle" direction="up" delay={800}>
+              <p className="text-lg sm:text-xl md:text-2xl text-gray-400 italic font-light px-4">
+                Consciência não é um luxo. É um direito vitalício.
+              </p>
+            </ScrollReveal>
           </div>
         </div>
       </section>
 
-      {/* Estilos CSS customizados mais suaves */}
+      {/* Estilos CSS customizados mais suaves e harmônicos */}
       <style>{`
-        .glow-text {
-          text-shadow: 0 0 15px currentColor, 0 0 30px currentColor;
+        .glow-text-soft {
+          text-shadow: 0 0 10px currentColor, 0 0 20px currentColor;
         }
         
-        .glow-text-intense {
-          text-shadow: 0 0 20px currentColor, 0 0 40px currentColor, 0 0 60px currentColor;
+        .glow-button-soft {
+          box-shadow: 0 0 15px rgba(59, 130, 246, 0.25), 0 0 30px rgba(147, 51, 234, 0.12);
         }
         
-        .glow-button {
-          box-shadow: 0 0 20px rgba(59, 130, 246, 0.4), 0 0 40px rgba(147, 51, 234, 0.2);
+        .glow-button-soft:hover {
+          box-shadow: 0 0 20px rgba(59, 130, 246, 0.35), 0 0 40px rgba(147, 51, 234, 0.2);
         }
         
-        .glow-button-intense {
-          box-shadow: 0 0 30px rgba(59, 130, 246, 0.6), 0 0 60px rgba(147, 51, 234, 0.4), 0 0 90px rgba(6, 182, 212, 0.3);
+        .glow-card-soft {
+          box-shadow: 0 0 15px rgba(59, 130, 246, 0.12), 0 0 30px rgba(147, 51, 234, 0.08);
         }
         
-        .glow-button:hover {
-          box-shadow: 0 0 25px rgba(59, 130, 246, 0.6), 0 0 50px rgba(147, 51, 234, 0.4);
+        .glow-card-soft:hover {
+          box-shadow: 0 0 25px rgba(59, 130, 246, 0.25), 0 0 50px rgba(147, 51, 234, 0.15);
         }
         
-        .glow-card {
-          box-shadow: 0 0 20px rgba(59, 130, 246, 0.2), 0 0 40px rgba(147, 51, 234, 0.1);
+        .glow-soft {
+          box-shadow: 0 0 10px currentColor, 0 0 20px currentColor;
         }
         
-        .glow-card:hover {
-          box-shadow: 0 0 30px rgba(59, 130, 246, 0.4), 0 0 60px rgba(147, 51, 234, 0.3);
+        .glow-pulse-soft {
+          animation: pulse-glow-soft 4s ease-in-out infinite;
         }
         
-        .glow-intense {
-          box-shadow: 0 0 15px currentColor, 0 0 30px currentColor;
+        @keyframes pulse-glow-soft {
+          0%, 100% { 
+            opacity: 0.8;
+            transform: scale(1);
+          }
+          50% { 
+            opacity: 1;
+            transform: scale(1.02);
+          }
         }
         
-        @keyframes float {
-          0%, 100% { transform: translateY(0px); }
-          50% { transform: translateY(-10px); }
-        }
-        
-        .float {
-          animation: float 3s ease-in-out infinite;
-        }
-        
-        @keyframes pulse-glow {
-          0%, 100% { box-shadow: 0 0 15px currentColor; }
-          50% { box-shadow: 0 0 30px currentColor, 0 0 45px currentColor; }
+        @media (max-width: 768px) {
+          .glow-text-soft {
+            text-shadow: 0 0 5px currentColor, 0 0 10px currentColor;
+          }
+          
+          .glow-button-soft {
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.25), 0 0 20px rgba(147, 51, 234, 0.12);
+          }
         }
       `}</style>
     </div>
