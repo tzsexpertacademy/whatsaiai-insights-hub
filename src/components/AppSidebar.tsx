@@ -1,224 +1,173 @@
 
-import {
-  Brain,
-  Calendar,
-  ChevronsUpDown,
-  FileText,
-  Home,
-  LogOut,
-  MessageSquare,
-  Settings,
-  Target,
-  TrendingUp,
-  User,
-  Users,
-  Activity,
-  Eye,
-  Lightbulb
-} from "lucide-react"
-
-import {
-  Avatar,
-  AvatarFallback,
-} from "@/components/ui/avatar"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+import React from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
-  SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarRail,
-} from "@/components/ui/sidebar"
-import { SidebarNavItem } from './SidebarNavItem';
-import { SidebarSubscriptionStatus } from './SidebarSubscriptionStatus';
-import { useAuth } from '@/contexts/AuthContext';
+  SidebarTrigger,
+  useSidebar,
+} from "@/components/ui/sidebar";
+import { Badge } from "@/components/ui/badge";
+import { 
+  BarChart3, 
+  Eye, 
+  Heart, 
+  Target, 
+  Brain, 
+  Calendar,
+  Lightbulb,
+  AlertTriangle,
+  FileText,
+  Settings,
+  User,
+  Activity
+} from 'lucide-react';
 
-// Menu items.
-const items = [
-  {
-    title: "Dashboard",
-    url: "/dashboard",
-    icon: Home,
-  },
-  {
-    title: "Observatório",
-    url: "/dashboard/observatory",
-    icon: Eye,
-  },
-  {
-    title: "Termômetro Emocional",
-    url: "/dashboard/thermometer",
-    icon: Activity,
-  },
-  {
-    title: "Áreas da Vida",
-    url: "/dashboard/areas",
-    icon: Target,
-  },
-  {
-    title: "Perfil Comportamental",
-    url: "/dashboard/behavioral",
-    icon: Brain,
-  },
-  {
-    title: "Linha do Tempo",
-    url: "/dashboard/timeline",
-    icon: Calendar,
-  },
-  {
-    title: "Insights & Alertas",
-    url: "/dashboard/insights",
-    icon: TrendingUp,
-  },
-  {
-    title: "Recomendações",
-    url: "/dashboard/recommendations",
-    icon: Lightbulb,
-  },
-  {
-    title: "Dores do Cliente",
-    url: "/dashboard/pain-points",
-    icon: MessageSquare,
-  },
-  {
-    title: "Documentos",
-    url: "/dashboard/documents",
-    icon: FileText,
-  },
-]
+const mainItems = [
+  { title: "Dashboard", url: "/dashboard", icon: BarChart3, description: "Visão geral" },
+  { title: "Termômetro Emocional", url: "/dashboard/thermometer", icon: Heart, description: "Estados emocionais" },
+  { title: "Áreas da Vida", url: "/dashboard/areas", icon: Target, description: "Mapeamento completo" },
+  { title: "Perfil Comportamental", url: "/dashboard/behavioral", icon: Brain, description: "Análise psicológica" },
+  { title: "Linha do Tempo", url: "/dashboard/timeline", icon: Calendar, description: "Evolução pessoal" },
+];
+
+const analysisItems = [
+  { title: "Insights", url: "/dashboard/insights", icon: Lightbulb, description: "Descobertas personalizadas" },
+  { title: "Recomendações", url: "/dashboard/recommendations", icon: Eye, description: "Sugestões de crescimento" },
+  { title: "Pontos de Dor", url: "/dashboard/pain-points", icon: AlertTriangle, description: "Áreas de atenção" },
+  { title: "Documentos", url: "/dashboard/documents", icon: FileText, description: "Análise de conversas" },
+];
 
 const configItems = [
-  {
-    title: "Configurações",
-    url: "/dashboard/settings",
-    icon: Settings,
-  },
-  {
-    title: "Perfil",
-    url: "/dashboard/profile",
-    icon: User,
-  },
-]
+  { title: "Configurações", url: "/dashboard/settings", icon: Settings, description: "Configurar sistema" },
+  { title: "Perfil", url: "/dashboard/profile", icon: User, description: "Dados pessoais" },
+];
 
 export function AppSidebar() {
-  const { user, logout } = useAuth();
+  const { collapsed } = useSidebar();
+  const location = useLocation();
+  const currentPath = location.pathname;
 
-  const getUserInitials = (email: string) => {
-    return email.split('@')[0].slice(0, 2).toUpperCase();
-  };
+  const isActive = (path: string) => currentPath === path;
+  const getNavCls = (path: string) =>
+    isActive(path) 
+      ? "bg-blue-100 text-blue-900 font-medium border-r-2 border-blue-600" 
+      : "hover:bg-gray-100 text-gray-700";
 
   return (
-    <Sidebar collapsible="icon">
-      <SidebarHeader>
-        <div className="flex items-center gap-2 px-2 py-2">
-          <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 text-sidebar-primary-foreground">
-            <Brain className="size-4" />
+    <Sidebar className={collapsed ? "w-16" : "w-72"} collapsible>
+      <SidebarContent className="bg-white border-r border-gray-200">
+        {/* Header */}
+        <div className="p-4 border-b border-gray-200">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
+              <Brain className="w-5 h-5 text-white" />
+            </div>
+            {!collapsed && (
+              <div>
+                <h2 className="font-bold text-gray-900">Observatório</h2>
+                <p className="text-xs text-gray-500">Consciência Pessoal</p>
+              </div>
+            )}
           </div>
-          <div className="grid flex-1 text-left text-sm leading-tight">
-            <span className="truncate font-semibold">Observatório</span>
-            <span className="truncate text-xs">Consciência Pessoal</span>
-          </div>
+          <SidebarTrigger className="absolute top-4 right-4" />
         </div>
-      </SidebarHeader>
 
-      <SidebarContent>
+        {/* Status */}
+        {!collapsed && (
+          <div className="p-4 bg-green-50 border-b border-gray-200">
+            <div className="flex items-center gap-2 mb-2">
+              <Activity className="w-4 h-4 text-green-600" />
+              <Badge className="bg-green-100 text-green-800 text-xs">Sistema Operacional</Badge>
+            </div>
+            <p className="text-xs text-green-700">Pronto para análise</p>
+          </div>
+        )}
+
+        {/* Menu Principal */}
         <SidebarGroup>
-          <SidebarGroupLabel>Análise Pessoal</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-gray-500 font-medium px-4 py-2">
+            {collapsed ? "📊" : "📊 Principais"}
+          </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {items.map((item) => (
-                <SidebarNavItem key={item.url} {...item} />
+              {mainItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild>
+                    <NavLink to={item.url} className={`${getNavCls(item.url)} p-3 flex items-center gap-3 rounded-lg mx-2 transition-colors`}>
+                      <item.icon className="w-5 h-5 flex-shrink-0" />
+                      {!collapsed && (
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium truncate">{item.title}</p>
+                          <p className="text-xs text-gray-500 truncate">{item.description}</p>
+                        </div>
+                      )}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
               ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
 
+        {/* Menu de Análises */}
         <SidebarGroup>
-          <SidebarGroupLabel>Sistema</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-gray-500 font-medium px-4 py-2">
+            {collapsed ? "🧠" : "🧠 Análises"}
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {analysisItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild>
+                    <NavLink to={item.url} className={`${getNavCls(item.url)} p-3 flex items-center gap-3 rounded-lg mx-2 transition-colors`}>
+                      <item.icon className="w-5 h-5 flex-shrink-0" />
+                      {!collapsed && (
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium truncate">{item.title}</p>
+                          <p className="text-xs text-gray-500 truncate">{item.description}</p>
+                        </div>
+                      )}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* Menu de Configurações */}
+        <SidebarGroup>
+          <SidebarGroupLabel className="text-gray-500 font-medium px-4 py-2">
+            {collapsed ? "⚙️" : "⚙️ Sistema"}
+          </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {configItems.map((item) => (
-                <SidebarNavItem key={item.url} {...item} />
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild>
+                    <NavLink to={item.url} className={`${getNavCls(item.url)} p-3 flex items-center gap-3 rounded-lg mx-2 transition-colors`}>
+                      <item.icon className="w-5 h-5 flex-shrink-0" />
+                      {!collapsed && (
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium truncate">{item.title}</p>
+                          <p className="text-xs text-gray-500 truncate">{item.description}</p>
+                        </div>
+                      )}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
               ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-
-      <SidebarFooter>
-        {/* Status da Assinatura */}
-        <div className="px-2 pb-2">
-          <SidebarSubscriptionStatus />
-        </div>
-
-        {/* Menu do Usuário */}
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <SidebarMenuButton
-                  size="lg"
-                  className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
-                >
-                  <Avatar className="h-8 w-8 rounded-lg">
-                    <AvatarFallback className="rounded-lg bg-blue-600 text-white">
-                      {user?.email ? getUserInitials(user.email) : 'U'}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="grid flex-1 text-left text-sm leading-tight">
-                    <span className="truncate font-semibold">
-                      {user?.email?.split('@')[0] || 'Usuário'}
-                    </span>
-                    <span className="truncate text-xs">{user?.email}</span>
-                  </div>
-                  <ChevronsUpDown className="ml-auto size-4" />
-                </SidebarMenuButton>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
-                side="bottom"
-                align="end"
-                sideOffset={4}
-              >
-                <DropdownMenuLabel className="p-0 font-normal">
-                  <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-                    <Avatar className="h-8 w-8 rounded-lg">
-                      <AvatarFallback className="rounded-lg bg-blue-600 text-white">
-                        {user?.email ? getUserInitials(user.email) : 'U'}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="grid flex-1 text-left text-sm leading-tight">
-                      <span className="truncate font-semibold">
-                        {user?.email?.split('@')[0] || 'Usuário'}
-                      </span>
-                      <span className="truncate text-xs">{user?.email}</span>
-                    </div>
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={logout} className="text-red-600">
-                  <LogOut />
-                  Sair
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarFooter>
-      <SidebarRail />
     </Sidebar>
-  )
+  );
 }
