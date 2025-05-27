@@ -215,7 +215,7 @@ export function ObservatoryLanding() {
               Powered by Yumer IA™ - IA de Consciência Humana
             </Badge>
 
-            <h1 className="text-7xl md:text-9xl font-black mb-12 leading-tight">
+            <h1 className="text-6xl md:text-8xl font-black mb-12 leading-tight">
               <span className="block text-white mb-4">O que você não vê...</span>
               <span className="block text-cyan-400 glow-text-intense animate-pulse">te controla.</span>
               <span className="block text-white mb-4 mt-8">O que você vê...</span>
@@ -234,6 +234,7 @@ export function ObservatoryLanding() {
               </p>
             </div>
 
+            {/* Botões e restante da seção hero */}
             <div className="flex flex-col sm:flex-row gap-8 justify-center items-center mb-12">
               <Button 
                 onClick={handleAccessObservatory}
