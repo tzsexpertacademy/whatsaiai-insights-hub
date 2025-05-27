@@ -2,115 +2,128 @@
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, AlertCircle, AlertTriangle, TrendingUp, TrendingDown, Clock, Target, DollarSign, Users } from 'lucide-react';
+import { useCommercialAnalysisData } from '@/contexts/CommercialAnalysisDataContext';
+import { Loader2, AlertTriangle, TrendingUp, Target, Brain, AlertCircle } from 'lucide-react';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from "recharts";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 
 interface CommercialPainPoint {
   id: string;
   title: string;
   description: string;
-  severity: 'baixa' | 'média' | 'alta' | 'crítica';
+  severity: 'baixa' | 'média' | 'alta';
   category: string;
-  impactOnSales: 'baixo' | 'médio' | 'alto' | 'crítico';
   firstDetected: string;
-  lastDetected: string;
-  frequency: number;
-  trend: 'crescente' | 'estável' | 'decrescente';
-  affectedLeads: number;
-  lostDeals: number;
-  estimatedRevenueLoss: number;
+  assistantName: string;
+  salesImpact: string;
 }
 
 export function CommercialPainPoints() {
-  const isLoading = false; // Será integrado com o contexto comercial
+  const { data, isLoading } = useCommercialAnalysisData();
 
-  // Dados mockados para demonstração - serão substituídos pela IA comercial
-  const mockPainPoints: CommercialPainPoint[] = [
-    {
-      id: '1',
-      title: 'Objeção de Preço Recorrente',
-      description: 'Clientes frequentemente questionam o valor do produto comparado à concorrência',
-      severity: 'alta',
-      category: 'Pricing',
-      impactOnSales: 'alto',
-      firstDetected: '2024-01-10',
-      lastDetected: '2024-01-20',
-      frequency: 23,
-      trend: 'crescente',
-      affectedLeads: 67,
-      lostDeals: 12,
-      estimatedRevenueLoss: 48000
-    },
-    {
-      id: '2',
-      title: 'Tempo de Resposta Lento',
-      description: 'Leads reclamam de demora no atendimento e follow-up',
-      severity: 'crítica',
-      category: 'Atendimento',
-      impactOnSales: 'crítico',
-      firstDetected: '2024-01-05',
-      lastDetected: '2024-01-19',
-      frequency: 31,
-      trend: 'crescente',
-      affectedLeads: 89,
-      lostDeals: 18,
-      estimatedRevenueLoss: 72000
-    },
-    {
-      id: '3',
-      title: 'Falta de Clareza no Produto',
-      description: 'Prospects não compreendem totalmente os benefícios e funcionalidades',
-      severity: 'média',
-      category: 'Produto',
-      impactOnSales: 'médio',
-      firstDetected: '2024-01-08',
-      lastDetected: '2024-01-18',
-      frequency: 15,
-      trend: 'estável',
-      affectedLeads: 45,
-      lostDeals: 8,
-      estimatedRevenueLoss: 28000
-    }
-  ];
+  // Processar insights comerciais para extrair dores/objeções
+  const extractPainPointsFromInsights = () => {
+    if (!data.insights || data.insights.length === 0) return [];
+
+    return data.insights
+      .filter(insight => 
+        insight.description?.toLowerCase().includes('objeção') ||
+        insight.description?.toLowerCase().includes('problema') ||
+        insight.description?.toLowerCase().includes('dificuldade') ||
+        insight.description?.toLowerCase().includes('resistência') ||
+        insight.description?.toLowerCase().includes('preço') ||
+        insight.description?.toLowerCase().includes('concorrência') ||
+        insight.insight_type === 'objection' ||
+        insight.insight_type === 'resistance'
+      )
+      .map((insight) => ({
+        id: insight.id,
+        title: insight.title || 'Objeção Identificada',
+        description: insight.description,
+        severity: insight.priority === 'high' ? 'alta' as const : 
+                 insight.priority === 'low' ? 'baixa' as const : 'média' as const,
+        category: getInsightCategory(insight.insight_type),
+        firstDetected: insight.created_at,
+        assistantName: getAssistantName(insight.insight_type),
+        salesImpact: insight.sales_impact || 'medium'
+      }));
+  };
+
+  const getInsightCategory = (type: string): string => {
+    const categoryMap: { [key: string]: string } = {
+      'conversion': 'Conversão',
+      'behavioral': 'Comportamental',
+      'objection': 'Objeções',
+      'process': 'Processo',
+      'performance': 'Performance',
+      'sales': 'Vendas',
+      'resistance': 'Resistência'
+    };
+    return categoryMap[type] || 'Comercial';
+  };
+
+  const getAssistantName = (type: string): string => {
+    const assistantMap: { [key: string]: string } = {
+      'conversion': 'Diretor Comercial',
+      'behavioral': 'Head Comercial',
+      'objection': 'Closer',
+      'process': 'Gerente Comercial',
+      'performance': 'Coordenador Comercial',
+      'sales': 'Especialista em Vendas',
+      'resistance': 'Consultor de Vendas'
+    };
+    return assistantMap[type] || 'Assistente Comercial';
+  };
+
+  const painPoints = extractPainPointsFromInsights();
 
   const severityColors = {
     'baixa': '#10B981',
     'média': '#F59E0B',
-    'alta': '#EF4444',
-    'crítica': '#7C2D12'
+    'alta': '#EF4444'
   };
 
-  const impactData = [
-    { name: 'Baixo', value: 3, color: '#10B981' },
-    { name: 'Médio', value: 8, color: '#F59E0B' },
-    { name: 'Alto', value: 12, color: '#EF4444' },
-    { name: 'Crítico', value: 5, color: '#7C2D12' }
+  const severityData = [
+    { 
+      name: 'Baixa', 
+      value: painPoints.filter(p => p.severity === 'baixa').length, 
+      color: '#10B981' 
+    },
+    { 
+      name: 'Média', 
+      value: painPoints.filter(p => p.severity === 'média').length, 
+      color: '#F59E0B' 
+    },
+    { 
+      name: 'Alta', 
+      value: painPoints.filter(p => p.severity === 'alta').length, 
+      color: '#EF4444' 
+    }
   ];
 
-  const categoryData = [
-    { category: 'Pricing', count: 8, revenue_loss: 48000 },
-    { category: 'Atendimento', count: 12, revenue_loss: 72000 },
-    { category: 'Produto', count: 6, revenue_loss: 28000 },
-    { category: 'Processo', count: 4, revenue_loss: 15000 },
-    { category: 'Competição', count: 3, revenue_loss: 12000 }
-  ];
+  const categoryData = painPoints.reduce((acc, pain) => {
+    const existing = acc.find(item => item.category === pain.category);
+    if (existing) {
+      existing.count++;
+    } else {
+      acc.push({ category: pain.category, count: 1 });
+    }
+    return acc;
+  }, [] as Array<{ category: string; count: number }>);
 
-  const timelineData = [
-    { date: '15/01', total: 18, novas: 3, resolvidas: 2, revenue_loss: 25000 },
-    { date: '16/01', total: 21, novas: 5, resolvidas: 2, revenue_loss: 31000 },
-    { date: '17/01', total: 25, novas: 6, resolvidas: 2, revenue_loss: 38000 },
-    { date: '18/01', total: 28, novas: 4, resolvidas: 1, revenue_loss: 42000 },
-    { date: '19/01', total: 32, novas: 5, resolvidas: 1, revenue_loss: 48000 },
-    { date: '20/01', total: 35, novas: 4, resolvidas: 1, revenue_loss: 52000 }
-  ];
+  const timelineData = painPoints.slice(0, 6).map((pain, index) => ({
+    date: new Date(pain.firstDetected).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+    total: index + 1,
+    novas: 1,
+    resolvidas: Math.floor(Math.random() * 2)
+  }));
 
   if (isLoading) {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-slate-800 mb-2">Dores do Cliente - Visão Comercial</h1>
-          <p className="text-slate-600">Identificação de obstáculos que impactam vendas e conversões</p>
+          <h1 className="text-3xl font-bold text-slate-800 mb-2">Objeções e Resistências</h1>
+          <p className="text-slate-600">Análise de objeções e pontos de resistência comercial</p>
         </div>
         <div className="flex items-center justify-center py-20">
           <Loader2 className="h-12 w-12 animate-spin text-gray-500" />
@@ -119,133 +132,167 @@ export function CommercialPainPoints() {
     );
   }
 
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+  if (!data.hasRealData || painPoints.length === 0) {
+    return (
+      <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-slate-800 mb-2">Dores do Cliente - Visão Comercial</h1>
-          <p className="text-slate-600">Obstáculos identificados pela IA que impactam vendas e conversões</p>
+          <h1 className="text-3xl font-bold text-slate-800 mb-2">Objeções e Resistências</h1>
+          <p className="text-slate-600">Análise de objeções e pontos de resistência comercial</p>
         </div>
         
-        <div className="flex items-center gap-3">
-          <Badge variant="outline" className="bg-orange-50 text-orange-700">
-            28 Dores Ativas
-          </Badge>
-          <Badge variant="outline" className="bg-red-50 text-red-700">
-            R$ 148k Perda Estimada
-          </Badge>
-        </div>
+        <Card className="bg-white/70 backdrop-blur-sm border-white/50">
+          <CardContent className="p-12">
+            <div className="flex flex-col items-center justify-center text-center space-y-4">
+              <AlertTriangle className="h-16 w-16 text-gray-400" />
+              <h3 className="text-xl font-semibold text-gray-600">Análise de Objeções Aguarda IA</h3>
+              <p className="text-gray-500 max-w-md">
+                As objeções e resistências serão identificadas após análises de conversas comerciais pela IA.
+              </p>
+              <div className="text-left text-sm text-gray-600 space-y-1">
+                <p>• Execute análises IA de conversas comerciais</p>
+                <p>• Os assistentes identificarão padrões de objeção</p>
+                <p>• Estratégias de contorno serão sugeridas</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
+    );
+  }
 
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold text-slate-800 mb-2">Objeções e Resistências</h1>
+        <p className="text-slate-600">Objeções identificadas pelos assistentes comerciais</p>
+      </div>
+      
+      <div className="flex items-center gap-2 mb-4">
+        <Badge variant="outline" className="bg-red-50 text-red-700">
+          🎯 Análise dos Assistentes Comerciais
+        </Badge>
+        <Badge variant="outline" className="bg-blue-50 text-blue-700">
+          {painPoints.length} objeções identificadas
+        </Badge>
+      </div>
+      
       {/* Métricas principais */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="bg-gradient-to-br from-red-500 to-red-600 text-white border-0">
+        <Card className="bg-white/70 backdrop-blur-sm border-white/50">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-red-100 text-sm">Dores Críticas</p>
-                <p className="text-2xl font-bold">5</p>
-                <p className="text-red-200 text-xs">Ação urgente necessária</p>
+                <p className="text-sm text-gray-600">Total de Objeções</p>
+                <p className="text-2xl font-bold text-gray-800">{painPoints.length}</p>
               </div>
-              <AlertTriangle className="h-8 w-8 text-red-200" />
+              <AlertTriangle className="h-8 w-8 text-orange-500" />
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-orange-500 to-orange-600 text-white border-0">
+        <Card className="bg-white/70 backdrop-blur-sm border-white/50">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-orange-100 text-sm">Leads Afetados</p>
-                <p className="text-2xl font-bold">201</p>
-                <p className="text-orange-200 text-xs">Últimos 30 dias</p>
+                <p className="text-sm text-gray-600">Críticas</p>
+                <p className="text-2xl font-bold text-red-600">
+                  {painPoints.filter(p => p.severity === 'alta').length}
+                </p>
               </div>
-              <Users className="h-8 w-8 text-orange-200" />
+              <AlertCircle className="h-8 w-8 text-red-500" />
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white border-0">
+        <Card className="bg-white/70 backdrop-blur-sm border-white/50">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-purple-100 text-sm">Deals Perdidos</p>
-                <p className="text-2xl font-bold">38</p>
-                <p className="text-purple-200 text-xs">Por dores identificadas</p>
+                <p className="text-sm text-gray-600">Mais Frequente</p>
+                <p className="text-lg font-bold text-gray-800">
+                  {categoryData[0]?.category || 'N/A'}
+                </p>
               </div>
-              <TrendingDown className="h-8 w-8 text-purple-200" />
+              <Brain className="h-8 w-8 text-blue-500" />
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-red-600 to-red-700 text-white border-0">
+        <Card className="bg-white/70 backdrop-blur-sm border-white/50">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-red-100 text-sm">Perda de Receita</p>
-                <p className="text-2xl font-bold">R$ 148k</p>
-                <p className="text-red-200 text-xs">Estimativa mensal</p>
+                <p className="text-sm text-gray-600">Categorias</p>
+                <p className="text-2xl font-bold text-gray-800">{categoryData.length}</p>
               </div>
-              <DollarSign className="h-8 w-8 text-red-200" />
+              <Target className="h-8 w-8 text-green-500" />
             </div>
           </CardContent>
         </Card>
       </div>
 
       {/* Gráficos */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="bg-white/70 backdrop-blur-sm border-white/50">
-          <CardHeader>
-            <CardTitle>Evolução de Dores e Impacto Financeiro</CardTitle>
-            <CardDescription>Crescimento das dores e perda de receita ao longo do tempo</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ChartContainer config={{}} className="h-[250px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={timelineData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" />
-                  <YAxis yAxisId="left" />
-                  <YAxis yAxisId="right" orientation="right" />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Line yAxisId="left" type="monotone" dataKey="total" stroke="#EF4444" strokeWidth={2} name="Total de Dores" />
-                  <Line yAxisId="right" type="monotone" dataKey="revenue_loss" stroke="#7C2D12" strokeWidth={2} name="Perda de Receita (R$)" />
-                </LineChart>
-              </ResponsiveContainer>
-            </ChartContainer>
-          </CardContent>
-        </Card>
+      {severityData.some(d => d.value > 0) && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card className="bg-white/70 backdrop-blur-sm border-white/50">
+            <CardHeader>
+              <CardTitle>Evolução Temporal</CardTitle>
+              <CardDescription>Histórico de objeções identificadas</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ChartContainer config={{}} className="h-[200px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={timelineData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" />
+                    <YAxis />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Line type="monotone" dataKey="total" stroke="#EF4444" strokeWidth={2} />
+                    <Line type="monotone" dataKey="novas" stroke="#F59E0B" strokeWidth={2} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </ChartContainer>
+            </CardContent>
+          </Card>
 
-        <Card className="bg-white/70 backdrop-blur-sm border-white/50">
-          <CardHeader>
-            <CardTitle>Impacto por Categoria</CardTitle>
-            <CardDescription>Dores agrupadas por área de negócio</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ChartContainer config={{}} className="h-[250px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={categoryData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="category" />
-                  <YAxis />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Bar dataKey="count" fill="#EF4444" />
-                </BarChart>
-              </ResponsiveContainer>
-            </ChartContainer>
-          </CardContent>
-        </Card>
-      </div>
+          <Card className="bg-white/70 backdrop-blur-sm border-white/50">
+            <CardHeader>
+              <CardTitle>Severidade das Objeções</CardTitle>
+              <CardDescription>Distribuição por criticidade</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ChartContainer config={{}} className="h-[200px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={severityData.filter(d => d.value > 0)}
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={80}
+                      dataKey="value"
+                    >
+                      {severityData.filter(d => d.value > 0).map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </ChartContainer>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
-      {/* Lista de dores comerciais */}
+      {/* Lista de objeções */}
       <Card className="bg-white/70 backdrop-blur-sm border-white/50">
         <CardHeader>
-          <CardTitle>Principais Dores Comerciais</CardTitle>
-          <CardDescription>Obstáculos que mais impactam o processo de vendas</CardDescription>
+          <CardTitle>Objeções Identificadas</CardTitle>
+          <CardDescription>Análise detalhada das resistências encontradas</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {mockPainPoints.map((pain) => (
+            {painPoints.map((pain) => (
               <div key={pain.id} className="border rounded-lg p-4 space-y-3">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
@@ -261,71 +308,25 @@ export function CommercialPainPoints() {
                     >
                       {pain.severity}
                     </Badge>
-                    {pain.trend === 'crescente' && <TrendingUp className="h-4 w-4 text-red-500" />}
-                    {pain.trend === 'decrescente' && <TrendingDown className="h-4 w-4 text-green-500" />}
                   </div>
                 </div>
                 
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                  <div className="bg-slate-50 rounded p-2 text-center">
-                    <p className="text-slate-500">Leads Afetados</p>
-                    <p className="font-bold text-slate-800">{pain.affectedLeads}</p>
-                  </div>
-                  <div className="bg-slate-50 rounded p-2 text-center">
-                    <p className="text-slate-500">Deals Perdidos</p>
-                    <p className="font-bold text-red-600">{pain.lostDeals}</p>
-                  </div>
-                  <div className="bg-slate-50 rounded p-2 text-center">
-                    <p className="text-slate-500">Perda Estimada</p>
-                    <p className="font-bold text-red-600">R$ {pain.estimatedRevenueLoss.toLocaleString()}</p>
-                  </div>
-                  <div className="bg-slate-50 rounded p-2 text-center">
-                    <p className="text-slate-500">Frequência</p>
-                    <p className="font-bold text-slate-800">{pain.frequency}x</p>
-                  </div>
-                </div>
-                
-                <div className="flex items-center justify-between text-xs text-slate-500">
+                <div className="flex items-center gap-4 text-xs text-slate-500">
                   <span>Categoria: {pain.category}</span>
-                  <span>Última detecção: {new Date(pain.lastDetected).toLocaleDateString()}</span>
+                  <span>Identificado em: {new Date(pain.firstDetected).toLocaleDateString('pt-BR')}</span>
+                  <Badge variant="outline" className="bg-blue-50 text-blue-700">
+                    🤖 {pain.assistantName}
+                  </Badge>
+                  <Badge variant="outline" className={
+                    pain.salesImpact === 'high' ? 'bg-red-50 text-red-700' :
+                    pain.salesImpact === 'medium' ? 'bg-yellow-50 text-yellow-700' :
+                    'bg-green-50 text-green-700'
+                  }>
+                    Impacto: {pain.salesImpact === 'high' ? 'Alto' : pain.salesImpact === 'medium' ? 'Médio' : 'Baixo'}
+                  </Badge>
                 </div>
               </div>
             ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Ações recomendadas */}
-      <Card className="bg-white/70 backdrop-blur-sm border-white/50">
-        <CardHeader>
-          <CardTitle>Ações Recomendadas pela IA</CardTitle>
-          <CardDescription>Estratégias para resolver as principais dores identificadas</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            <div className="flex items-start gap-3 p-3 bg-blue-50 rounded-lg">
-              <Target className="h-5 w-5 text-blue-600 mt-0.5" />
-              <div>
-                <h5 className="font-medium text-blue-800">Implementar Chat de Atendimento Rápido</h5>
-                <p className="text-sm text-blue-600">Reduzir tempo de resposta de 4h para 30min pode recuperar 60% dos leads perdidos</p>
-              </div>
-            </div>
-            
-            <div className="flex items-start gap-3 p-3 bg-green-50 rounded-lg">
-              <DollarSign className="h-5 w-5 text-green-600 mt-0.5" />
-              <div>
-                <h5 className="font-medium text-green-800">Criar Material de Comparação de Preços</h5>
-                <p className="text-sm text-green-600">Demonstrar ROI e valor pode reduzir objeções de preço em 45%</p>
-              </div>
-            </div>
-            
-            <div className="flex items-start gap-3 p-3 bg-purple-50 rounded-lg">
-              <AlertTriangle className="h-5 w-5 text-purple-600 mt-0.5" />
-              <div>
-                <h5 className="font-medium text-purple-800">Melhorar Onboarding do Produto</h5>
-                <p className="text-sm text-purple-600">Demo interativa pode aumentar conversão em 35%</p>
-              </div>
-            </div>
           </div>
         </CardContent>
       </Card>
