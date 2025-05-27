@@ -29,7 +29,7 @@ export function AppRouter() {
     <Routes>
       <Route 
         path="/auth" 
-        element={isAuthenticated ? <Navigate to="/" replace /> : <LoginPage />} 
+        element={isAuthenticated ? <Navigate to="/hub" replace /> : <LoginPage />} 
       />
       <Route 
         path="/admin" 
@@ -64,12 +64,16 @@ export function AppRouter() {
         element={isAuthenticated ? <CommercialBrain /> : <Navigate to="/auth" replace />} 
       />
       <Route 
+        path="/hub" 
+        element={isAuthenticated ? <SolutionsHub /> : <Navigate to="/" replace />} 
+      />
+      <Route 
         path="/observatory" 
         element={<ObservatoryLanding />} 
       />
       <Route 
         path="/" 
-        element={isAuthenticated ? <SolutionsHub /> : <ObservatoryLanding />} 
+        element={<ObservatoryLanding />} 
       />
       <Route 
         path="*" 
