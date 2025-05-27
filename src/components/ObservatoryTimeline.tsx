@@ -25,7 +25,7 @@ export function ObservatoryTimeline() {
   const createTimelineFromInsights = () => {
     if (!data.insights || data.insights.length === 0) return [];
 
-    return data.insights.map((insight, index) => ({
+    return data.insights.map((insight) => ({
       id: insight.id,
       date: insight.created_at,
       title: insight.title || 'Marco de Evolução',
@@ -156,7 +156,7 @@ export function ObservatoryTimeline() {
               </div>
             </div>
           </CardContent>
-        </div>
+        </Card>
       </div>
     );
   }
@@ -294,7 +294,7 @@ export function ObservatoryTimeline() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {timelineEvents.map((event, index) => {
+            {timelineEvents.map((event) => {
               const IconComponent = getTypeIcon(event.type);
               return (
                 <div 
