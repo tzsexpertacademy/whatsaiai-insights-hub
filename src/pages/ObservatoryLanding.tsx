@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,7 +16,15 @@ import {
   Play,
   Users,
   Star,
-  Quote
+  Quote,
+  Activity,
+  Map,
+  BarChart3,
+  Timeline,
+  Lightbulb,
+  Search,
+  Flame,
+  Rocket
 } from 'lucide-react';
 
 export function ObservatoryLanding() {
@@ -23,7 +32,7 @@ export function ObservatoryLanding() {
   const heroRef = useRef<HTMLDivElement>(null);
   const particlesRef = useRef<HTMLCanvasElement>(null);
 
-  // Animação de partículas neurais
+  // Animação de partículas neurais mais intensa
   useEffect(() => {
     const canvas = particlesRef.current;
     if (!canvas) return;
@@ -38,6 +47,7 @@ export function ObservatoryLanding() {
       vy: number;
       life: number;
       maxLife: number;
+      size: number;
     }> = [];
 
     const resizeCanvas = () => {
@@ -48,20 +58,21 @@ export function ObservatoryLanding() {
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
 
-    // Criar partículas
-    for (let i = 0; i < 50; i++) {
+    // Criar mais partículas para efeito mais denso
+    for (let i = 0; i < 80; i++) {
       particles.push({
         x: Math.random() * canvas.width,
         y: Math.random() * canvas.height,
-        vx: (Math.random() - 0.5) * 0.5,
-        vy: (Math.random() - 0.5) * 0.5,
+        vx: (Math.random() - 0.5) * 0.8,
+        vy: (Math.random() - 0.5) * 0.8,
         life: Math.random() * 100,
-        maxLife: 100 + Math.random() * 100
+        maxLife: 100 + Math.random() * 150,
+        size: Math.random() * 2 + 0.5
       });
     }
 
     const animate = () => {
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.03)';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
       particles.forEach((particle, index) => {
@@ -69,34 +80,40 @@ export function ObservatoryLanding() {
         particle.y += particle.vy;
         particle.life++;
 
-        if (particle.life > particle.maxLife) {
+        if (particle.life > particle.maxLife || particle.x < 0 || particle.x > canvas.width || particle.y < 0 || particle.y > canvas.height) {
           particles[index] = {
             x: Math.random() * canvas.width,
             y: Math.random() * canvas.height,
-            vx: (Math.random() - 0.5) * 0.5,
-            vy: (Math.random() - 0.5) * 0.5,
+            vx: (Math.random() - 0.5) * 0.8,
+            vy: (Math.random() - 0.5) * 0.8,
             life: 0,
-            maxLife: 100 + Math.random() * 100
+            maxLife: 100 + Math.random() * 150,
+            size: Math.random() * 2 + 0.5
           };
         }
 
-        // Desenhar partícula
+        // Desenhar partícula com glow
         const alpha = 1 - particle.life / particle.maxLife;
-        ctx.fillStyle = `rgba(59, 130, 246, ${alpha * 0.6})`;
+        const hue = (particle.life * 0.5) % 360;
+        
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = `hsl(${hue}, 100%, 60%)`;
+        ctx.fillStyle = `hsla(${hue}, 100%, 60%, ${alpha * 0.8})`;
         ctx.beginPath();
-        ctx.arc(particle.x, particle.y, 1, 0, Math.PI * 2);
+        ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
         ctx.fill();
+        ctx.shadowBlur = 0;
 
-        // Conectar partículas próximas
+        // Conectar partículas próximas com mais intensidade
         particles.forEach(otherParticle => {
           const dx = particle.x - otherParticle.x;
           const dy = particle.y - otherParticle.y;
           const distance = Math.sqrt(dx * dx + dy * dy);
 
-          if (distance < 100) {
-            const lineAlpha = (1 - distance / 100) * alpha * 0.3;
+          if (distance < 120) {
+            const lineAlpha = (1 - distance / 120) * alpha * 0.4;
             ctx.strokeStyle = `rgba(59, 130, 246, ${lineAlpha})`;
-            ctx.lineWidth = 0.5;
+            ctx.lineWidth = 1;
             ctx.beginPath();
             ctx.moveTo(particle.x, particle.y);
             ctx.lineTo(otherParticle.x, otherParticle.y);
@@ -119,339 +136,300 @@ export function ObservatoryLanding() {
     navigate('/dashboard');
   };
 
-  const benefits = [
+  const observatoryFeatures = [
+    {
+      icon: Activity,
+      title: "Termômetro Emocional",
+      description: "Seus estados emocionais mapeados em tempo real"
+    },
+    {
+      icon: Map,
+      title: "Radar de Áreas da Vida", 
+      description: "Visualize onde você está forte e onde precisa evoluir"
+    },
     {
       icon: Brain,
-      title: "Clareza Mental",
-      description: "Entenda onde você está, quem você é, e pra onde quer ir."
+      title: "Mapeamento de Padrões Cognitivos",
+      description: "Descubra seus loops mentais e crenças limitantes"
     },
     {
-      icon: Zap,
-      title: "Gestão Emocional", 
-      description: "Veja seus padrões emocionais. Ajuste. Evolua."
-    },
-    {
-      icon: Target,
-      title: "Desbloqueio Cognitivo",
-      description: "Pare de pensar pequeno. Rompa loops. Amplie sua visão."
-    },
-    {
-      icon: TrendingUp,
-      title: "Alta Performance Pessoal",
-      description: "Alinhe mente, energia e ação."
-    },
-    {
-      icon: Compass,
-      title: "Propósito Ativado",
-      description: "Deixe de sobreviver. Comece a viver com intenção real."
+      icon: Timeline,
+      title: "Linha do Tempo da Evolução",
+      description: "Acompanhe sua jornada de crescimento pessoal"
     }
   ];
 
-  const features = [
-    "Termômetro Emocional",
-    "Mapa de Áreas da Vida", 
-    "Análise de Padrões Cognitivos",
-    "Radar de Habilidades"
+  const targetProfiles = [
+    "Buscadores de clareza mental",
+    "Empreendedores",
+    "Profissionais de alta performance", 
+    "Criadores",
+    "Qualquer ser humano que se recusa a viver cego dentro da própria mente"
   ];
 
-  const testimonials = [
+  const processSteps = [
     {
-      name: "Ana Silva",
-      role: "Executiva",
-      content: "Finalmente entendi meus padrões de autossabotagem. Mudou minha vida profissional.",
-      rating: 5
+      number: "1",
+      title: "Você Fala",
+      description: "Suas conversas, reflexões e pensamentos alimentam o Observatório.",
+      icon: Users
     },
     {
-      name: "Carlos Santos",
-      role: "Empreendedor", 
-      content: "Ver minha mente mapeada foi revelador. Agora tomo decisões com muito mais clareza.",
-      rating: 5
+      number: "2", 
+      title: "Ele Lê Você",
+      description: "IA lê padrões emocionais, cognitivos, comportamentais e gera mapas da sua mente.",
+      icon: Search
     },
     {
-      name: "Maria Costa",
-      role: "Psicóloga",
-      content: "Uma ferramenta revolucionária para autoconhecimento. Uso com meus pacientes também.",
-      rating: 5
+      number: "3",
+      title: "Você Vê Você", 
+      description: "Recebe seu painel pessoal. Suas forças, gaps, ciclos, evolução no tempo. Você aprende a se ler. A se melhorar. A se expandir.",
+      icon: Eye
     }
+  ];
+
+  const benefits = [
+    "Clareza mental instantânea",
+    "Mapeamento de áreas negligenciadas", 
+    "Diagnóstico de padrões emocionais e mentais",
+    "Plano de evolução contínua baseado em você, não em fórmulas genéricas"
   ];
 
   return (
-    <div className="min-h-screen bg-black text-white overflow-hidden">
-      {/* Canvas de partículas */}
+    <div className="min-h-screen bg-black text-white overflow-hidden relative">
+      {/* Canvas de partículas neurais */}
       <canvas
         ref={particlesRef}
         className="fixed inset-0 pointer-events-none z-0"
-        style={{ background: 'radial-gradient(ellipse at center, rgba(15, 23, 42, 0.9) 0%, rgba(0, 0, 0, 1) 100%)' }}
+        style={{ background: 'radial-gradient(ellipse at center, rgba(15, 23, 42, 0.95) 0%, rgba(0, 0, 0, 1) 100%)' }}
       />
 
-      {/* Header/Hero Section */}
+      {/* Seção 1 - ABERTURA BRUTAL */}
       <section ref={heroRef} className="relative min-h-screen flex items-center justify-center px-6 z-10">
-        <div className="text-center max-w-5xl mx-auto">
-          {/* Efeito de brilho central */}
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-cyan-500/20 blur-3xl" />
+        <div className="text-center max-w-6xl mx-auto">
+          {/* Glow central mais intenso */}
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-500/30 via-purple-500/30 to-cyan-500/30 blur-3xl animate-pulse" />
           
           <div className="relative z-10">
-            <Badge className="mb-8 bg-gradient-to-r from-blue-500 to-purple-600 text-white border-0 px-6 py-2 text-lg animate-pulse">
-              <Sparkles className="w-5 h-5 mr-2" />
+            <Badge className="mb-12 bg-gradient-to-r from-blue-500 to-purple-600 text-white border-0 px-8 py-3 text-xl animate-pulse glow-intense">
+              <Sparkles className="w-6 h-6 mr-3 animate-spin" />
               Powered by Yumer IA™ - IA de Consciência Humana
             </Badge>
 
-            <h1 className="text-6xl md:text-8xl font-bold mb-8 bg-gradient-to-r from-white via-blue-200 to-purple-300 bg-clip-text text-transparent leading-tight">
-              O que você não vê...
-              <br />
-              <span className="text-cyan-400 glow-text">te controla.</span>
-              <br />
-              O que você vê...
-              <br />
-              <span className="text-green-400 glow-text">te liberta.</span>
+            <h1 className="text-7xl md:text-9xl font-black mb-12 leading-tight">
+              <span className="block text-white mb-4">O que você não vê...</span>
+              <span className="block text-cyan-400 glow-text-intense animate-pulse">te controla.</span>
+              <span className="block text-white mb-4 mt-8">O que você vê...</span>
+              <span className="block text-green-400 glow-text-intense animate-pulse">te liberta.</span>
             </h1>
 
-            <p className="text-xl md:text-2xl mb-4 text-gray-300 max-w-4xl mx-auto leading-relaxed">
-              A primeira plataforma de consciência pessoal.
-            </p>
-            <p className="text-2xl md:text-3xl mb-12 font-semibold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-              O Observatório da sua própria mente.
-            </p>
-            <p className="text-lg md:text-xl mb-12 text-gray-400 max-w-3xl mx-auto">
-              Descubra seus padrões. Suas forças. Suas sombras. Sua rota de evolução.
-            </p>
+            <div className="mb-16 space-y-6">
+              <p className="text-3xl md:text-4xl font-bold text-white">
+                O primeiro Observatório da sua própria consciência.
+              </p>
+              <p className="text-2xl md:text-3xl text-blue-300">
+                Um painel vivo da sua mente.
+              </p>
+              <p className="text-xl md:text-2xl text-gray-300 max-w-4xl mx-auto">
+                Seus padrões. Suas forças. Suas sombras. Sua rota de expansão.
+              </p>
+            </div>
 
-            <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
+            <div className="flex flex-col sm:flex-row gap-8 justify-center items-center mb-12">
               <Button 
                 onClick={handleAccessObservatory}
-                className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-12 py-6 text-xl rounded-xl shadow-2xl shadow-blue-500/25 border border-blue-400/30 backdrop-blur-sm hover-glow group"
+                className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-16 py-8 text-2xl font-bold rounded-2xl shadow-2xl shadow-blue-500/50 border-2 border-blue-400/50 backdrop-blur-sm glow-button group transform hover:scale-105 transition-all duration-300 animate-pulse"
               >
-                <Brain className="w-6 h-6 mr-3 group-hover:animate-pulse" />
-                Acessar meu Observatório
-                <ArrowRight className="w-6 h-6 ml-3 group-hover:translate-x-1 transition-transform" />
-              </Button>
-              
-              <Button 
-                variant="outline" 
-                className="border-2 border-cyan-400/50 text-cyan-400 hover:bg-cyan-400/10 px-8 py-6 text-lg rounded-xl backdrop-blur-sm"
-              >
-                <Play className="w-5 h-5 mr-2" />
-                Ver como funciona
-              </Button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Seção 2 - O Que É */}
-      <section className="relative py-32 px-6 z-10">
-        <div className="max-w-6xl mx-auto text-center">
-          <h2 className="text-5xl md:text-6xl font-bold mb-8 text-white">
-            Você nunca teve acesso a isso.
-            <br />
-            <span className="bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
-              Até agora.
-            </span>
-          </h2>
-          
-          <p className="text-xl md:text-2xl text-gray-300 mb-16 max-w-4xl mx-auto leading-relaxed">
-            O Observatório lê suas conversas, seus pensamentos, suas reflexões — e transforma tudo em clareza.
-            <br /><br />
-            <span className="text-blue-400 font-semibold">Um mapa vivo da sua consciência.</span>
-            <br /><br />
-            Ele te mostra seus padrões mentais, emocionais e comportamentais.
-            Mostra seus pontos cegos. Suas zonas de expansão.
-            E te entrega dados, gráficos e reflexões sobre quem você é — e quem pode se tornar.
-          </p>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {features.map((feature, index) => (
-              <Card key={index} className="bg-white/5 border border-white/10 backdrop-blur-md hover:bg-white/10 transition-all duration-300 hover:scale-105 group">
-                <CardContent className="p-6 text-center">
-                  <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center group-hover:animate-pulse">
-                    <Brain className="w-8 h-8 text-white" />
-                  </div>
-                  <h3 className="text-lg font-semibold text-white mb-2">{feature}</h3>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Seção 3 - Como Funciona */}
-      <section className="relative py-32 px-6 z-10">
-        <div className="max-w-6xl mx-auto">
-          <h2 className="text-5xl md:text-6xl font-bold text-center mb-20 text-white">
-            Como <span className="bg-gradient-to-r from-green-400 to-cyan-500 bg-clip-text text-transparent">Funciona</span>
-          </h2>
-          
-          <div className="grid md:grid-cols-3 gap-12">
-            <div className="text-center group">
-              <div className="w-24 h-24 mx-auto mb-8 bg-gradient-to-r from-green-500 to-emerald-600 rounded-full flex items-center justify-center text-4xl font-bold text-white group-hover:scale-110 transition-transform">
-                1
-              </div>
-              <h3 className="text-2xl font-bold text-white mb-4">Fale com seu segundo cérebro</h3>
-              <p className="text-gray-300 text-lg">
-                Interaja, escreva, fale. O Observatório lê suas reflexões, suas perguntas, seus pensamentos.
-              </p>
-            </div>
-
-            <div className="text-center group">
-              <div className="w-24 h-24 mx-auto mb-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-4xl font-bold text-white group-hover:scale-110 transition-transform">
-                2
-              </div>
-              <h3 className="text-2xl font-bold text-white mb-4">Ele escaneia sua consciência</h3>
-              <p className="text-gray-300 text-lg">
-                Inteligência semântica, emocional e comportamental. Ele detecta padrões que você nem sabia que existiam.
-              </p>
-            </div>
-
-            <div className="text-center group">
-              <div className="w-24 h-24 mx-auto mb-8 bg-gradient-to-r from-purple-500 to-pink-600 rounded-full flex items-center justify-center text-4xl font-bold text-white group-hover:scale-110 transition-transform">
-                3
-              </div>
-              <h3 className="text-2xl font-bold text-white mb-4">Você recebe seu Mapa da Mente</h3>
-              <p className="text-gray-300 text-lg">
-                Um painel interativo com seus padrões, forças, gaps, pontos cegos, habilidades e sua evolução no tempo.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Seção 4 - Benefícios */}
-      <section className="relative py-32 px-6 z-10">
-        <div className="max-w-6xl mx-auto">
-          <h2 className="text-5xl md:text-6xl font-bold text-center mb-8 text-white">
-            Autoconhecimento não é luxo.
-            <br />
-            <span className="bg-gradient-to-r from-red-400 to-pink-500 bg-clip-text text-transparent">
-              É sobrevivência mental.
-            </span>
-          </h2>
-          
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mt-20">
-            {benefits.map((benefit, index) => (
-              <Card key={index} className="bg-gradient-to-br from-white/5 to-white/0 border border-white/10 backdrop-blur-md hover:bg-white/10 transition-all duration-300 hover:scale-105 group hover-glow">
-                <CardContent className="p-8">
-                  <benefit.icon className="w-12 h-12 text-cyan-400 mb-6 group-hover:animate-pulse" />
-                  <h3 className="text-2xl font-bold text-white mb-4">{benefit.title}</h3>
-                  <p className="text-gray-300 text-lg leading-relaxed">{benefit.description}</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Seção 5 - Para Quem É */}
-      <section className="relative py-32 px-6 z-10">
-        <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-5xl md:text-6xl font-bold mb-16 text-white">
-            Para <span className="bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent">Quem É</span> Isso?
-          </h2>
-          
-          <div className="space-y-8 text-xl md:text-2xl text-gray-300">
-            <p className="flex items-center justify-center">
-              <Target className="w-8 h-8 text-orange-400 mr-4" />
-              Pra quem quer parar de se sabotar.
-            </p>
-            <p className="flex items-center justify-center">
-              <Eye className="w-8 h-8 text-blue-400 mr-4" />
-              Pra quem quer clareza sobre si.
-            </p>
-            <p className="flex items-center justify-center">
-              <TrendingUp className="w-8 h-8 text-green-400 mr-4" />
-              Pra quem quer elevar sua vida, sua carreira, seus relacionamentos, sua saúde mental e física.
-            </p>
-            <p className="flex items-center justify-center">
-              <Zap className="w-8 h-8 text-purple-400 mr-4" />
-              Pra quem não aceita mais viver no automático.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* Seção 6 - Depoimentos */}
-      <section className="relative py-32 px-6 z-10">
-        <div className="max-w-6xl mx-auto">
-          <h2 className="text-5xl md:text-6xl font-bold text-center mb-20 text-white">
-            Quem já <span className="bg-gradient-to-r from-green-400 to-blue-500 bg-clip-text text-transparent">Despertou</span>
-          </h2>
-          
-          <div className="grid md:grid-cols-3 gap-8">
-            {testimonials.map((testimonial, index) => (
-              <Card key={index} className="bg-gradient-to-br from-white/10 to-white/5 border border-white/20 backdrop-blur-md hover:bg-white/15 transition-all duration-300 hover:scale-105 hover:rotate-1 group">
-                <CardContent className="p-8">
-                  <div className="flex mb-4">
-                    {[...Array(testimonial.rating)].map((_, i) => (
-                      <Star key={i} className="w-5 h-5 text-yellow-400 fill-current" />
-                    ))}
-                  </div>
-                  <Quote className="w-8 h-8 text-cyan-400 mb-4 group-hover:animate-pulse" />
-                  <p className="text-gray-300 text-lg mb-6 italic">"{testimonial.content}"</p>
-                  <div>
-                    <p className="text-white font-semibold">{testimonial.name}</p>
-                    <p className="text-gray-400">{testimonial.role}</p>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Final */}
-      <section className="relative py-32 px-6 z-10">
-        <div className="max-w-5xl mx-auto text-center">
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-cyan-500/20 blur-3xl" />
-          
-          <div className="relative z-10">
-            <h2 className="text-6xl md:text-8xl font-bold mb-8 bg-gradient-to-r from-white via-blue-200 to-purple-300 bg-clip-text text-transparent leading-tight">
-              O que você não vê...
-              <br />
-              <span className="text-cyan-400 glow-text">te controla.</span>
-              <br />
-              O que você vê...
-              <br />
-              <span className="text-green-400 glow-text">te liberta.</span>
-            </h2>
-
-            <p className="text-2xl md:text-3xl mb-12 text-gray-300">
-              Entre agora no seu Observatório.
-              <br />
-              <span className="text-white font-semibold">Acesso imediato. Sem limites. Sem desculpas.</span>
-            </p>
-
-            <div className="flex flex-col sm:flex-row gap-6 justify-center items-center mb-16">
-              <Button 
-                onClick={handleAccessObservatory}
-                className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-16 py-8 text-2xl rounded-xl shadow-2xl shadow-blue-500/25 border border-blue-400/30 backdrop-blur-sm hover-glow group animate-pulse"
-              >
-                <Brain className="w-8 h-8 mr-4 group-hover:animate-pulse" />
-                Acessar meu Observatório
+                <Brain className="w-8 h-8 mr-4 group-hover:animate-spin" />
+                ACESSAR MEU OBSERVATÓRIO AGORA
                 <ArrowRight className="w-8 h-8 ml-4 group-hover:translate-x-2 transition-transform" />
               </Button>
               
               <Button 
                 variant="outline" 
-                className="border-2 border-cyan-400/50 text-cyan-400 hover:bg-cyan-400/10 px-12 py-8 text-xl rounded-xl backdrop-blur-sm"
+                className="border-2 border-cyan-400/70 text-cyan-400 hover:bg-cyan-400/20 px-8 py-8 text-lg rounded-2xl backdrop-blur-sm transform hover:scale-105 transition-all duration-300"
               >
-                Quero entender melhor
+                <Play className="w-6 h-6 mr-3" />
+                Ou veja como funciona ↓
               </Button>
             </div>
+          </div>
+        </div>
+      </section>
 
-            <p className="text-gray-500 text-lg italic">
-              "Bem-vindo ao começo de quem você realmente é."
+      {/* Seção 2 - O CHOQUE */}
+      <section className="relative py-32 px-6 z-10">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-20">
+            <h2 className="text-6xl md:text-7xl font-black mb-8 text-white">
+              Você nunca viu isso.
+              <br />
+              <span className="text-red-400 glow-text">Porque isso nunca existiu.</span>
+            </h2>
+            
+            <p className="text-2xl md:text-3xl text-gray-300 mb-12 max-w-5xl mx-auto leading-relaxed">
+              O Observatório lê suas reflexões, detecta padrões ocultos, e te entrega clareza real sobre quem você é — e quem pode se tornar.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+            {observatoryFeatures.map((feature, index) => (
+              <Card key={index} className="bg-gradient-to-br from-white/10 to-white/5 border-2 border-white/20 backdrop-blur-md hover:bg-white/15 transition-all duration-500 hover:scale-110 hover:rotate-1 group glow-card">
+                <CardContent className="p-8 text-center">
+                  <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center group-hover:animate-pulse">
+                    <feature.icon className="w-10 h-10 text-white" />
+                  </div>
+                  <h3 className="text-xl font-bold text-white mb-4">{feature.title}</h3>
+                  <p className="text-gray-300 text-lg">{feature.description}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Seção 3 - PARA QUEM É ISSO */}
+      <section className="relative py-32 px-6 z-10">
+        <div className="max-w-5xl mx-auto text-center">
+          <h2 className="text-6xl md:text-7xl font-black mb-16 text-white leading-tight">
+            Isso não é pra quem tá confortável
+            <br />
+            <span className="text-orange-400 glow-text">em viver no automático.</span>
+          </h2>
+          
+          <p className="text-2xl md:text-3xl text-gray-300 mb-12 leading-relaxed">
+            É pra quem tá pronto pra enxergar o que evitou por anos.
+            <br />
+            <span className="text-yellow-400 font-bold">Seus padrões. Suas repetições. Suas fugas. Suas potências.</span>
+          </p>
+
+          <div className="space-y-6 text-xl md:text-2xl text-gray-300 mb-16">
+            {targetProfiles.map((profile, index) => (
+              <div key={index} className="flex items-center justify-center group">
+                <Target className="w-8 h-8 text-orange-400 mr-4 group-hover:animate-spin" />
+                <span className="font-semibold">{profile}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Seção 4 - COMO FUNCIONA */}
+      <section className="relative py-32 px-6 z-10">
+        <div className="max-w-6xl mx-auto">
+          <h2 className="text-6xl md:text-7xl font-black text-center mb-20 text-white">
+            Como <span className="bg-gradient-to-r from-green-400 to-cyan-500 bg-clip-text text-transparent glow-text">Funciona</span>
+          </h2>
+          
+          <div className="grid md:grid-cols-3 gap-16">
+            {processSteps.map((step, index) => (
+              <div key={index} className="text-center group">
+                <div className="w-32 h-32 mx-auto mb-8 bg-gradient-to-r from-green-500 to-emerald-600 rounded-full flex items-center justify-center text-5xl font-black text-white group-hover:scale-125 transition-transform duration-500 glow-intense">
+                  {step.number}
+                </div>
+                <div className="w-16 h-16 mx-auto mb-6 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center group-hover:animate-bounce">
+                  <step.icon className="w-8 h-8 text-white" />
+                </div>
+                <h3 className="text-3xl font-bold text-white mb-6">{step.title}</h3>
+                <p className="text-gray-300 text-lg leading-relaxed">{step.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Seção 5 - O VALOR INIMAGINÁVEL */}
+      <section className="relative py-32 px-6 z-10">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-20">
+            <h2 className="text-5xl md:text-6xl font-black mb-16 text-white leading-tight">
+              Você já investiu em cursos, livros, terapias, mentorias...
+              <br /><br />
+              <span className="text-yellow-400">E mesmo assim...</span>
+              <br /><br />
+              <span className="text-red-400 glow-text">Ninguém nunca te entregou um mapa real da sua própria mente.</span>
+              <br /><br />
+              <span className="text-green-400 glow-text animate-pulse">Até agora.</span>
+            </h2>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-8">
+            {benefits.map((benefit, index) => (
+              <Card key={index} className="bg-gradient-to-br from-white/15 to-white/5 border-2 border-green-400/30 backdrop-blur-md hover:bg-white/20 transition-all duration-300 hover:scale-105 group glow-card">
+                <CardContent className="p-8">
+                  <div className="flex items-center mb-4">
+                    <Lightbulb className="w-8 h-8 text-yellow-400 mr-4 group-hover:animate-pulse" />
+                    <h3 className="text-xl font-bold text-white">{benefit}</h3>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* CTA FINAL - O PORTAL */}
+      <section className="relative py-40 px-6 z-10">
+        <div className="max-w-6xl mx-auto text-center">
+          {/* Glow central mais dramático */}
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-500/40 via-purple-500/40 to-cyan-500/40 blur-3xl animate-pulse" />
+          
+          <div className="relative z-10">
+            <h2 className="text-7xl md:text-9xl font-black mb-12 leading-tight">
+              <span className="block text-white mb-4">O que você não vê...</span>
+              <span className="block text-cyan-400 glow-text-intense animate-pulse">te controla.</span>
+              <span className="block text-white mb-4 mt-8">O que você vê...</span>
+              <span className="block text-green-400 glow-text-intense animate-pulse">te liberta.</span>
+            </h2>
+
+            <Button 
+              onClick={handleAccessObservatory}
+              className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-20 py-12 text-3xl font-black rounded-3xl shadow-2xl shadow-blue-500/50 border-4 border-blue-400/50 backdrop-blur-sm glow-button-intense group transform hover:scale-110 transition-all duration-500 animate-pulse mb-8"
+            >
+              <Rocket className="w-10 h-10 mr-6 group-hover:animate-bounce" />
+              ACESSAR MEU OBSERVATÓRIO AGORA
+              <Flame className="w-10 h-10 ml-6 group-hover:animate-spin" />
+            </Button>
+
+            <p className="text-xl md:text-2xl text-gray-400 italic font-light">
+              Consciência não é um luxo. É um direito vitalício.
             </p>
           </div>
         </div>
       </section>
 
-      {/* Estilos CSS customizados */}
+      {/* Estilos CSS customizados mais intensos */}
       <style>{`
         .glow-text {
-          text-shadow: 0 0 20px currentColor;
+          text-shadow: 0 0 20px currentColor, 0 0 40px currentColor;
         }
         
-        .hover-glow:hover {
-          box-shadow: 0 0 30px rgba(59, 130, 246, 0.5);
+        .glow-text-intense {
+          text-shadow: 0 0 30px currentColor, 0 0 60px currentColor, 0 0 90px currentColor;
+        }
+        
+        .glow-button {
+          box-shadow: 0 0 30px rgba(59, 130, 246, 0.5), 0 0 60px rgba(147, 51, 234, 0.3);
+        }
+        
+        .glow-button-intense {
+          box-shadow: 0 0 50px rgba(59, 130, 246, 0.8), 0 0 100px rgba(147, 51, 234, 0.6), 0 0 150px rgba(6, 182, 212, 0.4);
+        }
+        
+        .glow-button:hover {
+          box-shadow: 0 0 40px rgba(59, 130, 246, 0.8), 0 0 80px rgba(147, 51, 234, 0.6);
+        }
+        
+        .glow-card {
+          box-shadow: 0 0 20px rgba(59, 130, 246, 0.2), 0 0 40px rgba(147, 51, 234, 0.1);
+        }
+        
+        .glow-card:hover {
+          box-shadow: 0 0 30px rgba(59, 130, 246, 0.4), 0 0 60px rgba(147, 51, 234, 0.3);
+        }
+        
+        .glow-intense {
+          box-shadow: 0 0 20px currentColor, 0 0 40px currentColor;
         }
         
         @keyframes float {
@@ -461,6 +439,11 @@ export function ObservatoryLanding() {
         
         .float {
           animation: float 3s ease-in-out infinite;
+        }
+        
+        @keyframes pulse-glow {
+          0%, 100% { box-shadow: 0 0 20px currentColor; }
+          50% { box-shadow: 0 0 40px currentColor, 0 0 60px currentColor; }
         }
       `}</style>
     </div>
