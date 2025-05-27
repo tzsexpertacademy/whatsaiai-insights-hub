@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useParallax } from '@/hooks/useParallax';
 import { CursorEffect } from '@/components/effects/CursorEffect';
 import { ScrollReveal } from '@/components/effects/ScrollReveal';
+import { useToast } from '@/hooks/use-toast';
 import { 
   Brain, 
   Eye, 
@@ -34,7 +35,8 @@ import {
 
 export function ObservatoryLanding() {
   const navigate = useNavigate();
-  const { isAuthenticated, createCheckout } = useAuth();
+  const { isAuthenticated, createCheckout, signup, login } = useAuth();
+  const { toast } = useToast();
   const heroRef = useRef<HTMLDivElement>(null);
   const particlesRef = useRef<HTMLCanvasElement>(null);
   const scrollY = useParallax();
@@ -140,15 +142,50 @@ export function ObservatoryLanding() {
   }, []);
 
   const handleAccessObservatory = async () => {
-    if (isAuthenticated) {
-      try {
+    try {
+      if (isAuthenticated) {
+        // Se já está logado, vai direto para o checkout
         await createCheckout();
-      } catch (error) {
-        console.error('Error starting checkout:', error);
-        // Fallback to dashboard if there's an error
-        navigate('/dashboard');
+      } else {
+        // Se não está logado, cria conta temporária e vai para checkout
+        const timestamp = Date.now();
+        const tempEmail = `temp.user.${timestamp}@observatorio.temp`;
+        const tempPassword = 'TempPass123!';
+        
+        toast({
+          title: "Criando sua conta...",
+          description: "Preparando seu acesso ao Observatório",
+          duration: 3000
+        });
+
+        // Criar conta temporária
+        await signup(tempEmail, tempPassword, {
+          fullName: 'Usuário Observatório',
+          companyName: 'Trial Gratuito'
+        });
+
+        // Fazer login automático
+        await login(tempEmail, tempPassword);
+        
+        // Aguardar um pouco e ir para checkout
+        setTimeout(async () => {
+          try {
+            await createCheckout();
+          } catch (error) {
+            console.error('Error creating checkout after signup:', error);
+            // Fallback para dashboard se houver erro
+            navigate('/dashboard');
+          }
+        }, 2000);
       }
-    } else {
+    } catch (error) {
+      console.error('Error in handleAccessObservatory:', error);
+      toast({
+        title: "Erro",
+        description: "Houve um problema. Tente novamente ou faça login manualmente.",
+        variant: "destructive"
+      });
+      // Fallback para página de auth
       navigate('/auth');
     }
   };
