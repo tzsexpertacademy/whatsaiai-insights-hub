@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -38,12 +37,12 @@ export function WelcomeExperience() {
   }, []);
 
   const handleStartJourney = () => {
-    console.log('🚀 Botão Inicializar clicado');
+    console.log('🚀 Botão Inicializar clicado - executando completeWelcome()');
     completeWelcome();
   };
 
   const handleSkip = () => {
-    console.log('⏭️ Botão Skip clicado');
+    console.log('⏭️ Botão Skip clicado - executando skipOnboarding()');
     skipOnboarding();
   };
 

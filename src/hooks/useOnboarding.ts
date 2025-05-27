@@ -1,5 +1,6 @@
 
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 interface OnboardingState {
   isFirstVisit: boolean;
@@ -10,6 +11,7 @@ interface OnboardingState {
 }
 
 export function useOnboarding() {
+  const navigate = useNavigate();
   const [state, setState] = useState<OnboardingState>({
     isFirstVisit: true,
     currentStep: 0,
@@ -37,7 +39,7 @@ export function useOnboarding() {
   }, []);
 
   const completeWelcome = () => {
-    console.log('✅ Completando welcome - indo para dashboard');
+    console.log('✅ Completando welcome - redirecionando para dashboard');
     localStorage.setItem('welcome_seen', 'true');
     setState(prev => ({ 
       ...prev, 
@@ -45,6 +47,11 @@ export function useOnboarding() {
       showTour: true,
       currentStep: 1
     }));
+    
+    // Redirecionar imediatamente para o dashboard
+    setTimeout(() => {
+      navigate('/dashboard');
+    }, 100);
   };
 
   const startTour = () => {
@@ -57,7 +64,7 @@ export function useOnboarding() {
   };
 
   const completeTour = () => {
-    console.log('✅ Tour completado');
+    console.log('✅ Tour completado - redirecionando para dashboard');
     localStorage.setItem('onboarding_completed', 'true');
     localStorage.setItem('welcome_seen', 'true');
     setState(prev => ({ 
@@ -67,10 +74,13 @@ export function useOnboarding() {
       currentStep: 0,
       isFirstVisit: false
     }));
+    
+    // Redirecionar para o dashboard
+    navigate('/dashboard');
   };
 
   const skipOnboarding = () => {
-    console.log('⏭️ Pulando todo o onboarding');
+    console.log('⏭️ Pulando todo o onboarding - redirecionando para dashboard');
     localStorage.setItem('onboarding_completed', 'true');
     localStorage.setItem('welcome_seen', 'true');
     setState(prev => ({ 
@@ -80,6 +90,9 @@ export function useOnboarding() {
       completed: true,
       currentStep: 0
     }));
+    
+    // Redirecionar imediatamente para o dashboard
+    navigate('/dashboard');
   };
 
   const resetOnboarding = () => {
@@ -92,6 +105,7 @@ export function useOnboarding() {
       showDemo: false,
       completed: false
     });
+    navigate('/dashboard');
     window.location.reload();
   };
 

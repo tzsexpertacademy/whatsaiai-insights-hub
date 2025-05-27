@@ -1,6 +1,6 @@
 
 import React, { useEffect } from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, useLocation } from 'react-router-dom';
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from '@/components/AppSidebar';
 import { DashboardHeader } from '@/components/DashboardHeader';
@@ -22,6 +22,7 @@ import { SettingsPage } from '@/components/SettingsPage';
 import { ProfilePage } from '@/components/ProfilePage';
 
 export default function Index() {
+  const location = useLocation();
   const { 
     isFirstVisit, 
     showTour, 
@@ -34,11 +35,13 @@ export default function Index() {
     isFirstVisit,
     showTour,
     completed,
-    url: window.location.pathname
+    url: location.pathname,
+    currentPath: window.location.pathname
   });
 
   // Se é primeira visita e não completou o onboarding, mostra welcome
-  if (isFirstVisit && !completed) {
+  // APENAS se estiver na rota /dashboard (sem sub-rotas)
+  if (isFirstVisit && !completed && location.pathname === '/dashboard') {
     console.log('🎬 Exibindo WelcomeExperience');
     return <WelcomeExperience />;
   }
