@@ -54,8 +54,8 @@ serve(async (req) => {
 
     const origin = req.headers.get("origin") || "http://localhost:3000";
     
-    // Create checkout session with REQUIRED payment method collection
-    const session = await stripe.checkout.sessions.create({
+    // Create checkout session configuration
+    const sessionConfig: any = {
       customer: customerId,
       customer_email: customerId ? undefined : user.email,
       payment_method_types: ['card'],
@@ -81,18 +81,11 @@ serve(async (req) => {
       },
       // FORÇAR coleta do cartão - OBRIGATÓRIO mesmo no trial
       payment_method_collection: 'always',
-      payment_method_configuration: undefined, // Remove any custom config that might interfere
       
       success_url: `${origin}/dashboard?checkout=success&trial=true`,
       cancel_url: `${origin}/observatory?checkout=cancelled`,
       allow_promotion_codes: true,
       billing_address_collection: 'auto',
-      
-      // Configurações adicionais para garantir coleta do cartão
-      customer_update: {
-        address: 'auto',
-        name: 'auto'
-      },
       
       // Metadados para tracking
       metadata: {
@@ -100,7 +93,18 @@ serve(async (req) => {
         subscription_type: 'trial_with_card',
         trial_days: '7'
       },
-    });
+    };
+
+    // Só adicionar customer_update se tiver um customer existente
+    if (customerId) {
+      sessionConfig.customer_update = {
+        address: 'auto',
+        name: 'auto'
+      };
+    }
+
+    // Create checkout session
+    const session = await stripe.checkout.sessions.create(sessionConfig);
 
     logStep("Checkout session created", { sessionId: session.id, url: session.url });
 
