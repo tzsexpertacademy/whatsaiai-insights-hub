@@ -512,7 +512,7 @@ export function FirebaseConfig() {
                   </div>
                   <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
                     <p className="text-sm text-yellow-700">
-                      🔒 <strong>Segurança:</strong> Depois de configurar, altere as regras para permitir apenas usuários autenticados.
+                      🔒 <strong>Segurança:</strong> Vamos configurar regras simples no próximo passo.
                     </p>
                   </div>
                 </div>
@@ -537,7 +537,7 @@ export function FirebaseConfig() {
                 </div>
               </div>
 
-              {/* Passo 5 */}
+              {/* Passo 5 - API Key (ATUALIZADO) */}
               <div className="border-l-4 border-red-500 pl-4">
                 <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
                   <span className="bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm">5</span>
@@ -545,14 +545,17 @@ export function FirebaseConfig() {
                 </h3>
                 <div className="space-y-2">
                   <p className="text-gray-700">Copie as configurações e configure a API Key corretamente:</p>
-                  <div className="bg-gray-50 p-3 rounded-lg">
-                    <ol className="list-decimal list-inside space-y-1 text-sm">
+                  
+                  <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                    <h4 className="font-semibold text-blue-900 mb-2">📋 Como obter a API Key:</h4>
+                    <ol className="list-decimal list-inside space-y-1 text-sm text-blue-700">
                       <li>Após registrar o app, você verá um objeto JavaScript com as configurações</li>
-                      <li>Copie todo o objeto <code className="bg-gray-200 px-1 rounded">firebaseConfig</code></li>
+                      <li>Copie todo o objeto <code className="bg-blue-200 px-1 rounded">firebaseConfig</code></li>
                       <li>Ou vá em <strong>Configurações do projeto → Geral → Seus apps</strong></li>
                       <li>Clique no ícone de configuração do seu app web</li>
                     </ol>
                   </div>
+
                   <div className="bg-red-50 p-3 rounded-lg border border-red-200">
                     <h4 className="font-semibold text-red-900 mb-2 flex items-center gap-2">
                       <Key className="h-4 w-4" />
@@ -561,6 +564,17 @@ export function FirebaseConfig() {
                     <p className="text-sm text-red-700 mb-2">
                       <strong>Sem este passo a API Key será bloqueada!</strong>
                     </p>
+                    
+                    <div className="bg-white p-3 rounded border border-red-300 mb-3">
+                      <p className="text-sm font-semibold text-red-800 mb-2">💡 Se a API Key não aparecer no Google Cloud:</p>
+                      <ol className="text-xs text-red-700 space-y-1 list-decimal list-inside">
+                        <li>Certifique-se que está no <strong>projeto correto</strong></li>
+                        <li>Procure por "Browser key (auto created by Firebase)"</li>
+                        <li>Ou procure por chave que começa com "AIza..."</li>
+                        <li>Se não encontrar, <strong>crie uma nova API Key</strong></li>
+                      </ol>
+                    </div>
+
                     <ol className="text-sm text-red-700 space-y-1 list-decimal list-inside">
                       <li>Vá em <strong>Google Cloud Console</strong> → <strong>APIs e Serviços</strong> → <strong>Credenciais</strong></li>
                       <li>Encontre sua API Key e clique no ícone de <strong>editar (lápis)</strong></li>
@@ -577,15 +591,10 @@ export function FirebaseConfig() {
                       Google Cloud Console - Credenciais
                     </Button>
                   </div>
-                  <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
-                    <p className="text-sm text-blue-700">
-                      💾 <strong>Alternativa:</strong> Você pode baixar o arquivo <code>firebase-config.json</code> e fazer upload aqui na plataforma.
-                    </p>
-                  </div>
                 </div>
               </div>
 
-              {/* Passo 6 */}
+              {/* Passo 6 - Regras (ATUALIZADO) */}
               <div className="border-l-4 border-indigo-500 pl-4">
                 <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
                   <span className="bg-indigo-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm">6</span>
@@ -596,34 +605,25 @@ export function FirebaseConfig() {
                   <div className="bg-gray-50 p-3 rounded-lg">
                     <ol className="list-decimal list-inside space-y-1 text-sm">
                       <li>Vá em <strong>Realtime Database → Regras</strong></li>
-                      <li>Substitua as regras padrão pelas regras recomendadas</li>
+                      <li>Substitua as regras padrão pelas regras recomendadas abaixo</li>
                       <li>Clique em <strong>"Publicar"</strong> para aplicar</li>
                     </ol>
                   </div>
                   <div className="bg-green-50 p-3 rounded-lg">
                     <p className="text-sm text-green-700 mb-2">
-                      <strong>Regras recomendadas:</strong>
+                      <strong>✅ Regras recomendadas (simples e funcionais):</strong>
                     </p>
                     <pre className="text-xs bg-white p-2 rounded border overflow-x-auto">
 {`{
   "rules": {
-    ".read": "auth != null",
-    ".write": "auth != null",
-    "conversations": {
-      "$module": {
-        ".read": true,
-        ".write": true
-      }
-    },
-    "analyses": {
-      "$module": {
-        ".read": true,
-        ".write": true
-      }
-    }
+    ".read": true,
+    ".write": true
   }
 }`}
                     </pre>
+                    <p className="text-xs text-green-600 mt-2">
+                      💡 <strong>Nota:</strong> Essas regras permitem acesso total. Depois de testar, você pode restringir conforme necessário.
+                    </p>
                   </div>
                 </div>
               </div>
@@ -667,16 +667,19 @@ export function FirebaseConfig() {
                     <strong>❌ API Key bloqueada:</strong> Libere a API Key no Google Cloud Console (Passo 5)
                   </div>
                   <div>
-                    <strong>Erro 403 (Acesso negado):</strong> Verifique as regras de segurança
+                    <strong>❌ API Key não encontrada:</strong> Crie uma nova API Key no Google Cloud Console
                   </div>
                   <div>
-                    <strong>Erro 404 (Projeto não encontrado):</strong> Confirme o Project ID
+                    <strong>❌ Erro 403 (Acesso negado):</strong> Use as regras simples do Passo 6
                   </div>
                   <div>
-                    <strong>Erro 401 (Não autorizado):</strong> Verifique se a API Key foi liberada
+                    <strong>❌ Erro 404 (Projeto não encontrado):</strong> Confirme o Project ID
                   </div>
                   <div>
-                    <strong>URL inválida:</strong> Certifique-se que a Database URL termina com "/"
+                    <strong>❌ Erro 401 (Não autorizado):</strong> Verifique se a API Key foi liberada
+                  </div>
+                  <div>
+                    <strong>❌ URL inválida:</strong> Certifique-se que a Database URL termina com "/"
                   </div>
                 </div>
               </div>
