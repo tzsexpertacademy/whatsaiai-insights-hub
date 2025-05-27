@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 import { useParallax } from '@/hooks/useParallax';
 import { CursorEffect } from '@/components/effects/CursorEffect';
 import { ScrollReveal } from '@/components/effects/ScrollReveal';
@@ -33,6 +34,7 @@ import {
 
 export function ObservatoryLanding() {
   const navigate = useNavigate();
+  const { isAuthenticated, createCheckout } = useAuth();
   const heroRef = useRef<HTMLDivElement>(null);
   const particlesRef = useRef<HTMLCanvasElement>(null);
   const scrollY = useParallax();
@@ -137,8 +139,18 @@ export function ObservatoryLanding() {
     };
   }, []);
 
-  const handleAccessObservatory = () => {
-    navigate('/dashboard');
+  const handleAccessObservatory = async () => {
+    if (isAuthenticated) {
+      try {
+        await createCheckout();
+      } catch (error) {
+        console.error('Error starting checkout:', error);
+        // Fallback to dashboard if there's an error
+        navigate('/dashboard');
+      }
+    } else {
+      navigate('/auth');
+    }
   };
 
   const observatoryFeatures = [

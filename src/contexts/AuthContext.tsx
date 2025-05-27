@@ -11,6 +11,9 @@ interface UserProfile {
   plan: 'basic' | 'premium' | 'enterprise';
   createdAt: Date;
   isActive: boolean;
+  subscribed?: boolean;
+  subscriptionTier?: string;
+  subscriptionEnd?: string;
 }
 
 interface AuthContextType {
@@ -21,6 +24,9 @@ interface AuthContextType {
   signup: (email: string, password: string, metadata?: { fullName?: string; companyName?: string }) => Promise<void>;
   logout: () => Promise<void>;
   isLoading: boolean;
+  checkSubscription: () => Promise<void>;
+  createCheckout: () => Promise<void>;
+  openCustomerPortal: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -31,7 +37,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   // Função para criar perfil do usuário
-  const createUserProfile = (session: Session): UserProfile => {
+  const createUserProfile = (session: Session, subscriptionData?: any): UserProfile => {
     return {
       id: session.user.id,
       email: session.user.email!,
@@ -39,22 +45,113 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       companyName: session.user.user_metadata?.company_name,
       plan: 'basic',
       createdAt: new Date(session.user.created_at),
-      isActive: true
+      isActive: true,
+      subscribed: subscriptionData?.subscribed || false,
+      subscriptionTier: subscriptionData?.subscription_tier,
+      subscriptionEnd: subscriptionData?.subscription_end,
     };
+  };
+
+  const checkSubscription = async () => {
+    if (!session) return;
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('check-subscription', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (error) throw error;
+
+      if (user) {
+        setUser({
+          ...user,
+          subscribed: data.subscribed,
+          subscriptionTier: data.subscription_tier,
+          subscriptionEnd: data.subscription_end,
+        });
+      }
+    } catch (error) {
+      console.error('Error checking subscription:', error);
+    }
+  };
+
+  const createCheckout = async () => {
+    if (!session) throw new Error('User not authenticated');
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('create-checkout', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (error) throw error;
+
+      // Open Stripe checkout in a new tab
+      window.open(data.url, '_blank');
+    } catch (error) {
+      console.error('Error creating checkout:', error);
+      throw error;
+    }
+  };
+
+  const openCustomerPortal = async () => {
+    if (!session) throw new Error('User not authenticated');
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('customer-portal', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (error) throw error;
+
+      // Open customer portal in a new tab
+      window.open(data.url, '_blank');
+    } catch (error) {
+      console.error('Error opening customer portal:', error);
+      throw error;
+    }
   };
 
   useEffect(() => {
     let mounted = true;
 
     // Função para processar mudanças de autenticação
-    const handleAuthChange = (event: string, session: Session | null) => {
+    const handleAuthChange = async (event: string, session: Session | null) => {
       console.log('🔄 Auth state changed:', event, !!session);
       
       if (!mounted) return;
 
       if (session) {
         setSession(session);
-        setUser(createUserProfile(session));
+        const userProfile = createUserProfile(session);
+        setUser(userProfile);
+        
+        // Check subscription after login
+        setTimeout(async () => {
+          try {
+            const { data, error } = await supabase.functions.invoke('check-subscription', {
+              headers: {
+                Authorization: `Bearer ${session.access_token}`,
+              },
+            });
+
+            if (!error && mounted) {
+              setUser(prev => prev ? {
+                ...prev,
+                subscribed: data.subscribed,
+                subscriptionTier: data.subscription_tier,
+                subscriptionEnd: data.subscription_end,
+              } : null);
+            }
+          } catch (error) {
+            console.error('Error checking subscription on login:', error);
+          }
+        }, 0);
       } else {
         setSession(null);
         setUser(null);
@@ -118,7 +215,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       login,
       signup,
       logout,
-      isLoading
+      isLoading,
+      checkSubscription,
+      createCheckout,
+      openCustomerPortal
     }}>
       {children}
     </AuthContext.Provider>
