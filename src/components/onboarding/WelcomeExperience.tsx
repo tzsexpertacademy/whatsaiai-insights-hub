@@ -3,8 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { useAuth } from '@/contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useOnboarding } from '@/hooks/useOnboarding';
 import { 
   Brain, 
   Sparkles, 
@@ -21,11 +20,10 @@ import {
 } from 'lucide-react';
 
 export function WelcomeExperience() {
-  const { user } = useAuth();
-  const navigate = useNavigate();
   const [currentPhase, setCurrentPhase] = useState(0);
   const [neuronIndex, setNeuronIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const { completeWelcome, skipOnboarding } = useOnboarding();
 
   useEffect(() => {
     const timer = setTimeout(() => setIsLoading(false), 2000);
@@ -40,26 +38,23 @@ export function WelcomeExperience() {
   }, []);
 
   const handleStartJourney = () => {
-    console.log('🚀 Iniciando jornada - definindo step 1');
-    localStorage.setItem('onboarding_step', '1');
-    localStorage.setItem('welcome_seen', 'true');
-    navigate('/dashboard');
+    console.log('🚀 Botão Inicializar clicado');
+    completeWelcome();
   };
 
   const handleSkip = () => {
-    console.log('⏭️ Pulando onboarding completo');
-    localStorage.setItem('onboarding_completed', 'true');
-    localStorage.setItem('welcome_seen', 'true');
-    localStorage.removeItem('onboarding_step');
-    navigate('/dashboard');
+    console.log('⏭️ Botão Skip clicado');
+    skipOnboarding();
   };
 
-  const userName = user?.email?.split('@')[0] || 'Explorador';
+  const handlePreview = () => {
+    console.log('👁️ Botão Preview clicado');
+    setCurrentPhase(1);
+  };
 
   if (isLoading) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center overflow-hidden">
-        {/* Neural Network Loading */}
         <div className="relative">
           <div className="w-32 h-32 border-4 border-blue-500/30 rounded-full animate-pulse">
             <div className="w-24 h-24 border-2 border-purple-500/50 rounded-full m-3 animate-spin">
@@ -69,19 +64,6 @@ export function WelcomeExperience() {
                 </div>
               </div>
             </div>
-          </div>
-          <div className="absolute -inset-4">
-            {[...Array(12)].map((_, i) => (
-              <div 
-                key={i}
-                className="absolute w-2 h-2 bg-blue-400 rounded-full opacity-60 animate-pulse"
-                style={{
-                  left: `${50 + 40 * Math.cos(i * 30 * Math.PI / 180)}%`,
-                  top: `${50 + 40 * Math.sin(i * 30 * Math.PI / 180)}%`,
-                  animationDelay: `${i * 0.1}s`
-                }}
-              />
-            ))}
           </div>
         </div>
         <div className="absolute bottom-1/4 text-center text-white">
@@ -94,10 +76,9 @@ export function WelcomeExperience() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative overflow-hidden">
-      {/* Dynamic Neural Background */}
+      {/* Background Effects */}
       <div className="absolute inset-0 opacity-20">
         <svg className="w-full h-full" viewBox="0 0 1920 1080">
-          {/* Neural Network Connections */}
           {[...Array(50)].map((_, i) => (
             <g key={i}>
               <line 
@@ -131,35 +112,16 @@ export function WelcomeExperience() {
         </svg>
       </div>
 
-      {/* Floating Particles */}
-      <div className="absolute inset-0">
-        {[...Array(30)].map((_, i) => (
-          <div 
-            key={i}
-            className="absolute w-1 h-1 bg-blue-400 rounded-full animate-pulse opacity-40"
-            style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              animationDelay: `${Math.random() * 3}s`,
-              animationDuration: `${3 + Math.random() * 2}s`
-            }}
-          />
-        ))}
-      </div>
-
       <div className="relative z-10 container mx-auto px-4 py-8 min-h-screen flex flex-col">
-        {/* Header with Brain Visualization */}
+        {/* Header */}
         <div className="text-center mb-16 relative">
           <div className="inline-flex items-center gap-4 mb-8 group">
-            {/* 3D Brain Icon with Holographic Effect */}
             <div className="relative">
               <div className="flex aspect-square size-20 items-center justify-center rounded-full bg-gradient-to-r from-blue-600 via-purple-600 to-cyan-600 relative overflow-hidden group-hover:scale-110 transition-transform duration-700">
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-12 translate-x-full group-hover:translate-x-[-200%] transition-transform duration-1000"></div>
                 <Eye className="size-10 text-white relative z-10" />
               </div>
-              {/* Orbital Rings */}
               <div className="absolute inset-0 border-2 border-blue-400/30 rounded-full animate-spin" style={{ animationDuration: '8s' }}></div>
-              <div className="absolute inset-2 border border-purple-400/20 rounded-full animate-spin" style={{ animationDuration: '12s', animationDirection: 'reverse' }}></div>
             </div>
             
             <div className="text-left">
@@ -170,7 +132,6 @@ export function WelcomeExperience() {
             </div>
           </div>
 
-          {/* Cinematic Title Sequence */}
           <div className="space-y-6">
             <h2 className="text-5xl md:text-7xl font-bold text-white mb-4 leading-tight">
               Bem-vindo ao 
@@ -190,43 +151,37 @@ export function WelcomeExperience() {
           </div>
         </div>
 
-        {/* Neural Network Features */}
+        {/* Features Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
           {[
             {
               icon: Cpu,
               title: "Processamento Neural",
               description: "7 IAs especializadas analisam padrões únicos do seu pensamento",
-              color: "from-blue-500 to-cyan-600",
-              delay: "0s"
+              color: "from-blue-500 to-cyan-600"
             },
             {
               icon: Network,
               title: "Sinapses Digitais",
               description: "Conexões em tempo real entre suas conversas e insights profundos",
-              color: "from-purple-500 to-pink-600",
-              delay: "0.2s"
+              color: "from-purple-500 to-pink-600"
             },
             {
               icon: Waves,
               title: "Ondas Cerebrais",
               description: "Monitoramento contínuo da sua evolução emocional e cognitiva",
-              color: "from-green-500 to-emerald-600",
-              delay: "0.4s"
+              color: "from-green-500 to-emerald-600"
             }
           ].map((feature, index) => (
             <Card 
               key={index} 
               className="bg-black/40 backdrop-blur-xl border border-white/10 hover:border-white/30 transition-all duration-700 hover:scale-105 group"
-              style={{ animationDelay: feature.delay }}
             >
               <CardContent className="p-8 text-center relative overflow-hidden">
-                {/* Holographic Background */}
                 <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-purple-500/5 group-hover:from-blue-500/10 group-hover:to-purple-500/10 transition-all duration-700"></div>
                 
                 <div className={`inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-r ${feature.color} mb-6 relative`}>
                   <feature.icon className="w-10 h-10 text-white" />
-                  <div className="absolute inset-0 rounded-full bg-gradient-to-r from-transparent via-white/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
                 </div>
                 
                 <h3 className="text-2xl font-bold text-white mb-4">{feature.title}</h3>
@@ -236,7 +191,7 @@ export function WelcomeExperience() {
           ))}
         </div>
 
-        {/* Holographic CTA Section */}
+        {/* CTA Section */}
         <div className="text-center space-y-8">
           <div className="relative inline-block">
             <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full blur-xl opacity-50 animate-pulse"></div>
@@ -256,7 +211,7 @@ export function WelcomeExperience() {
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
             <Button 
-              onClick={() => setCurrentPhase(1)}
+              onClick={handlePreview}
               variant="outline" 
               size="lg"
               className="border-cyan-400/50 text-cyan-400 hover:bg-cyan-400/10 hover:border-cyan-400 px-8 py-4 text-lg backdrop-blur-sm"
@@ -274,7 +229,6 @@ export function WelcomeExperience() {
             </Button>
           </div>
 
-          {/* Consciousness Level Indicators */}
           <div className="flex justify-center gap-3 mt-12">
             {['Alpha', 'Beta', 'Gamma', 'Delta'].map((wave, index) => (
               <Badge 
@@ -290,7 +244,7 @@ export function WelcomeExperience() {
         </div>
       </div>
 
-      {/* Neural Preview Modal */}
+      {/* Preview Modal */}
       {currentPhase === 1 && (
         <div className="absolute inset-0 bg-black/80 backdrop-blur-sm z-20 flex items-center justify-center p-4">
           <Card className="max-w-4xl w-full bg-gradient-to-br from-slate-900/95 to-purple-900/95 backdrop-blur-xl border border-cyan-400/30">
@@ -305,7 +259,6 @@ export function WelcomeExperience() {
                 </p>
               </div>
               
-              {/* Neural Dashboard Preview */}
               <div className="bg-black/30 rounded-xl p-8 mb-8 border border-blue-400/20">
                 <div className="grid grid-cols-3 gap-6 mb-6">
                   {[

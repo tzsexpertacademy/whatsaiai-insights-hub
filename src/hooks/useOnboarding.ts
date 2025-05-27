@@ -19,49 +19,47 @@ export function useOnboarding() {
   });
 
   useEffect(() => {
-    // Check onboarding status from localStorage
     const onboardingCompleted = localStorage.getItem('onboarding_completed') === 'true';
-    const onboardingStep = localStorage.getItem('onboarding_step');
     const hasSeenWelcome = localStorage.getItem('welcome_seen') === 'true';
 
-    console.log('🔍 Status do onboarding:', {
+    console.log('🔍 Verificando onboarding:', {
       onboardingCompleted,
-      onboardingStep,
-      hasSeenWelcome
+      hasSeenWelcome,
+      url: window.location.pathname
     });
 
     setState(prev => ({
       ...prev,
-      isFirstVisit: !hasSeenWelcome && !onboardingCompleted,
+      isFirstVisit: !onboardingCompleted && !hasSeenWelcome,
       completed: onboardingCompleted,
-      showTour: onboardingStep === '1' && !onboardingCompleted,
-      currentStep: onboardingStep ? parseInt(onboardingStep) : 0
+      showTour: false
     }));
   }, []);
 
-  const markWelcomeSeen = () => {
-    console.log('✅ Marcando welcome como visto');
-    localStorage.setItem('welcome_seen', 'true');
-    setState(prev => ({ ...prev, isFirstVisit: false }));
-  };
-
-  const startTour = () => {
-    console.log('🚀 Iniciando tour');
-    localStorage.setItem('onboarding_step', '1');
+  const completeWelcome = () => {
+    console.log('✅ Completando welcome - indo para dashboard');
     localStorage.setItem('welcome_seen', 'true');
     setState(prev => ({ 
       ...prev, 
+      isFirstVisit: false,
+      showTour: true,
+      currentStep: 1
+    }));
+  };
+
+  const startTour = () => {
+    console.log('🚀 Iniciando tour guiado');
+    setState(prev => ({ 
+      ...prev, 
       showTour: true, 
-      currentStep: 1,
-      isFirstVisit: false 
+      currentStep: 1
     }));
   };
 
   const completeTour = () => {
-    console.log('✅ Completando tour');
+    console.log('✅ Tour completado');
     localStorage.setItem('onboarding_completed', 'true');
     localStorage.setItem('welcome_seen', 'true');
-    localStorage.removeItem('onboarding_step');
     setState(prev => ({ 
       ...prev, 
       showTour: false, 
@@ -72,10 +70,9 @@ export function useOnboarding() {
   };
 
   const skipOnboarding = () => {
-    console.log('⏭️ Pulando onboarding');
+    console.log('⏭️ Pulando todo o onboarding');
     localStorage.setItem('onboarding_completed', 'true');
     localStorage.setItem('welcome_seen', 'true');
-    localStorage.removeItem('onboarding_step');
     setState(prev => ({ 
       ...prev, 
       isFirstVisit: false,
@@ -86,10 +83,8 @@ export function useOnboarding() {
   };
 
   const resetOnboarding = () => {
-    console.log('🔄 Resetando onboarding');
-    localStorage.removeItem('onboarding_completed');
-    localStorage.removeItem('onboarding_step');
-    localStorage.removeItem('welcome_seen');
+    console.log('🔄 Reset completo do onboarding');
+    localStorage.clear();
     setState({
       isFirstVisit: true,
       currentStep: 0,
@@ -97,6 +92,7 @@ export function useOnboarding() {
       showDemo: false,
       completed: false
     });
+    window.location.reload();
   };
 
   const showDemoData = () => {
@@ -109,7 +105,7 @@ export function useOnboarding() {
 
   return {
     ...state,
-    markWelcomeSeen,
+    completeWelcome,
     startTour,
     completeTour,
     skipOnboarding,

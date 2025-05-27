@@ -14,6 +14,12 @@ import { AdminRoute } from './AdminRoute';
 export function AppRouter() {
   const { isAuthenticated, isLoading } = useAuth();
 
+  console.log('🌐 AppRouter - Estado:', {
+    isAuthenticated,
+    isLoading,
+    currentPath: window.location.pathname
+  });
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900">

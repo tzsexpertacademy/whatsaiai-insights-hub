@@ -26,24 +26,24 @@ export default function Index() {
     isFirstVisit, 
     showTour, 
     completed,
-    markWelcomeSeen,
     completeTour,
     skipOnboarding 
   } = useOnboarding();
 
-  console.log('📊 Estado do Index:', {
+  console.log('📊 Estado atual do onboarding:', {
     isFirstVisit,
     showTour,
-    completed
+    completed,
+    url: window.location.pathname
   });
 
-  // Show welcome experience for first-time users
+  // Se é primeira visita e não completou o onboarding, mostra welcome
   if (isFirstVisit && !completed) {
-    console.log('🎬 Mostrando WelcomeExperience');
+    console.log('🎬 Exibindo WelcomeExperience');
     return <WelcomeExperience />;
   }
 
-  console.log('📱 Mostrando Dashboard Principal');
+  console.log('📱 Exibindo Dashboard Principal');
 
   return (
     <SidebarProvider>
@@ -70,7 +70,7 @@ export default function Index() {
         </div>
       </div>
 
-      {/* Guided Tour Overlay */}
+      {/* Tour guiado quando necessário */}
       {showTour && (
         <GuidedTour 
           onComplete={completeTour}
