@@ -193,7 +193,7 @@ export function ObservatoryLanding() {
           <div className="relative z-10">
             <Badge className="mb-8 bg-gradient-to-r from-blue-500 to-purple-600 text-white border-0 px-6 py-2 text-lg animate-pulse">
               <Sparkles className="w-5 h-5 mr-2" />
-              Powered by Kairon™ - IA de Consciência Humana
+              Powered by Yumer IA™ - IA de Consciência Humana
             </Badge>
 
             <h1 className="text-6xl md:text-8xl font-bold mb-8 bg-gradient-to-r from-white via-blue-200 to-purple-300 bg-clip-text text-transparent leading-tight">
