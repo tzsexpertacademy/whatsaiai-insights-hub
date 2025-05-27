@@ -221,6 +221,15 @@ export function SolutionsHub() {
               </div>
             </div>
             <div className="flex items-center gap-4">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => navigate('/observatory')}
+                className="text-purple-600 border-purple-300 hover:bg-purple-50"
+              >
+                <Brain className="w-4 h-4 mr-2" />
+                Observatório
+              </Button>
               <span className="text-sm text-gray-600">Olá, {user?.name}</span>
               <Button variant="outline" size="sm" onClick={logout}>
                 <LogOut className="w-4 h-4 mr-2" />

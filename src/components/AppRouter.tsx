@@ -4,6 +4,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { LoginPage } from './auth/LoginPage';
 import { SolutionsHub } from '@/pages/SolutionsHub';
+import { ObservatoryLanding } from '@/pages/ObservatoryLanding';
 import Index from '@/pages/Index';
 import { CommercialBrain } from '@/pages/CommercialBrain';
 import { AdminDashboard } from './admin/AdminDashboard';
@@ -63,8 +64,12 @@ export function AppRouter() {
         element={isAuthenticated ? <CommercialBrain /> : <Navigate to="/auth" replace />} 
       />
       <Route 
+        path="/observatory" 
+        element={<ObservatoryLanding />} 
+      />
+      <Route 
         path="/" 
-        element={isAuthenticated ? <SolutionsHub /> : <Navigate to="/auth" replace />} 
+        element={isAuthenticated ? <SolutionsHub /> : <ObservatoryLanding />} 
       />
       <Route 
         path="*" 
