@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -446,7 +445,7 @@ export function ObservatoryLanding() {
       </section>
 
       {/* Estilos CSS customizados */}
-      <style jsx>{`
+      <style>{`
         .glow-text {
           text-shadow: 0 0 20px currentColor;
         }
