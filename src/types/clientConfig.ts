@@ -1,4 +1,3 @@
-
 export interface WhatsAppConfig {
   isConnected: boolean;
   authorizedNumber: string;
@@ -54,7 +53,7 @@ export const defaultConfig: ClientConfig = {
     apiKey: '',
     model: 'gpt-4o-mini',
     temperature: 0.7,
-    maxTokens: 1000
+    maxTokens: 400
   },
   firebase: {
     apiKey: '',

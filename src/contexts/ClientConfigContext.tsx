@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { useAuth } from './AuthContext';
 import { ClientConfig, defaultConfig } from '@/types/clientConfig';
@@ -59,7 +58,6 @@ export function ClientConfigProvider({ children }: { children: React.ReactNode }
         if (mountedRef.current) {
           setConfig(loadedConfig);
           
-          // Verificar status de conexões após carregar config
           const firebaseConnected = await checkFirebaseConnection(loadedConfig);
           const openaiConnected = await checkOpenAIConnection(loadedConfig);
           
@@ -157,7 +155,6 @@ export function ClientConfigProvider({ children }: { children: React.ReactNode }
       setIsLoading(true);
       await saveConfigToDb(config, user.id);
       
-      // Verificar conexões após salvar
       const firebaseConnected = await checkFirebaseConnection(config);
       const openaiConnected = await checkOpenAIConnection(config);
       

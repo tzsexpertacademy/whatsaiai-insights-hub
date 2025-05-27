@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Bot, CheckCircle, AlertCircle, Brain, Loader2 } from 'lucide-react';
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Bot, CheckCircle, AlertCircle, Brain, Loader2, CreditCard, Key, ExternalLink, ArrowRight, DollarSign } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { useClientConfig } from '@/contexts/ClientConfigContext';
 
@@ -67,7 +68,7 @@ export function OpenAIConfig() {
       apiKey: '',
       model: 'gpt-4o-mini',
       temperature: 0.7,
-      maxTokens: 1000
+      maxTokens: 400
     });
     
     await saveConfig();
@@ -80,6 +81,126 @@ export function OpenAIConfig() {
 
   return (
     <div className="space-y-6">
+      {/* Guia de Instalação */}
+      <Card className="bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-blue-800">
+            <Bot className="h-5 w-5" />
+            Guia de Configuração da OpenAI
+          </CardTitle>
+          <CardDescription className="text-blue-700">
+            Siga este passo-a-passo para configurar sua conta OpenAI e conectar ao Observatório
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="grid gap-4">
+            {/* Passo 1 */}
+            <div className="flex gap-4 p-4 bg-white rounded-lg border border-blue-200">
+              <div className="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold">
+                1
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-blue-800 mb-2">Criar Conta na OpenAI</h3>
+                <p className="text-sm text-gray-700 mb-3">
+                  Acesse o site da OpenAI e crie sua conta gratuita
+                </p>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="text-blue-600 border-blue-300 hover:bg-blue-50"
+                  onClick={() => window.open('https://platform.openai.com/signup', '_blank')}
+                >
+                  <ExternalLink className="w-4 h-4 mr-2" />
+                  Criar Conta OpenAI
+                </Button>
+              </div>
+            </div>
+
+            {/* Passo 2 */}
+            <div className="flex gap-4 p-4 bg-white rounded-lg border border-blue-200">
+              <div className="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold">
+                2
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-blue-800 mb-2">Adicionar Saldo (Créditos)</h3>
+                <p className="text-sm text-gray-700 mb-3">
+                  Para usar a API, você precisa adicionar créditos à sua conta. Recomendamos começar com $10-20.
+                </p>
+                <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200 mb-3">
+                  <p className="text-xs text-yellow-800">
+                    💡 <strong>Dica:</strong> O modelo GPT-4o-mini custa cerca de $0,15 por 1M tokens de entrada e $0,60 por 1M tokens de saída.
+                    Com $10, você pode processar milhares de análises!
+                  </p>
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="text-green-600 border-green-300 hover:bg-green-50"
+                  onClick={() => window.open('https://platform.openai.com/account/billing/overview', '_blank')}
+                >
+                  <CreditCard className="w-4 h-4 mr-2" />
+                  Adicionar Créditos
+                </Button>
+              </div>
+            </div>
+
+            {/* Passo 3 */}
+            <div className="flex gap-4 p-4 bg-white rounded-lg border border-blue-200">
+              <div className="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold">
+                3
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-blue-800 mb-2">Gerar Chave da API</h3>
+                <p className="text-sm text-gray-700 mb-3">
+                  Crie uma nova chave API para conectar o Observatório à sua conta OpenAI
+                </p>
+                <div className="bg-red-50 p-3 rounded-lg border border-red-200 mb-3">
+                  <p className="text-xs text-red-800">
+                    🔒 <strong>Importante:</strong> Mantenha sua chave API em segurança! Não compartilhe com ninguém.
+                    A chave sempre começa com "sk-"
+                  </p>
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="text-purple-600 border-purple-300 hover:bg-purple-50"
+                  onClick={() => window.open('https://platform.openai.com/api-keys', '_blank')}
+                >
+                  <Key className="w-4 h-4 mr-2" />
+                  Gerar Chave API
+                </Button>
+              </div>
+            </div>
+
+            {/* Passo 4 */}
+            <div className="flex gap-4 p-4 bg-white rounded-lg border border-green-200">
+              <div className="flex-shrink-0 w-8 h-8 bg-green-600 text-white rounded-full flex items-center justify-center font-bold">
+                4
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-green-800 mb-2">Conectar ao Observatório</h3>
+                <p className="text-sm text-gray-700 mb-3">
+                  Cole sua chave API no campo abaixo e teste a conexão
+                </p>
+                <div className="flex items-center gap-2 text-green-600">
+                  <ArrowRight className="w-4 h-4" />
+                  <span className="text-sm font-medium">Configure sua chave API abaixo ⬇️</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <Alert>
+            <DollarSign className="h-4 w-4" />
+            <AlertDescription>
+              <strong>Estimativa de Custos:</strong> Uma análise típica do Observatório consome cerca de 300-800 tokens, 
+              custando aproximadamente $0,001 a $0,003 por análise com o modelo GPT-4o-mini.
+            </AlertDescription>
+          </Alert>
+        </CardContent>
+      </Card>
+
+      {/* Configuração da API */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="bg-white/70 backdrop-blur-sm border-white/50">
           <CardHeader>
@@ -202,13 +323,13 @@ export function OpenAIConfig() {
               <Input
                 id="maxTokens"
                 type="number"
-                placeholder="1000"
+                placeholder="400"
                 value={config.openai.maxTokens}
-                onChange={(e) => updateConfig('openai', { maxTokens: parseInt(e.target.value) || 1000 })}
+                onChange={(e) => updateConfig('openai', { maxTokens: parseInt(e.target.value) || 400 })}
                 disabled={isConnected}
               />
               <p className="text-xs text-gray-500 mt-1">
-                Máximo de tokens por resposta (recomendado: 1000-4000)
+                Máximo de tokens por resposta (recomendado: 400-1000)
               </p>
             </div>
 
@@ -250,6 +371,7 @@ export function OpenAIConfig() {
         </Card>
       </div>
 
+      {/* Modelos Disponíveis */}
       <Card className="bg-white/70 backdrop-blur-sm border-white/50">
         <CardHeader>
           <CardTitle>Modelos Disponíveis</CardTitle>
