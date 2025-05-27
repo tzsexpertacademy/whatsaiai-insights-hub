@@ -1,158 +1,224 @@
 
-import { Brain, BarChart3, User, Heart, Target, MessageSquare, Settings, UserCircle, Users, FileSearch, ArrowLeft, Clock, AlertTriangle } from 'lucide-react';
+import {
+  Brain,
+  Calendar,
+  ChevronsUpDown,
+  FileText,
+  Home,
+  LogOut,
+  MessageSquare,
+  Settings,
+  Target,
+  TrendingUp,
+  User,
+  Users,
+  Activity,
+  Eye,
+  Lightbulb
+} from "lucide-react"
+
+import {
+  Avatar,
+  AvatarFallback,
+} from "@/components/ui/avatar"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
+  SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarHeader,
-  SidebarFooter,
-} from "@/components/ui/sidebar";
+  SidebarRail,
+} from "@/components/ui/sidebar"
 import { SidebarNavItem } from './SidebarNavItem';
+import { SidebarSubscriptionStatus } from './SidebarSubscriptionStatus';
 import { useAuth } from '@/contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
-import { Button } from "@/components/ui/button";
+
+// Menu items.
+const items = [
+  {
+    title: "Dashboard",
+    url: "/dashboard",
+    icon: Home,
+  },
+  {
+    title: "Observatório",
+    url: "/dashboard/observatory",
+    icon: Eye,
+  },
+  {
+    title: "Termômetro Emocional",
+    url: "/dashboard/thermometer",
+    icon: Activity,
+  },
+  {
+    title: "Áreas da Vida",
+    url: "/dashboard/areas",
+    icon: Target,
+  },
+  {
+    title: "Perfil Comportamental",
+    url: "/dashboard/behavioral",
+    icon: Brain,
+  },
+  {
+    title: "Linha do Tempo",
+    url: "/dashboard/timeline",
+    icon: Calendar,
+  },
+  {
+    title: "Insights & Alertas",
+    url: "/dashboard/insights",
+    icon: TrendingUp,
+  },
+  {
+    title: "Recomendações",
+    url: "/dashboard/recommendations",
+    icon: Lightbulb,
+  },
+  {
+    title: "Dores do Cliente",
+    url: "/dashboard/pain-points",
+    icon: MessageSquare,
+  },
+  {
+    title: "Documentos",
+    url: "/dashboard/documents",
+    icon: FileText,
+  },
+]
+
+const configItems = [
+  {
+    title: "Configurações",
+    url: "/dashboard/settings",
+    icon: Settings,
+  },
+  {
+    title: "Perfil",
+    url: "/dashboard/profile",
+    icon: User,
+  },
+]
 
 export function AppSidebar() {
-  const { user } = useAuth();
-  const navigate = useNavigate();
+  const { user, logout } = useAuth();
 
-  const mainNavItems = [
-    { title: 'Dashboard', icon: BarChart3, url: '/dashboard/' },
-    { title: 'Áreas da Vida', icon: Target, url: '/dashboard/areas' },
-    { title: 'Perfil Comportamental', icon: Brain, url: '/dashboard/profile' },
-    { title: 'Termômetro Emocional', icon: Heart, url: '/dashboard/emotions' },
-  ];
-
-  const analysisNavItems = [
-    { title: 'Análise e Conselho', icon: FileSearch, url: '/dashboard/analysis' },
-  ];
-
-  const standardNavItems = [
-    { title: 'Dores do Cliente', icon: AlertTriangle, url: '/dashboard/pain-points' },
-    { title: 'Linha do Tempo', icon: Clock, url: '/dashboard/timeline' },
-    { title: 'Recomendações', icon: MessageSquare, url: '/dashboard/recommendations' },
-  ];
-
-  const configNavItems = [
-    { title: 'Conexão WhatsApp', icon: MessageSquare, url: '/dashboard/connection' },
-    { title: 'Configurações', icon: Settings, url: '/dashboard/settings' },
-    { title: 'Perfil', icon: UserCircle, url: '/dashboard/user-profile' },
-  ];
-
-  const isAdmin = user?.email === 'admin@kairon.ai';
+  const getUserInitials = (email: string) => {
+    return email.split('@')[0].slice(0, 2).toUpperCase();
+  };
 
   return (
-    <Sidebar>
-      <SidebarHeader className="p-6">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-blue-600 rounded-lg flex items-center justify-center">
-            <Brain className="w-5 h-5 text-white" />
+    <Sidebar collapsible="icon">
+      <SidebarHeader>
+        <div className="flex items-center gap-2 px-2 py-2">
+          <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 text-sidebar-primary-foreground">
+            <Brain className="size-4" />
           </div>
-          <div>
-            <h1 className="font-bold text-lg">Observatório da Consciência</h1>
-            <p className="text-xs text-muted-foreground">Análise Comportamental</p>
+          <div className="grid flex-1 text-left text-sm leading-tight">
+            <span className="truncate font-semibold">Observatório</span>
+            <span className="truncate text-xs">Consciência Pessoal</span>
           </div>
         </div>
-        
-        <Button 
-          variant="outline" 
-          size="sm" 
-          onClick={() => navigate('/')}
-          className="w-full justify-start"
-        >
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Voltar ao Hub
-        </Button>
       </SidebarHeader>
 
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Principal</SidebarGroupLabel>
+          <SidebarGroupLabel>Análise Pessoal</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {mainNavItems.map((item) => (
-                <SidebarMenuItem key={item.url}>
-                  <SidebarMenuButton asChild>
-                    <SidebarNavItem {...item} />
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
+              {items.map((item) => (
+                <SidebarNavItem key={item.url} {...item} />
               ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
 
         <SidebarGroup>
-          <SidebarGroupLabel>Análise e Conselho</SidebarGroupLabel>
+          <SidebarGroupLabel>Sistema</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {analysisNavItems.map((item) => (
-                <SidebarMenuItem key={item.url}>
-                  <SidebarMenuButton asChild>
-                    <SidebarNavItem {...item} />
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
+              {configItems.map((item) => (
+                <SidebarNavItem key={item.url} {...item} />
               ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-
-        <SidebarGroup>
-          <SidebarGroupLabel>Insights e Ações</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {standardNavItems.map((item) => (
-                <SidebarMenuItem key={item.url}>
-                  <SidebarMenuButton asChild>
-                    <SidebarNavItem {...item} />
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <SidebarGroup>
-          <SidebarGroupLabel>Configurações</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {configNavItems.map((item) => (
-                <SidebarMenuItem key={item.url}>
-                  <SidebarMenuButton asChild>
-                    <SidebarNavItem {...item} />
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        {isAdmin && (
-          <SidebarGroup>
-            <SidebarGroupLabel>Admin</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
-                    <SidebarNavItem title="Gerenciar Clientes" icon={Users} url="/dashboard/admin/clients" />
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
       </SidebarContent>
 
-      <SidebarFooter className="p-6">
-        <div className="text-center text-xs text-muted-foreground">
-          <p>© {new Date().getFullYear()} Kairon Labs</p>
-          <p>Inteligência Artificial para o seu bem-estar</p>
+      <SidebarFooter>
+        {/* Status da Assinatura */}
+        <div className="px-2 pb-2">
+          <SidebarSubscriptionStatus />
         </div>
+
+        {/* Menu do Usuário */}
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <SidebarMenuButton
+                  size="lg"
+                  className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+                >
+                  <Avatar className="h-8 w-8 rounded-lg">
+                    <AvatarFallback className="rounded-lg bg-blue-600 text-white">
+                      {user?.email ? getUserInitials(user.email) : 'U'}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="grid flex-1 text-left text-sm leading-tight">
+                    <span className="truncate font-semibold">
+                      {user?.email?.split('@')[0] || 'Usuário'}
+                    </span>
+                    <span className="truncate text-xs">{user?.email}</span>
+                  </div>
+                  <ChevronsUpDown className="ml-auto size-4" />
+                </SidebarMenuButton>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
+                side="bottom"
+                align="end"
+                sideOffset={4}
+              >
+                <DropdownMenuLabel className="p-0 font-normal">
+                  <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
+                    <Avatar className="h-8 w-8 rounded-lg">
+                      <AvatarFallback className="rounded-lg bg-blue-600 text-white">
+                        {user?.email ? getUserInitials(user.email) : 'U'}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="grid flex-1 text-left text-sm leading-tight">
+                      <span className="truncate font-semibold">
+                        {user?.email?.split('@')[0] || 'Usuário'}
+                      </span>
+                      <span className="truncate text-xs">{user?.email}</span>
+                    </div>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={logout} className="text-red-600">
+                  <LogOut />
+                  Sair
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </SidebarMenuItem>
+        </SidebarMenu>
       </SidebarFooter>
+      <SidebarRail />
     </Sidebar>
-  );
+  )
 }
