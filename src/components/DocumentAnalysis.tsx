@@ -19,16 +19,30 @@ import { useConversationUpload } from '@/hooks/useConversationUpload';
 
 export function DocumentAnalysis() {
   const [conversationText, setConversationText] = useState('');
-  const { uploadConversation, isUploading, progress } = useConversationUpload();
+  const [progress, setProgress] = useState(0);
+  const { uploadAndAnalyze, isUploading } = useConversationUpload();
 
   const handleUpload = async () => {
     if (!conversationText.trim()) return;
     
     try {
-      await uploadConversation(conversationText);
-      setConversationText('');
+      setProgress(0);
+      const interval = setInterval(() => {
+        setProgress(prev => Math.min(prev + 10, 90));
+      }, 200);
+      
+      const result = await uploadAndAnalyze(new File([conversationText], 'conversation.txt', { type: 'text/plain' }));
+      
+      clearInterval(interval);
+      setProgress(100);
+      
+      if (result.success) {
+        setConversationText('');
+        setTimeout(() => setProgress(0), 1000);
+      }
     } catch (error) {
       console.error('Erro ao fazer upload:', error);
+      setProgress(0);
     }
   };
 
