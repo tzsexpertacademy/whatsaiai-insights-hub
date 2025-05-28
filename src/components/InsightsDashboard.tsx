@@ -10,9 +10,18 @@ import { SkillsCards } from '@/components/dashboard/SkillsCards';
 import { InsightsAlerts } from '@/components/dashboard/InsightsAlerts';
 import { RecommendationsSection } from '@/components/dashboard/RecommendationsSection';
 import { AIAnalysisButton } from '@/components/AIAnalysisButton';
+import { useAnalysisData } from '@/contexts/AnalysisDataContext';
 
 export function InsightsDashboard() {
   const { user } = useAuth();
+  const { data } = useAnalysisData();
+  
+  // Debug: Log para verificar dados dos assistentes
+  console.log('🔍 DEBUG InsightsDashboard - Dados dos assistentes:', {
+    hasRealData: data.hasRealData,
+    insightsWithAssistant: data.insightsWithAssistant?.length || 0,
+    assistantsActive: data.metrics.assistantsActive
+  });
   
   return (
     <div className="space-y-6">
@@ -23,8 +32,12 @@ export function InsightsDashboard() {
         </div>
         
         <div className="flex flex-wrap items-center gap-3">
-          <Badge className="bg-purple-100 text-purple-800">Operacional</Badge>
-          <Badge className="bg-blue-100 text-blue-800">Dados Atualizados</Badge>
+          <Badge className="bg-purple-100 text-purple-800">
+            🔮 {data.metrics.assistantsActive} Assistentes Ativos
+          </Badge>
+          <Badge className="bg-blue-100 text-blue-800">
+            📊 {data.insightsWithAssistant?.length || 0} Insights Gerados
+          </Badge>
           <AIAnalysisButton />
         </div>
       </div>

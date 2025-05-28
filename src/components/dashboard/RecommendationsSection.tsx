@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useAnalysisData } from '@/contexts/AnalysisDataContext';
-import { Loader2, AlertCircle, Brain, Lightbulb, ArrowRight } from 'lucide-react';
+import { Loader2, AlertCircle, Brain, Lightbulb, ArrowRight, Bot } from 'lucide-react';
 
 export function RecommendationsSection() {
   const { data, isLoading } = useAnalysisData();
@@ -37,10 +37,11 @@ export function RecommendationsSection() {
     return colorMap[area] || 'bg-gray-100 text-gray-800';
   };
 
-  console.log('💡 RecommendationsSection - Dados recebidos:', {
+  console.log('💡 RecommendationsSection - Dados dos assistentes:', {
     hasRealData: data.hasRealData,
     recommendations: data.recommendations?.length || 0,
     recommendationsWithAssistant: data.recommendationsWithAssistant?.length || 0,
+    assistantsUsed: data.recommendationsWithAssistant?.map(r => r.assistantName).filter(Boolean),
     isLoading
   });
 
@@ -49,17 +50,17 @@ export function RecommendationsSection() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Lightbulb className="h-5 w-5 text-yellow-600" />
-          Recomendações dos Assistentes
+          Recomendações dos Assistentes Especializados
         </CardTitle>
         <CardDescription>
-          Sugestões personalizadas baseadas na análise comportamental
+          Sugestões personalizadas baseadas na análise dos seus assistentes configurados
         </CardDescription>
       </CardHeader>
       <CardContent>
         {isLoading ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
-            <span className="ml-2 text-gray-500">Carregando recomendações...</span>
+            <span className="ml-2 text-gray-500">Carregando recomendações dos assistentes...</span>
           </div>
         ) : !data.hasRealData ? (
           <div className="flex items-center justify-center py-8 text-center">
@@ -75,16 +76,35 @@ export function RecommendationsSection() {
         ) : data.recommendations.length === 0 ? (
           <div className="flex items-center justify-center py-8 text-center">
             <div>
-              <Lightbulb className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+              <Bot className="h-12 w-12 text-gray-400 mx-auto mb-3" />
               <p className="text-gray-500 text-sm">
-                Nenhuma recomendação gerada ainda.
+                Assistentes processando recomendações...
                 <br />
-                Clique em "Atualizar com IA" para gerar sugestões.
+                Execute "Atualizar com IA" para gerar sugestões.
               </p>
             </div>
           </div>
         ) : (
           <div className="space-y-4">
+            {/* Info dos assistentes que geraram recomendações */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm">
+              <div className="flex items-center gap-2 mb-2">
+                <Bot className="h-4 w-4 text-blue-600" />
+                <span className="font-semibold text-blue-800">Assistentes Gerando Recomendações:</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {[...new Set(data.recommendationsWithAssistant?.map(r => r.assistantName).filter(Boolean))]
+                  .map((assistantName, index) => {
+                    const assistantArea = data.recommendationsWithAssistant?.find(r => r.assistantName === assistantName)?.assistantArea;
+                    return (
+                      <Badge key={index} className={getAssistantColor(assistantArea || 'geral')}>
+                        {getAssistantIcon(assistantArea || 'geral')} {assistantName}
+                      </Badge>
+                    );
+                  })}
+              </div>
+            </div>
+
             {data.recommendationsWithAssistant.slice(0, 3).map((recommendation, index) => (
               <div 
                 key={recommendation.id || index}
@@ -105,14 +125,14 @@ export function RecommendationsSection() {
                 </div>
                 
                 <p className="text-sm text-blue-800 mb-4 leading-relaxed">
-                  {recommendation.text || recommendation.content}
+                  {recommendation.text || recommendation.description}
                 </p>
                 
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-xs text-blue-600">
-                    {recommendation.category && (
+                    {recommendation.assistantArea && (
                       <span className="px-2 py-1 bg-blue-100 rounded-full">
-                        {recommendation.category}
+                        Área: {recommendation.assistantArea}
                       </span>
                     )}
                     {recommendation.createdAt && (
@@ -132,7 +152,7 @@ export function RecommendationsSection() {
             {data.recommendationsWithAssistant.length > 3 && (
               <div className="text-center pt-4 border-t">
                 <p className="text-sm text-gray-500">
-                  E mais {data.recommendationsWithAssistant.length - 3} recomendações disponíveis...
+                  E mais {data.recommendationsWithAssistant.length - 3} recomendações dos assistentes...
                 </p>
                 <Button variant="outline" size="sm" className="mt-2">
                   Ver Todas as Recomendações
