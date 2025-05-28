@@ -50,18 +50,19 @@ const configItems = [
 ];
 
 export function AppSidebar() {
-  const { collapsed } = useSidebar();
+  const { state } = useSidebar();
   const location = useLocation();
   const currentPath = location.pathname;
 
   const isActive = (path: string) => currentPath === path;
+  const isCollapsed = state === "collapsed";
   const getNavCls = (path: string) =>
     isActive(path) 
       ? "bg-blue-100 text-blue-900 font-medium border-r-2 border-blue-600" 
       : "hover:bg-gray-100 text-gray-700";
 
   return (
-    <Sidebar className={collapsed ? "w-16" : "w-72"} collapsible>
+    <Sidebar className={isCollapsed ? "w-16" : "w-72"} collapsible="icon">
       <SidebarContent className="bg-white border-r border-gray-200">
         {/* Header */}
         <div className="p-4 border-b border-gray-200">
@@ -69,7 +70,7 @@ export function AppSidebar() {
             <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
               <Brain className="w-5 h-5 text-white" />
             </div>
-            {!collapsed && (
+            {!isCollapsed && (
               <div>
                 <h2 className="font-bold text-gray-900">Observatório</h2>
                 <p className="text-xs text-gray-500">Consciência Pessoal</p>
@@ -80,7 +81,7 @@ export function AppSidebar() {
         </div>
 
         {/* Status */}
-        {!collapsed && (
+        {!isCollapsed && (
           <div className="p-4 bg-green-50 border-b border-gray-200">
             <div className="flex items-center gap-2 mb-2">
               <Activity className="w-4 h-4 text-green-600" />
@@ -93,7 +94,7 @@ export function AppSidebar() {
         {/* Menu Principal */}
         <SidebarGroup>
           <SidebarGroupLabel className="text-gray-500 font-medium px-4 py-2">
-            {collapsed ? "📊" : "📊 Principais"}
+            {isCollapsed ? "📊" : "📊 Principais"}
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
@@ -102,7 +103,7 @@ export function AppSidebar() {
                   <SidebarMenuButton asChild>
                     <NavLink to={item.url} className={`${getNavCls(item.url)} p-3 flex items-center gap-3 rounded-lg mx-2 transition-colors`}>
                       <item.icon className="w-5 h-5 flex-shrink-0" />
-                      {!collapsed && (
+                      {!isCollapsed && (
                         <div className="flex-1 min-w-0">
                           <p className="font-medium truncate">{item.title}</p>
                           <p className="text-xs text-gray-500 truncate">{item.description}</p>
@@ -119,7 +120,7 @@ export function AppSidebar() {
         {/* Menu de Análises */}
         <SidebarGroup>
           <SidebarGroupLabel className="text-gray-500 font-medium px-4 py-2">
-            {collapsed ? "🧠" : "🧠 Análises"}
+            {isCollapsed ? "🧠" : "🧠 Análises"}
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
@@ -128,7 +129,7 @@ export function AppSidebar() {
                   <SidebarMenuButton asChild>
                     <NavLink to={item.url} className={`${getNavCls(item.url)} p-3 flex items-center gap-3 rounded-lg mx-2 transition-colors`}>
                       <item.icon className="w-5 h-5 flex-shrink-0" />
-                      {!collapsed && (
+                      {!isCollapsed && (
                         <div className="flex-1 min-w-0">
                           <p className="font-medium truncate">{item.title}</p>
                           <p className="text-xs text-gray-500 truncate">{item.description}</p>
@@ -145,7 +146,7 @@ export function AppSidebar() {
         {/* Menu de Configurações */}
         <SidebarGroup>
           <SidebarGroupLabel className="text-gray-500 font-medium px-4 py-2">
-            {collapsed ? "⚙️" : "⚙️ Sistema"}
+            {isCollapsed ? "⚙️" : "⚙️ Sistema"}
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
@@ -154,7 +155,7 @@ export function AppSidebar() {
                   <SidebarMenuButton asChild>
                     <NavLink to={item.url} className={`${getNavCls(item.url)} p-3 flex items-center gap-3 rounded-lg mx-2 transition-colors`}>
                       <item.icon className="w-5 h-5 flex-shrink-0" />
-                      {!collapsed && (
+                      {!isCollapsed && (
                         <div className="flex-1 min-w-0">
                           <p className="font-medium truncate">{item.title}</p>
                           <p className="text-xs text-gray-500 truncate">{item.description}</p>
