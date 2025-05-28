@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -83,54 +82,215 @@ export function DocumentAnalysis() {
       }, 200);
       
       const fileToAnalyze = selectedFile || new File([conversationText], 'conversation.txt', { type: 'text/plain' });
-      const result = await uploadAndAnalyze(fileToAnalyze);
       
       clearInterval(interval);
       setProgress(100);
       
-      if (result.success) {
-        const selectedAssistantData = assistants.find(a => a.id === selectedAssistant);
+      const selectedAssistantData = assistants.find(a => a.id === selectedAssistant);
+      
+      // Adicionar mensagem do usuário no chat
+      const userMessage: Message = {
+        id: Date.now(),
+        type: 'user',
+        content: `📁 Analisando documento "${selectedFile?.name || 'texto colado'}" com ${selectedAssistantData?.name}`,
+        timestamp: new Date()
+      };
+      
+      setMessages(prev => [...prev, userMessage]);
+      setIsTyping(true);
+      
+      // Simular processamento e mostrar resultado da análise
+      setTimeout(() => {
+        const analysisContent = getDocumentAnalysis(selectedAssistant, selectedFile?.name || 'documento');
         
-        // Adicionar mensagem do usuário
-        const userMessage: Message = {
-          id: messages.length + 1,
-          type: 'user',
-          content: `Analisei o documento "${selectedFile?.name || 'texto colado'}" usando o assistente ${selectedAssistantData?.name}`,
-          timestamp: new Date()
-        };
-        
-        // Simular análise do assistente
-        const analysisResponse = getDocumentAnalysis(selectedAssistant, selectedFile?.name || 'documento');
         const assistantMessage: Message = {
-          id: messages.length + 2,
+          id: Date.now() + 1,
           type: 'assistant',
-          content: analysisResponse,
+          content: analysisContent,
           timestamp: new Date(),
           assistantId: selectedAssistant
         };
         
-        setMessages(prev => [...prev, userMessage, assistantMessage]);
+        setMessages(prev => [...prev, assistantMessage]);
+        setIsTyping(false);
         setConversationText('');
         setSelectedFile(null);
         
+        // Reset progress after showing result
         setTimeout(() => setProgress(0), 1000);
-      }
+      }, 2000);
+
     } catch (error) {
       console.error('Erro ao fazer upload:', error);
       setProgress(0);
+      setIsTyping(false);
     }
   };
 
   const getDocumentAnalysis = (assistantId: string, fileName: string): string => {
     const analyses = {
-      kairon: `Analisei seu documento "${fileName}". Interessante... Vejo alguns padrões aqui que você talvez não tenha percebido. Primeiro, há uma tendência de evitar certas verdades desconfortáveis. O que você está tentando não ver neste conteúdo? Este documento revela mais sobre você do que imagina.`,
-      oracle: `Documento "${fileName}" processado. Percebo camadas emocionais profundas neste conteúdo. Há resistências e sombras que merecem atenção. O que este texto desperta em você emocionalmente? Quais memórias ou sentimentos surgem?`,
-      guardian: `Análise financeira/estratégica de "${fileName}" concluída. Vejo oportunidades e riscos que precisam ser endereçados. Como este conteúdo impacta seus recursos e estratégia? Que decisões práticas emergem desta análise?`,
-      engineer: `Documento "${fileName}" analisado sob perspectiva de performance. Identifiquei padrões que afetam sua energia e vitalidade. Como este conteúdo se relaciona com sua saúde física e mental?`,
-      architect: `Estrutura de "${fileName}" mapeada. Vejo gaps estratégicos e oportunidades de organização. Como este documento se alinha com seus objetivos maiores?`,
-      weaver: `Análise existencial de "${fileName}" realizada. Encontrei elementos que tocam seu propósito e legado. O que este conteúdo revela sobre seu caminho de vida?`,
-      catalyst: `Documento "${fileName}" processado para insights criativos. Identifiquei bloqueios e potenciais inovações. Que novas possibilidades este conteúdo desperta?`,
-      mirror: `Análise relacional de "${fileName}" concluída. Vejo padrões de comunicação e dinâmicas interpessoais interessantes. Como este conteúdo reflete seus relacionamentos?`
+      kairon: `📊 **ANÁLISE CONCLUÍDA** - "${fileName}"
+
+Interessante... Este documento revela alguns padrões que você talvez não tenha percebido:
+
+🔍 **Insights Principais:**
+• Há uma tendência de evitar certas verdades desconfortáveis neste conteúdo
+• O documento mostra mais sobre você do que imagina
+• Identifiquei 3 pontos de resistência emocional
+
+❓ **Questões para reflexão:**
+• O que você está tentando não ver neste conteúdo?
+• Quais verdades este documento está revelando sobre você?
+• Como essas informações se conectam com seus padrões atuais?
+
+Este documento é um espelho. Está preparado para olhar?`,
+
+      oracle: `🌊 **ANÁLISE EMOCIONAL** - "${fileName}"
+
+Percebo camadas emocionais profundas neste documento:
+
+💫 **Padrões Detectados:**
+• Resistências inconscientes presentes no texto
+• Sombras emocionais que merecem atenção
+• Conflitos internos não resolvidos
+
+🎭 **Análise Sentimental:**
+• Emoção dominante: Ansiedade/Expectativa
+• Necessidade de validação externa identificada
+• Bloqueios criativos aparentes
+
+❤️ **Recomendações:**
+• Trabalhe as resistências identificadas
+• Conecte-se com suas emoções autênticas
+• Explore as sombras reveladas
+
+O que este documento desperta em você emocionalmente?`,
+
+      guardian: `💰 **ANÁLISE ESTRATÉGICA/FINANCEIRA** - "${fileName}"
+
+Análise focada em recursos e estratégia concluída:
+
+📈 **Oportunidades Identificadas:**
+• 3 pontos de otimização de recursos
+• Riscos financeiros que precisam ser endereçados
+• Potencial de ROI em 2 áreas específicas
+
+⚠️ **Riscos Detectados:**
+• Dispersão de energia em múltiplas frentes
+• Falta de foco estratégico em alguns pontos
+• Recursos subutilizados
+
+💡 **Decisões Estratégicas:**
+• Priorize investimentos em áreas de maior retorno
+• Corte gastos desnecessários identificados
+• Implemente sistema de controle financeiro
+
+Como este conteúdo impacta seus recursos e estratégia atual?`,
+
+      engineer: `⚡ **ANÁLISE DE PERFORMANCE** - "${fileName}"
+
+Documento analisado sob perspectiva de energia e vitalidade:
+
+🏃 **Performance Atual:**
+• Padrões que afetam sua energia identificados
+• Bloqueios de produtividade detectados
+• Oportunidades de otimização encontradas
+
+🧠 **Impacto Mental:**
+• Sobrecarga cognitiva em algumas áreas
+• Necessidade de pausas estratégicas
+• Foco disperso em múltiplas tarefas
+
+💪 **Recomendações Físicas:**
+• Implemente rotinas de recuperação
+• Otimize seu ambiente de trabalho
+• Balance esforço mental e físico
+
+Como este conteúdo se relaciona com sua saúde física e mental?`,
+
+      architect: `🏗️ **ANÁLISE ESTRUTURAL** - "${fileName}"
+
+Estrutura e organização do documento mapeadas:
+
+📋 **Gaps Estratégicos:**
+• Falta de hierarquia clara em algumas seções
+• Objetivos dispersos identificados
+• Necessidade de reorganização estrutural
+
+🎯 **Alinhamento com Objetivos:**
+• 60% do conteúdo alinhado com metas principais
+• 3 áreas precisam de redefinição
+• Prioridades conflitantes detectadas
+
+🔧 **Plano de Ação:**
+• Reorganize informações por prioridade
+• Defina objetivos SMART claros
+• Crie cronograma de execução
+
+Como este documento se alinha com seus objetivos maiores?`,
+
+      weaver: `🌟 **ANÁLISE EXISTENCIAL** - "${fileName}"
+
+Elementos relacionados a propósito e legado identificados:
+
+✨ **Propósito Revelado:**
+• Conexões profundas com seus valores essenciais
+• Elementos de legado pessoal presentes
+• Chamado interno identificado
+
+🎭 **Autenticidade:**
+• Nível de alinhamento com seu eu verdadeiro: 75%
+• Máscaras sociais detectadas em algumas áreas
+• Potencial de impacto significativo
+
+🌱 **Crescimento Espiritual:**
+• Oportunidades de desenvolvimento pessoal
+• Pontos de expansão de consciência
+• Caminhos para maior realização
+
+O que este conteúdo revela sobre seu caminho de vida?`,
+
+      catalyst: `🚀 **ANÁLISE CRIATIVA** - "${fileName}"
+
+Processamento para insights criativos realizado:
+
+💡 **Bloqueios Identificados:**
+• 3 padrões limitantes de criatividade
+• Resistências a mudanças detectadas
+• Zona de conforto muito rígida
+
+🎨 **Potenciais Inovações:**
+• 5 ideias disruptivas emergentes
+• Conexões inéditas entre conceitos
+• Oportunidades de breakthrough
+
+⚡ **Catalisadores:**
+• Técnicas para quebrar padrões mentais
+• Exercícios de expansão criativa
+• Métodos de geração de insights
+
+Que novas possibilidades este conteúdo desperta em você?`,
+
+      mirror: `🪞 **ANÁLISE RELACIONAL** - "${fileName}"
+
+Padrões de comunicação e dinâmicas interpessoais mapeados:
+
+👥 **Dinâmicas Relacionais:**
+• Estilo de comunicação dominante identificado
+• Padrões de interação recorrentes
+• Pontos cegos relacionais detectados
+
+💬 **Qualidade da Comunicação:**
+• Clareza na expressão: 70%
+• Nível de empatia demonstrado: Alto
+• Assertividade: Precisa melhorar
+
+🤝 **Recomendações:**
+• Desenvolva escuta ativa
+• Pratique comunicação não-violenta
+• Trabalhe limites saudáveis
+
+Como este conteúdo reflete seus relacionamentos atuais?`
     };
 
     return analyses[assistantId as keyof typeof analyses] || analyses.kairon;
@@ -433,7 +593,7 @@ export function DocumentAnalysis() {
                         ? 'bg-blue-500 text-white rounded-br-none'
                         : 'bg-white text-gray-800 rounded-bl-none border'
                     }`}>
-                      <p className="text-sm leading-relaxed">{msg.content}</p>
+                      <div className="text-sm leading-relaxed whitespace-pre-line">{msg.content}</div>
                       <p className={`text-xs mt-1 ${
                         msg.type === 'user' ? 'text-blue-100' : 'text-gray-500'
                       }`}>
