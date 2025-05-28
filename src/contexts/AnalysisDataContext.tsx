@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -65,6 +66,23 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
   });
   const [isLoading, setIsLoading] = useState(true);
 
+  // Mapeamento correto dos insight_types para os assistentes reais da plataforma
+  const getAssistantByInsightType = (insightType: string) => {
+    const assistantMap: { [key: string]: { name: string; area: string } } = {
+      'emotional': { name: 'Oráculo das Sombras', area: 'psicologia' },
+      'behavioral': { name: 'Oráculo das Sombras', area: 'psicologia' },
+      'growth': { name: 'Tecelão da Alma', area: 'proposito' },
+      'financial': { name: 'Guardião dos Recursos', area: 'financeiro' },
+      'health': { name: 'Engenheiro do Corpo', area: 'saude' },
+      'strategy': { name: 'Arquiteto do Jogo', area: 'estrategia' },
+      'creativity': { name: 'Catalisador', area: 'criatividade' },
+      'relationships': { name: 'Espelho Social', area: 'relacionamentos' },
+      'general': { name: 'Kairon', area: 'geral' }
+    };
+
+    return assistantMap[insightType] || assistantMap['general'];
+  };
+
   const refreshData = async () => {
     if (!user?.id) {
       setData(prev => ({ ...prev, hasRealData: false }));
@@ -125,29 +143,26 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
 
       console.log('💬 Conversações encontradas:', conversationsData?.length || 0);
 
-      // Processar insights com informações dos assistentes REAIS
+      // Processar insights com mapeamento correto para assistentes REAIS
       const processedInsights = (insightsData || []).map(insight => {
-        // O campo insight_type será usado como referência para o assistente
-        const assistantFromConfig = assistants.find(a => 
-          a.area?.toLowerCase() === insight.insight_type?.toLowerCase() ||
-          a.name?.toLowerCase().includes(insight.insight_type?.toLowerCase())
-        );
+        // Usar mapeamento direto do insight_type para assistente real
+        const assistantInfo = getAssistantByInsightType(insight.insight_type);
         
         console.log('🔍 DEBUG - Processando insight:', {
           insight_id: insight.id,
           insight_type: insight.insight_type,
-          assistant_found: assistantFromConfig?.name,
+          assistant_mapped: assistantInfo.name,
           title: insight.title
         });
 
         return {
           ...insight,
-          text: insight.description, // Usar description como text
-          assistantName: assistantFromConfig?.name || `Assistente ${insight.insight_type}`,
-          assistantArea: assistantFromConfig?.area || insight.insight_type?.toLowerCase() || 'geral',
+          text: insight.description,
+          assistantName: assistantInfo.name,
+          assistantArea: assistantInfo.area,
           priority: insight.priority || 'medium',
           createdAt: insight.created_at,
-          category: insight.insight_type || assistantFromConfig?.area || 'geral'
+          category: assistantInfo.area
         };
       });
 
@@ -182,11 +197,11 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
 
       // Áreas da vida baseadas nos insights
       const lifeAreas = [
-        { name: 'Carreira', score: 78, insights: processedInsights.filter(i => i.category === 'carreira').length },
+        { name: 'Carreira', score: 78, insights: processedInsights.filter(i => i.category === 'estrategia').length },
         { name: 'Relacionamentos', score: 72, insights: processedInsights.filter(i => i.category === 'relacionamentos').length },
         { name: 'Saúde', score: 85, insights: processedInsights.filter(i => i.category === 'saude').length },
         { name: 'Finanças', score: 65, insights: processedInsights.filter(i => i.category === 'financeiro').length },
-        { name: 'Desenvolvimento', score: 90, insights: processedInsights.filter(i => i.category === 'desenvolvimento').length }
+        { name: 'Desenvolvimento', score: 90, insights: processedInsights.filter(i => i.category === 'proposito').length }
       ];
 
       // Dados para o radar chart (formato diferente)
@@ -233,15 +248,7 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
         insightsWithAssistant: processedInsights,
         recommendations: processedRecommendations,
         recommendationsWithAssistant: processedRecommendations,
-        emotionalData: hasRealData ? [
-          { name: 'Alegria', value: 75 },
-          { name: 'Ansiedade', value: 35 },
-          { name: 'Confiança', value: 80 },
-          { name: 'Estresse', value: 40 },
-          { name: 'Motivação', value: 85 },
-          { name: 'Foco', value: 70 },
-          { name: 'Energia', value: 78 }
-        ] : [],
+        emotionalData: hasRealData ? emotionalData : [],
         conversations: conversationsData || [],
         psychologicalProfile: hasRealData ? 'Analítico-Criativo' : null,
         skillsData: hasRealData ? [
@@ -249,41 +256,11 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
           { title: 'Liderança', value: '78%', trend: '+3%' },
           { title: 'Criatividade', value: '92%', trend: '+7%' }
         ] : [],
-        lifeAreas: hasRealData ? [
-          { name: 'Carreira', score: 78, insights: processedInsights.filter(i => i.category === 'carreira').length },
-          { name: 'Relacionamentos', score: 72, insights: processedInsights.filter(i => i.category === 'relacionamentos').length },
-          { name: 'Saúde', score: 85, insights: processedInsights.filter(i => i.category === 'saude').length },
-          { name: 'Finanças', score: 65, insights: processedInsights.filter(i => i.category === 'financeiro').length },
-          { name: 'Desenvolvimento', score: 90, insights: processedInsights.filter(i => i.category === 'desenvolvimento').length }
-        ] : [],
-        lifeAreasData: hasRealData ? [
-          { subject: 'Carreira', A: 78, fullMark: 100 },
-          { subject: 'Relacionamentos', A: 72, fullMark: 100 },
-          { subject: 'Saúde', A: 85, fullMark: 100 },
-          { subject: 'Finanças', A: 65, fullMark: 100 },
-          { subject: 'Desenvolvimento', A: 90, fullMark: 100 }
-        ] : [],
-        bigFiveData: hasRealData ? [
-          { name: 'Abertura', value: 85, description: 'Criatividade e curiosidade' },
-          { name: 'Conscienciosidade', value: 78, description: 'Organização e disciplina' },
-          { name: 'Extroversão', value: 72, description: 'Sociabilidade e energia' },
-          { name: 'Amabilidade', value: 88, description: 'Cooperação e confiança' },
-          { name: 'Neuroticismo', value: 35, description: 'Estabilidade emocional' }
-        ] : [],
-        discProfile: hasRealData ? {
-          dominance: 65,
-          influence: 78,
-          steadiness: 72,
-          compliance: 55,
-          primaryType: 'Influente (I)'
-        } : null,
-        mbtiProfile: hasRealData ? {
-          extroversion: 72,
-          sensing: 45,
-          thinking: 68,
-          judging: 75,
-          approximateType: 'ESTJ'
-        } : null,
+        lifeAreas: hasRealData ? lifeAreas : [],
+        lifeAreasData: hasRealData ? lifeAreasData : [],
+        bigFiveData: hasRealData ? bigFiveData : [],
+        discProfile: hasRealData ? discProfile : null,
+        mbtiProfile: hasRealData ? mbtiProfile : null,
         emotionalState: hasRealData ? "Equilibrado" : "Aguardando análise",
         mainFocus: hasRealData ? "Desenvolvimento pessoal" : "Configure assistentes",
         relationalAwareness: hasRealData ? 75 : 0,

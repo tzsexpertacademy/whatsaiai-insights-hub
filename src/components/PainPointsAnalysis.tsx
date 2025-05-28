@@ -24,28 +24,32 @@ export function PainPointsAnalysis() {
 
   // Processar insights dos assistentes para extrair dores
   const extractPainPointsFromInsights = () => {
-    if (!data.insights || data.insights.length === 0) return [];
+    if (!data.insightsWithAssistant || data.insightsWithAssistant.length === 0) return [];
 
-    return data.insights
+    // Buscar por insights que contenham palavras-chave de dor/problema
+    return data.insightsWithAssistant
       .filter(insight => 
-        insight.text?.toLowerCase().includes('dor') ||
-        insight.text?.toLowerCase().includes('problema') ||
-        insight.text?.toLowerCase().includes('dificuldade') ||
-        insight.text?.toLowerCase().includes('ansiedade') ||
-        insight.text?.toLowerCase().includes('estresse') ||
-        insight.text?.toLowerCase().includes('preocupação')
+        insight.description?.toLowerCase().includes('dor') ||
+        insight.description?.toLowerCase().includes('problema') ||
+        insight.description?.toLowerCase().includes('dificuldade') ||
+        insight.description?.toLowerCase().includes('ansiedade') ||
+        insight.description?.toLowerCase().includes('estresse') ||
+        insight.description?.toLowerCase().includes('preocupação') ||
+        insight.description?.toLowerCase().includes('bloqueio') ||
+        insight.description?.toLowerCase().includes('resistência') ||
+        insight.priority === 'high' // Insights de alta prioridade também são considerados pontos de dor
       )
-      .map((insight, index) => ({
+      .map((insight) => ({
         id: insight.id,
-        title: insight.text?.substring(0, 50) + '...' || 'Dor Identificada',
-        description: insight.text,
+        title: insight.title || 'Dor Identificada',
+        description: insight.description,
         severity: insight.priority === 'high' ? 'alta' as const : 
                  insight.priority === 'low' ? 'baixa' as const : 'média' as const,
-        category: 'Emocional',
+        category: insight.assistantArea || 'Emocional',
         firstDetected: insight.created_at,
         frequency: Math.floor(Math.random() * 10) + 1,
-        assistantName: 'Oráculo das Sombras',
-        assistantArea: 'Psicologia'
+        assistantName: insight.assistantName,
+        assistantArea: insight.assistantArea
       }));
   };
 
@@ -124,7 +128,7 @@ export function PainPointsAnalysis() {
               </p>
               <div className="text-left text-sm text-gray-600 space-y-1">
                 <p>• Execute análises por IA no dashboard</p>
-                <p>• O Oráculo das Sombras identificará padrões problemáticos</p>
+                <p>• Os assistentes identificarão padrões problemáticos</p>
                 <p>• Histórico de evolução será mapeado</p>
               </div>
             </div>
@@ -144,7 +148,7 @@ export function PainPointsAnalysis() {
       
       <div className="flex items-center gap-2 mb-4">
         <Badge variant="outline" className="bg-purple-50 text-purple-700">
-          🔮 Análise do Oráculo das Sombras
+          🔮 Análise dos Assistentes da Plataforma
         </Badge>
         <Badge variant="outline" className="bg-blue-50 text-blue-700">
           {painPoints.length} dores identificadas
@@ -263,7 +267,7 @@ export function PainPointsAnalysis() {
       <Card className="bg-white/70 backdrop-blur-sm border-white/50">
         <CardHeader>
           <CardTitle>Dores Identificadas pelos Assistentes</CardTitle>
-          <CardDescription>Análise detalhada das dores detectadas pelo Oráculo das Sombras</CardDescription>
+          <CardDescription>Análise detalhada das dores detectadas pelos assistentes da plataforma</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
