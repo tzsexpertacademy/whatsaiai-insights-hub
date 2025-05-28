@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -17,7 +16,9 @@ import {
   Sparkles,
   ChevronUp,
   ChevronDown,
-  Menu
+  Menu,
+  Brain,
+  BarChart3
 } from 'lucide-react';
 import { useAssistantsConfig } from '@/hooks/useAssistantsConfig';
 import { useVoiceRecording } from '@/hooks/useVoiceRecording';
@@ -26,6 +27,7 @@ import { VoiceRecordButton } from '@/components/VoiceRecordButton';
 import { useToast } from "@/hooks/use-toast";
 import { useClientConfig } from '@/contexts/ClientConfigContext';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useAIReportUpdate } from '@/hooks/useAIReportUpdate';
 
 interface Message {
   id: number;
@@ -52,6 +54,7 @@ export function ChatWithAssistants() {
   const { transcribeAudio, isTranscribing } = useVoiceTranscription();
   const { toast } = useToast();
   const isMobile = useIsMobile();
+  const { updateReport, isUpdating } = useAIReportUpdate();
 
   // Verificar se OpenAI está configurada
   const isOpenAIConfigured = config.openai?.apiKey && config.openai.apiKey.startsWith('sk-');
@@ -296,7 +299,7 @@ INSTRUÇÕES PARA CHAT REAL:
 
   return (
     <div className="w-full max-w-7xl mx-auto p-2 lg:p-6 space-y-4 lg:space-y-6 min-h-screen">
-      {/* Header Mobile/Desktop */}
+      {/* Header com Botão de IA */}
       <div className="text-center space-y-2 lg:space-y-4">
         <div className="flex justify-center">
           <div className="w-12 h-12 lg:w-16 lg:h-16 bg-gradient-to-r from-green-500 to-blue-600 rounded-full flex items-center justify-center">
@@ -307,6 +310,31 @@ INSTRUÇÕES PARA CHAT REAL:
         <p className="text-sm lg:text-lg text-gray-600 max-w-2xl mx-auto px-4">
           Conversas REAIS processadas pela OpenAI
         </p>
+        
+        {/* Botão de Atualizar Relatórios com IA */}
+        {isOpenAIConfigured && (
+          <div className="flex justify-center pt-2">
+            <Button
+              onClick={updateReport}
+              disabled={isUpdating}
+              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg"
+              size={isMobile ? "sm" : "default"}
+            >
+              {isUpdating ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  {isMobile ? 'Analisando...' : 'Analisando conversas com IA...'}
+                </>
+              ) : (
+                <>
+                  <Brain className="w-4 h-4 mr-2" />
+                  <BarChart3 className="w-3 h-3 mr-1" />
+                  {isMobile ? 'Atualizar Relatórios IA' : 'Atualizar Todos os Relatórios com IA'}
+                </>
+              )}
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Status da Conexão */}
