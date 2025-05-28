@@ -9,338 +9,230 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { userId, openaiApiKey, model = 'gpt-4o-mini', temperature = 0.7, maxTokens = 1000 } = await req.json();
-
-    if (!userId || !openaiApiKey) {
-      throw new Error('userId e openaiApiKey são obrigatórios');
-    }
-
-    console.log('🤖 Iniciando análise multi-assistente para usuário:', userId);
-
-    // Inicializar cliente Supabase
+    console.log('🔍 Analyze Conversation - Iniciando análise');
+    
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
+    
+    if (!openaiApiKey) {
+      console.error('❌ OpenAI API key não configurada');
+      return new Response(
+        JSON.stringify({ error: 'OpenAI API key não configurada' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const supabase = createClient(supabaseUrl, supabaseKey);
-
-    // Buscar conversas do usuário
-    const { data: conversations, error: conversationsError } = await supabase
-      .from('whatsapp_conversations')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-      .limit(10);
-
-    if (conversationsError) {
-      console.error('❌ Erro ao buscar conversas:', conversationsError);
-      throw conversationsError;
+    
+    // Verificar autenticação
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Token de autorização necessário' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    // Buscar configuração dos assistentes
-    const { data: clientConfig, error: configError } = await supabase
-      .from('client_configs')
-      .select('*')
-      .eq('user_id', userId)
-      .single();
-
-    if (configError) {
-      console.error('❌ Erro ao buscar configuração:', configError);
-    }
-
-    // Assistentes padrão caso não haja configuração
-    const defaultAssistants = [
-      {
-        id: 'oracle',
-        name: 'Oráculo das Sombras',
-        prompt: `Você é o Oráculo das Sombras, especialista em psicologia profunda. Analise padrões inconscientes, traços de personalidade e aspectos emocionais. 
-
-Responda com insights específicos sobre:
-- Traços psicológicos identificados
-- Padrões emocionais
-- Aspectos inconscientes
-- Pontos de desenvolvimento pessoal
-
-Use linguagem clara e construtiva.`,
-        isActive: true,
-        area: 'psicologia'
-      },
-      {
-        id: 'guardian',
-        name: 'Guardião dos Recursos',
-        prompt: `Você é o Guardião dos Recursos, mentor financeiro especializado. Analise padrões financeiros e de gestão de recursos.
-
-Responda com insights sobre:
-- Comportamentos financeiros
-- Relação com dinheiro e recursos
-- Oportunidades de melhoria financeira
-- Planejamento e organização
-
-Seja prático e orientado a resultados.`,
-        isActive: true,
-        area: 'financeiro'
-      },
-      {
-        id: 'engineer',
-        name: 'Engenheiro do Corpo',
-        prompt: `Você é o Engenheiro do Corpo, especialista em saúde e bem-estar físico. Analise padrões relacionados à saúde física.
-
-Responda com insights sobre:
-- Cuidados com a saúde física
-- Padrões de energia e vitalidade
-- Hábitos de bem-estar
-- Otimização do desempenho físico
-
-Seja motivador e focado na saúde.`,
-        isActive: true,
-        area: 'saude'
-      },
-      {
-        id: 'architect',
-        name: 'Arquiteto do Jogo',
-        prompt: `Você é o Arquiteto do Jogo, estrategista de vida. Analise padrões de planejamento e execução de objetivos.
-
-Responda com insights sobre:
-- Estratégias de vida e carreira
-- Planejamento e organização
-- Tomada de decisões
-- Execução de metas
-
-Seja estratégico e orientado a objetivos.`,
-        isActive: true,
-        area: 'estrategia'
-      },
-      {
-        id: 'weaver',
-        name: 'Tecelão da Alma',
-        prompt: `Você é o Tecelão da Alma, especialista em propósito e significado. Analise conexões com valores e propósito de vida.
-
-Responda com insights sobre:
-- Propósito e significado de vida
-- Valores fundamentais
-- Direcionamento existencial
-- Crescimento espiritual
-
-Seja inspirador e profundo.`,
-        isActive: true,
-        area: 'proposito'
-      },
-      {
-        id: 'catalyst',
-        name: 'Catalisador',
-        prompt: `Você é o Catalisador, especialista em criatividade e inovação. Analise padrões criativos e de inovação.
-
-Responda com insights sobre:
-- Potencial criativo
-- Bloqueios e limitações
-- Oportunidades de inovação
-- Expressão pessoal
-
-Seja criativo e inspirador.`,
-        isActive: true,
-        area: 'criatividade'
-      },
-      {
-        id: 'mirror',
-        name: 'Espelho Social',
-        prompt: `Você é o Espelho Social, especialista em relacionamentos e comunicação. Analise padrões sociais e relacionais.
-
-Responda com insights sobre:
-- Habilidades de comunicação
-- Padrões relacionais
-- Inteligência social
-- Vínculos e conexões
-
-Seja empático e focado nas relações.`,
-        isActive: true,
-        area: 'relacionamentos'
-      }
-    ];
-
-    // Usar assistentes configurados ou padrão
-    let assistants = defaultAssistants;
-    if (clientConfig?.openai_config?.assistants) {
-      const configuredAssistants = clientConfig.openai_config.assistants;
-      assistants = configuredAssistants.filter((ast: any) => ast.isActive && !ast.canRespond);
-    }
-
-    console.log(`📊 Usando ${assistants.length} assistentes para análise`);
-
-    if (!conversations || conversations.length === 0) {
-      console.log('⚠️ Nenhuma conversa encontrada, criando análise de exemplo');
-      
-      // Criar insights de exemplo com informações do assistente
-      const exampleInsights = [
-        { text: 'Personalidade introspectiva com tendência à reflexão profunda e autoconhecimento', assistant: defaultAssistants[0] },
-        { text: 'Consciência emergente sobre gestão de recursos e planejamento futuro', assistant: defaultAssistants[1] },
-        { text: 'Interesse crescente em otimização de bem-estar e cuidados corporais', assistant: defaultAssistants[2] },
-        { text: 'Foco em desenvolvimento pessoal e construção de objetivos claros', assistant: defaultAssistants[3] },
-        { text: 'Busca por significado e alinhamento com valores fundamentais', assistant: defaultAssistants[4] },
-        { text: 'Potencial criativo em desenvolvimento com abertura para novas experiências', assistant: defaultAssistants[5] },
-        { text: 'Habilidades sociais em crescimento com foco em conexões autênticas', assistant: defaultAssistants[6] }
-      ];
-
-      // Salvar insights de exemplo com metadados do assistente
-      for (const insight of exampleInsights) {
-        try {
-          await supabase
-            .from('insights')
-            .insert({
-              user_id: userId,
-              title: `Análise - ${insight.assistant.name}`,
-              description: insight.text,
-              insight_type: 'ai_analysis',
-              priority: 'medium',
-              status: 'active',
-              metadata: {
-                assistant_id: insight.assistant.id,
-                assistant_name: insight.assistant.name,
-                assistant_area: insight.assistant.area
-              }
-            });
-        } catch (error) {
-          console.error('❌ Erro ao salvar insight:', error);
-        }
-      }
-
-      return new Response(JSON.stringify({
-        success: true,
-        insights_generated: exampleInsights.length,
-        assistants_used: assistants.map(a => a.name),
-        timestamp: new Date().toISOString()
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    // Preparar dados das conversas
-    const conversationData = conversations.map(conv => ({
-      contact: conv.contact_name,
-      messages: conv.messages,
-      emotional_analysis: conv.emotional_analysis,
-      psychological_profile: conv.psychological_profile
-    }));
-
-    console.log('🔍 Iniciando análises individuais dos assistentes...');
-
-    // Executar análises de cada assistente
-    const assistantAnalyses = await Promise.all(
-      assistants.map(async (assistant) => {
-        try {
-          console.log(`🤖 Analisando com ${assistant.name}...`);
-          
-          const assistantPrompt = `
-Analise as seguintes conversas de WhatsApp da sua perspectiva especializada em ${assistant.area}:
-
-${JSON.stringify(conversationData, null, 2)}
-
-Forneça insights específicos da sua área de especialização. Seja direto, construtivo e focado nos padrões que identifica.
-
-Responda em português, de forma clara e objetiva.
-`;
-
-          const response = await fetch('https://api.openai.com/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${openaiApiKey}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              model: assistant.model || model,
-              messages: [
-                { role: 'system', content: assistant.prompt },
-                { role: 'user', content: assistantPrompt }
-              ],
-              temperature: temperature,
-              max_tokens: maxTokens
-            }),
-          });
-
-          if (!response.ok) {
-            throw new Error(`Erro na API OpenAI para ${assistant.name}: ${response.status}`);
-          }
-
-          const data = await response.json();
-          const analysis = data.choices[0].message.content;
-
-          return {
-            assistant: assistant.name,
-            assistantId: assistant.id,
-            area: assistant.area,
-            analysis: analysis
-          };
-
-        } catch (error) {
-          console.error(`❌ Erro na análise do ${assistant.name}:`, error);
-          return {
-            assistant: assistant.name,
-            assistantId: assistant.id,
-            area: assistant.area,
-            analysis: `Insight de ${assistant.name}: Aguardando nova análise baseada em mais dados de conversa.`
-          };
-        }
-      })
+    const { data: { user }, error: authError } = await supabase.auth.getUser(
+      authHeader.replace('Bearer ', '')
     );
 
-    console.log('✅ Consolidando análises dos assistentes...');
+    if (authError || !user) {
+      console.error('❌ Erro de autenticação:', authError);
+      return new Response(
+        JSON.stringify({ error: 'Usuário não autenticado' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
-    // Salvar insights consolidados no banco com informações do assistente
-    const savedInsights = [];
-    for (const assistantAnalysis of assistantAnalyses) {
-      try {
-        const { data: savedInsight } = await supabase
-          .from('insights')
+    console.log('✅ Usuário autenticado:', user.id);
+
+    const { messages, conversationType = 'personal' } = await req.json();
+
+    if (!messages || !Array.isArray(messages)) {
+      return new Response(
+        JSON.stringify({ error: 'Mensagens inválidas' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log(`📊 Analisando ${messages.length} mensagens do tipo: ${conversationType}`);
+
+    // Prompt base para análise
+    const analysisPrompt = conversationType === 'commercial' 
+      ? getCommercialAnalysisPrompt(messages)
+      : getPersonalAnalysisPrompt(messages);
+
+    // Chamar OpenAI para análise
+    console.log('🤖 Enviando para OpenAI...');
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openaiApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: analysisPrompt
+          },
+          {
+            role: 'user',
+            content: `Analise esta conversa: ${JSON.stringify(messages.slice(-10))}`
+          }
+        ],
+        temperature: 0.3,
+        max_tokens: 2000,
+      }),
+    });
+
+    if (!response.ok) {
+      console.error('❌ Erro na OpenAI:', response.status);
+      throw new Error(`Erro na OpenAI: ${response.status}`);
+    }
+
+    const aiResponse = await response.json();
+    const analysisText = aiResponse.choices[0].message.content;
+
+    console.log('✅ Análise gerada pela OpenAI');
+
+    // Parse da análise
+    let analysis;
+    try {
+      analysis = JSON.parse(analysisText);
+    } catch (parseError) {
+      console.error('❌ Erro ao fazer parse da análise:', parseError);
+      // Fallback: criar análise básica
+      analysis = {
+        emotional_state: { dominant_emotion: 'neutro', intensity: 5 },
+        psychological_profile: { openness: 5, conscientiousness: 5, extraversion: 5, agreeableness: 5, neuroticism: 3 },
+        life_areas: { career: 5, relationships: 5, health: 5, finance: 5, personal_growth: 5 },
+        insights: [{ type: 'general', title: 'Análise processada', description: 'Conversação analisada com sucesso' }]
+      };
+    }
+
+    // Salvar análise no banco
+    const table = conversationType === 'commercial' ? 'commercial_insights' : 'insights';
+    
+    if (analysis.insights && Array.isArray(analysis.insights)) {
+      for (const insight of analysis.insights) {
+        const { error: insertError } = await supabase
+          .from(table)
           .insert({
-            user_id: userId,
-            title: `Análise - ${assistantAnalysis.assistant}`,
-            description: assistantAnalysis.analysis,
-            insight_type: 'ai_analysis',
-            priority: 'medium',
-            status: 'active',
-            metadata: {
-              assistant_id: assistantAnalysis.assistantId,
-              assistant_name: assistantAnalysis.assistant,
-              assistant_area: assistantAnalysis.area
-            }
-          })
-          .select()
-          .single();
+            user_id: user.id,
+            insight_type: insight.type || 'general',
+            title: insight.title || 'Insight gerado',
+            description: insight.description || 'Análise automática',
+            priority: insight.priority || 'medium',
+            ...(conversationType === 'commercial' && {
+              sales_impact: insight.sales_impact || 'medium'
+            })
+          });
 
-        if (savedInsight) {
-          savedInsights.push(savedInsight);
+        if (insertError) {
+          console.error('❌ Erro ao salvar insight:', insertError);
         }
-      } catch (error) {
-        console.error('❌ Erro ao salvar insight:', error);
       }
     }
 
-    console.log('✅ Análise multi-assistente concluída');
+    console.log('✅ Análise salva no banco de dados');
 
-    return new Response(JSON.stringify({
-      success: true,
-      insights_generated: savedInsights.length,
-      assistants_used: assistants.map(a => a.name),
-      assistant_analyses: assistantAnalyses.map(a => ({
-        assistant: a.assistant,
-        area: a.area,
-        preview: a.analysis.substring(0, 100) + '...'
-      })),
-      timestamp: new Date().toISOString()
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return new Response(
+      JSON.stringify({
+        success: true,
+        analysis,
+        insights_saved: analysis.insights?.length || 0
+      }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
 
   } catch (error) {
-    console.error('❌ Erro na análise multi-assistente:', error);
-    return new Response(JSON.stringify({ 
-      error: error.message,
-      success: false 
-    }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    console.error('❌ Erro na análise:', error);
+    return new Response(
+      JSON.stringify({ 
+        error: 'Erro interno do servidor',
+        details: error.message 
+      }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
   }
 });
+
+function getPersonalAnalysisPrompt(messages: any[]): string {
+  return `Você é um especialista em análise comportamental e psicológica. Analise esta conversa e retorne um JSON com:
+
+{
+  "emotional_state": {
+    "dominant_emotion": "alegria|tristeza|ansiedade|raiva|medo|neutro",
+    "intensity": 1-10,
+    "stability": "estável|instável|flutuante"
+  },
+  "psychological_profile": {
+    "openness": 1-10,
+    "conscientiousness": 1-10,
+    "extraversion": 1-10,
+    "agreeableness": 1-10,
+    "neuroticism": 1-10
+  },
+  "life_areas": {
+    "career": 1-10,
+    "relationships": 1-10,
+    "health": 1-10,
+    "finance": 1-10,
+    "personal_growth": 1-10
+  },
+  "insights": [
+    {
+      "type": "emotional|behavioral|cognitive|social",
+      "title": "Título do insight",
+      "description": "Descrição detalhada",
+      "priority": "high|medium|low"
+    }
+  ]
+}
+
+Seja preciso e baseie-se no conteúdo real das mensagens.`;
+}
+
+function getCommercialAnalysisPrompt(messages: any[]): string {
+  return `Você é um especialista em análise comercial e vendas. Analise esta conversa comercial e retorne um JSON com:
+
+{
+  "sales_analysis": {
+    "intent_score": 1-10,
+    "urgency": "high|medium|low",
+    "budget_indication": "high|medium|low|unknown",
+    "decision_maker": true|false
+  },
+  "conversion_metrics": {
+    "engagement_level": 1-10,
+    "objection_count": 0-10,
+    "closing_readiness": 1-10
+  },
+  "insights": [
+    {
+      "type": "conversion|behavioral|process|performance",
+      "title": "Título do insight comercial",
+      "description": "Descrição detalhada",
+      "sales_impact": "high|medium|low",
+      "priority": "high|medium|low"
+    }
+  ]
+}
+
+Foque em aspectos comerciais: intenção de compra, objeções, comportamento do lead.`;
+}

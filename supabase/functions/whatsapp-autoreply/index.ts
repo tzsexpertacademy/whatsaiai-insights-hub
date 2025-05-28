@@ -1,166 +1,206 @@
 
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import "https://deno.land/x/xhr@0.1.0/mod.ts";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+};
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { phoneNumber, message, contactName } = await req.json()
+    console.log('📱 WhatsApp Auto-Reply - Webhook recebido');
     
-    const openaiApiKey = Deno.env.get('OPENAI_API_KEY')
-    if (!openaiApiKey) {
-      throw new Error('OpenAI API key não configurada')
-    }
-
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    const supabase = createClient(supabaseUrl, supabaseKey)
-
-    // Buscar histórico de conversas para contexto
-    const { data: conversations } = await supabase
-      .from('whatsapp_conversations')
-      .select('messages, psychological_profile, emotional_analysis')
-      .eq('contact_phone', phoneNumber)
-      .order('created_at', { ascending: false })
-      .limit(1)
-
-    let context = ''
-    let profile = null
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
     
-    if (conversations && conversations.length > 0) {
-      const conv = conversations[0]
-      profile = conv.psychological_profile
-      
-      // Últimas 5 mensagens para contexto
-      const recentMessages = (conv.messages as any[]).slice(-5)
-      context = recentMessages.map(msg => `${msg.sender}: ${msg.text}`).join('\n')
-    }
-
-    // Gerar resposta com OpenAI
-    const systemPrompt = `Você é um assistente conselheiro especializado em bem-estar emocional e psicológico.
-
-CONTEXTO DO CLIENTE:
-${profile ? `
-Perfil Psicológico:
-- Traços de personalidade: ${profile.personality_traits?.join(', ') || 'N/A'}
-- Estilo de comunicação: ${profile.communication_style || 'N/A'}
-- Áreas de preocupação: ${profile.areas_of_concern?.join(', ') || 'N/A'}
-- Pontos fortes: ${profile.strengths?.join(', ') || 'N/A'}
-` : 'Perfil ainda não disponível - primeira interação'}
-
-HISTÓRICO RECENTE:
-${context || 'Sem histórico anterior'}
-
-DIRETRIZES:
-1. Seja empático e acolhedor
-2. Use técnicas de aconselhamento apropriadas
-3. Mantenha respostas concisas mas significativas
-4. Se detectar sinais de crise, sugira buscar ajuda profissional
-5. Adapte sua linguagem ao perfil do cliente
-6. Foque no bem-estar emocional
-
-Responda à mensagem do cliente de forma personalizada e terapêutica.`
-
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openaiApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: message }
-        ],
-        temperature: 0.7,
-        max_tokens: 300
-      }),
-    })
-
-    const aiData = await response.json()
-    const aiReply = aiData.choices[0].message.content
-
-    // Salvar mensagem recebida e resposta gerada
-    const timestamp = new Date().toISOString()
+    const supabase = createClient(supabaseUrl, supabaseKey);
     
-    // Buscar ou criar conversa
-    let conversationId = null
-    
-    if (conversations && conversations.length > 0) {
-      // Atualizar conversa existente
-      const conv = conversations[0]
-      const updatedMessages = [...(conv.messages as any[]), 
-        { sender: contactName, text: message, timestamp },
-        { sender: 'assistant', text: aiReply, timestamp: new Date().toISOString() }
-      ]
-      
-      const { data: updated } = await supabase
+    const webhookData = await req.json();
+    console.log('📥 Dados do webhook:', JSON.stringify(webhookData, null, 2));
+
+    // Processar mensagem do WhatsApp
+    if (webhookData.messages && webhookData.messages.length > 0) {
+      const message = webhookData.messages[0];
+      const contactPhone = message.from;
+      const messageText = message.text?.body || '';
+      const contactName = message.profile?.name || `Contato ${contactPhone}`;
+
+      console.log(`💬 Nova mensagem de ${contactName}: ${messageText}`);
+
+      // Salvar mensagem no banco
+      const { data: conversation, error: convError } = await supabase
         .from('whatsapp_conversations')
-        .update({ messages: updatedMessages })
-        .eq('contact_phone', phoneNumber)
-        .select('id')
-        .single()
-        
-      conversationId = updated?.id
-    } else {
-      // Criar nova conversa
-      const { data: newConv } = await supabase
-        .from('whatsapp_conversations')
-        .insert({
-          contact_name: contactName,
-          contact_phone: phoneNumber,
-          messages: [
-            { sender: contactName, text: message, timestamp },
-            { sender: 'assistant', text: aiReply, timestamp: new Date().toISOString() }
-          ]
-        })
-        .select('id')
-        .single()
-        
-      conversationId = newConv?.id
-    }
+        .select('*')
+        .eq('contact_phone', contactPhone)
+        .single();
 
-    // Salvar mensagens individuais
-    if (conversationId) {
-      await supabase.from('whatsapp_messages').insert([
-        {
-          conversation_id: conversationId,
-          message_text: message,
-          sender_type: 'client',
-          timestamp
-        },
-        {
-          conversation_id: conversationId,
-          message_text: aiReply,
-          sender_type: 'assistant',
-          ai_generated: true,
-          timestamp: new Date().toISOString()
+      let conversationId;
+      
+      if (convError || !conversation) {
+        // Criar nova conversa
+        const { data: newConv, error: newError } = await supabase
+          .from('whatsapp_conversations')
+          .insert({
+            contact_name: contactName,
+            contact_phone: contactPhone,
+            messages: [{ 
+              text: messageText, 
+              sender: 'customer', 
+              timestamp: new Date().toISOString() 
+            }]
+          })
+          .select()
+          .single();
+
+        if (newError) {
+          console.error('❌ Erro ao criar conversa:', newError);
+          throw newError;
         }
-      ])
+        
+        conversationId = newConv.id;
+        console.log('✅ Nova conversa criada:', conversationId);
+      } else {
+        // Atualizar conversa existente
+        const updatedMessages = [...(conversation.messages || []), {
+          text: messageText,
+          sender: 'customer',
+          timestamp: new Date().toISOString()
+        }];
+
+        const { error: updateError } = await supabase
+          .from('whatsapp_conversations')
+          .update({ 
+            messages: updatedMessages,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', conversation.id);
+
+        if (updateError) {
+          console.error('❌ Erro ao atualizar conversa:', updateError);
+          throw updateError;
+        }
+
+        conversationId = conversation.id;
+        console.log('✅ Conversa atualizada:', conversationId);
+      }
+
+      // Salvar mensagem individual
+      await supabase
+        .from('whatsapp_messages')
+        .insert({
+          conversation_id: conversationId,
+          sender_type: 'customer',
+          message_text: messageText,
+          timestamp: new Date().toISOString()
+        });
+
+      // Gerar resposta automática se OpenAI estiver configurada
+      if (openaiApiKey && messageText.trim()) {
+        console.log('🤖 Gerando resposta automática...');
+        
+        const systemPrompt = `Você é um assistente virtual especializado em atendimento ao cliente via WhatsApp. 
+        
+        Diretrizes:
+        - Seja cordial, profissional e empático
+        - Responda em português brasileiro
+        - Mantenha respostas concisas (máximo 2 parágrafos)
+        - Identifique-se como assistente virtual
+        - Ofereça ajuda específica baseada na mensagem
+        - Se não souber algo, seja honesto e ofereça contato humano
+        
+        Contexto: Esta é uma conversa via WhatsApp com um cliente.`;
+
+        const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${openaiApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'gpt-4o-mini',
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: messageText }
+            ],
+            temperature: 0.7,
+            max_tokens: 300,
+          }),
+        });
+
+        if (aiResponse.ok) {
+          const aiData = await aiResponse.json();
+          const replyText = aiData.choices[0].message.content;
+
+          console.log('💬 Resposta gerada:', replyText);
+
+          // Salvar resposta no banco
+          const updatedConversation = await supabase
+            .from('whatsapp_conversations')
+            .select('messages')
+            .eq('id', conversationId)
+            .single();
+
+          if (updatedConversation.data) {
+            const newMessages = [...(updatedConversation.data.messages || []), {
+              text: replyText,
+              sender: 'assistant',
+              timestamp: new Date().toISOString(),
+              ai_generated: true
+            }];
+
+            await supabase
+              .from('whatsapp_conversations')
+              .update({ 
+                messages: newMessages,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', conversationId);
+
+            await supabase
+              .from('whatsapp_messages')
+              .insert({
+                conversation_id: conversationId,
+                sender_type: 'assistant',
+                message_text: replyText,
+                ai_generated: true,
+                timestamp: new Date().toISOString()
+              });
+
+            console.log('✅ Resposta automática salva');
+          }
+
+          // Aqui você pode integrar com sua plataforma de WhatsApp
+          // para enviar a resposta de volta ao cliente
+          // Exemplo: await sendWhatsAppMessage(contactPhone, replyText);
+        }
+      }
     }
 
-    return new Response(JSON.stringify({
-      success: true,
-      reply: aiReply,
-      conversation_id: conversationId
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    })
+    return new Response(
+      JSON.stringify({ success: true, message: 'Webhook processado' }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
 
   } catch (error) {
-    console.error('Error:', error)
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    })
+    console.error('❌ Erro no webhook WhatsApp:', error);
+    return new Response(
+      JSON.stringify({ 
+        error: 'Erro no processamento do webhook',
+        details: error.message 
+      }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
   }
-})
+});
