@@ -9,6 +9,7 @@ import { AdminProvider } from "@/contexts/AdminContext";
 import { ClientConfigProvider } from "@/contexts/ClientConfigContext";
 import { AnalysisDataProvider } from "@/contexts/AnalysisDataContext";
 import { ThemeProvider } from "@/hooks/useTheme";
+import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppRouter } from "@/components/AppRouter";
 
 const queryClient = new QueryClient();
@@ -24,7 +25,9 @@ const App = () => (
             <AdminProvider>
               <ClientConfigProvider>
                 <AnalysisDataProvider>
-                  <AppRouter />
+                  <SidebarProvider defaultOpen={true}>
+                    <AppRouter />
+                  </SidebarProvider>
                 </AnalysisDataProvider>
               </ClientConfigProvider>
             </AdminProvider>
