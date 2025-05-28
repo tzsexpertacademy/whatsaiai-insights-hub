@@ -103,14 +103,6 @@ export function MetricCards() {
             <RefreshCw className="w-4 h-4 mr-2" />
             Atualizar
           </Button>
-          <Button 
-            onClick={() => navigate('/chat')} 
-            size="sm"
-            className="bg-blue-600 hover:bg-blue-700"
-          >
-            <MessageSquare className="w-4 h-4 mr-2" />
-            Chat
-          </Button>
         </div>
       </div>
 
@@ -207,7 +199,7 @@ export function MetricCards() {
             <Button 
               variant="outline" 
               className="h-auto p-4 flex-col gap-2"
-              onClick={() => navigate('/chat')}
+              onClick={() => navigate('/dashboard/chat')}
             >
               <MessageSquare className="w-6 h-6 text-blue-600" />
               <span className="text-sm font-medium">Conversar com IA</span>
@@ -216,7 +208,7 @@ export function MetricCards() {
             <Button 
               variant="outline" 
               className="h-auto p-4 flex-col gap-2"
-              onClick={() => navigate('/insights')}
+              onClick={() => navigate('/dashboard/insights')}
             >
               <Brain className="w-6 h-6 text-purple-600" />
               <span className="text-sm font-medium">Ver Insights</span>
@@ -225,7 +217,7 @@ export function MetricCards() {
             <Button 
               variant="outline" 
               className="h-auto p-4 flex-col gap-2"
-              onClick={() => navigate('/thermometer')}
+              onClick={() => navigate('/dashboard/thermometer')}
             >
               <TrendingUp className="w-6 h-6 text-green-600" />
               <span className="text-sm font-medium">Análise Emocional</span>

@@ -78,7 +78,12 @@ export function DashboardMain() {
                     Começar no Chat
                   </Button>
                   
-                  <Button variant="outline" size="lg" className="w-full sm:w-auto">
+                  <Button 
+                    variant="outline" 
+                    size="lg" 
+                    className="w-full sm:w-auto"
+                    onClick={() => navigate('/dashboard/insights')}
+                  >
                     <Sparkles className="w-5 h-5 mr-2" />
                     Ver Tutorial
                   </Button>

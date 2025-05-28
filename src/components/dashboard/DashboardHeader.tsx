@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { 
   Brain, 
-  MessageSquare, 
   Settings, 
   User
 } from 'lucide-react';
@@ -28,16 +27,6 @@ export function DashboardHeader() {
 
           {/* Right Actions */}
           <div className="flex items-center gap-3">
-            {/* Chat Button */}
-            <Button 
-              onClick={() => navigate('/dashboard/chat')}
-              size="sm"
-              className="bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              <MessageSquare className="w-4 h-4 mr-2" />
-              <span className="hidden sm:inline">Chat</span>
-            </Button>
-
             {/* Settings */}
             <Button
               variant="ghost"
