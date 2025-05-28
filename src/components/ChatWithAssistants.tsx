@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,8 +11,6 @@ import {
   User,
   Volume2,
   Loader2,
-  Wifi,
-  WifiOff,
   CheckCircle,
   AlertCircle,
   Sparkles
@@ -50,7 +47,7 @@ export function ChatWithAssistants() {
   // Verificar se OpenAI está configurada
   const isOpenAIConfigured = config.openai?.apiKey && config.openai.apiKey.startsWith('sk-');
 
-  // Mensagem inicial baseada na configuração
+  // Mensagem inicial
   useEffect(() => {
     if (messages.length === 0) {
       const selectedAssistantData = assistants.find(a => a.id === selectedAssistant);
@@ -58,8 +55,8 @@ export function ChatWithAssistants() {
         id: 1,
         type: 'assistant',
         content: isOpenAIConfigured 
-          ? `Olá! Sou ${selectedAssistantData?.name}. ${getWelcomeMessage(selectedAssistant)}` 
-          : 'Para usar o chat, configure sua API key da OpenAI em Configurações.',
+          ? `🤖 Olá! Sou ${selectedAssistantData?.name}. Estou conectado à OpenAI e pronto para conversar de verdade!` 
+          : '❌ Para usar o chat REAL, configure sua API key da OpenAI em Configurações.',
         timestamp: new Date(),
         assistantId: selectedAssistant
       };
@@ -75,29 +72,29 @@ export function ChatWithAssistants() {
     scrollToBottom();
   }, [messages]);
 
-  // Função para chat direto com OpenAI
+  // Chat REAL com OpenAI
   const chatWithOpenAI = async (userMessage: string, assistantId: string): Promise<string> => {
     const selectedAssistantData = assistants.find(a => a.id === assistantId);
     
     if (!isOpenAIConfigured) {
-      throw new Error('API key da OpenAI não configurada.');
+      throw new Error('❌ API key da OpenAI não configurada');
     }
 
     if (!selectedAssistantData) {
-      throw new Error('Assistente não encontrado');
+      throw new Error('❌ Assistente não encontrado');
     }
 
-    console.log('💬 Enviando mensagem para chat:', { assistantId, message: userMessage.substring(0, 50) + '...' });
+    console.log('🤖 CHAT REAL COM OPENAI:', { assistantId, message: userMessage.substring(0, 50) + '...' });
 
+    // Prompt SIMPLIFICADO
     const systemPrompt = `${selectedAssistantData.prompt}
 
-INSTRUÇÕES PARA CHAT:
-- Você está conversando diretamente com o usuário
-- Seja conversacional, direto e envolvente
-- Mantenha respostas de 100-200 palavras
-- Use sua personalidade única definida no prompt
-- Responda sempre em português brasileiro
-- Seja específico e prático em suas sugestões`;
+INSTRUÇÕES PARA CHAT REAL:
+- Responda como ${selectedAssistantData.name}
+- Seja conversacional e direto
+- Máximo 200 palavras
+- Use sua personalidade única
+- Responda sempre em português brasileiro`;
 
     try {
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -107,36 +104,36 @@ INSTRUÇÕES PARA CHAT:
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: config.openai.model || 'gpt-4o-mini',
+          model: 'gpt-4o-mini',
           messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userMessage }
           ],
-          temperature: 0.7,
-          max_tokens: 400,
+          temperature: 0.8,
+          max_tokens: 300,
         }),
       });
 
-      console.log('📡 Resposta da OpenAI:', response.status);
+      console.log('📡 Resposta OpenAI:', response.status);
 
       if (!response.ok) {
         const errorData = await response.text();
-        console.error('❌ Erro da OpenAI:', errorData);
-        throw new Error(`Erro da OpenAI (${response.status})`);
+        console.error('❌ Erro OpenAI:', errorData);
+        throw new Error(`❌ Erro da OpenAI (${response.status})`);
       }
 
       const data = await response.json();
       
       if (!data.choices || !data.choices[0]) {
-        throw new Error('Resposta inválida da OpenAI');
+        throw new Error('❌ Resposta inválida da OpenAI');
       }
 
       const assistantResponse = data.choices[0].message.content;
-      console.log('✅ Resposta recebida do chat');
+      console.log('✅ RESPOSTA REAL RECEBIDA');
       
       return assistantResponse;
     } catch (error) {
-      console.error('❌ Erro no chat:', error);
+      console.error('❌ ERRO NO CHAT REAL:', error);
       throw error;
     }
   };
@@ -147,7 +144,7 @@ INSTRUÇÕES PARA CHAT:
 
     if (!isOpenAIConfigured) {
       toast({
-        title: "OpenAI não configurada",
+        title: "❌ OpenAI não configurada",
         description: "Configure sua API key da OpenAI em Configurações",
         variant: "destructive",
       });
@@ -167,7 +164,7 @@ INSTRUÇÕES PARA CHAT:
     setIsTyping(true);
 
     try {
-      console.log('🔄 Processando chat:', textToSend.substring(0, 50) + '...');
+      console.log('🔄 PROCESSANDO CHAT REAL:', textToSend.substring(0, 50) + '...');
       
       const response = await chatWithOpenAI(textToSend, selectedAssistant);
       
@@ -183,17 +180,17 @@ INSTRUÇÕES PARA CHAT:
         setMessages(prev => [...prev, assistantMessage]);
         
         toast({
-          title: "Resposta recebida",
-          description: `${assistants.find(a => a.id === selectedAssistant)?.name} respondeu`,
+          title: "✅ Resposta REAL recebida",
+          description: `${assistants.find(a => a.id === selectedAssistant)?.name} respondeu via OpenAI`,
         });
       }
     } catch (error) {
-      console.error('❌ Erro no chat:', error);
+      console.error('❌ ERRO NO CHAT REAL:', error);
       
       const errorMessage: Message = {
         id: Date.now() + 1,
         type: 'assistant',
-        content: `❌ Erro: ${error instanceof Error ? error.message : 'Erro desconhecido'}\n\n💡 Verifique sua configuração da OpenAI em Configurações.`,
+        content: `❌ Erro no chat REAL: ${error instanceof Error ? error.message : 'Erro desconhecido'}\n\n💡 Verifique sua configuração da OpenAI em Configurações.`,
         timestamp: new Date(),
         assistantId: selectedAssistant
       };
@@ -201,7 +198,7 @@ INSTRUÇÕES PARA CHAT:
       setMessages(prev => [...prev, errorMessage]);
       
       toast({
-        title: "Erro no chat",
+        title: "❌ Erro no chat REAL",
         description: error instanceof Error ? error.message : "Erro ao processar mensagem",
         variant: "destructive",
       });
@@ -212,11 +209,11 @@ INSTRUÇÕES PARA CHAT:
 
   const handleVoiceRecording = async () => {
     if (isRecording) {
-      console.log('🛑 Parando gravação de voz...');
+      console.log('🛑 Parando gravação...');
       const audioBase64 = await stopRecording();
       
       if (audioBase64) {
-        console.log('📝 Transcrevendo áudio...');
+        console.log('📝 Transcrevendo...');
         const transcribedText = await transcribeAudio(audioBase64);
         
         if (transcribedText) {
@@ -225,7 +222,7 @@ INSTRUÇÕES PARA CHAT:
         }
       }
     } else {
-      console.log('🎤 Iniciando gravação de voz...');
+      console.log('🎤 Iniciando gravação...');
       await startRecording();
     }
   };
@@ -238,27 +235,12 @@ INSTRUÇÕES PARA CHAT:
       const welcomeMessage: Message = {
         id: Date.now(),
         type: 'assistant',
-        content: `Agora você está falando com ${selectedAssistantData.name}. ${getWelcomeMessage(assistantId)}`,
+        content: `🤖 Agora você está falando com ${selectedAssistantData.name} via OpenAI REAL. Como posso te ajudar?`,
         timestamp: new Date(),
         assistantId: assistantId
       };
       setMessages(prev => [...prev, welcomeMessage]);
     }
-  };
-
-  const getWelcomeMessage = (assistantId: string): string => {
-    const welcomeMessages = {
-      kairon: "Vamos direto ao ponto: qual é a verdade que você está evitando?",
-      oracle: "Estou aqui para explorar sua sombra emocional. O que você está sentindo?",
-      guardian: "Vamos falar sobre recursos. Como você está gerenciando energia, tempo e atenção?",
-      engineer: "Como está seu hardware corporal? Energia alta ou baixa hoje?",
-      architect: "Hora de organizar suas prioridades. O que é mais importante agora?",
-      weaver: "Vamos falar sobre propósito. O que realmente importa para você?",
-      catalyst: "Precisa quebrar padrões limitantes? Qual sua maior limitação criativa?",
-      mirror: "Seus relacionamentos são espelhos. O que eles refletem sobre você?"
-    };
-
-    return welcomeMessages[assistantId as keyof typeof welcomeMessages] || "Como posso te ajudar hoje?";
   };
 
   const activeAssistants = assistants.filter(a => a.isActive);
@@ -273,21 +255,28 @@ INSTRUÇÕES PARA CHAT:
             <MessageSquare className="w-8 h-8 text-white" />
           </div>
         </div>
-        <h1 className="text-3xl font-bold text-gray-900">Chat com Assistentes IA</h1>
+        <h1 className="text-3xl font-bold text-gray-900">Chat REAL com Assistentes IA</h1>
         <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-          Converse diretamente com nossos assistentes especializados
+          Conversas REAIS processadas pela OpenAI
         </p>
       </div>
 
       {/* Status da Conexão */}
-      {!isOpenAIConfigured && (
-        <Alert className="border-orange-200 bg-orange-50">
-          <AlertCircle className="h-4 w-4 text-orange-600" />
-          <AlertDescription className="text-orange-800">
-            <strong>OpenAI não configurada:</strong> Configure sua API key da OpenAI em Configurações.
-            <Button variant="link" className="ml-2 p-0 h-auto text-orange-600" onClick={() => window.location.href = '/dashboard/settings'}>
+      {!isOpenAIConfigured ? (
+        <Alert className="border-red-200 bg-red-50">
+          <AlertCircle className="h-4 w-4 text-red-600" />
+          <AlertDescription className="text-red-800">
+            <strong>❌ OpenAI não configurada:</strong> Configure sua API key da OpenAI em Configurações para chat REAL.
+            <Button variant="link" className="ml-2 p-0 h-auto text-red-600" onClick={() => window.location.href = '/dashboard/settings'}>
               Ir para Configurações
             </Button>
+          </AlertDescription>
+        </Alert>
+      ) : (
+        <Alert className="border-green-200 bg-green-50">
+          <CheckCircle className="h-4 w-4 text-green-600" />
+          <AlertDescription className="text-green-800">
+            <strong>✅ OpenAI configurada:</strong> Chat REAL ativo e funcionando!
           </AlertDescription>
         </Alert>
       )}
@@ -299,8 +288,8 @@ INSTRUÇÕES PARA CHAT:
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
                 <Bot className="w-5 h-5" />
-                Assistentes
-                <Badge className={`ml-auto ${isOpenAIConfigured ? 'bg-green-100 text-green-800' : 'bg-orange-100 text-orange-800'}`}>
+                Assistentes REAIS
+                <Badge className={`ml-auto ${isOpenAIConfigured ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                   {isOpenAIConfigured ? (
                     <>
                       <CheckCircle className="w-3 h-3 mr-1" />
@@ -322,14 +311,14 @@ INSTRUÇÕES PARA CHAT:
                   onClick={() => handleAssistantChange(assistant.id)}
                   className={`p-3 rounded-lg cursor-pointer transition-all ${
                     selectedAssistant === assistant.id
-                      ? 'bg-blue-100 border-2 border-blue-300 shadow-md'
+                      ? 'bg-green-100 border-2 border-green-300 shadow-md'
                       : 'bg-gray-50 hover:bg-gray-100 border border-gray-200'
                   } ${!isOpenAIConfigured ? 'opacity-60' : ''}`}
                 >
                   <div className="flex items-start gap-3">
                     <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
                       selectedAssistant === assistant.id 
-                        ? 'bg-gradient-to-r from-blue-500 to-purple-600' 
+                        ? 'bg-gradient-to-r from-green-500 to-blue-600' 
                         : 'bg-gradient-to-r from-gray-400 to-gray-500'
                     }`}>
                       <span className="text-white text-lg">{assistant.icon}</span>
@@ -344,19 +333,19 @@ INSTRUÇÕES PARA CHAT:
                       <div className="mt-2">
                         <Badge className={`text-xs ${
                           selectedAssistant === assistant.id 
-                            ? 'bg-blue-100 text-blue-800' 
+                            ? 'bg-green-100 text-green-800' 
                             : isOpenAIConfigured 
-                              ? 'bg-green-100 text-green-800'
+                              ? 'bg-blue-100 text-blue-800'
                               : 'bg-gray-100 text-gray-600'
                         }`}>
                           <div className={`w-2 h-2 rounded-full mr-1 ${
                             selectedAssistant === assistant.id 
-                              ? 'bg-blue-500' 
+                              ? 'bg-green-500' 
                               : isOpenAIConfigured 
-                                ? 'bg-green-500' 
+                                ? 'bg-blue-500' 
                                 : 'bg-gray-400'
                           }`}></div>
-                          {selectedAssistant === assistant.id ? 'Ativo' : isOpenAIConfigured ? 'Online' : 'Offline'}
+                          {selectedAssistant === assistant.id ? 'Ativo' : isOpenAIConfigured ? 'REAL' : 'Offline'}
                         </Badge>
                       </div>
                     </div>
@@ -371,12 +360,12 @@ INSTRUÇÕES PARA CHAT:
         <div className="lg:col-span-3">
           <Card className="h-[600px] flex flex-col bg-white shadow-lg">
             {/* Header do Chat */}
-            <div className={`border-b p-4 rounded-t-lg ${isOpenAIConfigured ? 'bg-gradient-to-r from-blue-50 to-purple-50' : 'bg-gradient-to-r from-gray-50 to-orange-50'}`}>
+            <div className={`border-b p-4 rounded-t-lg ${isOpenAIConfigured ? 'bg-gradient-to-r from-green-50 to-blue-50' : 'bg-gradient-to-r from-red-50 to-orange-50'}`}>
               <div className="flex items-center gap-3">
                 <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
                   isOpenAIConfigured 
-                    ? 'bg-gradient-to-r from-blue-500 to-purple-600' 
-                    : 'bg-gradient-to-r from-gray-400 to-orange-500'
+                    ? 'bg-gradient-to-r from-green-500 to-blue-600' 
+                    : 'bg-gradient-to-r from-red-400 to-orange-500'
                 }`}>
                   <span className="text-white text-xl">{selectedAssistantData?.icon}</span>
                 </div>
@@ -385,9 +374,9 @@ INSTRUÇÕES PARA CHAT:
                   <p className="text-sm text-gray-600">{selectedAssistantData?.description}</p>
                 </div>
                 <div className="flex gap-2">
-                  <Badge className={`${isOpenAIConfigured ? 'bg-green-100 text-green-800' : 'bg-orange-100 text-orange-800'}`}>
-                    <div className={`w-2 h-2 rounded-full mr-1 ${isOpenAIConfigured ? 'bg-green-500' : 'bg-orange-500'}`}></div>
-                    {isOpenAIConfigured ? 'Online' : 'Offline'}
+                  <Badge className={`${isOpenAIConfigured ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                    <div className={`w-2 h-2 rounded-full mr-1 ${isOpenAIConfigured ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                    {isOpenAIConfigured ? 'REAL' : 'Offline'}
                   </Badge>
                   {isOpenAIConfigured && (
                     <Badge className="bg-blue-100 text-blue-800">
@@ -410,7 +399,7 @@ INSTRUÇÕES PARA CHAT:
                         ? 'bg-blue-500' 
                         : msg.type === 'system'
                           ? 'bg-gray-500'
-                          : 'bg-gradient-to-r from-purple-500 to-blue-600'
+                          : 'bg-gradient-to-r from-green-500 to-blue-600'
                     }`}>
                       {msg.type === 'user' ? (
                         <User className="w-4 h-4 text-white" />
@@ -460,17 +449,17 @@ INSTRUÇÕES PARA CHAT:
               {isTyping && (
                 <div className="flex justify-start">
                   <div className="flex gap-3 max-w-[80%]">
-                    <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-blue-600 rounded-full flex items-center justify-center">
+                    <div className="w-8 h-8 bg-gradient-to-r from-green-500 to-blue-600 rounded-full flex items-center justify-center">
                       <span className="text-white text-sm">{selectedAssistantData?.icon}</span>
                     </div>
                     <div className="bg-white rounded-lg rounded-bl-none p-4 border shadow-sm">
                       <div className="flex space-x-1">
-                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                        <div className="w-2 h-2 bg-green-400 rounded-full animate-bounce"></div>
+                        <div className="w-2 h-2 bg-green-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                        <div className="w-2 h-2 bg-green-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                       </div>
                       <p className="text-xs text-gray-500 mt-1">
-                        {selectedAssistantData?.name} está pensando...
+                        {selectedAssistantData?.name} está pensando via OpenAI...
                       </p>
                     </div>
                   </div>
@@ -485,7 +474,7 @@ INSTRUÇÕES PARA CHAT:
               <div className="flex gap-3 items-end">
                 <div className="flex-1 relative">
                   <Input
-                    placeholder={isOpenAIConfigured ? "Digite sua mensagem..." : "Configure OpenAI para começar a conversar..."}
+                    placeholder={isOpenAIConfigured ? "Digite sua mensagem para chat REAL..." : "Configure OpenAI para chat REAL..."}
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
                     onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && isOpenAIConfigured && handleSendMessage()}
@@ -509,7 +498,11 @@ INSTRUÇÕES PARA CHAT:
                 <Button
                   onClick={() => handleSendMessage()}
                   disabled={!message.trim() || isRecording || isTranscribing || isTyping || !isOpenAIConfigured}
-                  className="bg-blue-600 hover:bg-blue-700 rounded-full w-10 h-10 p-0 flex-shrink-0"
+                  className={`rounded-full w-10 h-10 p-0 flex-shrink-0 ${
+                    isOpenAIConfigured 
+                      ? 'bg-green-600 hover:bg-green-700' 
+                      : 'bg-gray-400 cursor-not-allowed'
+                  }`}
                 >
                   {isTyping ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -535,11 +528,11 @@ INSTRUÇÕES PARA CHAT:
 
       {/* Sugestões de Conversa */}
       {isOpenAIConfigured && (
-        <Card className="bg-gradient-to-r from-purple-50 to-blue-50 border-purple-200">
+        <Card className="bg-gradient-to-r from-green-50 to-blue-50 border-green-200">
           <CardHeader>
-            <CardTitle className="text-purple-800 flex items-center gap-2">
+            <CardTitle className="text-green-800 flex items-center gap-2">
               <Sparkles className="w-5 h-5" />
-              Sugestões para Começar uma Conversa
+              Sugestões para Chat REAL
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -555,7 +548,7 @@ INSTRUÇÕES PARA CHAT:
                 <Button
                   key={index}
                   variant="outline"
-                  className="text-left justify-start h-auto p-3 text-sm text-purple-700 border-purple-200 hover:bg-purple-100 whitespace-normal"
+                  className="text-left justify-start h-auto p-3 text-sm text-green-700 border-green-200 hover:bg-green-100 whitespace-normal"
                   onClick={() => setMessage(suggestion)}
                 >
                   {suggestion}
