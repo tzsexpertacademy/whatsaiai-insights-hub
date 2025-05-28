@@ -56,35 +56,36 @@ export function AppSidebar() {
 
   const isActive = (path: string) => currentPath === path;
   const isCollapsed = state === "collapsed";
+  
   const getNavCls = (path: string) =>
     isActive(path) 
       ? "bg-blue-100 text-blue-900 font-medium border-r-2 border-blue-600" 
       : "hover:bg-gray-100 text-gray-700";
 
   return (
-    <Sidebar className={isCollapsed ? "w-16" : "w-72"} collapsible="icon">
-      <SidebarContent className="bg-white border-r border-gray-200">
-        {/* Header */}
+    <Sidebar className="border-r border-gray-200 bg-white" collapsible="icon">
+      <SidebarContent className="bg-white">
+        {/* Header fixo */}
         <div className="p-4 border-b border-gray-200">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center flex-shrink-0">
               <Brain className="w-5 h-5 text-white" />
             </div>
             {!isCollapsed && (
-              <div>
-                <h2 className="font-bold text-gray-900">Observatório</h2>
-                <p className="text-xs text-gray-500">Consciência Pessoal</p>
+              <div className="min-w-0">
+                <h2 className="font-bold text-gray-900 truncate">Observatório</h2>
+                <p className="text-xs text-gray-500 truncate">Consciência Pessoal</p>
               </div>
             )}
           </div>
           <SidebarTrigger className="absolute top-4 right-4" />
         </div>
 
-        {/* Status */}
+        {/* Status fixo */}
         {!isCollapsed && (
           <div className="p-4 bg-green-50 border-b border-gray-200">
             <div className="flex items-center gap-2 mb-2">
-              <Activity className="w-4 h-4 text-green-600" />
+              <Activity className="w-4 h-4 text-green-600 flex-shrink-0" />
               <Badge className="bg-green-100 text-green-800 text-xs">Sistema Operacional</Badge>
             </div>
             <p className="text-xs text-green-700">Pronto para análise</p>
@@ -101,7 +102,10 @@ export function AppSidebar() {
               {mainItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
-                    <NavLink to={item.url} className={`${getNavCls(item.url)} p-3 flex items-center gap-3 rounded-lg mx-2 transition-colors`}>
+                    <NavLink 
+                      to={item.url} 
+                      className={`${getNavCls(item.url)} p-3 flex items-center gap-3 rounded-lg mx-2 transition-colors`}
+                    >
                       <item.icon className="w-5 h-5 flex-shrink-0" />
                       {!isCollapsed && (
                         <div className="flex-1 min-w-0">
@@ -127,7 +131,10 @@ export function AppSidebar() {
               {analysisItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
-                    <NavLink to={item.url} className={`${getNavCls(item.url)} p-3 flex items-center gap-3 rounded-lg mx-2 transition-colors`}>
+                    <NavLink 
+                      to={item.url} 
+                      className={`${getNavCls(item.url)} p-3 flex items-center gap-3 rounded-lg mx-2 transition-colors`}
+                    >
                       <item.icon className="w-5 h-5 flex-shrink-0" />
                       {!isCollapsed && (
                         <div className="flex-1 min-w-0">
@@ -153,7 +160,10 @@ export function AppSidebar() {
               {configItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
-                    <NavLink to={item.url} className={`${getNavCls(item.url)} p-3 flex items-center gap-3 rounded-lg mx-2 transition-colors`}>
+                    <NavLink 
+                      to={item.url} 
+                      className={`${getNavCls(item.url)} p-3 flex items-center gap-3 rounded-lg mx-2 transition-colors`}
+                    >
                       <item.icon className="w-5 h-5 flex-shrink-0" />
                       {!isCollapsed && (
                         <div className="flex-1 min-w-0">

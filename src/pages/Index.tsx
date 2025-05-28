@@ -23,11 +23,14 @@ export default function Index() {
 
   return (
     <SidebarProvider>
-      <div className="flex min-h-screen w-full bg-gray-50 overflow-x-hidden">
+      <div className="flex min-h-screen w-full bg-gray-50">
+        {/* Sidebar fixo */}
         <AppSidebar />
-        <div className="flex-1 flex flex-col min-w-0 overflow-x-hidden">
+        
+        {/* Conteúdo principal que muda */}
+        <div className="flex-1 flex flex-col min-w-0">
           <DashboardHeader />
-          <main className="flex-1 p-4 sm:p-6 overflow-auto">
+          <main className="flex-1 overflow-auto">
             <Routes>
               <Route path="/" element={<DashboardMain />} />
               <Route path="/observatory" element={<ObservatoryTimeline />} />

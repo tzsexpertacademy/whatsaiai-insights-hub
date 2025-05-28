@@ -2,8 +2,6 @@
 import React from 'react';
 import { useAnalysisData } from '@/contexts/AnalysisDataContext';
 import { useOnboarding } from '@/hooks/useOnboarding';
-import { ResponsiveGrid } from '@/components/layout/ResponsiveGrid';
-import { ResponsiveText } from '@/components/layout/ResponsiveText';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -32,14 +30,14 @@ export function MetricCards() {
 
   if (isLoading) {
     return (
-      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div className="w-full space-y-6">
         <div className="animate-pulse space-y-6">
           <div className="h-8 bg-gray-200 rounded w-1/4"></div>
-          <ResponsiveGrid columns={4}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
             {[1, 2, 3, 4].map((i) => (
               <div key={i} className="h-32 bg-gray-200 rounded-lg"></div>
             ))}
-          </ResponsiveGrid>
+          </div>
         </div>
       </div>
     );
@@ -85,16 +83,16 @@ export function MetricCards() {
   ];
 
   return (
-    <div className="w-full space-y-6 overflow-x-hidden">
+    <div className="w-full space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <ResponsiveText variant="h1" className="text-slate-800">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-800">
             Observatório da Consciência
-          </ResponsiveText>
-          <ResponsiveText variant="description" className="mt-2">
+          </h1>
+          <p className="text-sm sm:text-base text-gray-600 mt-2">
             Análise psicológica completa baseada em IA
-          </ResponsiveText>
+          </p>
         </div>
         
         <div className="flex flex-col sm:flex-row gap-3">
@@ -126,7 +124,7 @@ export function MetricCards() {
       </div>
 
       {/* Metrics Grid */}
-      <ResponsiveGrid columns={4} gap="medium">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         {metrics.map((metric, index) => (
           <Card key={index} className={`${metric.bgColor} border-0 hover:shadow-md transition-all duration-300`}>
             <CardContent className="p-4 sm:p-6">
@@ -136,28 +134,28 @@ export function MetricCards() {
               </div>
               
               <div className="space-y-2">
-                <ResponsiveText variant="label" className="text-gray-600">
+                <p className="text-xs sm:text-sm font-medium text-gray-600">
                   {metric.title}
-                </ResponsiveText>
+                </p>
                 
-                <ResponsiveText variant="h3" className={metric.color}>
+                <p className={`text-xl sm:text-2xl font-bold ${metric.color}`}>
                   {metric.value}
-                </ResponsiveText>
+                </p>
                 
-                <ResponsiveText variant="body-small" className="text-gray-500 break-words">
+                <p className="text-xs text-gray-500 break-words">
                   {metric.description}
-                </ResponsiveText>
+                </p>
               </div>
             </CardContent>
           </Card>
         ))}
-      </ResponsiveGrid>
+      </div>
 
       {/* Progress Section */}
       {data.hasRealData && (
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
               <BarChart3 className="w-5 h-5 text-blue-600" />
               Progresso da Análise
             </CardTitle>
@@ -193,13 +191,13 @@ export function MetricCards() {
       {/* Quick Actions */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
             <Lightbulb className="w-5 h-5 text-yellow-600" />
             Próximos Passos
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <ResponsiveGrid columns={3} gap="small">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
             <Button variant="outline" className="h-auto p-4 flex-col gap-2">
               <Brain className="w-6 h-6 text-blue-600" />
               <span className="text-sm font-medium">Analisar Conversas</span>
@@ -214,7 +212,7 @@ export function MetricCards() {
               <TrendingUp className="w-6 h-6 text-purple-600" />
               <span className="text-sm font-medium">Acompanhar Evolução</span>
             </Button>
-          </ResponsiveGrid>
+          </div>
         </CardContent>
       </Card>
     </div>
