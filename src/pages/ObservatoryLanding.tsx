@@ -35,7 +35,7 @@ import {
 
 export function ObservatoryLanding() {
   const navigate = useNavigate();
-  const { isAuthenticated, createCheckout } = useAuth();
+  const { isAuthenticated } = useAuth();
   const { toast } = useToast();
   const heroRef = useRef<HTMLDivElement>(null);
   const particlesRef = useRef<HTMLCanvasElement>(null);
@@ -145,7 +145,7 @@ export function ObservatoryLanding() {
     console.log('🚀 Botão clicado - handleAccessObservatory', { isAuthenticated });
     
     if (isAuthenticated) {
-      // Cliente logado - vai direto para dashboard (sem tutorial)
+      // Cliente logado - vai direto para dashboard
       toast({
         title: "Bem-vindo de volta!",
         description: "Redirecionando para seu observatório...",
@@ -153,22 +153,13 @@ export function ObservatoryLanding() {
       });
       navigate('/dashboard');
     } else {
-      // Novo cliente - vai para checkout primeiro
-      try {
-        toast({
-          title: "Iniciando sua assinatura...",
-          description: "Redirecionando para o checkout",
-          duration: 2000
-        });
-        await createCheckout();
-      } catch (error) {
-        console.error('Erro ao criar checkout:', error);
-        toast({
-          title: "Erro",
-          description: "Erro ao iniciar checkout. Tente novamente.",
-          variant: "destructive"
-        });
-      }
+      // Usuário não logado - vai para login
+      toast({
+        title: "Faça login para acessar",
+        description: "Redirecionando para login...",
+        duration: 2000
+      });
+      navigate('/auth');
     }
   };
 
@@ -295,7 +286,7 @@ export function ObservatoryLanding() {
                   <div className="text-center">
                     <div className="font-black">ACESSAR OBSERVATÓRIO</div>
                     <div className="text-sm sm:text-base font-normal opacity-90">
-                      {isAuthenticated ? 'Entrar no Dashboard' : 'Assinar e Começar'}
+                      {isAuthenticated ? 'Entrar no Dashboard' : 'Fazer Login'}
                     </div>
                   </div>
                   <ArrowRight className="w-6 h-6 sm:w-8 sm:h-8 ml-2 sm:ml-4 group-hover:translate-x-2 transition-transform" />
@@ -474,18 +465,20 @@ export function ObservatoryLanding() {
                   Veja sua própria mente funcionando.
                 </p>
                 
-                <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 backdrop-blur-sm border border-green-400/30 rounded-2xl p-6 sm:p-8 mx-auto max-w-2xl mt-8 sm:mt-12">
-                  <div className="flex items-center justify-center mb-4">
-                    <Clock className="w-6 h-6 sm:w-8 sm:h-8 text-green-400 mr-3" />
-                    <span className="text-2xl sm:text-3xl font-bold text-green-400">7 dias grátis</span>
+                {!isAuthenticated && (
+                  <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 backdrop-blur-sm border border-green-400/30 rounded-2xl p-6 sm:p-8 mx-auto max-w-2xl mt-8 sm:mt-12">
+                    <div className="flex items-center justify-center mb-4">
+                      <Clock className="w-6 h-6 sm:w-8 sm:h-8 text-green-400 mr-3" />
+                      <span className="text-2xl sm:text-3xl font-bold text-green-400">7 dias grátis</span>
+                    </div>
+                    <p className="text-lg sm:text-xl text-white mb-2">
+                      Depois, apenas <span className="font-black text-green-400">R$ 47/mês</span>
+                    </p>
+                    <p className="text-base sm:text-lg text-gray-300">
+                      Sem contratos. Sem pegadinhas.
+                    </p>
                   </div>
-                  <p className="text-lg sm:text-xl text-white mb-2">
-                    Depois, apenas <span className="font-black text-green-400">R$ 47/mês</span>
-                  </p>
-                  <p className="text-base sm:text-lg text-gray-300">
-                    Sem contratos. Sem pegadinhas.
-                  </p>
-                </div>
+                )}
               </div>
             </ScrollReveal>
 
@@ -498,7 +491,7 @@ export function ObservatoryLanding() {
                 <div className="text-center">
                   <div className="font-black">ACESSAR MEU OBSERVATÓRIO AGORA</div>
                   <div className="text-lg sm:text-xl font-normal opacity-90">
-                    {isAuthenticated ? 'ENTRAR NO DASHBOARD' : '7 DIAS GRÁTIS'}
+                    {isAuthenticated ? 'ENTRAR NO DASHBOARD' : 'FAZER LOGIN'}
                   </div>
                 </div>
                 <Flame className="w-8 h-8 sm:w-10 sm:h-10 ml-4 sm:ml-6 group-hover:scale-110 transition-transform duration-500" />
