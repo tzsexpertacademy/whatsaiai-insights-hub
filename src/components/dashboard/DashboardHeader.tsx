@@ -2,7 +2,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { 
   Brain, 
@@ -10,11 +9,9 @@ import {
   Settings, 
   User
 } from 'lucide-react';
-import { useAnalysisData } from '@/contexts/AnalysisDataContext';
 
 export function DashboardHeader() {
   const navigate = useNavigate();
-  const { data } = useAnalysisData();
 
   return (
     <header className="w-full bg-white border-b border-gray-200 shadow-sm">
@@ -31,13 +28,6 @@ export function DashboardHeader() {
 
           {/* Right Actions */}
           <div className="flex items-center gap-3">
-            {/* Status Badge */}
-            <Badge 
-              className={data.hasRealData ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"}
-            >
-              {data.hasRealData ? "Ativo" : "Aguardando"}
-            </Badge>
-
             {/* Chat Button */}
             <Button 
               onClick={() => navigate('/dashboard/chat')}
