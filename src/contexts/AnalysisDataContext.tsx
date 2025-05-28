@@ -77,7 +77,7 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
       setIsLoading(true);
       console.log('🔄 Buscando dados reais do Observatório...');
 
-      // Buscar insights dos assistentes
+      // Buscar insights dos assistentes da tabela insights
       const { data: insightsData, error: insightsError } = await supabase
         .from('insights')
         .select('*')
@@ -89,7 +89,22 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
         console.error('❌ Erro ao buscar insights:', insightsError);
       }
 
-      console.log('📊 Insights encontrados:', insightsData?.length || 0);
+      console.log('📊 Insights encontrados na tabela insights:', insightsData?.length || 0);
+      console.log('🔍 DEBUG - Dados brutos dos insights:', insightsData);
+
+      // Buscar configuração dos assistentes para mapear nomes corretos
+      const { data: assistantsConfig, error: assistantsError } = await supabase
+        .from('client_configs')
+        .select('openai_config')
+        .eq('user_id', user.id)
+        .single();
+
+      if (assistantsError) {
+        console.error('❌ Erro ao buscar configuração dos assistentes:', assistantsError);
+      }
+
+      const assistants = assistantsConfig?.openai_config?.assistants || [];
+      console.log('🤖 Assistentes configurados:', assistants.map(a => ({ id: a.id, name: a.name, area: a.area })));
 
       // Buscar conversações do WhatsApp
       const { data: conversationsData, error: conversationsError } = await supabase
@@ -103,18 +118,39 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
         console.error('❌ Erro ao buscar conversações:', conversationsError);
       }
 
-      // Processar insights com informações dos assistentes
+      console.log('💬 Conversações encontradas:', conversationsData?.length || 0);
+
+      // Processar insights com informações dos assistentes REAIS
       const processedInsights = (insightsData || []).map(insight => {
+        // Buscar assistente correspondente pelo metadata
+        const assistantId = insight.metadata?.assistant_id;
+        const assistantFromConfig = assistants.find(a => a.id === assistantId);
+        
+        console.log('🔍 DEBUG - Processando insight:', {
+          insight_id: insight.id,
+          assistant_id_from_metadata: assistantId,
+          assistant_found: assistantFromConfig?.name,
+          insight_type: insight.insight_type,
+          category: insight.category
+        });
+
         return {
           ...insight,
-          text: insight.description,
-          assistantName: insight.insight_type || 'Assistente IA',
-          assistantArea: insight.insight_type?.toLowerCase() || 'geral',
+          text: insight.content || insight.description,
+          assistantName: assistantFromConfig?.name || `Assistente ${insight.insight_type}`,
+          assistantArea: assistantFromConfig?.area || insight.category || insight.insight_type?.toLowerCase() || 'geral',
           priority: insight.priority || 'medium',
           createdAt: insight.created_at,
-          category: insight.insight_type || 'geral'
+          category: insight.category || insight.insight_type || assistantFromConfig?.area || 'geral'
         };
       });
+
+      console.log('🔍 DEBUG - Insights processados:', processedInsights.map(i => ({
+        id: i.id,
+        assistantName: i.assistantName,
+        assistantArea: i.assistantArea,
+        category: i.category
+      })));
 
       // Simular algumas recomendações baseadas nos insights
       const processedRecommendations = processedInsights
@@ -122,9 +158,9 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
         .map((insight, index) => ({
           ...insight,
           id: `rec_${insight.id}`,
-          text: `Baseado na análise do ${insight.assistantName || 'assistente'}, recomendamos: ${insight.description?.substring(0, 150)}...`,
+          text: `Baseado na análise do ${insight.assistantName || 'assistente'}, recomendamos: ${insight.content?.substring(0, 150)}...`,
           title: `Recomendação ${index + 1}`,
-          content: insight.description
+          content: insight.content || insight.description
         }));
 
       // Dados emocionais simulados baseados nos insights
@@ -191,7 +227,15 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
         insightsWithAssistant: processedInsights,
         recommendations: processedRecommendations,
         recommendationsWithAssistant: processedRecommendations,
-        emotionalData: hasRealData ? emotionalData : [],
+        emotionalData: hasRealData ? [
+          { name: 'Alegria', value: 75 },
+          { name: 'Ansiedade', value: 35 },
+          { name: 'Confiança', value: 80 },
+          { name: 'Estresse', value: 40 },
+          { name: 'Motivação', value: 85 },
+          { name: 'Foco', value: 70 },
+          { name: 'Energia', value: 78 }
+        ] : [],
         conversations: conversationsData || [],
         psychologicalProfile: hasRealData ? 'Analítico-Criativo' : null,
         skillsData: hasRealData ? [
@@ -199,11 +243,41 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
           { title: 'Liderança', value: '78%', trend: '+3%' },
           { title: 'Criatividade', value: '92%', trend: '+7%' }
         ] : [],
-        lifeAreas: hasRealData ? lifeAreas : [],
-        lifeAreasData: hasRealData ? lifeAreasData : [],
-        bigFiveData: hasRealData ? bigFiveData : [],
-        discProfile: hasRealData ? discProfile : null,
-        mbtiProfile: hasRealData ? mbtiProfile : null,
+        lifeAreas: hasRealData ? [
+          { name: 'Carreira', score: 78, insights: processedInsights.filter(i => i.category === 'carreira').length },
+          { name: 'Relacionamentos', score: 72, insights: processedInsights.filter(i => i.category === 'relacionamentos').length },
+          { name: 'Saúde', score: 85, insights: processedInsights.filter(i => i.category === 'saude').length },
+          { name: 'Finanças', score: 65, insights: processedInsights.filter(i => i.category === 'financeiro').length },
+          { name: 'Desenvolvimento', score: 90, insights: processedInsights.filter(i => i.category === 'desenvolvimento').length }
+        ] : [],
+        lifeAreasData: hasRealData ? [
+          { subject: 'Carreira', A: 78, fullMark: 100 },
+          { subject: 'Relacionamentos', A: 72, fullMark: 100 },
+          { subject: 'Saúde', A: 85, fullMark: 100 },
+          { subject: 'Finanças', A: 65, fullMark: 100 },
+          { subject: 'Desenvolvimento', A: 90, fullMark: 100 }
+        ] : [],
+        bigFiveData: hasRealData ? [
+          { name: 'Abertura', value: 85, description: 'Criatividade e curiosidade' },
+          { name: 'Conscienciosidade', value: 78, description: 'Organização e disciplina' },
+          { name: 'Extroversão', value: 72, description: 'Sociabilidade e energia' },
+          { name: 'Amabilidade', value: 88, description: 'Cooperação e confiança' },
+          { name: 'Neuroticismo', value: 35, description: 'Estabilidade emocional' }
+        ] : [],
+        discProfile: hasRealData ? {
+          dominance: 65,
+          influence: 78,
+          steadiness: 72,
+          compliance: 55,
+          primaryType: 'Influente (I)'
+        } : null,
+        mbtiProfile: hasRealData ? {
+          extroversion: 72,
+          sensing: 45,
+          thinking: 68,
+          judging: 75,
+          approximateType: 'ESTJ'
+        } : null,
         emotionalState: hasRealData ? "Equilibrado" : "Aguardando análise",
         mainFocus: hasRealData ? "Desenvolvimento pessoal" : "Configure assistentes",
         relationalAwareness: hasRealData ? 75 : 0,
@@ -211,15 +285,17 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
           totalConversations: conversationsData?.length || 0,
           totalInsights: insightsData?.length || 0,
           lastAnalysis: insightsData?.[0]?.created_at || null,
-          assistantsActive: new Set(processedInsights.map(i => i.assistantName).filter(Boolean)).size
+          assistantsActive: assistants.filter(a => a.isActive).length
         }
       };
 
       setData(newData);
       console.log('✅ Dados carregados:', {
         insights: newData.insights.length,
+        insightsProcessed: newData.insightsWithAssistant.length,
         recommendations: newData.recommendations.length,
-        hasRealData: newData.hasRealData
+        hasRealData: newData.hasRealData,
+        assistantsActive: newData.metrics.assistantsActive
       });
 
     } catch (error) {

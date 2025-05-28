@@ -8,6 +8,27 @@ import { useAnalysisData } from '@/contexts/AnalysisDataContext';
 export function InsightsAlerts() {
   const { data, isLoading } = useAnalysisData();
 
+  // Debug: Log dos dados para verificar origem dos insights
+  console.log('🔍 DEBUG InsightsAlerts - Dados completos:', {
+    hasRealData: data.hasRealData,
+    insights: data.insights,
+    insightsWithAssistant: data.insightsWithAssistant,
+    isLoading
+  });
+
+  // Debug: Verificar estrutura dos insights
+  if (data.insightsWithAssistant.length > 0) {
+    console.log('🔍 DEBUG Primeiro insight:', data.insightsWithAssistant[0]);
+    console.log('🔍 DEBUG Todos os insights com assistentes:', data.insightsWithAssistant.map(insight => ({
+      id: insight.id,
+      assistantName: insight.assistantName,
+      assistantArea: insight.assistantArea,
+      category: insight.category,
+      insight_type: insight.insight_type,
+      title: insight.title || insight.text?.substring(0, 50)
+    })));
+  }
+
   const getAssistantIcon = (area: string) => {
     const iconMap: { [key: string]: string } = {
       'psicologia': '🔮',
@@ -17,7 +38,10 @@ export function InsightsAlerts() {
       'proposito': '🌟',
       'criatividade': '🎨',
       'relacionamentos': '👥',
-      'geral': '🤖'
+      'geral': '🤖',
+      'emotional': '❤️',
+      'behavioral': '🧠',
+      'growth': '📈'
     };
     return iconMap[area] || '🤖';
   };
@@ -31,7 +55,10 @@ export function InsightsAlerts() {
       'proposito': 'bg-yellow-100 text-yellow-800',
       'criatividade': 'bg-pink-100 text-pink-800',
       'relacionamentos': 'bg-indigo-100 text-indigo-800',
-      'geral': 'bg-gray-100 text-gray-800'
+      'geral': 'bg-gray-100 text-gray-800',
+      'emotional': 'bg-red-100 text-red-800',
+      'behavioral': 'bg-blue-100 text-blue-800',
+      'growth': 'bg-green-100 text-green-800'
     };
     return colorMap[area] || 'bg-gray-100 text-gray-800';
   };
@@ -62,13 +89,6 @@ export function InsightsAlerts() {
     }
   };
 
-  console.log('📊 InsightsAlerts - Dados recebidos:', {
-    hasRealData: data.hasRealData,
-    insights: data.insights?.length || 0,
-    insightsWithAssistant: data.insightsWithAssistant?.length || 0,
-    isLoading
-  });
-
   return (
     <Card className="bg-white/70 backdrop-blur-sm border-white/50">
       <CardHeader>
@@ -97,19 +117,35 @@ export function InsightsAlerts() {
               </p>
             </div>
           </div>
-        ) : data.insights.length === 0 ? (
+        ) : data.insightsWithAssistant.length === 0 ? (
           <div className="flex items-center justify-center py-8 text-center">
             <div>
               <Brain className="h-12 w-12 text-gray-400 mx-auto mb-3" />
               <p className="text-gray-500 text-sm">
                 Nenhum insight gerado ainda.
                 <br />
-                Clique em "Atualizar com IA" para gerar análises.
+                Clique em "Atualizar Relatório" para gerar análises.
               </p>
             </div>
           </div>
         ) : (
           <div className="space-y-4">
+            {/* Debug info - Mostra origem dos insights */}
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm">
+              <h4 className="font-semibold text-yellow-800 mb-2">🔍 DEBUG - Origem dos Insights:</h4>
+              <div className="space-y-1 text-yellow-700">
+                <p><strong>Total de insights:</strong> {data.insightsWithAssistant.length}</p>
+                <p><strong>Insights únicos por assistente:</strong></p>
+                {data.insightsWithAssistant.map((insight, index) => (
+                  <div key={index} className="ml-4 text-xs">
+                    • <strong>{insight.assistantName || 'Sem nome'}</strong> 
+                    (área: {insight.assistantArea || 'não definida'}, 
+                    categoria: {insight.category || insight.insight_type || 'não definida'})
+                  </div>
+                ))}
+              </div>
+            </div>
+
             {data.insightsWithAssistant.slice(0, 6).map((insight, index) => (
               <div 
                 key={insight.id || index} 
@@ -121,7 +157,7 @@ export function InsightsAlerts() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <h4 className="font-medium text-gray-900 break-words">
-                      {insight.title || 'Insight dos Assistentes'}
+                      {insight.title || insight.text?.substring(0, 50) || 'Insight dos Assistentes'}
                     </h4>
                     <div className="flex flex-wrap gap-1 flex-shrink-0">
                       {insight.assistantName && (
@@ -137,12 +173,12 @@ export function InsightsAlerts() {
                     </div>
                   </div>
                   <p className="text-sm text-gray-700 break-words mb-2">
-                    {insight.text || insight.content}
+                    {insight.text || insight.content || insight.description}
                   </p>
-                  {insight.category && (
+                  {(insight.category || insight.insight_type) && (
                     <div className="flex items-center gap-2 text-xs text-gray-500">
                       <span className="px-2 py-1 bg-gray-100 rounded-full">
-                        {insight.category}
+                        {insight.category || insight.insight_type}
                       </span>
                       {insight.createdAt && (
                         <span>
