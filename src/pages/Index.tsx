@@ -2,7 +2,7 @@
 import React from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { AppSidebar } from '@/components/AppSidebar';
-import { SidebarInset } from '@/components/ui/sidebar';
+import { SidebarProvider } from "@/components/ui/sidebar";
 import { DashboardMain } from '@/components/dashboard/DashboardMain';
 
 // Dashboard pages
@@ -22,10 +22,10 @@ export default function Index() {
   console.log('📱 Exibindo Dashboard Principal');
 
   return (
-    <div className="min-h-screen w-full bg-gray-50 flex">
-      <AppSidebar />
-      <SidebarInset className="flex-1">
-        <main className="w-full">
+    <SidebarProvider defaultOpen={true}>
+      <div className="min-h-screen w-full bg-gray-50 flex">
+        <AppSidebar />
+        <main className="flex-1 w-full">
           <Routes>
             <Route path="/" element={<DashboardMain />} />
             <Route path="/dashboard" element={<DashboardMain />} />
@@ -56,7 +56,7 @@ export default function Index() {
             <Route path="/chat" element={<ChatInterface />} />
           </Routes>
         </main>
-      </SidebarInset>
-    </div>
+      </div>
+    </SidebarProvider>
   );
 }
