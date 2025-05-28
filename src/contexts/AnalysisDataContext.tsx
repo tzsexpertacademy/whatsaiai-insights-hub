@@ -14,6 +14,13 @@ interface AnalysisData {
   psychologicalProfile: any;
   skillsData: any[];
   lifeAreas: any[];
+  lifeAreasData: any[];
+  bigFiveData: any[];
+  discProfile: any;
+  mbtiProfile: any;
+  emotionalState: string;
+  mainFocus: string;
+  relationalAwareness: number;
   metrics: {
     totalConversations: number;
     totalInsights: number;
@@ -43,6 +50,13 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
     psychologicalProfile: null,
     skillsData: [],
     lifeAreas: [],
+    lifeAreasData: [],
+    bigFiveData: [],
+    discProfile: null,
+    mbtiProfile: null,
+    emotionalState: "Equilibrado",
+    mainFocus: "Desenvolvimento pessoal",
+    relationalAwareness: 75,
     metrics: {
       totalConversations: 0,
       totalInsights: 0,
@@ -77,9 +91,9 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
 
       console.log('📊 Insights encontrados:', insightsData?.length || 0);
 
-      // Buscar conversações
+      // Buscar conversações do WhatsApp
       const { data: conversationsData, error: conversationsError } = await supabase
-        .from('conversations')
+        .from('whatsapp_conversations')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
@@ -91,26 +105,26 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
 
       // Processar insights com informações dos assistentes
       const processedInsights = (insightsData || []).map(insight => {
-        const metadata = insight.metadata || {};
         return {
           ...insight,
-          text: insight.content,
-          assistantName: metadata.assistant_name,
-          assistantArea: metadata.area || 'geral',
+          text: insight.description,
+          assistantName: insight.insight_type || 'Assistente IA',
+          assistantArea: insight.insight_type?.toLowerCase() || 'geral',
           priority: insight.priority || 'medium',
-          createdAt: insight.created_at
+          createdAt: insight.created_at,
+          category: insight.insight_type || 'geral'
         };
       });
 
       // Simular algumas recomendações baseadas nos insights
       const processedRecommendations = processedInsights
-        .filter(insight => insight.category !== 'alert')
         .slice(0, 5)
         .map((insight, index) => ({
           ...insight,
           id: `rec_${insight.id}`,
-          text: `Baseado na análise do ${insight.assistantName || 'assistente'}, recomendamos: ${insight.content?.substring(0, 150)}...`,
-          title: `Recomendação ${index + 1}`
+          text: `Baseado na análise do ${insight.assistantName || 'assistente'}, recomendamos: ${insight.description?.substring(0, 150)}...`,
+          title: `Recomendação ${index + 1}`,
+          content: insight.description
         }));
 
       // Dados emocionais simulados baseados nos insights
@@ -133,6 +147,42 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
         { name: 'Desenvolvimento', score: 90, insights: processedInsights.filter(i => i.category === 'desenvolvimento').length }
       ];
 
+      // Dados para o radar chart (formato diferente)
+      const lifeAreasData = [
+        { subject: 'Carreira', A: 78, fullMark: 100 },
+        { subject: 'Relacionamentos', A: 72, fullMark: 100 },
+        { subject: 'Saúde', A: 85, fullMark: 100 },
+        { subject: 'Finanças', A: 65, fullMark: 100 },
+        { subject: 'Desenvolvimento', A: 90, fullMark: 100 }
+      ];
+
+      // Big Five data
+      const bigFiveData = [
+        { name: 'Abertura', value: 85, description: 'Criatividade e curiosidade' },
+        { name: 'Conscienciosidade', value: 78, description: 'Organização e disciplina' },
+        { name: 'Extroversão', value: 72, description: 'Sociabilidade e energia' },
+        { name: 'Amabilidade', value: 88, description: 'Cooperação e confiança' },
+        { name: 'Neuroticismo', value: 35, description: 'Estabilidade emocional' }
+      ];
+
+      // DISC Profile
+      const discProfile = {
+        dominance: 65,
+        influence: 78,
+        steadiness: 72,
+        compliance: 55,
+        primaryType: 'Influente (I)'
+      };
+
+      // MBTI Profile
+      const mbtiProfile = {
+        extroversion: 72,
+        sensing: 45,
+        thinking: 68,
+        judging: 75,
+        approximateType: 'ESTJ'
+      };
+
       const hasRealData = (insightsData && insightsData.length > 0) || (conversationsData && conversationsData.length > 0);
 
       const newData: AnalysisData = {
@@ -143,18 +193,20 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
         recommendationsWithAssistant: processedRecommendations,
         emotionalData: hasRealData ? emotionalData : [],
         conversations: conversationsData || [],
-        psychologicalProfile: hasRealData ? {
-          traits: ['Analítico', 'Criativo', 'Determinado'],
-          strengths: ['Comunicação', 'Liderança', 'Adaptabilidade'],
-          areas: ['Paciência', 'Organização']
-        } : null,
+        psychologicalProfile: hasRealData ? 'Analítico-Criativo' : null,
         skillsData: hasRealData ? [
-          { skill: 'Comunicação', current: 85, target: 90 },
-          { skill: 'Liderança', current: 75, target: 85 },
-          { skill: 'Criatividade', current: 90, target: 95 },
-          { skill: 'Análise', current: 80, target: 88 }
+          { title: 'Comunicação', value: '85%', trend: '+5%' },
+          { title: 'Liderança', value: '78%', trend: '+3%' },
+          { title: 'Criatividade', value: '92%', trend: '+7%' }
         ] : [],
         lifeAreas: hasRealData ? lifeAreas : [],
+        lifeAreasData: hasRealData ? lifeAreasData : [],
+        bigFiveData: hasRealData ? bigFiveData : [],
+        discProfile: hasRealData ? discProfile : null,
+        mbtiProfile: hasRealData ? mbtiProfile : null,
+        emotionalState: hasRealData ? "Equilibrado" : "Aguardando análise",
+        mainFocus: hasRealData ? "Desenvolvimento pessoal" : "Configure assistentes",
+        relationalAwareness: hasRealData ? 75 : 0,
         metrics: {
           totalConversations: conversationsData?.length || 0,
           totalInsights: insightsData?.length || 0,
@@ -192,7 +244,7 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
 export function useAnalysisData() {
   const context = useContext(AnalysisDataContext);
   if (context === undefined) {
-    throw new Error('useAnalysisData must be used within an AnalysisDataProvider');
+    throw new Error('useAnalysisData deve ser usado dentro de um AnalysisDataProvider');
   }
   return context;
 }

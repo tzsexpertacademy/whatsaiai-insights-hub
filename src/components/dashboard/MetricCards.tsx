@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useAnalysisData } from '@/contexts/AnalysisDataContext';
 import { useOnboarding } from '@/hooks/useOnboarding';
@@ -68,7 +67,7 @@ export function MetricCards() {
     {
       title: "Perfil Comportamental",
       value: data.hasRealData ? "Mapeado" : "Pendente",
-      description: data.psychologicalProfile,
+      description: typeof data.psychologicalProfile === 'string' ? data.psychologicalProfile : "Aguardando análise",
       icon: Target,
       color: "text-purple-600",
       bgColor: "bg-purple-50",
