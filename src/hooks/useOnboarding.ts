@@ -24,19 +24,19 @@ export function useOnboarding() {
       url: window.location.pathname
     });
 
-    // Se é primeira visita e não tem dados reais, mostra demo
     if (!onboardingCompleted && !hasRealData) {
+      // Primeira visita - mostra demo
       setState({
         isFirstVisit: true,
         completed: false,
-        showDemo: true // Sempre mostra demo na primeira visita
+        showDemo: true
       });
     } else if (onboardingCompleted && !hasRealData) {
       // Completou onboarding mas ainda não tem dados reais
       setState({
         isFirstVisit: false,
         completed: true,
-        showDemo: false // Dashboard vazio aguardando análise
+        showDemo: false
       });
     } else {
       // Tem dados reais
@@ -49,22 +49,16 @@ export function useOnboarding() {
   }, []);
 
   const completeOnboarding = () => {
-    console.log('✅ Completando onboarding - usuário quer análise real');
+    console.log('✅ Completando onboarding - transição para dashboard real');
     localStorage.setItem('onboarding_completed', 'true');
     setState({ 
       isFirstVisit: false,
       completed: true,
-      showDemo: false // Para de mostrar demo
+      showDemo: false
     });
-  };
-
-  const markRealDataAvailable = () => {
-    console.log('✅ Marcando dados reais como disponíveis');
-    localStorage.setItem('has_real_analysis_data', 'true');
-    setState(prev => ({ 
-      ...prev, 
-      showDemo: false 
-    }));
+    
+    // Forçar recarregamento do contexto de dados
+    window.dispatchEvent(new CustomEvent('onboarding-completed'));
   };
 
   const resetOnboarding = () => {
@@ -84,6 +78,15 @@ export function useOnboarding() {
 
   const hideDemoData = () => {
     setState(prev => ({ ...prev, showDemo: false }));
+  };
+
+  const markRealDataAvailable = () => {
+    console.log('✅ Marcando dados reais como disponíveis');
+    localStorage.setItem('has_real_analysis_data', 'true');
+    setState(prev => ({ 
+      ...prev, 
+      showDemo: false 
+    }));
   };
 
   return {

@@ -396,6 +396,20 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
     fetchRealData().finally(() => setIsLoading(false));
   }, [user?.id]);
 
+  // Escutar evento de onboarding completado
+  useEffect(() => {
+    const handleOnboardingCompleted = () => {
+      console.log('🎯 Onboarding completado - atualizando dados');
+      refreshData();
+    };
+
+    window.addEventListener('onboarding-completed', handleOnboardingCompleted);
+    
+    return () => {
+      window.removeEventListener('onboarding-completed', handleOnboardingCompleted);
+    };
+  }, []);
+
   const refreshData = async () => {
     setIsLoading(true);
     await fetchRealData();

@@ -4,9 +4,9 @@ import { Routes, Route } from 'react-router-dom';
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from '@/components/AppSidebar';
 import { DashboardHeader } from '@/components/DashboardHeader';
+import { DashboardMain } from '@/components/dashboard/DashboardMain';
 
 // Dashboard pages
-import { MetricCards } from '@/components/dashboard/MetricCards';
 import { ObservatoryTimeline } from '@/components/ObservatoryTimeline';
 import { EmotionalThermometer } from '@/components/EmotionalThermometer';
 import { AreasOfLife } from '@/components/AreasOfLife';
@@ -23,13 +23,13 @@ export default function Index() {
 
   return (
     <SidebarProvider>
-      <div className="flex min-h-screen w-full bg-gray-50">
+      <div className="flex min-h-screen w-full bg-gray-50 overflow-x-hidden">
         <AppSidebar />
-        <div className="flex-1 flex flex-col min-w-0">
+        <div className="flex-1 flex flex-col min-w-0 overflow-x-hidden">
           <DashboardHeader />
-          <main className="flex-1 p-6 overflow-auto">
+          <main className="flex-1 p-4 sm:p-6 overflow-auto">
             <Routes>
-              <Route path="/" element={<MetricCards />} />
+              <Route path="/" element={<DashboardMain />} />
               <Route path="/observatory" element={<ObservatoryTimeline />} />
               <Route path="/thermometer" element={<EmotionalThermometer />} />
               <Route path="/areas" element={<AreasOfLife />} />
