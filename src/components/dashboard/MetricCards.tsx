@@ -15,12 +15,15 @@ import {
   Activity,
   Lightbulb,
   BarChart3,
-  RefreshCw
+  RefreshCw,
+  MessageSquare
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 export function MetricCards() {
   const { data, isLoading, refreshData } = useAnalysisData();
   const { resetOnboarding } = useOnboarding();
+  const navigate = useNavigate();
 
   console.log('📊 MetricCards - Dados:', {
     hasRealData: data.hasRealData,
@@ -100,11 +103,14 @@ export function MetricCards() {
             <RefreshCw className="w-4 h-4 mr-2" />
             Atualizar
           </Button>
-          {data.hasRealData && (
-            <Button onClick={resetOnboarding} variant="outline" size="sm">
-              Ver Demo
-            </Button>
-          )}
+          <Button 
+            onClick={() => navigate('/chat')} 
+            size="sm"
+            className="bg-blue-600 hover:bg-blue-700"
+          >
+            <MessageSquare className="w-4 h-4 mr-2" />
+            Chat
+          </Button>
         </div>
       </div>
 
@@ -113,7 +119,7 @@ export function MetricCards() {
         <Badge 
           className={data.hasRealData ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"}
         >
-          {data.hasRealData ? "Sistema Operacional" : "Aguardando Dados"}
+          {data.hasRealData ? "Sistema Operacional" : "Aguardando Interações"}
         </Badge>
         
         {data.insights.length > 0 && (
@@ -198,19 +204,31 @@ export function MetricCards() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-            <Button variant="outline" className="h-auto p-4 flex-col gap-2">
-              <Brain className="w-6 h-6 text-blue-600" />
-              <span className="text-sm font-medium">Analisar Conversas</span>
+            <Button 
+              variant="outline" 
+              className="h-auto p-4 flex-col gap-2"
+              onClick={() => navigate('/chat')}
+            >
+              <MessageSquare className="w-6 h-6 text-blue-600" />
+              <span className="text-sm font-medium">Conversar com IA</span>
             </Button>
             
-            <Button variant="outline" className="h-auto p-4 flex-col gap-2">
-              <Users className="w-6 h-6 text-green-600" />
-              <span className="text-sm font-medium">Ver Relacionamentos</span>
+            <Button 
+              variant="outline" 
+              className="h-auto p-4 flex-col gap-2"
+              onClick={() => navigate('/insights')}
+            >
+              <Brain className="w-6 h-6 text-purple-600" />
+              <span className="text-sm font-medium">Ver Insights</span>
             </Button>
             
-            <Button variant="outline" className="h-auto p-4 flex-col gap-2">
-              <TrendingUp className="w-6 h-6 text-purple-600" />
-              <span className="text-sm font-medium">Acompanhar Evolução</span>
+            <Button 
+              variant="outline" 
+              className="h-auto p-4 flex-col gap-2"
+              onClick={() => navigate('/thermometer')}
+            >
+              <TrendingUp className="w-6 h-6 text-green-600" />
+              <span className="text-sm font-medium">Análise Emocional</span>
             </Button>
           </div>
         </CardContent>

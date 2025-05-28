@@ -5,38 +5,61 @@ interface OnboardingState {
   isFirstVisit: boolean;
   showDemo: boolean;
   completed: boolean;
+  currentStep: number;
 }
 
 export function useOnboarding() {
   const [state, setState] = useState<OnboardingState>({
     isFirstVisit: false,
     showDemo: false,
-    completed: true
+    completed: true,
+    currentStep: 0
   });
 
   useEffect(() => {
+    const onboardingCompleted = localStorage.getItem('onboarding_completed') === 'true';
     const hasRealData = localStorage.getItem('has_real_analysis_data') === 'true';
     
     console.log('🔍 Verificando onboarding:', {
+      onboardingCompleted,
       hasRealData,
       url: window.location.pathname
     });
 
-    // Sempre vai direto para o dashboard real
-    setState({
-      isFirstVisit: false,
-      completed: true,
-      showDemo: false
-    });
+    if (!onboardingCompleted && !hasRealData) {
+      // Primeira visita - inicia experiência
+      setState({
+        isFirstVisit: true,
+        completed: false,
+        showDemo: true,
+        currentStep: 1
+      });
+    } else {
+      // Usuário já passou pelo onboarding
+      setState({
+        isFirstVisit: false,
+        completed: true,
+        showDemo: false,
+        currentStep: 0
+      });
+    }
   }, []);
 
+  const nextStep = () => {
+    setState(prev => ({
+      ...prev,
+      currentStep: prev.currentStep + 1
+    }));
+  };
+
   const completeOnboarding = () => {
-    console.log('✅ Completando onboarding - transição para dashboard real');
+    console.log('✅ Completando onboarding');
     localStorage.setItem('onboarding_completed', 'true');
     setState({ 
       isFirstVisit: false,
       completed: true,
-      showDemo: false
+      showDemo: false,
+      currentStep: 0
     });
     
     window.dispatchEvent(new CustomEvent('onboarding-completed'));
@@ -47,9 +70,10 @@ export function useOnboarding() {
     localStorage.removeItem('onboarding_completed');
     localStorage.removeItem('has_real_analysis_data');
     setState({
-      isFirstVisit: false,
-      showDemo: false,
-      completed: true
+      isFirstVisit: true,
+      showDemo: true,
+      completed: false,
+      currentStep: 1
     });
   };
 
@@ -72,6 +96,7 @@ export function useOnboarding() {
 
   return {
     ...state,
+    nextStep,
     completeOnboarding,
     resetOnboarding,
     showDemoData,
