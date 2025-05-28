@@ -35,7 +35,7 @@ import {
 
 export function ObservatoryLanding() {
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, createCheckout } = useAuth();
   const { toast } = useToast();
   const heroRef = useRef<HTMLDivElement>(null);
   const particlesRef = useRef<HTMLCanvasElement>(null);
@@ -141,10 +141,11 @@ export function ObservatoryLanding() {
     };
   }, []);
 
-  const handleAccessObservatory = () => {
+  const handleAccessObservatory = async () => {
     console.log('🚀 Botão clicado - handleAccessObservatory', { isAuthenticated });
     
     if (isAuthenticated) {
+      // Cliente logado - vai direto para dashboard (sem tutorial)
       toast({
         title: "Bem-vindo de volta!",
         description: "Redirecionando para seu observatório...",
@@ -152,12 +153,22 @@ export function ObservatoryLanding() {
       });
       navigate('/dashboard');
     } else {
-      toast({
-        title: "Vamos começar!",
-        description: "Crie sua conta para acessar o observatório",
-        duration: 2000
-      });
-      navigate('/auth');
+      // Novo cliente - vai para checkout primeiro
+      try {
+        toast({
+          title: "Iniciando sua assinatura...",
+          description: "Redirecionando para o checkout",
+          duration: 2000
+        });
+        await createCheckout();
+      } catch (error) {
+        console.error('Erro ao criar checkout:', error);
+        toast({
+          title: "Erro",
+          description: "Erro ao iniciar checkout. Tente novamente.",
+          variant: "destructive"
+        });
+      }
     }
   };
 
@@ -284,7 +295,7 @@ export function ObservatoryLanding() {
                   <div className="text-center">
                     <div className="font-black">ACESSAR OBSERVATÓRIO</div>
                     <div className="text-sm sm:text-base font-normal opacity-90">
-                      {isAuthenticated ? 'Entrar no Dashboard' : 'Criar Conta Grátis'}
+                      {isAuthenticated ? 'Entrar no Dashboard' : 'Assinar e Começar'}
                     </div>
                   </div>
                   <ArrowRight className="w-6 h-6 sm:w-8 sm:h-8 ml-2 sm:ml-4 group-hover:translate-x-2 transition-transform" />
@@ -486,7 +497,9 @@ export function ObservatoryLanding() {
                 <Shield className="w-8 h-8 sm:w-10 sm:h-10 mr-4 sm:mr-6 group-hover:rotate-12 transition-transform duration-500" />
                 <div className="text-center">
                   <div className="font-black">ACESSAR MEU OBSERVATÓRIO AGORA</div>
-                  <div className="text-lg sm:text-xl font-normal opacity-90">7 DIAS GRÁTIS</div>
+                  <div className="text-lg sm:text-xl font-normal opacity-90">
+                    {isAuthenticated ? 'ENTRAR NO DASHBOARD' : '7 DIAS GRÁTIS'}
+                  </div>
                 </div>
                 <Flame className="w-8 h-8 sm:w-10 sm:h-10 ml-4 sm:ml-6 group-hover:scale-110 transition-transform duration-500" />
               </Button>

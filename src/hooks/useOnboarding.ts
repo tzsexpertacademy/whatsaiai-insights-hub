@@ -19,15 +19,17 @@ export function useOnboarding() {
   useEffect(() => {
     const onboardingCompleted = localStorage.getItem('onboarding_completed') === 'true';
     const hasRealData = localStorage.getItem('has_real_analysis_data') === 'true';
+    const isNewUser = localStorage.getItem('is_new_user') === 'true';
     
     console.log('🔍 Verificando onboarding:', {
       onboardingCompleted,
       hasRealData,
+      isNewUser,
       url: window.location.pathname
     });
 
-    if (!onboardingCompleted && !hasRealData) {
-      // Primeira visita - inicia experiência
+    // Se é um usuário novo (que veio do checkout) e ainda não completou o onboarding
+    if (isNewUser && !onboardingCompleted) {
       setState({
         isFirstVisit: true,
         completed: false,
@@ -35,7 +37,7 @@ export function useOnboarding() {
         currentStep: 1
       });
     } else {
-      // Usuário já passou pelo onboarding
+      // Usuário existente ou que já passou pelo onboarding
       setState({
         isFirstVisit: false,
         completed: true,
@@ -55,6 +57,7 @@ export function useOnboarding() {
   const completeOnboarding = () => {
     console.log('✅ Completando onboarding');
     localStorage.setItem('onboarding_completed', 'true');
+    localStorage.removeItem('is_new_user'); // Remove flag de novo usuário
     setState({ 
       isFirstVisit: false,
       completed: true,
@@ -69,6 +72,7 @@ export function useOnboarding() {
     console.log('🔄 Reset completo do onboarding');
     localStorage.removeItem('onboarding_completed');
     localStorage.removeItem('has_real_analysis_data');
+    localStorage.removeItem('is_new_user');
     setState({
       isFirstVisit: true,
       showDemo: true,
@@ -94,6 +98,11 @@ export function useOnboarding() {
     }));
   };
 
+  const markAsNewUser = () => {
+    console.log('🆕 Marcando como novo usuário');
+    localStorage.setItem('is_new_user', 'true');
+  };
+
   return {
     ...state,
     nextStep,
@@ -101,6 +110,7 @@ export function useOnboarding() {
     resetOnboarding,
     showDemoData,
     hideDemoData,
-    markRealDataAvailable
+    markRealDataAvailable,
+    markAsNewUser
   };
 }

@@ -12,7 +12,8 @@ import {
   ArrowRight,
   Heart,
   Target,
-  BarChart3
+  BarChart3,
+  FileText
 } from 'lucide-react';
 import { useOnboarding } from '@/hooks/useOnboarding';
 
@@ -20,16 +21,17 @@ export function OnboardingExperience() {
   const { currentStep, nextStep, completeOnboarding } = useOnboarding();
   const navigate = useNavigate();
 
-  const handleStartChat = () => {
+  const handleStartAnalysis = () => {
     completeOnboarding();
-    navigate('/chat');
+    // Redireciona para análise de documentos onde pode conversar com assistentes
+    navigate('/dashboard/documents');
   };
 
   const handleContinue = () => {
     if (currentStep < 3) {
       nextStep();
     } else {
-      handleStartChat();
+      handleStartAnalysis();
     }
   };
 
@@ -159,12 +161,13 @@ export function OnboardingExperience() {
           
           <div className="bg-gradient-to-r from-indigo-50 to-cyan-50 p-6 rounded-lg border border-indigo-200">
             <div className="text-center">
-              <MessageSquare className="w-12 h-12 text-indigo-600 mx-auto mb-4" />
+              <FileText className="w-12 h-12 text-indigo-600 mx-auto mb-4" />
               <h4 className="text-xl font-bold text-indigo-800 mb-2">
-                Pronto para começar sua jornada?
+                Pronto para começar sua análise?
               </h4>
               <p className="text-indigo-600">
-                Vamos para o chat onde você fará suas primeiras interações com nossos assistentes especializados.
+                Vamos para a área de análise onde você pode conversar com nossos assistentes especializados 
+                e fazer upload de documentos para análise.
               </p>
             </div>
           </div>
@@ -227,8 +230,8 @@ export function OnboardingExperience() {
                   </>
                 ) : (
                   <>
-                    Começar no Chat
-                    <MessageSquare className="w-5 h-5 ml-2" />
+                    Começar Análise
+                    <FileText className="w-5 h-5 ml-2" />
                   </>
                 )}
               </Button>

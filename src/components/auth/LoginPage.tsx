@@ -7,14 +7,17 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from '@/contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Brain, Mail, Lock, User, Building } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useOnboarding } from '@/hooks/useOnboarding';
 
 export function LoginPage() {
   const { login, signup, user, isLoading } = useAuth();
+  const { markAsNewUser } = useOnboarding();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
 
   const [loginData, setLoginData] = useState({
     email: '',
@@ -29,21 +32,35 @@ export function LoginPage() {
     companyName: ''
   });
 
-  // Quando usuário se autentica, vai direto para o dashboard
+  // Verificar se veio do checkout
+  const fromCheckout = searchParams.get('checkout') === 'success';
+
+  // Quando usuário se autentica
   useEffect(() => {
     if (user) {
       console.log('✅ Usuário autenticado, redirecionando para dashboard');
-      toast({
-        title: "Login realizado com sucesso!",
-        description: "Bem-vindo ao seu Observatório!",
-        duration: 2000
-      });
+      
+      // Se veio do checkout, marcar como novo usuário para mostrar tutorial
+      if (fromCheckout) {
+        markAsNewUser();
+        toast({
+          title: "Bem-vindo ao Observatório!",
+          description: "Vamos começar sua jornada de autoconhecimento",
+          duration: 2000
+        });
+      } else {
+        toast({
+          title: "Login realizado com sucesso!",
+          description: "Bem-vindo de volta!",
+          duration: 2000
+        });
+      }
       
       setTimeout(() => {
         navigate('/dashboard');
       }, 1000);
     }
-  }, [user, navigate, toast]);
+  }, [user, navigate, toast, fromCheckout, markAsNewUser]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -96,6 +113,8 @@ export function LoginPage() {
         fullName: signupData.fullName,
         companyName: signupData.companyName
       });
+      
+      // Se veio do checkout, será marcado como novo usuário no useEffect acima
     } catch (error) {
       console.error('❌ Erro no cadastro:', error);
       toast({
@@ -115,22 +134,28 @@ export function LoginPage() {
             <h1 className="text-2xl font-bold text-gray-900">Observatório</h1>
           </div>
           <p className="text-gray-600">Seu painel de consciência pessoal</p>
-          <p className="text-sm text-green-600 font-medium mt-2">
-            Acesso completo ao seu observatório
-          </p>
+          {fromCheckout && (
+            <p className="text-sm text-green-600 font-medium mt-2">
+              ✅ Assinatura confirmada! Crie sua conta para começar
+            </p>
+          )}
         </div>
 
         <Card className="shadow-xl border-0">
           <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl text-center">Acesse seu Observatório</CardTitle>
+            <CardTitle className="text-2xl text-center">
+              {fromCheckout ? 'Complete seu cadastro' : 'Acesse seu Observatório'}
+            </CardTitle>
             <CardDescription className="text-center">
-              Entre ou crie sua conta para começar
+              {fromCheckout ? 'Crie sua conta para acessar a plataforma' : 'Entre ou crie sua conta para começar'}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue="signup" className="w-full">
+            <Tabs defaultValue={fromCheckout ? "signup" : "signup"} className="w-full">
               <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="signup">Criar Conta</TabsTrigger>
+                <TabsTrigger value="signup">
+                  {fromCheckout ? 'Criar Conta' : 'Criar Conta'}
+                </TabsTrigger>
                 <TabsTrigger value="login">Já tenho conta</TabsTrigger>
               </TabsList>
 
