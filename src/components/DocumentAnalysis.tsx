@@ -22,7 +22,8 @@ import {
   Send,
   Bot,
   User,
-  Settings
+  Settings,
+  Zap
 } from 'lucide-react';
 import { useConversationUpload } from '@/hooks/useConversationUpload';
 import { useAssistantsConfig } from '@/hooks/useAssistantsConfig';
@@ -88,18 +89,29 @@ export function DocumentAnalysis() {
       setProgress(100);
       
       if (result.success) {
-        setConversationText('');
-        setSelectedFile(null);
+        const selectedAssistantData = assistants.find(a => a.id === selectedAssistant);
         
-        // Adicionar mensagem de sucesso ao chat
-        const successMessage: Message = {
+        // Adicionar mensagem do usuário
+        const userMessage: Message = {
           id: messages.length + 1,
+          type: 'user',
+          content: `Analisei o documento "${selectedFile?.name || 'texto colado'}" usando o assistente ${selectedAssistantData?.name}`,
+          timestamp: new Date()
+        };
+        
+        // Simular análise do assistente
+        const analysisResponse = getDocumentAnalysis(selectedAssistant, selectedFile?.name || 'documento');
+        const assistantMessage: Message = {
+          id: messages.length + 2,
           type: 'assistant',
-          content: `Análise concluída! O documento foi processado com sucesso pelo assistente ${assistants.find(a => a.id === selectedAssistant)?.name} usando o modelo ${selectedModel}.`,
+          content: analysisResponse,
           timestamp: new Date(),
           assistantId: selectedAssistant
         };
-        setMessages(prev => [...prev, successMessage]);
+        
+        setMessages(prev => [...prev, userMessage, assistantMessage]);
+        setConversationText('');
+        setSelectedFile(null);
         
         setTimeout(() => setProgress(0), 1000);
       }
@@ -107,6 +119,21 @@ export function DocumentAnalysis() {
       console.error('Erro ao fazer upload:', error);
       setProgress(0);
     }
+  };
+
+  const getDocumentAnalysis = (assistantId: string, fileName: string): string => {
+    const analyses = {
+      kairon: `Analisei seu documento "${fileName}". Interessante... Vejo alguns padrões aqui que você talvez não tenha percebido. Primeiro, há uma tendência de evitar certas verdades desconfortáveis. O que você está tentando não ver neste conteúdo? Este documento revela mais sobre você do que imagina.`,
+      oracle: `Documento "${fileName}" processado. Percebo camadas emocionais profundas neste conteúdo. Há resistências e sombras que merecem atenção. O que este texto desperta em você emocionalmente? Quais memórias ou sentimentos surgem?`,
+      guardian: `Análise financeira/estratégica de "${fileName}" concluída. Vejo oportunidades e riscos que precisam ser endereçados. Como este conteúdo impacta seus recursos e estratégia? Que decisões práticas emergem desta análise?`,
+      engineer: `Documento "${fileName}" analisado sob perspectiva de performance. Identifiquei padrões que afetam sua energia e vitalidade. Como este conteúdo se relaciona com sua saúde física e mental?`,
+      architect: `Estrutura de "${fileName}" mapeada. Vejo gaps estratégicos e oportunidades de organização. Como este documento se alinha com seus objetivos maiores?`,
+      weaver: `Análise existencial de "${fileName}" realizada. Encontrei elementos que tocam seu propósito e legado. O que este conteúdo revela sobre seu caminho de vida?`,
+      catalyst: `Documento "${fileName}" processado para insights criativos. Identifiquei bloqueios e potenciais inovações. Que novas possibilidades este conteúdo desperta?`,
+      mirror: `Análise relacional de "${fileName}" concluída. Vejo padrões de comunicação e dinâmicas interpessoais interessantes. Como este conteúdo reflete seus relacionamentos?`
+    };
+
+    return analyses[assistantId as keyof typeof analyses] || analyses.kairon;
   };
 
   const handleSendChatMessage = () => {
@@ -168,6 +195,7 @@ export function DocumentAnalysis() {
   ];
 
   const activeAssistants = assistants.filter(a => a.isActive);
+  const selectedAssistantData = assistants.find(a => a.id === selectedAssistant);
 
   return (
     <div className="w-full max-w-7xl mx-auto p-6 space-y-6">
@@ -222,6 +250,38 @@ export function DocumentAnalysis() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
+                {/* Seleção de Assistente */}
+                <div className="space-y-2">
+                  <Label>Assistente para Análise:</Label>
+                  <Select value={selectedAssistant} onValueChange={setSelectedAssistant}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {activeAssistants.map((assistant) => (
+                        <SelectItem key={assistant.id} value={assistant.id}>
+                          {assistant.icon} {assistant.name} - {assistant.description}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Seleção de Modelo */}
+                <div className="space-y-2">
+                  <Label>Modelo de IA:</Label>
+                  <Select value={selectedModel} onValueChange={setSelectedModel}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="gpt-4o-mini">GPT-4o Mini (Rápido e Econômico)</SelectItem>
+                      <SelectItem value="gpt-4o">GPT-4o (Mais Poderoso)</SelectItem>
+                      <SelectItem value="gpt-4.5-preview">GPT-4.5 Preview (Experimental)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 <div className="space-y-2">
                   <Label>Selecione um arquivo:</Label>
                   <Input
@@ -269,7 +329,7 @@ export function DocumentAnalysis() {
                   ) : (
                     <>
                       <Brain className="w-4 h-4 mr-2" />
-                      Analisar Documento
+                      Analisar com {selectedAssistantData?.name}
                     </>
                   )}
                 </Button>
@@ -284,15 +344,74 @@ export function DocumentAnalysis() {
               fileName={selectedFile?.name}
             />
           </div>
+
+          {/* Todos os Assistentes Disponíveis */}
+          <Card className="bg-gradient-to-r from-purple-50 to-blue-50 border-purple-200">
+            <CardHeader>
+              <CardTitle className="text-purple-800 flex items-center gap-2">
+                <Zap className="w-5 h-5" />
+                Assistentes Disponíveis para Análise
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                {activeAssistants.map((assistant) => (
+                  <div
+                    key={assistant.id}
+                    onClick={() => setSelectedAssistant(assistant.id)}
+                    className={`p-4 rounded-lg border cursor-pointer transition-all hover:shadow-md ${
+                      selectedAssistant === assistant.id
+                        ? 'bg-blue-100 border-blue-300 shadow-lg'
+                        : 'bg-white border-gray-200 hover:bg-gray-50'
+                    }`}
+                  >
+                    <div className="text-center space-y-2">
+                      <div className="text-2xl">{assistant.icon}</div>
+                      <h3 className="font-semibold text-sm">{assistant.name}</h3>
+                      <p className="text-xs text-gray-600 line-clamp-2">{assistant.description}</p>
+                      {selectedAssistant === assistant.id && (
+                        <Badge className="bg-blue-500 text-white">Selecionado</Badge>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="chat" className="space-y-6">
+          {/* Seleção de Assistente no Chat */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Bot className="w-5 h-5" />
+                Assistente Ativo: {selectedAssistantData?.name}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                {activeAssistants.map((assistant) => (
+                  <Button
+                    key={assistant.id}
+                    variant={selectedAssistant === assistant.id ? "default" : "outline"}
+                    onClick={() => setSelectedAssistant(assistant.id)}
+                    className="flex items-center gap-2 h-auto p-3"
+                  >
+                    <span>{assistant.icon}</span>
+                    <span className="text-xs">{assistant.name}</span>
+                  </Button>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Chat com Assistente */}
           <Card className="h-[600px] flex flex-col">
             <CardHeader className="border-b">
               <CardTitle className="flex items-center gap-2">
                 <MessageSquare className="w-5 h-5" />
-                Chat com {assistants.find(a => a.id === selectedAssistant)?.name}
+                Chat com {selectedAssistantData?.name}
               </CardTitle>
             </CardHeader>
             
@@ -306,7 +425,7 @@ export function DocumentAnalysis() {
                       {msg.type === 'user' ? (
                         <User className="w-5 h-5 text-white" />
                       ) : (
-                        <Bot className="w-5 h-5 text-white" />
+                        <span className="text-white text-sm">{assistants.find(a => a.id === msg.assistantId)?.icon}</span>
                       )}
                     </div>
                     <div className={`rounded-lg p-3 shadow-sm ${
@@ -329,7 +448,7 @@ export function DocumentAnalysis() {
                 <div className="flex justify-start">
                   <div className="flex gap-2 max-w-[80%]">
                     <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-blue-600 rounded-full flex items-center justify-center">
-                      <Bot className="w-5 h-5 text-white" />
+                      <span className="text-white text-sm">{selectedAssistantData?.icon}</span>
                     </div>
                     <div className="bg-white rounded-lg rounded-bl-none p-3 border">
                       <div className="flex space-x-1">
@@ -375,36 +494,6 @@ export function DocumentAnalysis() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Assistente para Análise:</Label>
-                  <Select value={selectedAssistant} onValueChange={setSelectedAssistant}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {activeAssistants.map((assistant) => (
-                        <SelectItem key={assistant.id} value={assistant.id}>
-                          {assistant.icon} {assistant.name} - {assistant.description}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Modelo de IA:</Label>
-                  <Select value={selectedModel} onValueChange={setSelectedModel}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="gpt-4o-mini">GPT-4o Mini (Rápido e Econômico)</SelectItem>
-                      <SelectItem value="gpt-4o">GPT-4o (Mais Poderoso)</SelectItem>
-                      <SelectItem value="gpt-4.5-preview">GPT-4.5 Preview (Experimental)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
                 <div className="space-y-2">
                   <Label>Máximo de Tokens: {maxTokens.toLocaleString()}</Label>
                   <Input
