@@ -11,8 +11,10 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarTrigger,
+  SidebarFooter,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { SidebarSubscriptionStatus } from '@/components/SidebarSubscriptionStatus';
 import { Badge } from "@/components/ui/badge";
 import { 
   BarChart3, 
@@ -179,6 +181,13 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
+
+      {/* Footer com Status da Assinatura */}
+      {!isCollapsed && (
+        <SidebarFooter className="p-4 border-t border-gray-200">
+          <SidebarSubscriptionStatus />
+        </SidebarFooter>
+      )}
     </Sidebar>
   );
 }

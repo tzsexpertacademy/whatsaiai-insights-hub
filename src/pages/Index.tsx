@@ -23,9 +23,9 @@ export default function Index() {
 
   return (
     <SidebarProvider defaultOpen={true}>
-      <div className="min-h-screen w-full bg-gray-50 flex">
+      <div className="min-h-screen w-full flex">
         <AppSidebar />
-        <main className="flex-1 w-full">
+        <main className="flex-1 w-full bg-gray-50 overflow-auto">
           <Routes>
             <Route path="/" element={<DashboardMain />} />
             <Route path="/dashboard" element={<DashboardMain />} />
