@@ -42,17 +42,29 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
+    const requestBody = await req.json();
+    console.log('📊 Dados recebidos:', {
+      userId: requestBody.userId,
+      assistantsCount: requestBody.assistants?.length,
+      hasOpenAIKey: !!requestBody.openaiConfig?.apiKey,
+      analysisType: requestBody.analysisType
+    });
+
     const {
       userId,
       openaiConfig,
       assistants,
       analysisType,
       timestamp
-    }: AnalysisRequest = await req.json();
+    }: AnalysisRequest = requestBody;
 
     // Validações de segurança
     if (!userId || !openaiConfig?.apiKey || !assistants?.length) {
-      console.error('❌ Dados obrigatórios faltando');
+      console.error('❌ Dados obrigatórios faltando:', {
+        hasUserId: !!userId,
+        hasOpenAIKey: !!openaiConfig?.apiKey,
+        assistantsCount: assistants?.length || 0
+      });
       return new Response(
         JSON.stringify({ 
           success: false, 
@@ -75,7 +87,7 @@ serve(async (req) => {
     }
 
     console.log('👤 Processando análise para usuário:', userId);
-    console.log('🤖 Assistentes configurados:', assistants.map(a => `${a.name} (${a.model})`));
+    console.log('🤖 Assistentes configurados:', assistants.map(a => `${a.name} (${a.model}) - ${a.area}`));
 
     // Buscar conversações do usuário
     const { data: conversations, error: convError } = await supabaseClient
@@ -83,7 +95,7 @@ serve(async (req) => {
       .select('*')
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
-      .limit(50);
+      .limit(100);
 
     if (convError) {
       console.error('❌ Erro ao buscar conversações:', convError);
@@ -95,7 +107,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'Nenhuma conversação encontrada para análise' 
+          error: 'Nenhuma conversação encontrada para análise. Crie algumas conversas primeiro.' 
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -105,8 +117,10 @@ serve(async (req) => {
 
     // Preparar texto para análise
     const conversationText = conversations
-      .map(conv => `[${conv.created_at}] ${conv.message}`)
+      .map(conv => `[${new Date(conv.created_at).toLocaleString('pt-BR')}] ${conv.message}`)
       .join('\n');
+
+    console.log(`📝 Texto preparado para análise: ${conversationText.length} caracteres`);
 
     const insights = [];
     const assistantsUsed = [];
@@ -115,20 +129,27 @@ serve(async (req) => {
     // Processar com cada assistente configurado
     for (const assistant of assistants) {
       try {
-        console.log(`🔄 Processando com ${assistant.name} (${assistant.model})...`);
+        console.log(`🔄 Processando com ${assistant.name} (${assistant.model}) - Área: ${assistant.area}...`);
 
         const systemPrompt = `${assistant.prompt}
 
-INSTRUÇÕES ESPECÍFICAS PARA ANÁLISE:
-- Analise as conversações do usuário
-- Foque na área: ${assistant.area}
-- Gere insights específicos e práticos
-- Seja objetivo e construtivo
-- Máximo 200 palavras por insight
-- Responda em português brasileiro
+CONTEXTO DE ANÁLISE:
+- Você é o assistente "${assistant.name}" especializado em "${assistant.area}"
+- Sua função é analisar as conversações do usuário e gerar insights específicos
+- Foque na sua área de especialização: ${assistant.area}
+
+INSTRUÇÕES ESPECÍFICAS:
+- Analise as conversações fornecidas
+- Gere insights práticos e acionáveis
+- Seja objetivo e construtivo  
+- Máximo 300 palavras por insight
+- Responda sempre em português brasileiro
+- Identifique padrões comportamentais relevantes à sua área
 
 DADOS PARA ANÁLISE:
-${conversationText.substring(0, 3000)}`;
+${conversationText.substring(0, 4000)}`;
+
+        console.log(`📤 Enviando requisição para OpenAI - Assistente: ${assistant.name}`);
 
         const response = await fetch('https://api.openai.com/v1/chat/completions', {
           method: 'POST',
@@ -140,15 +161,18 @@ ${conversationText.substring(0, 3000)}`;
             model: assistant.model,
             messages: [
               { role: 'system', content: systemPrompt },
-              { role: 'user', content: 'Gere insights baseados nas conversações fornecidas.' }
+              { role: 'user', content: `Analise as conversações e gere insights específicos para a área de ${assistant.area}.` }
             ],
             temperature: openaiConfig.temperature,
             max_tokens: openaiConfig.maxTokens,
           }),
         });
 
+        console.log(`📥 Resposta OpenAI para ${assistant.name}: Status ${response.status}`);
+
         if (!response.ok) {
-          console.error(`❌ Erro OpenAI para ${assistant.name}:`, response.status);
+          const errorText = await response.text();
+          console.error(`❌ Erro OpenAI para ${assistant.name}:`, response.status, errorText);
           continue;
         }
 
@@ -156,27 +180,35 @@ ${conversationText.substring(0, 3000)}`;
         const insight = aiData.choices[0]?.message?.content;
 
         if (insight) {
-          insights.push({
+          const insightData = {
             assistant_id: assistant.id,
             assistant_name: assistant.name,
             content: insight,
             area: assistant.area,
             model_used: assistant.model,
             generated_at: new Date().toISOString()
-          });
-          
+          };
+
+          insights.push(insightData);
           assistantsUsed.push(assistant.name);
-          console.log(`✅ Insight gerado por ${assistant.name}`);
+          
+          console.log(`✅ Insight gerado por ${assistant.name}: ${insight.substring(0, 100)}...`);
+        } else {
+          console.warn(`⚠️ Nenhum insight retornado pelo ${assistant.name}`);
         }
 
       } catch (error) {
-        console.error(`❌ Erro processando ${assistant.name}:`, error);
+        console.error(`❌ Erro processando ${assistant.name}:`, error.message);
         continue;
       }
     }
 
+    console.log(`📊 Total de insights gerados: ${insights.length}`);
+
     // Salvar insights no banco
     if (insights.length > 0) {
+      console.log('💾 Salvando insights no banco de dados...');
+      
       const { error: insertError } = await supabaseClient
         .from('insights')
         .insert(
@@ -190,7 +222,8 @@ ${conversationText.substring(0, 3000)}`;
               assistant_name: insight.assistant_name,
               model_used: insight.model_used,
               generated_at: insight.generated_at,
-              analysis_type: analysisType
+              analysis_type: analysisType,
+              conversations_analyzed: conversations.length
             }
           }))
         );
@@ -199,6 +232,10 @@ ${conversationText.substring(0, 3000)}`;
         console.error('❌ Erro ao salvar insights:', insertError);
         throw new Error(`Erro ao salvar insights: ${insertError.message}`);
       }
+
+      console.log('✅ Insights salvos com sucesso no banco');
+    } else {
+      console.warn('⚠️ Nenhum insight foi gerado pelos assistentes');
     }
 
     const processingTime = Date.now() - startTime;
@@ -206,7 +243,8 @@ ${conversationText.substring(0, 3000)}`;
     console.log('✅ Análise concluída:', {
       insightsGenerated: insights.length,
       assistantsUsed: assistantsUsed.length,
-      processingTime: `${processingTime}ms`
+      processingTime: `${processingTime}ms`,
+      conversationsAnalyzed: conversations.length
     });
 
     return new Response(
@@ -215,7 +253,8 @@ ${conversationText.substring(0, 3000)}`;
         insights: insights,
         assistantsUsed: assistantsUsed,
         processingTime: processingTime,
-        conversationsAnalyzed: conversations.length
+        conversationsAnalyzed: conversations.length,
+        message: `Análise concluída com ${insights.length} insights gerados por ${assistantsUsed.length} assistentes`
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
