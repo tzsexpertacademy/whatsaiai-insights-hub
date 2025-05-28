@@ -28,7 +28,8 @@ import {
   FileText,
   Settings,
   User,
-  Activity
+  Activity,
+  MessageSquare
 } from 'lucide-react';
 
 const mainItems = [
@@ -36,6 +37,7 @@ const mainItems = [
   { title: "Termômetro Emocional", url: "/dashboard/thermometer", icon: Heart, description: "Estados emocionais" },
   { title: "Áreas da Vida", url: "/dashboard/areas", icon: Target, description: "Mapeamento completo" },
   { title: "Perfil Comportamental", url: "/dashboard/behavioral", icon: Brain, description: "Análise psicológica" },
+  { title: "Chat com Assistentes", url: "/dashboard/chat", icon: MessageSquare, description: "Conversas com IA" },
   { title: "Linha do Tempo", url: "/dashboard/timeline", icon: Calendar, description: "Evolução pessoal" },
 ];
 

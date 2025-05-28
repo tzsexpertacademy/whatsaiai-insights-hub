@@ -13,7 +13,7 @@ import {
   Heart,
   Target,
   BarChart3,
-  FileText
+  Bot
 } from 'lucide-react';
 import { useOnboarding } from '@/hooks/useOnboarding';
 
@@ -21,17 +21,17 @@ export function OnboardingExperience() {
   const { currentStep, nextStep, completeOnboarding } = useOnboarding();
   const navigate = useNavigate();
 
-  const handleStartAnalysis = () => {
+  const handleStartChat = () => {
     completeOnboarding();
-    // Redireciona para análise de documentos onde pode conversar com assistentes
-    navigate('/dashboard/documents');
+    // Redireciona para chat com assistentes
+    navigate('/dashboard/chat');
   };
 
   const handleContinue = () => {
     if (currentStep < 3) {
       nextStep();
     } else {
-      handleStartAnalysis();
+      handleStartChat();
     }
   };
 
@@ -159,15 +159,15 @@ export function OnboardingExperience() {
             </Card>
           </div>
           
-          <div className="bg-gradient-to-r from-indigo-50 to-cyan-50 p-6 rounded-lg border border-indigo-200">
+          <div className="bg-gradient-to-r from-green-50 to-cyan-50 p-6 rounded-lg border border-green-200">
             <div className="text-center">
-              <FileText className="w-12 h-12 text-indigo-600 mx-auto mb-4" />
-              <h4 className="text-xl font-bold text-indigo-800 mb-2">
-                Pronto para começar sua análise?
+              <Bot className="w-12 h-12 text-green-600 mx-auto mb-4" />
+              <h4 className="text-xl font-bold text-green-800 mb-2">
+                Pronto para conversar com nossos assistentes?
               </h4>
-              <p className="text-indigo-600">
-                Vamos para a área de análise onde você pode conversar com nossos assistentes especializados 
-                e fazer upload de documentos para análise.
+              <p className="text-green-600">
+                Vamos para a área de chat onde você pode conversar diretamente com nossos assistentes especializados 
+                em psicologia, coaching e desenvolvimento pessoal.
               </p>
             </div>
           </div>
@@ -230,8 +230,8 @@ export function OnboardingExperience() {
                   </>
                 ) : (
                   <>
-                    Começar Análise
-                    <FileText className="w-5 h-5 ml-2" />
+                    Conversar com Assistentes
+                    <MessageSquare className="w-5 h-5 ml-2" />
                   </>
                 )}
               </Button>
