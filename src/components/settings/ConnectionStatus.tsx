@@ -1,194 +1,127 @@
 
-import React from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { Smartphone, Wifi, WifiOff, Upload, RefreshCw, CheckCircle } from 'lucide-react';
-import { useClientConfig } from "@/contexts/ClientConfigContext";
+import { CheckCircle, AlertCircle, Wifi, WifiOff, RefreshCw } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
-import { useConversationUpload } from "@/hooks/useConversationUpload";
 
 export function ConnectionStatus() {
-  const { config, updateConfig, saveConfig } = useClientConfig();
+  const [status, setStatus] = useState({
+    openai: 'checking',
+    firebase: 'checking',
+    whatsapp: 'checking'
+  });
   const { toast } = useToast();
-  const { uploadAndAnalyze, isUploading } = useConversationUpload();
-  const whatsappConfig = config.whatsapp;
-  
-  const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
-  
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      setSelectedFile(file);
-    }
-  };
-  
-  const importConversations = async () => {
-    if (!selectedFile) return;
-    
-    const result = await uploadAndAnalyze(selectedFile);
-    
-    if (result.success) {
-      updateConfig('whatsapp', { 
-        isConnected: true,
-        lastImport: new Date().toISOString()
-      });
-      await saveConfig();
-      setSelectedFile(null);
-    }
-  };
 
-  const handleManualSync = async () => {
+  const checkConnections = async () => {
+    console.log('🔍 Verificando status das conexões...');
+    
+    // Check OpenAI
+    const openaiKey = localStorage.getItem('openai_api_key');
+    if (openaiKey) {
+      try {
+        const response = await fetch('https://api.openai.com/v1/models', {
+          headers: {
+            'Authorization': `Bearer ${openaiKey}`,
+          },
+        });
+        setStatus(prev => ({ 
+          ...prev, 
+          openai: response.ok ? 'connected' : 'error' 
+        }));
+      } catch (error) {
+        setStatus(prev => ({ ...prev, openai: 'error' }));
+      }
+    } else {
+      setStatus(prev => ({ ...prev, openai: 'disconnected' }));
+    }
+
+    // Check Firebase
+    const firebaseConfig = localStorage.getItem('firebase_config');
+    setStatus(prev => ({ 
+      ...prev, 
+      firebase: firebaseConfig ? 'connected' : 'disconnected' 
+    }));
+
+    // Check WhatsApp
+    const whatsappConfig = localStorage.getItem('whatsapp_config');
+    setStatus(prev => ({ 
+      ...prev, 
+      whatsapp: whatsappConfig ? 'connected' : 'disconnected' 
+    }));
+
     toast({
-      title: "Sincronização iniciada",
-      description: "Processando conversas existentes...",
+      title: "Status atualizado",
+      description: "Verificação de conexões concluída",
     });
-    
-    // Simula sincronização manual
-    setTimeout(() => {
-      toast({
-        title: "Sincronização concluída",
-        description: "Todas as conversas foram reprocessadas",
-      });
-    }, 2000);
   };
 
-  const handleAutoReplyToggle = async (checked: boolean) => {
-    updateConfig('whatsapp', { autoReply: checked });
-    try {
-      await saveConfig();
-      toast({
-        title: checked ? "Resposta automática ativada" : "Resposta automática desativada",
-        description: checked ? "O assistente responderá automaticamente" : "Respostas automáticas foram pausadas"
-      });
-    } catch (error) {
-      toast({
-        title: "Erro",
-        description: "Não foi possível salvar as configurações",
-        variant: "destructive"
-      });
+  useEffect(() => {
+    checkConnections();
+  }, []);
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'connected': return 'bg-green-100 text-green-800';
+      case 'error': return 'bg-red-100 text-red-800';
+      case 'checking': return 'bg-yellow-100 text-yellow-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'connected': return <CheckCircle className="w-4 h-4" />;
+      case 'error': return <AlertCircle className="w-4 h-4" />;
+      case 'checking': return <RefreshCw className="w-4 h-4 animate-spin" />;
+      default: return <WifiOff className="w-4 h-4" />;
     }
   };
 
   return (
-    <Card className="bg-white/70 backdrop-blur-sm border-white/50">
+    <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Smartphone className="h-5 w-5 text-green-600" />
-          Importação de Conversas
+          <Wifi className="w-5 h-5" />
+          Status das Conexões
         </CardTitle>
-        <CardDescription>
-          Importe suas conversas do WhatsApp para análise com OpenAI
-        </CardDescription>
       </CardHeader>
-      <CardContent>
-        <div className="flex items-center gap-3 mb-4">
-          {whatsappConfig.isConnected ? (
-            <>
-              <CheckCircle className="h-6 w-6 text-green-500" />
-              <span className="font-medium text-green-600">
-                Dados importados
-              </span>
-            </>
-          ) : (
-            <>
-              <WifiOff className="h-6 w-6 text-red-500" />
-              <span className="font-medium text-red-600">
-                Sem dados importados
-              </span>
-            </>
-          )}
-        </div>
-        
-        {whatsappConfig.isConnected && whatsappConfig.lastImport && (
-          <div className="bg-green-50 p-3 rounded-lg border border-green-200 mb-4">
-            <p className="text-sm text-green-700">
-              Última importação: {new Date(whatsappConfig.lastImport).toLocaleDateString('pt-BR')} às {new Date(whatsappConfig.lastImport).toLocaleTimeString('pt-BR')}
-            </p>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-1 gap-3">
+          <div className="flex items-center justify-between p-3 border rounded-lg">
+            <span className="font-medium">OpenAI API</span>
+            <Badge className={getStatusColor(status.openai)}>
+              {getStatusIcon(status.openai)}
+              <span className="ml-1 capitalize">{status.openai}</span>
+            </Badge>
           </div>
-        )}
-
-        {whatsappConfig.isConnected && (
-          <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 mb-4">
-            <div className="flex items-center justify-between mb-2">
-              <h4 className="font-medium text-blue-900">Sincronização Manual</h4>
-              <Button 
-                onClick={handleManualSync} 
-                disabled={isUploading}
-                variant="outline"
-                size="sm"
-                className="flex items-center gap-2"
-              >
-                <RefreshCw className={`h-4 w-4 ${isUploading ? 'animate-spin' : ''}`} />
-                {isUploading ? 'Sincronizando...' : 'Sincronizar Agora'}
-              </Button>
-            </div>
-            <p className="text-sm text-blue-700">
-              Reprocessar conversas existentes e buscar por novos insights com a OpenAI
-            </p>
+          
+          <div className="flex items-center justify-between p-3 border rounded-lg">
+            <span className="font-medium">Firebase</span>
+            <Badge className={getStatusColor(status.firebase)}>
+              {getStatusIcon(status.firebase)}
+              <span className="ml-1 capitalize">{status.firebase}</span>
+            </Badge>
           </div>
-        )}
-
-        <div className="space-y-4 mt-4">
-          <Label htmlFor="authorized">Número do WhatsApp</Label>
-          <Input
-            id="authorized"
-            placeholder="+55 11 99999-9999"
-            value={whatsappConfig.authorizedNumber || ''}
-            onChange={(e) => updateConfig('whatsapp', { authorizedNumber: e.target.value })}
-            className="mb-4"
-          />
-
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <h4 className="font-medium text-gray-900 mb-2">Importar conversas:</h4>
-            <p className="text-sm text-gray-700 mb-3">
-              Exporte as conversas do seu WhatsApp e carregue o arquivo abaixo
-            </p>
-            
-            <div className="space-y-3">
-              <Input 
-                type="file" 
-                onChange={handleFileChange}
-                accept=".txt,.json,.zip,.csv"
-              />
-              
-              {selectedFile && (
-                <p className="text-sm text-gray-600">
-                  Arquivo selecionado: {selectedFile.name}
-                </p>
-              )}
-              
-              <Button 
-                onClick={importConversations} 
-                disabled={!selectedFile || isUploading}
-                className="w-full flex items-center gap-2"
-              >
-                <Upload className="h-4 w-4" />
-                {isUploading ? 'Analisando...' : 'Importar e Analisar'}
-              </Button>
-            </div>
+          
+          <div className="flex items-center justify-between p-3 border rounded-lg">
+            <span className="font-medium">WhatsApp</span>
+            <Badge className={getStatusColor(status.whatsapp)}>
+              {getStatusIcon(status.whatsapp)}
+              <span className="ml-1 capitalize">{status.whatsapp}</span>
+            </Badge>
           </div>
         </div>
 
-        <div className="flex items-center justify-between mt-4 p-3 bg-gray-50 rounded-lg">
-          <div>
-            <Label htmlFor="autoReply">Resposta Automática</Label>
-            <p className="text-xs text-gray-500">Enviar respostas automáticas da IA</p>
-          </div>
-          <Switch
-            id="autoReply"
-            checked={whatsappConfig.autoReply || false}
-            onCheckedChange={handleAutoReplyToggle}
-          />
-        </div>
-
-        <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-          <p className="text-xs text-blue-700">
-            💡 <strong>Como funciona:</strong> O sistema analisa suas conversas com OpenAI para gerar insights psicológicos e emocionais. As respostas automáticas usam o perfil do cliente para personalizar as mensagens.
-          </p>
-        </div>
+        <Button 
+          onClick={checkConnections} 
+          className="w-full"
+          variant="outline"
+        >
+          <RefreshCw className="w-4 h-4 mr-2" />
+          Verificar Novamente
+        </Button>
       </CardContent>
     </Card>
   );
