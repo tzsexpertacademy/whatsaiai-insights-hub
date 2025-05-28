@@ -1,13 +1,14 @@
 
 import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Settings, Database, Bot, MessageSquare, Users, AlertCircle } from 'lucide-react';
+import { Settings, Database, Bot, MessageSquare, Users, AlertCircle, Shield } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { WhatsAppConfig } from '@/components/settings/WhatsAppConfig';
 import { FirebaseConfig } from '@/components/settings/FirebaseConfig';
 import { OpenAIConfig } from '@/components/settings/OpenAIConfig';
 import { AssistantsConfig } from '@/components/settings/AssistantsConfig';
 import { ClientConfig } from '@/components/settings/ClientConfig';
+import { AnalysisSystemStatus } from '@/components/AnalysisSystemStatus';
 
 export function SettingsPage() {
   console.log('SettingsPage - Componente sendo renderizado');
@@ -42,6 +43,9 @@ export function SettingsPage() {
         <h1 className="text-3xl font-bold text-slate-800 mb-2">Configurações do Sistema</h1>
         <p className="text-slate-600">Configure todas as integrações e assistentes da plataforma</p>
       </div>
+
+      {/* Status do Sistema Blindado */}
+      <AnalysisSystemStatus />
 
       <Tabs defaultValue="whatsapp" className="w-full">
         <TabsList className="grid w-full grid-cols-5">
