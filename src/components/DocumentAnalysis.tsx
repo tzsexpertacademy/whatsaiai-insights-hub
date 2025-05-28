@@ -27,6 +27,7 @@ import {
 import { useConversationUpload } from '@/hooks/useConversationUpload';
 import { useAssistantsConfig } from '@/hooks/useAssistantsConfig';
 import { CostEstimator } from '@/components/CostEstimator';
+import { useToast } from "@/hooks/use-toast";
 
 interface Message {
   id: number;
@@ -57,6 +58,7 @@ export function DocumentAnalysis() {
   
   const { uploadAndAnalyze, isUploading } = useConversationUpload();
   const { assistants } = useAssistantsConfig();
+  const { toast } = useToast();
 
   console.log('📄 DocumentAnalysis component rendered with full features');
 
@@ -73,18 +75,20 @@ export function DocumentAnalysis() {
   };
 
   const handleUpload = async () => {
-    if (!selectedFile && !conversationText.trim()) return;
+    if (!selectedFile && !conversationText.trim()) {
+      toast({
+        title: "Erro",
+        description: "Selecione um arquivo ou cole um texto para análise",
+        variant: "destructive",
+      });
+      return;
+    }
     
     try {
       setProgress(0);
       const interval = setInterval(() => {
         setProgress(prev => Math.min(prev + 10, 90));
       }, 200);
-      
-      const fileToAnalyze = selectedFile || new File([conversationText], 'conversation.txt', { type: 'text/plain' });
-      
-      clearInterval(interval);
-      setProgress(100);
       
       const selectedAssistantData = assistants.find(a => a.id === selectedAssistant);
       
@@ -99,204 +103,83 @@ export function DocumentAnalysis() {
       setMessages(prev => [...prev, userMessage]);
       setIsTyping(true);
       
-      // Simular processamento e mostrar resultado da análise
-      setTimeout(() => {
-        const analysisContent = getDocumentAnalysis(selectedAssistant, selectedFile?.name || 'documento');
-        
+      // Usar a API real para análise
+      const fileToAnalyze = selectedFile || new File([conversationText], 'conversation.txt', { type: 'text/plain' });
+      
+      console.log('🔄 Iniciando análise real com OpenAI...');
+      console.log('Assistente selecionado:', selectedAssistantData?.name);
+      console.log('Modelo:', selectedModel);
+      
+      const analysisResult = await uploadAndAnalyze(fileToAnalyze, selectedAssistant);
+      
+      clearInterval(interval);
+      setProgress(100);
+      
+      if (analysisResult) {
         const assistantMessage: Message = {
           id: Date.now() + 1,
           type: 'assistant',
-          content: analysisContent,
+          content: analysisResult,
           timestamp: new Date(),
           assistantId: selectedAssistant
         };
         
         setMessages(prev => [...prev, assistantMessage]);
-        setIsTyping(false);
-        setConversationText('');
-        setSelectedFile(null);
         
-        // Reset progress after showing result
-        setTimeout(() => setProgress(0), 1000);
-      }, 2000);
+        toast({
+          title: "Análise concluída!",
+          description: `Documento analisado por ${selectedAssistantData?.name}`,
+        });
+      } else {
+        // Fallback se não houver resultado
+        const errorMessage: Message = {
+          id: Date.now() + 1,
+          type: 'assistant',
+          content: `❌ Não foi possível analisar o documento. Verifique se a API da OpenAI está configurada corretamente.`,
+          timestamp: new Date(),
+          assistantId: selectedAssistant
+        };
+        
+        setMessages(prev => [...prev, errorMessage]);
+        
+        toast({
+          title: "Erro na análise",
+          description: "Verifique a configuração da OpenAI",
+          variant: "destructive",
+        });
+      }
+      
+      setIsTyping(false);
+      setConversationText('');
+      setSelectedFile(null);
+      
+      // Reset progress after showing result
+      setTimeout(() => setProgress(0), 1000);
 
     } catch (error) {
-      console.error('Erro ao fazer upload:', error);
+      console.error('❌ Erro ao fazer upload:', error);
       setProgress(0);
       setIsTyping(false);
+      
+      const errorMessage: Message = {
+        id: Date.now() + 1,
+        type: 'assistant',
+        content: `❌ Erro durante a análise: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
+        timestamp: new Date(),
+        assistantId: selectedAssistant
+      };
+      
+      setMessages(prev => [...prev, errorMessage]);
+      
+      toast({
+        title: "Erro na análise",
+        description: "Erro ao processar o documento",
+        variant: "destructive",
+      });
     }
   };
 
-  const getDocumentAnalysis = (assistantId: string, fileName: string): string => {
-    const analyses = {
-      kairon: `📊 **ANÁLISE CONCLUÍDA** - "${fileName}"
-
-Interessante... Este documento revela alguns padrões que você talvez não tenha percebido:
-
-🔍 **Insights Principais:**
-• Há uma tendência de evitar certas verdades desconfortáveis neste conteúdo
-• O documento mostra mais sobre você do que imagina
-• Identifiquei 3 pontos de resistência emocional
-
-❓ **Questões para reflexão:**
-• O que você está tentando não ver neste conteúdo?
-• Quais verdades este documento está revelando sobre você?
-• Como essas informações se conectam com seus padrões atuais?
-
-Este documento é um espelho. Está preparado para olhar?`,
-
-      oracle: `🌊 **ANÁLISE EMOCIONAL** - "${fileName}"
-
-Percebo camadas emocionais profundas neste documento:
-
-💫 **Padrões Detectados:**
-• Resistências inconscientes presentes no texto
-• Sombras emocionais que merecem atenção
-• Conflitos internos não resolvidos
-
-🎭 **Análise Sentimental:**
-• Emoção dominante: Ansiedade/Expectativa
-• Necessidade de validação externa identificada
-• Bloqueios criativos aparentes
-
-❤️ **Recomendações:**
-• Trabalhe as resistências identificadas
-• Conecte-se com suas emoções autênticas
-• Explore as sombras reveladas
-
-O que este documento desperta em você emocionalmente?`,
-
-      guardian: `💰 **ANÁLISE ESTRATÉGICA/FINANCEIRA** - "${fileName}"
-
-Análise focada em recursos e estratégia concluída:
-
-📈 **Oportunidades Identificadas:**
-• 3 pontos de otimização de recursos
-• Riscos financeiros que precisam ser endereçados
-• Potencial de ROI em 2 áreas específicas
-
-⚠️ **Riscos Detectados:**
-• Dispersão de energia em múltiplas frentes
-• Falta de foco estratégico em alguns pontos
-• Recursos subutilizados
-
-💡 **Decisões Estratégicas:**
-• Priorize investimentos em áreas de maior retorno
-• Corte gastos desnecessários identificados
-• Implemente sistema de controle financeiro
-
-Como este conteúdo impacta seus recursos e estratégia atual?`,
-
-      engineer: `⚡ **ANÁLISE DE PERFORMANCE** - "${fileName}"
-
-Documento analisado sob perspectiva de energia e vitalidade:
-
-🏃 **Performance Atual:**
-• Padrões que afetam sua energia identificados
-• Bloqueios de produtividade detectados
-• Oportunidades de otimização encontradas
-
-🧠 **Impacto Mental:**
-• Sobrecarga cognitiva em algumas áreas
-• Necessidade de pausas estratégicas
-• Foco disperso em múltiplas tarefas
-
-💪 **Recomendações Físicas:**
-• Implemente rotinas de recuperação
-• Otimize seu ambiente de trabalho
-• Balance esforço mental e físico
-
-Como este conteúdo se relaciona com sua saúde física e mental?`,
-
-      architect: `🏗️ **ANÁLISE ESTRUTURAL** - "${fileName}"
-
-Estrutura e organização do documento mapeadas:
-
-📋 **Gaps Estratégicos:**
-• Falta de hierarquia clara em algumas seções
-• Objetivos dispersos identificados
-• Necessidade de reorganização estrutural
-
-🎯 **Alinhamento com Objetivos:**
-• 60% do conteúdo alinhado com metas principais
-• 3 áreas precisam de redefinição
-• Prioridades conflitantes detectadas
-
-🔧 **Plano de Ação:**
-• Reorganize informações por prioridade
-• Defina objetivos SMART claros
-• Crie cronograma de execução
-
-Como este documento se alinha com seus objetivos maiores?`,
-
-      weaver: `🌟 **ANÁLISE EXISTENCIAL** - "${fileName}"
-
-Elementos relacionados a propósito e legado identificados:
-
-✨ **Propósito Revelado:**
-• Conexões profundas com seus valores essenciais
-• Elementos de legado pessoal presentes
-• Chamado interno identificado
-
-🎭 **Autenticidade:**
-• Nível de alinhamento com seu eu verdadeiro: 75%
-• Máscaras sociais detectadas em algumas áreas
-• Potencial de impacto significativo
-
-🌱 **Crescimento Espiritual:**
-• Oportunidades de desenvolvimento pessoal
-• Pontos de expansão de consciência
-• Caminhos para maior realização
-
-O que este conteúdo revela sobre seu caminho de vida?`,
-
-      catalyst: `🚀 **ANÁLISE CRIATIVA** - "${fileName}"
-
-Processamento para insights criativos realizado:
-
-💡 **Bloqueios Identificados:**
-• 3 padrões limitantes de criatividade
-• Resistências a mudanças detectadas
-• Zona de conforto muito rígida
-
-🎨 **Potenciais Inovações:**
-• 5 ideias disruptivas emergentes
-• Conexões inéditas entre conceitos
-• Oportunidades de breakthrough
-
-⚡ **Catalisadores:**
-• Técnicas para quebrar padrões mentais
-• Exercícios de expansão criativa
-• Métodos de geração de insights
-
-Que novas possibilidades este conteúdo desperta em você?`,
-
-      mirror: `🪞 **ANÁLISE RELACIONAL** - "${fileName}"
-
-Padrões de comunicação e dinâmicas interpessoais mapeados:
-
-👥 **Dinâmicas Relacionais:**
-• Estilo de comunicação dominante identificado
-• Padrões de interação recorrentes
-• Pontos cegos relacionais detectados
-
-💬 **Qualidade da Comunicação:**
-• Clareza na expressão: 70%
-• Nível de empatia demonstrado: Alto
-• Assertividade: Precisa melhorar
-
-🤝 **Recomendações:**
-• Desenvolva escuta ativa
-• Pratique comunicação não-violenta
-• Trabalhe limites saudáveis
-
-Como este conteúdo reflete seus relacionamentos atuais?`
-    };
-
-    return analyses[assistantId as keyof typeof analyses] || analyses.kairon;
-  };
-
-  const handleSendChatMessage = () => {
+  const handleSendChatMessage = async () => {
     if (!chatMessage.trim()) return;
 
     const newMessage: Message = {
@@ -310,41 +193,34 @@ Como este conteúdo reflete seus relacionamentos atuais?`
     setChatMessage('');
     setIsTyping(true);
 
-    // Simular resposta do assistente
-    setTimeout(() => {
-      const assistantMessage: Message = {
+    try {
+      // Usar a API real para resposta do chat
+      const textFile = new File([chatMessage], 'chat-message.txt', { type: 'text/plain' });
+      const response = await uploadAndAnalyze(textFile, selectedAssistant);
+      
+      if (response) {
+        const assistantMessage: Message = {
+          id: messages.length + 2,
+          type: 'assistant',
+          content: response,
+          timestamp: new Date(),
+          assistantId: selectedAssistant
+        };
+        setMessages(prev => [...prev, assistantMessage]);
+      }
+    } catch (error) {
+      console.error('Erro no chat:', error);
+      const errorMessage: Message = {
         id: messages.length + 2,
         type: 'assistant',
-        content: getAssistantResponse(selectedAssistant, chatMessage),
+        content: 'Desculpe, ocorreu um erro ao processar sua mensagem.',
         timestamp: new Date(),
         assistantId: selectedAssistant
       };
-      setMessages(prev => [...prev, assistantMessage]);
-      setIsTyping(false);
-    }, 1500);
-  };
-
-  const getAssistantResponse = (assistantId: string, userMessage: string): string => {
-    const responses = {
-      kairon: [
-        "Interessante pergunta sobre análise de documentos. O que você realmente quer descobrir com essa análise?",
-        "Vou analisar isso, mas me diga: você está preparado para ouvir verdades que podem incomodar?",
-        "Posso processar esse documento, mas qual é sua real intenção com essa informação?"
-      ],
-      oracle: [
-        "Vejo potencial para insights profundos neste documento. Que padrões emocionais você espera encontrar?",
-        "Seus documentos refletem sua alma. Está pronto para essa análise emocional?",
-        "Cada texto revela aspectos ocultos da personalidade. O que você teme descobrir?"
-      ],
-      guardian: [
-        "Vamos analisar os aspectos financeiros e estratégicos deste documento. Que decisões isso pode influenciar?",
-        "Todo documento tem implicações de recursos. Como isso impacta sua estratégia?",
-        "Análise focada em resultados práticos. Que ações você pretende tomar?"
-      ]
-    };
-
-    const assistantResponses = responses[assistantId as keyof typeof responses] || responses.kairon;
-    return assistantResponses[Math.floor(Math.random() * assistantResponses.length)];
+      setMessages(prev => [...prev, errorMessage]);
+    }
+    
+    setIsTyping(false);
   };
 
   const analysisSteps = [
