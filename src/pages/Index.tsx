@@ -34,6 +34,7 @@ export default function Index() {
             <Route path="/dashboard/areas" element={<AreasOfLife />} />
             <Route path="/dashboard/behavioral" element={<BehavioralProfile />} />
             <Route path="/dashboard/chat" element={<VoiceChatInterface />} />
+            <Route path="/dashboard/whatsapp" element={<ChatInterface />} />
             <Route path="/dashboard/timeline" element={<ObservatoryTimeline />} />
             <Route path="/dashboard/insights" element={<InsightsDashboard />} />
             <Route path="/dashboard/recommendations" element={<Recommendations />} />
@@ -54,7 +55,8 @@ export default function Index() {
             <Route path="/documents" element={<DocumentAnalysis />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/profile" element={<ProfilePage />} />
-            <Route path="/chat" element={<ChatInterface />} />
+            <Route path="/chat" element={<VoiceChatInterface />} />
+            <Route path="/whatsapp" element={<ChatInterface />} />
           </Routes>
         </main>
       </div>
