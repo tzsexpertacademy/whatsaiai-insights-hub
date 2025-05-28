@@ -10,7 +10,7 @@ export function useVoiceTranscription() {
     setIsTranscribing(true);
     
     try {
-      console.log('🔄 Enviando áudio para transcrição...');
+      console.log('🔄 Enviando áudio para transcrição via edge function...');
       
       const response = await fetch('/functions/v1/voice-to-text', {
         method: 'POST',
@@ -27,7 +27,7 @@ export function useVoiceTranscription() {
       if (!response.ok) {
         const errorText = await response.text();
         console.error('❌ Erro na API de transcrição:', errorText);
-        throw new Error(`Erro na transcrição: ${response.status} - ${errorText}`);
+        throw new Error(`Erro na transcrição (${response.status}): ${errorText}`);
       }
 
       const data = await response.json();

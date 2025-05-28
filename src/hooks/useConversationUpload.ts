@@ -1,16 +1,12 @@
 
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
-
-interface UploadResult {
-  success: boolean;
-  data?: any;
-  error?: string;
-}
+import { useClientConfig } from '@/contexts/ClientConfigContext';
 
 export function useConversationUpload() {
   const [isUploading, setIsUploading] = useState(false);
   const { toast } = useToast();
+  const { config } = useClientConfig();
 
   const uploadAndAnalyze = async (file: File, assistantId: string): Promise<string | null> => {
     setIsUploading(true);
@@ -23,10 +19,9 @@ export function useConversationUpload() {
       const fileContent = await file.text();
       console.log('📄 Conteúdo do arquivo carregado');
       
-      // Verificar se há chave API da OpenAI
-      const openaiKey = localStorage.getItem('openai_api_key');
-      if (!openaiKey) {
-        throw new Error('Chave API da OpenAI não configurada. Configure em Settings > OpenAI.');
+      // Verificar se há chave API da OpenAI na configuração
+      if (!config.openai?.apiKey) {
+        throw new Error('Chave da OpenAI não configurada. Vá para Configurações → OpenAI para configurar sua API key.');
       }
       
       // Preparar prompt baseado no assistente
@@ -43,15 +38,21 @@ export function useConversationUpload() {
       
       const prompt = assistantPrompts[assistantId as keyof typeof assistantPrompts] || assistantPrompts.kairon;
       
+      console.log('🔑 Usando configuração OpenAI:', {
+        model: config.openai.model || 'gpt-4o-mini',
+        hasApiKey: !!config.openai.apiKey,
+        temperature: config.openai.temperature || 0.7
+      });
+      
       // Chamar a API real da OpenAI
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${openaiKey}`,
+          'Authorization': `Bearer ${config.openai.apiKey}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'gpt-4o-mini',
+          model: config.openai.model || 'gpt-4o-mini',
           messages: [
             {
               role: 'system',
@@ -62,14 +63,17 @@ export function useConversationUpload() {
               content: `Analise o seguinte documento:\n\n${fileContent}`
             }
           ],
-          max_tokens: 1000,
-          temperature: 0.7
+          max_tokens: config.openai.maxTokens || 1000,
+          temperature: config.openai.temperature || 0.7
         }),
       });
       
+      console.log('📡 OpenAI Response Status:', response.status);
+      
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(`Erro da OpenAI API: ${errorData.error?.message || 'Erro desconhecido'}`);
+        const errorData = await response.text();
+        console.error('❌ Erro da OpenAI API:', errorData);
+        throw new Error(`Erro da OpenAI API (${response.status}): ${errorData}`);
       }
       
       const data = await response.json();

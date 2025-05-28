@@ -64,59 +64,77 @@ export function ChatWithAssistants() {
   const analyzeWithOpenAI = async (userMessage: string, assistantId: string): Promise<string> => {
     const selectedAssistantData = assistants.find(a => a.id === assistantId);
     
-    if (!config.openai.apiKey) {
-      throw new Error('Chave da OpenAI não configurada. Vá para Configurações → OpenAI para configurar.');
+    console.log('🔑 Verificando configuração OpenAI:', {
+      hasApiKey: !!config.openai?.apiKey,
+      model: config.openai?.model,
+      temperature: config.openai?.temperature
+    });
+
+    if (!config.openai?.apiKey) {
+      throw new Error('Chave da OpenAI não configurada. Vá para Configurações → OpenAI para configurar sua API key.');
     }
 
     if (!selectedAssistantData) {
       throw new Error('Assistente não encontrado');
     }
 
-    console.log('🤖 Enviando mensagem para OpenAI:', { assistantId, message: userMessage });
+    console.log('🤖 Enviando mensagem para OpenAI:', { 
+      assistantId, 
+      assistantName: selectedAssistantData.name,
+      message: userMessage.substring(0, 100) + '...' 
+    });
 
     const systemPrompt = `${selectedAssistantData.prompt}
 
 INSTRUÇÕES IMPORTANTES:
 - Você está conversando diretamente com o usuário em um chat
 - Seja conversacional, direto e envolvente
-- Mantenha suas respostas focadas e práticas
+- Mantenha suas respostas focadas e práticas (máximo 200 palavras)
 - Use o tom e personalidade definidos no seu prompt
 - Responda sempre em português brasileiro
-- Seja específico e actionável em suas sugestões`;
+- Seja específico e actionável em suas sugestões
+- Adapte sua linguagem ao contexto da conversa`;
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${config.openai.apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: config.openai.model || 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userMessage }
-        ],
-        temperature: config.openai.temperature || 0.7,
-        max_tokens: config.openai.maxTokens || 800,
-      }),
-    });
+    try {
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${config.openai.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: config.openai.model || 'gpt-4o-mini',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userMessage }
+          ],
+          temperature: config.openai.temperature || 0.7,
+          max_tokens: config.openai.maxTokens || 500,
+        }),
+      });
 
-    if (!response.ok) {
-      const errorData = await response.text();
-      console.error('❌ Erro da OpenAI API:', errorData);
-      throw new Error(`Erro da OpenAI: ${response.status} - ${errorData}`);
+      console.log('📡 OpenAI Response Status:', response.status);
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        console.error('❌ Erro da OpenAI API:', errorData);
+        throw new Error(`Erro da OpenAI (${response.status}): ${errorData}`);
+      }
+
+      const data = await response.json();
+      
+      if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+        throw new Error('Resposta inválida da OpenAI');
+      }
+
+      const assistantResponse = data.choices[0].message.content;
+      console.log('✅ Resposta recebida da OpenAI:', assistantResponse.substring(0, 100) + '...');
+      
+      return assistantResponse;
+    } catch (error) {
+      console.error('❌ Erro detalhado na chamada OpenAI:', error);
+      throw error;
     }
-
-    const data = await response.json();
-    
-    if (!data.choices || !data.choices[0] || !data.choices[0].message) {
-      throw new Error('Resposta inválida da OpenAI');
-    }
-
-    const assistantResponse = data.choices[0].message.content;
-    console.log('✅ Resposta recebida da OpenAI:', assistantResponse);
-    
-    return assistantResponse;
   };
 
   const handleSendMessage = async (messageText?: string, isVoiceMessage = false) => {
@@ -136,7 +154,7 @@ INSTRUÇÕES IMPORTANTES:
     setIsTyping(true);
 
     try {
-      console.log('🔄 Processando mensagem com IA real...');
+      console.log('🔄 Processando mensagem:', textToSend.substring(0, 50) + '...');
       
       const response = await analyzeWithOpenAI(textToSend, selectedAssistant);
       
@@ -162,7 +180,12 @@ INSTRUÇÕES IMPORTANTES:
       const errorMessage: Message = {
         id: Date.now() + 1,
         type: 'assistant',
-        content: `Desculpe, ocorreu um erro ao processar sua mensagem: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
+        content: `Desculpe, ocorreu um erro: ${error instanceof Error ? error.message : 'Erro desconhecido'}. 
+
+Verifique se:
+1. Sua chave da OpenAI está configurada em Configurações → OpenAI
+2. Sua chave tem créditos disponíveis
+3. Sua conexão com a internet está funcionando`,
         timestamp: new Date(),
         assistantId: selectedAssistant
       };
