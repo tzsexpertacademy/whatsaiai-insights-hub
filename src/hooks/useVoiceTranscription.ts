@@ -1,50 +1,88 @@
 
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import { useClientConfig } from '@/contexts/ClientConfigContext';
 
 export function useVoiceTranscription() {
   const [isTranscribing, setIsTranscribing] = useState(false);
   const { toast } = useToast();
+  const { config } = useClientConfig();
 
   const transcribeAudio = async (audioBase64: string): Promise<string | null> => {
     setIsTranscribing(true);
     
     try {
-      console.log('🔄 Enviando áudio para transcrição via edge function...');
+      console.log('🔄 Iniciando transcrição de áudio...');
       
-      const response = await fetch('/functions/v1/voice-to-text', {
+      // Verificar se há uma API key válida da OpenAI configurada
+      if (!config.openai?.apiKey || !config.openai.apiKey.startsWith('sk-')) {
+        console.warn('⚠️ API key da OpenAI não configurada, usando edge function');
+        
+        // Usar edge function como fallback
+        const response = await fetch('/functions/v1/voice-to-text', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            audio: audioBase64
+          }),
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Erro na edge function (${response.status}): ${errorText}`);
+        }
+
+        const data = await response.json();
+        
+        if (data.error) {
+          throw new Error(data.error);
+        }
+
+        console.log('✅ Transcrição via edge function concluída');
+        return data.text;
+      }
+
+      // Usar API da OpenAI diretamente
+      console.log('🔄 Usando OpenAI API diretamente...');
+      
+      // Converter base64 para blob
+      const binaryString = atob(audioBase64);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      const audioBlob = new Blob([bytes], { type: 'audio/webm' });
+
+      // Preparar FormData
+      const formData = new FormData();
+      formData.append('file', audioBlob, 'audio.webm');
+      formData.append('model', 'whisper-1');
+      formData.append('language', 'pt');
+
+      const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${config.openai.apiKey}`,
         },
-        body: JSON.stringify({
-          audio: audioBase64
-        }),
+        body: formData,
       });
-
-      console.log('📡 Status da resposta:', response.status);
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('❌ Erro na API de transcrição:', errorText);
-        throw new Error(`Erro na transcrição (${response.status}): ${errorText}`);
+        throw new Error(`Erro da OpenAI (${response.status}): ${errorText}`);
       }
 
-      const data = await response.json();
-      
-      if (data.error) {
-        console.error('❌ Erro retornado pela API:', data.error);
-        throw new Error(data.error);
-      }
+      const result = await response.json();
+      console.log('✅ Transcrição direta concluída');
 
-      console.log('✅ Transcrição concluída:', data.text);
-      
       toast({
         title: "Transcrição concluída",
         description: "Sua voz foi convertida em texto",
       });
 
-      return data.text;
+      return result.text;
 
     } catch (error) {
       console.error('❌ Erro na transcrição:', error);
