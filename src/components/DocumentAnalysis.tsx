@@ -22,6 +22,8 @@ export function DocumentAnalysis() {
   const [progress, setProgress] = useState(0);
   const { uploadAndAnalyze, isUploading } = useConversationUpload();
 
+  console.log('📄 DocumentAnalysis component rendered');
+
   const handleUpload = async () => {
     if (!conversationText.trim()) return;
     
