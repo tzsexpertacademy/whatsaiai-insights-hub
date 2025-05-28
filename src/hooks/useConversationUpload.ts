@@ -2,13 +2,14 @@
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useClientConfig } from '@/contexts/ClientConfigContext';
+import { parseDocument } from '@/utils/documentParser';
 
 export function useConversationUpload() {
   const [isUploading, setIsUploading] = useState(false);
   const { toast } = useToast();
   const { config } = useClientConfig();
 
-  // Função para dividir texto em chunks MUITO pequenos (8K tokens máximo)
+  // Função para dividir texto em chunks pequenos para análise
   const chunkText = (text: string, maxTokens: number = 8000): string[] => {
     const estimatedTokensPerChar = 0.25;
     const maxChars = Math.floor(maxTokens / estimatedTokensPerChar);
@@ -45,26 +46,27 @@ export function useConversationUpload() {
     return chunks;
   };
 
-  // Função SIMPLIFICADA para analisar chunk
-  const analyzeChunk = async (chunk: string, assistantId: string, chunkIndex: number, totalChunks: number): Promise<string> => {
+  // Função para analisar chunk com contexto do documento
+  const analyzeChunk = async (chunk: string, assistantId: string, chunkIndex: number, totalChunks: number, documentInfo: any): Promise<string> => {
     const assistantPrompts = {
-      kairon: 'Analise de forma direta este fragmento. Identifique insights práticos.',
-      oracle: 'Analise padrões emocionais neste fragmento.',
-      guardian: 'Analise recursos e oportunidades neste fragmento.',
-      engineer: 'Analise saúde e bem-estar neste fragmento.',
-      architect: 'Organize as informações principais deste fragmento.',
-      weaver: 'Analise propósito e significado neste fragmento.',
-      catalyst: 'Identifique oportunidades criativas neste fragmento.',
-      mirror: 'Analise padrões relacionais neste fragmento.'
+      kairon: 'Analise este fragmento do documento e identifique insights práticos.',
+      oracle: 'Analise padrões emocionais e comportamentais neste fragmento.',
+      guardian: 'Analise recursos financeiros, custos, oportunidades e dados econômicos neste fragmento.',
+      engineer: 'Analise aspectos de saúde, bem-estar e otimização neste fragmento.',
+      architect: 'Organize e estruture as informações principais deste fragmento.',
+      weaver: 'Analise propósito, significado e conexões neste fragmento.',
+      catalyst: 'Identifique oportunidades criativas e inovadoras neste fragmento.',
+      mirror: 'Analise padrões relacionais e sociais neste fragmento.'
     };
 
     const prompt = assistantPrompts[assistantId as keyof typeof assistantPrompts] || assistantPrompts.kairon;
     
-    // Prompt MUITO mais enxuto
-    const systemPrompt = `${prompt} Seja conciso (máximo 150 palavras).`;
-
-    // Limitar drasticamente o input
-    const limitedContent = chunk.substring(0, 2000);
+    // Contexto do documento para melhor análise
+    const contextInfo = totalChunks > 1 
+      ? `Este é o fragmento ${chunkIndex + 1} de ${totalChunks} do documento "${documentInfo.fileName}".`
+      : `Documento completo: "${documentInfo.fileName}".`;
+    
+    const systemPrompt = `${prompt} ${contextInfo} Seja conciso (máximo 200 palavras) e foque no conteúdo real do documento.`;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -81,10 +83,10 @@ export function useConversationUpload() {
           },
           {
             role: 'user',
-            content: limitedContent
+            content: chunk
           }
         ],
-        max_tokens: 200,
+        max_tokens: 300,
         temperature: 0.7
       }),
     });
@@ -105,7 +107,7 @@ export function useConversationUpload() {
       console.log('🔥 ANÁLISE REAL INICIADA - OpenAI API');
       console.log('Arquivo:', file.name, 'Assistente:', assistantId);
       
-      // Verificação RIGOROSA da API key
+      // Verificação da API key
       if (!config.openai?.apiKey) {
         throw new Error('❌ API key da OpenAI não configurada');
       }
@@ -114,23 +116,29 @@ export function useConversationUpload() {
         throw new Error('❌ API key da OpenAI inválida');
       }
       
-      // Ler arquivo
-      const fileContent = await file.text();
-      console.log('📄 Conteúdo carregado:', fileContent.length, 'caracteres');
+      // NOVO: Extrair conteúdo real do documento usando o parser
+      console.log('📄 Extraindo conteúdo do documento...');
+      const parsedDocument = await parseDocument(file);
       
-      // Dividir em chunks pequenos (8K tokens)
-      const chunks = chunkText(fileContent, 8000);
+      console.log('✅ Conteúdo extraído com sucesso:', {
+        tamanho: parsedDocument.text.length,
+        tipo: parsedDocument.metadata.fileType,
+        paginas: parsedDocument.metadata.pageCount
+      });
+      
+      // Dividir texto extraído em chunks
+      const chunks = chunkText(parsedDocument.text, 8000);
       console.log('📊 Chunks criados:', chunks.length);
 
       let analysisResults: string[] = [];
 
-      // Analisar cada chunk com pausa
+      // Analisar cada chunk
       for (let i = 0; i < chunks.length; i++) {
         console.log(`🔄 Analisando chunk ${i + 1}/${chunks.length}`);
         
         try {
-          const chunkResult = await analyzeChunk(chunks[i], assistantId, i, chunks.length);
-          analysisResults.push(`**Parte ${i + 1}:**\n${chunkResult}`);
+          const chunkResult = await analyzeChunk(chunks[i], assistantId, i, chunks.length, parsedDocument.metadata);
+          analysisResults.push(chunks.length > 1 ? `**Parte ${i + 1}:**\n${chunkResult}` : chunkResult);
           
           // Pausa entre chunks
           if (i < chunks.length - 1) {
@@ -142,16 +150,21 @@ export function useConversationUpload() {
         }
       }
 
-      // Resultado final
+      // Resultado final com informações do documento
+      const documentSummary = `# Análise REAL de "${parsedDocument.metadata.fileName}"\n\n` +
+        `**Tipo:** ${parsedDocument.metadata.fileType}\n` +
+        `**Tamanho:** ${(parsedDocument.metadata.fileSize / 1024).toFixed(1)} KB\n` +
+        `**Páginas estimadas:** ${parsedDocument.metadata.pageCount}\n\n---\n\n`;
+      
       const finalResult = chunks.length > 1 
-        ? `# Análise REAL por IA\n\n${analysisResults.join('\n\n---\n\n')}`
-        : analysisResults[0];
+        ? `${documentSummary}${analysisResults.join('\n\n---\n\n')}`
+        : `${documentSummary}${analysisResults[0]}`;
       
       console.log('✅ ANÁLISE REAL CONCLUÍDA');
       
       toast({
         title: "✅ Análise REAL concluída!",
-        description: `Analisado pela OpenAI com sucesso`,
+        description: `Documento "${parsedDocument.metadata.fileName}" analisado com sucesso pela OpenAI`,
       });
       
       return finalResult;
