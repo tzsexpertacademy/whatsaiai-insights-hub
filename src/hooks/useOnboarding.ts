@@ -9,43 +9,25 @@ interface OnboardingState {
 
 export function useOnboarding() {
   const [state, setState] = useState<OnboardingState>({
-    isFirstVisit: true,
+    isFirstVisit: false,
     showDemo: false,
-    completed: false
+    completed: true
   });
 
   useEffect(() => {
-    const onboardingCompleted = localStorage.getItem('onboarding_completed') === 'true';
     const hasRealData = localStorage.getItem('has_real_analysis_data') === 'true';
     
     console.log('🔍 Verificando onboarding:', {
-      onboardingCompleted,
       hasRealData,
       url: window.location.pathname
     });
 
-    if (!onboardingCompleted && !hasRealData) {
-      // Primeira visita - mostra demo
-      setState({
-        isFirstVisit: true,
-        completed: false,
-        showDemo: true
-      });
-    } else if (onboardingCompleted && !hasRealData) {
-      // Completou onboarding mas ainda não tem dados reais
-      setState({
-        isFirstVisit: false,
-        completed: true,
-        showDemo: false
-      });
-    } else {
-      // Tem dados reais
-      setState({
-        isFirstVisit: false,
-        completed: true,
-        showDemo: false
-      });
-    }
+    // Sempre vai direto para o dashboard real
+    setState({
+      isFirstVisit: false,
+      completed: true,
+      showDemo: false
+    });
   }, []);
 
   const completeOnboarding = () => {
@@ -57,7 +39,6 @@ export function useOnboarding() {
       showDemo: false
     });
     
-    // Forçar recarregamento do contexto de dados
     window.dispatchEvent(new CustomEvent('onboarding-completed'));
   };
 
@@ -66,9 +47,9 @@ export function useOnboarding() {
     localStorage.removeItem('onboarding_completed');
     localStorage.removeItem('has_real_analysis_data');
     setState({
-      isFirstVisit: true,
-      showDemo: true,
-      completed: false
+      isFirstVisit: false,
+      showDemo: false,
+      completed: true
     });
   };
 

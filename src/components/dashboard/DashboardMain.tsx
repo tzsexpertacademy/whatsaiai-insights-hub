@@ -2,20 +2,15 @@
 import React from 'react';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useAnalysisData } from '@/contexts/AnalysisDataContext';
-import { DemoDashboard } from '@/components/onboarding/DemoData';
 import { MetricCards } from '@/components/dashboard/MetricCards';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Upload, Brain, Sparkles } from 'lucide-react';
 
 export function DashboardMain() {
-  const { showDemo, completed, isFirstVisit } = useOnboarding();
   const { data, isLoading } = useAnalysisData();
 
   console.log('📊 DashboardMain - Estado atual:', {
-    showDemo,
-    completed,
-    isFirstVisit,
     hasRealData: data.hasRealData,
     isLoading
   });
@@ -33,17 +28,8 @@ export function DashboardMain() {
     );
   }
 
-  // Se deve mostrar demo
-  if (showDemo && isFirstVisit) {
-    return (
-      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <DemoDashboard />
-      </div>
-    );
-  }
-
-  // Se completou onboarding mas não tem dados reais ainda
-  if (completed && !data.hasRealData) {
+  // Se não tem dados reais ainda
+  if (!data.hasRealData) {
     return (
       <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="space-y-6">
