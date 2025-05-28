@@ -1,10 +1,10 @@
 
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
 import { useAnalysisData } from '@/contexts/AnalysisDataContext';
-import { Loader2, AlertCircle, Brain, Target, Users } from 'lucide-react';
-import { Badge } from "@/components/ui/badge";
+import { Loader2, AlertCircle, Brain, Target, Users, Bot, Clock } from 'lucide-react';
 
 export function BehavioralProfile() {
   const { data, isLoading } = useAnalysisData();
@@ -14,7 +14,7 @@ export function BehavioralProfile() {
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold text-slate-800 mb-2">Perfil Comportamental</h1>
-          <p className="text-slate-600">Análise DISC, MBTI aproximado e Big Five baseada em IA</p>
+          <p className="text-slate-600">Análise DISC, MBTI e Big Five baseada nos assistentes especializados</p>
         </div>
         <div className="flex items-center justify-center py-20">
           <Loader2 className="h-12 w-12 animate-spin text-gray-500" />
@@ -28,21 +28,21 @@ export function BehavioralProfile() {
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold text-slate-800 mb-2">Perfil Comportamental</h1>
-          <p className="text-slate-600">Análise DISC, MBTI aproximado e Big Five baseada em IA</p>
+          <p className="text-slate-600">Análise DISC, MBTI e Big Five baseada nos assistentes especializados</p>
         </div>
         
         <Card className="bg-white/70 backdrop-blur-sm border-white/50">
           <CardContent className="p-12">
             <div className="flex flex-col items-center justify-center text-center space-y-4">
               <AlertCircle className="h-16 w-16 text-gray-400" />
-              <h3 className="text-xl font-semibold text-gray-600">Aguardando Análise por IA</h3>
+              <h3 className="text-xl font-semibold text-gray-600">Aguardando Análise dos Assistentes</h3>
               <p className="text-gray-500 max-w-md">
-                Os padrões comportamentais são gerados apenas pela IA após análise de conversas reais.
+                Os perfis comportamentais são gerados pelos assistentes após análise de padrões.
               </p>
               <div className="text-left text-sm text-gray-600 space-y-1">
-                <p>• Execute a análise por IA no dashboard principal</p>
-                <p>• A IA analisará suas conversas</p>
-                <p>• Perfis DISC, MBTI e Big Five serão gerados automaticamente</p>
+                <p>• Execute a análise por IA no dashboard</p>
+                <p>• Os assistentes irão mapear padrões comportamentais</p>
+                <p>• Perfis DISC, MBTI e Big Five serão gerados</p>
               </div>
             </div>
           </CardContent>
@@ -50,6 +50,20 @@ export function BehavioralProfile() {
       </div>
     );
   }
+
+  const lastUpdate = data.metrics.lastAnalysis ? 
+    new Date(data.metrics.lastAnalysis).toLocaleDateString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    }) : null;
+
+  // Filtrar insights comportamentais
+  const behavioralInsights = data.insightsWithAssistant.filter(insight => 
+    insight.insight_type === 'behavioral' || insight.assistantArea === 'psicologia'
+  );
 
   // Preparar dados DISC para o gráfico radar
   const discData = [
@@ -71,7 +85,26 @@ export function BehavioralProfile() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-slate-800 mb-2">Perfil Comportamental</h1>
-        <p className="text-slate-600">Análise DISC, MBTI aproximado e Big Five baseada em IA</p>
+        <p className="text-slate-600">Análise gerada pelos assistentes especializados em psicologia</p>
+      </div>
+
+      {/* Indicadores dos assistentes */}
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        <Badge variant="outline" className="bg-purple-50 text-purple-700">
+          🔮 Análise dos Assistentes
+        </Badge>
+        <Badge variant="outline" className="bg-blue-50 text-blue-700">
+          🧠 {behavioralInsights.length} padrões comportamentais
+        </Badge>
+        <Badge variant="outline" className="bg-green-50 text-green-700">
+          🤖 {data.metrics.assistantsActive} assistentes ativos
+        </Badge>
+        {lastUpdate && (
+          <Badge variant="outline" className="bg-gray-50 text-gray-700">
+            <Clock className="h-3 w-3 mr-1" />
+            Última análise: {lastUpdate}
+          </Badge>
+        )}
       </div>
 
       {/* Resumo dos Perfis */}
@@ -85,7 +118,11 @@ export function BehavioralProfile() {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-blue-900 mb-2">{data.discProfile.primaryType}</p>
-            <p className="text-blue-700 text-sm">Padrão comportamental dominante</p>
+            <p className="text-blue-700 text-sm mb-2">Padrão comportamental dominante</p>
+            <div className="flex items-center text-xs text-blue-600">
+              <Bot className="h-3 w-3 mr-1" />
+              Gerado por assistentes IA
+            </div>
           </CardContent>
         </Card>
 
@@ -98,7 +135,11 @@ export function BehavioralProfile() {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-purple-900 mb-2">{data.mbtiProfile.approximateType}</p>
-            <p className="text-purple-700 text-sm">Baseado em análise de IA</p>
+            <p className="text-purple-700 text-sm mb-2">Baseado em análise de IA</p>
+            <div className="flex items-center text-xs text-purple-600">
+              <Bot className="h-3 w-3 mr-1" />
+              Mapeado pelos assistentes
+            </div>
           </CardContent>
         </Card>
 
@@ -111,7 +152,11 @@ export function BehavioralProfile() {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-green-900 mb-2">{data.psychologicalProfile}</p>
-            <p className="text-green-700 text-sm">Perfil psicológico geral</p>
+            <p className="text-green-700 text-sm mb-2">Perfil psicológico geral</p>
+            <div className="flex items-center text-xs text-green-600">
+              <Bot className="h-3 w-3 mr-1" />
+              Análise dos assistentes
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -122,7 +167,7 @@ export function BehavioralProfile() {
         <Card className="bg-white/70 backdrop-blur-sm border-white/50">
           <CardHeader>
             <CardTitle>Perfil DISC</CardTitle>
-            <CardDescription>Análise comportamental segundo modelo DISC</CardDescription>
+            <CardDescription>Análise comportamental pelos assistentes especializados</CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
@@ -144,6 +189,10 @@ export function BehavioralProfile() {
             <div className="mt-4 p-3 bg-blue-50 rounded-lg">
               <p className="text-sm font-medium text-blue-800">Tipo Predominante:</p>
               <p className="text-lg font-bold text-blue-900">{data.discProfile.primaryType}</p>
+              <div className="flex items-center text-xs text-blue-600 mt-1">
+                <Bot className="h-3 w-3 mr-1" />
+                Identificado pelos assistentes
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -152,7 +201,7 @@ export function BehavioralProfile() {
         <Card className="bg-white/70 backdrop-blur-sm border-white/50">
           <CardHeader>
             <CardTitle>MBTI Aproximado</CardTitle>
-            <CardDescription>Tendências de personalidade baseadas em IA</CardDescription>
+            <CardDescription>Tendências identificadas pelos assistentes</CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
@@ -172,7 +221,13 @@ export function BehavioralProfile() {
             <div className="mt-4 p-3 bg-purple-50 rounded-lg">
               <p className="text-sm font-medium text-purple-800">Tipo Aproximado:</p>
               <p className="text-lg font-bold text-purple-900">{data.mbtiProfile.approximateType}</p>
-              <Badge className="mt-2 bg-purple-100 text-purple-800">Baseado em IA</Badge>
+              <div className="flex items-center justify-between mt-1">
+                <Badge className="bg-purple-100 text-purple-800">Baseado em IA</Badge>
+                <div className="flex items-center text-xs text-purple-600">
+                  <Bot className="h-3 w-3 mr-1" />
+                  Assistentes especializados
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -182,7 +237,7 @@ export function BehavioralProfile() {
       <Card className="bg-white/70 backdrop-blur-sm border-white/50">
         <CardHeader>
           <CardTitle>Big Five - Cinco Grandes Traços</CardTitle>
-          <CardDescription>Modelo psicológico dos cinco fatores principais de personalidade</CardDescription>
+          <CardDescription>Modelo psicológico analisado pelos assistentes especializados</CardDescription>
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={400}>
@@ -206,35 +261,44 @@ export function BehavioralProfile() {
                 <h4 className="font-medium text-green-900 text-sm">{trait.name}</h4>
                 <p className="text-2xl font-bold text-green-800">{trait.value}</p>
                 <p className="text-xs text-green-700">{trait.description}</p>
+                <div className="flex items-center text-xs text-green-600 mt-1">
+                  <Bot className="h-3 w-3 mr-1" />
+                  Por IA
+                </div>
               </div>
             ))}
           </div>
         </CardContent>
       </Card>
 
-      {/* Informações adicionais */}
-      <Card className="bg-gradient-to-r from-gray-50 to-gray-100 border-gray-200">
-        <CardContent className="p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Brain className="h-5 w-5 text-gray-600" />
-            <h3 className="font-semibold text-gray-800">Sobre os Perfis Comportamentais</h3>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
-            <div>
-              <h4 className="font-medium text-gray-800 mb-2">DISC</h4>
-              <p>Modelo focado no comportamento observável em diferentes situações e ambientes.</p>
+      {/* Insights comportamentais dos assistentes */}
+      {behavioralInsights.length > 0 && (
+        <Card className="bg-white/70 backdrop-blur-sm border-white/50">
+          <CardHeader>
+            <CardTitle>Insights Comportamentais dos Assistentes</CardTitle>
+            <CardDescription>Padrões identificados pelos assistentes especializados</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {behavioralInsights.slice(0, 3).map((insight, index) => (
+                <div key={insight.id} className="border rounded-lg p-4 bg-gradient-to-r from-purple-50 to-blue-50">
+                  <div className="flex items-start justify-between mb-2">
+                    <h4 className="font-medium text-slate-800">{insight.title}</h4>
+                    <Badge className="bg-purple-100 text-purple-800">
+                      🔮 {insight.assistantName}
+                    </Badge>
+                  </div>
+                  <p className="text-sm text-slate-600 mb-3">{insight.description}</p>
+                  <div className="flex items-center justify-between text-xs text-slate-500">
+                    <span>Área: {insight.assistantArea}</span>
+                    <span>{new Date(insight.createdAt).toLocaleDateString('pt-BR')}</span>
+                  </div>
+                </div>
+              ))}
             </div>
-            <div>
-              <h4 className="font-medium text-gray-800 mb-2">MBTI</h4>
-              <p>Aproximação baseada em preferências cognitivas e processamento de informações.</p>
-            </div>
-            <div>
-              <h4 className="font-medium text-gray-800 mb-2">Big Five</h4>
-              <p>Modelo científico dos cinco principais traços de personalidade humana.</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
