@@ -17,7 +17,7 @@ import { DocumentAnalysis } from '@/components/DocumentAnalysis';
 import { SettingsPage } from '@/components/SettingsPage';
 import { ProfilePage } from '@/components/ProfilePage';
 import { ChatInterface } from '@/components/ChatInterface';
-import { ChatWithAssistants } from '@/components/ChatWithAssistants';
+import { VoiceChatInterface } from '@/components/VoiceChatInterface';
 
 export default function Index() {
   console.log('📱 Exibindo Dashboard Principal');
@@ -33,7 +33,7 @@ export default function Index() {
             <Route path="/dashboard/thermometer" element={<EmotionalThermometer />} />
             <Route path="/dashboard/areas" element={<AreasOfLife />} />
             <Route path="/dashboard/behavioral" element={<BehavioralProfile />} />
-            <Route path="/dashboard/chat" element={<ChatWithAssistants />} />
+            <Route path="/dashboard/chat" element={<VoiceChatInterface />} />
             <Route path="/dashboard/timeline" element={<ObservatoryTimeline />} />
             <Route path="/dashboard/insights" element={<InsightsDashboard />} />
             <Route path="/dashboard/recommendations" element={<Recommendations />} />
