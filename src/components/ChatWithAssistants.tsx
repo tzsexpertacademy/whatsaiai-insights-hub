@@ -42,7 +42,7 @@ export function ChatWithAssistants() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
   const { assistants } = useAssistantsConfig();
-  const { config, connectionStatus } = useClientConfig();
+  const { config } = useClientConfig();
   const { isRecording, startRecording, stopRecording, audioLevel } = useVoiceRecording();
   const { transcribeAudio, isTranscribing } = useVoiceTranscription();
   const { toast } = useToast();
@@ -53,17 +53,19 @@ export function ChatWithAssistants() {
   // Mensagem inicial baseada na configuração
   useEffect(() => {
     if (messages.length === 0) {
+      const selectedAssistantData = assistants.find(a => a.id === selectedAssistant);
       const initialMessage: Message = {
         id: 1,
-        type: 'system',
+        type: 'assistant',
         content: isOpenAIConfigured 
-          ? 'Olá! Estou conectado e pronto para conversar. Escolha um assistente e comece nossa conversa!' 
-          : 'Para usar o chat com assistentes, configure sua API key da OpenAI em Configurações.',
-        timestamp: new Date()
+          ? `Olá! Sou ${selectedAssistantData?.name}. ${getWelcomeMessage(selectedAssistant)}` 
+          : 'Para usar o chat, configure sua API key da OpenAI em Configurações.',
+        timestamp: new Date(),
+        assistantId: selectedAssistant
       };
       setMessages([initialMessage]);
     }
-  }, [isOpenAIConfigured, messages.length]);
+  }, [selectedAssistant, isOpenAIConfigured, assistants]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -73,34 +75,29 @@ export function ChatWithAssistants() {
     scrollToBottom();
   }, [messages]);
 
-  const analyzeWithOpenAI = async (userMessage: string, assistantId: string): Promise<string> => {
+  // Função para chat direto com OpenAI
+  const chatWithOpenAI = async (userMessage: string, assistantId: string): Promise<string> => {
     const selectedAssistantData = assistants.find(a => a.id === assistantId);
     
     if (!isOpenAIConfigured) {
-      throw new Error('API key da OpenAI não configurada. Vá para Configurações → OpenAI.');
+      throw new Error('API key da OpenAI não configurada.');
     }
 
     if (!selectedAssistantData) {
       throw new Error('Assistente não encontrado');
     }
 
-    console.log('🤖 Enviando mensagem para OpenAI:', { 
-      assistantId, 
-      assistantName: selectedAssistantData.name,
-      message: userMessage.substring(0, 100) + '...',
-      model: config.openai.model 
-    });
+    console.log('💬 Enviando mensagem para chat:', { assistantId, message: userMessage.substring(0, 50) + '...' });
 
     const systemPrompt = `${selectedAssistantData.prompt}
 
-INSTRUÇÕES IMPORTANTES:
-- Você está conversando diretamente com o usuário em um chat
+INSTRUÇÕES PARA CHAT:
+- Você está conversando diretamente com o usuário
 - Seja conversacional, direto e envolvente
-- Mantenha suas respostas focadas e práticas (máximo 300 palavras)
-- Use o tom e personalidade definidos no seu prompt
+- Mantenha respostas de 100-200 palavras
+- Use sua personalidade única definida no prompt
 - Responda sempre em português brasileiro
-- Seja específico e actionável em suas sugestões
-- Adapte sua linguagem ao contexto da conversa`;
+- Seja específico e prático em suas sugestões`;
 
     try {
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -115,44 +112,31 @@ INSTRUÇÕES IMPORTANTES:
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userMessage }
           ],
-          temperature: config.openai.temperature || 0.7,
-          max_tokens: config.openai.maxTokens || 1000,
+          temperature: 0.7,
+          max_tokens: 400,
         }),
       });
 
-      console.log('📡 OpenAI Response Status:', response.status);
+      console.log('📡 Resposta da OpenAI:', response.status);
 
       if (!response.ok) {
         const errorData = await response.text();
-        console.error('❌ Erro da OpenAI API:', errorData);
-        
-        // Parse do erro para dar feedback mais útil
-        try {
-          const errorJson = JSON.parse(errorData);
-          if (errorJson.error?.code === 'rate_limit_exceeded') {
-            throw new Error('Limite de uso da OpenAI excedido. Tente novamente em alguns minutos.');
-          } else if (errorJson.error?.code === 'invalid_api_key') {
-            throw new Error('API key da OpenAI inválida. Verifique sua configuração.');
-          } else {
-            throw new Error(errorJson.error?.message || `Erro da OpenAI (${response.status})`);
-          }
-        } catch (parseError) {
-          throw new Error(`Erro da OpenAI (${response.status}): ${errorData}`);
-        }
+        console.error('❌ Erro da OpenAI:', errorData);
+        throw new Error(`Erro da OpenAI (${response.status})`);
       }
 
       const data = await response.json();
       
-      if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+      if (!data.choices || !data.choices[0]) {
         throw new Error('Resposta inválida da OpenAI');
       }
 
       const assistantResponse = data.choices[0].message.content;
-      console.log('✅ Resposta recebida da OpenAI');
+      console.log('✅ Resposta recebida do chat');
       
       return assistantResponse;
     } catch (error) {
-      console.error('❌ Erro detalhado na chamada OpenAI:', error);
+      console.error('❌ Erro no chat:', error);
       throw error;
     }
   };
@@ -183,9 +167,9 @@ INSTRUÇÕES IMPORTANTES:
     setIsTyping(true);
 
     try {
-      console.log('🔄 Processando mensagem:', textToSend.substring(0, 50) + '...');
+      console.log('🔄 Processando chat:', textToSend.substring(0, 50) + '...');
       
-      const response = await analyzeWithOpenAI(textToSend, selectedAssistant);
+      const response = await chatWithOpenAI(textToSend, selectedAssistant);
       
       if (response) {
         const assistantMessage: Message = {
@@ -209,12 +193,7 @@ INSTRUÇÕES IMPORTANTES:
       const errorMessage: Message = {
         id: Date.now() + 1,
         type: 'assistant',
-        content: `❌ Erro: ${error instanceof Error ? error.message : 'Erro desconhecido'}
-
-💡 **Dicas para resolver:**
-• Verifique se sua API key da OpenAI está correta
-• Confirme que sua conta OpenAI tem créditos disponíveis  
-• Tente novamente em alguns segundos`,
+        content: `❌ Erro: ${error instanceof Error ? error.message : 'Erro desconhecido'}\n\n💡 Verifique sua configuração da OpenAI em Configurações.`,
         timestamp: new Date(),
         assistantId: selectedAssistant
       };
@@ -259,7 +238,7 @@ INSTRUÇÕES IMPORTANTES:
       const welcomeMessage: Message = {
         id: Date.now(),
         type: 'assistant',
-        content: getWelcomeMessage(assistantId, selectedAssistantData.name),
+        content: `Agora você está falando com ${selectedAssistantData.name}. ${getWelcomeMessage(assistantId)}`,
         timestamp: new Date(),
         assistantId: assistantId
       };
@@ -267,19 +246,19 @@ INSTRUÇÕES IMPORTANTES:
     }
   };
 
-  const getWelcomeMessage = (assistantId: string, name: string): string => {
+  const getWelcomeMessage = (assistantId: string): string => {
     const welcomeMessages = {
-      kairon: "Então você quer falar comigo agora? Ótimo. Vamos direto ao ponto: qual é a verdade que você está evitando?",
-      oracle: "Bem-vindo ao espaço da sua sombra emocional. Estou aqui para te ajudar a olhar para dentro. O que você está sentindo?",
-      guardian: "Vamos falar sobre seus recursos. Não só dinheiro, mas energia, tempo, atenção. Como você está gerenciando tudo isso?",
-      engineer: "Seu corpo é seu hardware. Como ele está rodando? Energia alta, baixa? Me conte sobre seu estado físico.",
-      architect: "Hora de organizar o caos mental. Quais são suas prioridades reais neste momento?",
-      weaver: "Vamos falar sobre propósito. O que realmente importa para você quando toda a superficialidade é removida?",
-      catalyst: "Precisa quebrar alguns padrões mentais? Estou aqui para isso. Qual sua maior limitação criativa?",
-      mirror: "Seus relacionamentos são espelhos. O que eles estão refletindo sobre você ultimamente?"
+      kairon: "Vamos direto ao ponto: qual é a verdade que você está evitando?",
+      oracle: "Estou aqui para explorar sua sombra emocional. O que você está sentindo?",
+      guardian: "Vamos falar sobre recursos. Como você está gerenciando energia, tempo e atenção?",
+      engineer: "Como está seu hardware corporal? Energia alta ou baixa hoje?",
+      architect: "Hora de organizar suas prioridades. O que é mais importante agora?",
+      weaver: "Vamos falar sobre propósito. O que realmente importa para você?",
+      catalyst: "Precisa quebrar padrões limitantes? Qual sua maior limitação criativa?",
+      mirror: "Seus relacionamentos são espelhos. O que eles refletem sobre você?"
     };
 
-    return welcomeMessages[assistantId as keyof typeof welcomeMessages] || `Olá, sou ${name}. Como posso te ajudar hoje?`;
+    return welcomeMessages[assistantId as keyof typeof welcomeMessages] || "Como posso te ajudar hoje?";
   };
 
   const activeAssistants = assistants.filter(a => a.isActive);
@@ -296,7 +275,7 @@ INSTRUÇÕES IMPORTANTES:
         </div>
         <h1 className="text-3xl font-bold text-gray-900">Chat com Assistentes IA</h1>
         <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-          Converse diretamente com nossos assistentes especializados usando texto ou voz
+          Converse diretamente com nossos assistentes especializados
         </p>
       </div>
 
@@ -305,7 +284,7 @@ INSTRUÇÕES IMPORTANTES:
         <Alert className="border-orange-200 bg-orange-50">
           <AlertCircle className="h-4 w-4 text-orange-600" />
           <AlertDescription className="text-orange-800">
-            <strong>OpenAI não configurada:</strong> Para usar o chat, configure sua API key da OpenAI em Configurações.
+            <strong>OpenAI não configurada:</strong> Configure sua API key da OpenAI em Configurações.
             <Button variant="link" className="ml-2 p-0 h-auto text-orange-600" onClick={() => window.location.href = '/dashboard/settings'}>
               Ir para Configurações
             </Button>
@@ -384,31 +363,6 @@ INSTRUÇÕES IMPORTANTES:
                   </div>
                 </div>
               ))}
-            </CardContent>
-          </Card>
-
-          {/* Status do Sistema */}
-          <Card className={`${isOpenAIConfigured ? 'bg-gradient-to-r from-green-50 to-blue-50' : 'bg-gradient-to-r from-orange-50 to-red-50'}`}>
-            <CardContent className="p-4">
-              <div className="text-center space-y-2">
-                {isOpenAIConfigured ? (
-                  <>
-                    <Wifi className="w-8 h-8 text-green-600 mx-auto" />
-                    <h3 className="font-semibold text-green-800">Sistema Online</h3>
-                    <p className="text-xs text-green-600">
-                      Chat por voz e texto funcionando
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <WifiOff className="w-8 h-8 text-orange-600 mx-auto" />
-                    <h3 className="font-semibold text-orange-800">Configuração Necessária</h3>
-                    <p className="text-xs text-orange-600">
-                      Configure OpenAI para ativar o chat
-                    </p>
-                  </>
-                )}
-              </div>
             </CardContent>
           </Card>
         </div>
@@ -531,7 +485,7 @@ INSTRUÇÕES IMPORTANTES:
               <div className="flex gap-3 items-end">
                 <div className="flex-1 relative">
                   <Input
-                    placeholder={isOpenAIConfigured ? "Digite sua mensagem ou use o microfone..." : "Configure OpenAI para começar a conversar..."}
+                    placeholder={isOpenAIConfigured ? "Digite sua mensagem..." : "Configure OpenAI para começar a conversar..."}
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
                     onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && isOpenAIConfigured && handleSendMessage()}

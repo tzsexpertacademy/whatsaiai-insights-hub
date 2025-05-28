@@ -14,9 +14,9 @@ export function useConversationUpload() {
   const { toast } = useToast();
   const { config } = useClientConfig();
 
-  // Função para dividir texto em chunks menores
-  const chunkText = (text: string, maxTokens: number = 100000): string[] => {
-    const estimatedTokensPerChar = 0.25; // Estimativa conservadora
+  // Função para dividir texto em chunks MUITO menores para evitar erro de tokens
+  const chunkText = (text: string, maxTokens: number = 30000): string[] => {
+    const estimatedTokensPerChar = 0.25;
     const maxChars = Math.floor(maxTokens / estimatedTokensPerChar);
     
     if (text.length <= maxChars) {
@@ -27,32 +27,49 @@ export function useConversationUpload() {
     let currentIndex = 0;
 
     while (currentIndex < text.length) {
-      const chunk = text.slice(currentIndex, currentIndex + maxChars);
+      // Procurar por quebras naturais (parágrafos, sentenças)
+      let chunkEnd = currentIndex + maxChars;
+      
+      if (chunkEnd < text.length) {
+        // Tentar quebrar em parágrafo
+        const lastParagraph = text.lastIndexOf('\n\n', chunkEnd);
+        if (lastParagraph > currentIndex) {
+          chunkEnd = lastParagraph;
+        } else {
+          // Tentar quebrar em sentença
+          const lastSentence = text.lastIndexOf('.', chunkEnd);
+          if (lastSentence > currentIndex) {
+            chunkEnd = lastSentence + 1;
+          }
+        }
+      }
+      
+      const chunk = text.slice(currentIndex, chunkEnd);
       chunks.push(chunk);
-      currentIndex += maxChars;
+      currentIndex = chunkEnd;
     }
 
     return chunks;
   };
 
-  // Função para analisar um chunk individual
+  // Função para analisar um chunk individual com prompt mais enxuto
   const analyzeChunk = async (chunk: string, assistantId: string, chunkIndex: number, totalChunks: number): Promise<string> => {
     const assistantPrompts = {
-      kairon: 'Analise este fragmento de documento com máxima franqueza e confronto. Identifique pontos fracos, contradições e áreas que a pessoa está evitando. Seja direto e não suavize críticas construtivas.',
-      oracle: 'Faça uma análise psicológica profunda deste fragmento. Identifique padrões emocionais, resistências inconscientes e sombras que precisam ser trabalhadas.',
-      guardian: 'Analise este fragmento focando em recursos e energia. Como a pessoa está gerenciando tempo, dinheiro, energia? Que otimizações são necessárias?',
-      engineer: 'Analise este fragmento focando na saúde física e bem-estar. Identifique sinais de desgaste, necessidades de cuidado corporal e otimizações de energia.',
-      architect: 'Organize e estruture as informações deste fragmento. Identifique prioridades, sistemas que precisam ser implementados e planejamento estratégico.',
-      weaver: 'Analise este fragmento buscando propósito e significado. Como isso se conecta com valores profundos e missão de vida da pessoa?',
-      catalyst: 'Analise este fragmento para quebrar padrões limitantes. Identifique onde a criatividade está bloqueada e que mudanças revolucionárias são necessárias.',
-      mirror: 'Analise este fragmento focando em relacionamentos. Como as dinâmicas interpessoais estão afetando a pessoa? Que padrões relacionais precisam mudar?'
+      kairon: 'Analise este fragmento de forma direta e construtiva. Identifique os principais pontos e dê feedback honesto.',
+      oracle: 'Faça uma análise psicológica rápida deste fragmento. Identifique padrões emocionais principais.',
+      guardian: 'Analise recursos e energia neste fragmento. Como otimizar?',
+      engineer: 'Analise saúde e bem-estar neste fragmento. Que melhorias são necessárias?',
+      architect: 'Organize as informações deste fragmento. Identifique prioridades principais.',
+      weaver: 'Analise propósito e significado neste fragmento. Como conecta com valores profundos?',
+      catalyst: 'Analise para quebrar padrões limitantes. Que mudanças criativas são necessárias?',
+      mirror: 'Analise relacionamentos neste fragmento. Que padrões precisam mudar?'
     };
 
     const prompt = assistantPrompts[assistantId as keyof typeof assistantPrompts] || assistantPrompts.kairon;
     
     const systemPrompt = totalChunks > 1 
-      ? `${prompt}\n\nIMPORTANTE: Este é o fragmento ${chunkIndex + 1} de ${totalChunks} de um documento maior. Analise este fragmento específico e mencione que é uma análise parcial.`
-      : prompt;
+      ? `${prompt}\n\nEste é o fragmento ${chunkIndex + 1} de ${totalChunks}. Seja conciso (máximo 200 palavras).`
+      : `${prompt}\n\nSeja conciso e direto (máximo 300 palavras).`;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -69,10 +86,10 @@ export function useConversationUpload() {
           },
           {
             role: 'user',
-            content: `Analise o seguinte fragmento de documento:\n\n${chunk}`
+            content: `Analise: ${chunk.substring(0, 3000)}...` // Limitar tamanho do input também
           }
         ],
-        max_tokens: config.openai.maxTokens || 1000,
+        max_tokens: 500, // Reduzir tokens de resposta
         temperature: config.openai.temperature || 0.7
       }),
     });
@@ -90,7 +107,7 @@ export function useConversationUpload() {
     setIsUploading(true);
     
     try {
-      console.log('🤖 Iniciando análise com chunking inteligente');
+      console.log('🤖 Iniciando análise com chunking otimizado');
       console.log('Arquivo:', file.name, 'Assistente:', assistantId);
       
       // Verificar configuração da OpenAI
@@ -106,8 +123,8 @@ export function useConversationUpload() {
       const fileContent = await file.text();
       console.log('📄 Arquivo carregado, tamanho:', fileContent.length, 'caracteres');
       
-      // Dividir em chunks se necessário
-      const chunks = chunkText(fileContent, 100000); // 100K tokens por chunk
+      // Dividir em chunks menores (30K tokens por chunk)
+      const chunks = chunkText(fileContent, 30000);
       console.log('📊 Documento dividido em', chunks.length, 'fragmentos');
 
       let analysisResults: string[] = [];
@@ -118,15 +135,15 @@ export function useConversationUpload() {
         
         try {
           const chunkResult = await analyzeChunk(chunks[i], assistantId, i, chunks.length);
-          analysisResults.push(`### Fragmento ${i + 1}/${chunks.length}\n\n${chunkResult}`);
+          analysisResults.push(`**Fragmento ${i + 1}:**\n${chunkResult}`);
         } catch (chunkError) {
           console.error(`❌ Erro no fragmento ${i + 1}:`, chunkError);
-          analysisResults.push(`### Fragmento ${i + 1}/${chunks.length}\n\n❌ Erro ao analisar este fragmento: ${chunkError instanceof Error ? chunkError.message : 'Erro desconhecido'}`);
+          analysisResults.push(`**Fragmento ${i + 1}:**\n❌ Erro: ${chunkError instanceof Error ? chunkError.message : 'Erro desconhecido'}`);
         }
 
-        // Pequena pausa entre chunks para evitar rate limiting
+        // Pausa entre chunks
         if (i < chunks.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          await new Promise(resolve => setTimeout(resolve, 1500));
         }
       }
 
@@ -134,20 +151,7 @@ export function useConversationUpload() {
       let finalResult = '';
       
       if (chunks.length > 1) {
-        finalResult = `# Análise Completa do Documento\n\n**Documento:** ${file.name}\n**Total de fragmentos analisados:** ${chunks.length}\n\n---\n\n${analysisResults.join('\n\n---\n\n')}`;
-        
-        // Se possível, fazer uma síntese final
-        if (analysisResults.length > 1) {
-          try {
-            console.log('🔄 Gerando síntese final...');
-            const synthesisPrompt = `Com base nas análises fragmentadas abaixo, faça uma síntese executiva dos principais pontos encontrados:\n\n${analysisResults.join('\n\n')}`;
-            
-            const synthesisResult = await analyzeChunk(synthesisPrompt, assistantId, 0, 1);
-            finalResult = `# Síntese Executiva\n\n${synthesisResult}\n\n---\n\n${finalResult}`;
-          } catch (synthesisError) {
-            console.warn('⚠️ Não foi possível gerar síntese:', synthesisError);
-          }
-        }
+        finalResult = `# Análise do Documento: ${file.name}\n\n${analysisResults.join('\n\n---\n\n')}`;
       } else {
         finalResult = analysisResults[0];
       }
@@ -156,7 +160,7 @@ export function useConversationUpload() {
       
       toast({
         title: "Análise concluída!",
-        description: `Documento analisado com sucesso em ${chunks.length} fragmento(s)`,
+        description: `Documento analisado com sucesso`,
       });
       
       return finalResult;
