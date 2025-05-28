@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -103,7 +102,13 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
         console.error('❌ Erro ao buscar configuração dos assistentes:', assistantsError);
       }
 
-      const assistants = assistantsConfig?.openai_config?.assistants || [];
+      // Verificar se openai_config existe e tem assistants
+      let assistants: any[] = [];
+      if (assistantsConfig?.openai_config && typeof assistantsConfig.openai_config === 'object') {
+        const config = assistantsConfig.openai_config as any;
+        assistants = config.assistants || [];
+      }
+      
       console.log('🤖 Assistentes configurados:', assistants.map(a => ({ id: a.id, name: a.name, area: a.area })));
 
       // Buscar conversações do WhatsApp
@@ -115,33 +120,34 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
         .limit(50);
 
       if (conversationsError) {
-        console.error('❌ Erro ao buscar conversações:', conversationsError);
+        console.error('❌ Erro ao verificar conversações:', conversationsError);
       }
 
       console.log('💬 Conversações encontradas:', conversationsData?.length || 0);
 
       // Processar insights com informações dos assistentes REAIS
       const processedInsights = (insightsData || []).map(insight => {
-        // Buscar assistente correspondente pelo metadata
-        const assistantId = insight.metadata?.assistant_id;
-        const assistantFromConfig = assistants.find(a => a.id === assistantId);
+        // O campo insight_type será usado como referência para o assistente
+        const assistantFromConfig = assistants.find(a => 
+          a.area?.toLowerCase() === insight.insight_type?.toLowerCase() ||
+          a.name?.toLowerCase().includes(insight.insight_type?.toLowerCase())
+        );
         
         console.log('🔍 DEBUG - Processando insight:', {
           insight_id: insight.id,
-          assistant_id_from_metadata: assistantId,
-          assistant_found: assistantFromConfig?.name,
           insight_type: insight.insight_type,
-          category: insight.category
+          assistant_found: assistantFromConfig?.name,
+          title: insight.title
         });
 
         return {
           ...insight,
-          text: insight.content || insight.description,
+          text: insight.description, // Usar description como text
           assistantName: assistantFromConfig?.name || `Assistente ${insight.insight_type}`,
-          assistantArea: assistantFromConfig?.area || insight.category || insight.insight_type?.toLowerCase() || 'geral',
+          assistantArea: assistantFromConfig?.area || insight.insight_type?.toLowerCase() || 'geral',
           priority: insight.priority || 'medium',
           createdAt: insight.created_at,
-          category: insight.category || insight.insight_type || assistantFromConfig?.area || 'geral'
+          category: insight.insight_type || assistantFromConfig?.area || 'geral'
         };
       });
 
@@ -158,9 +164,9 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
         .map((insight, index) => ({
           ...insight,
           id: `rec_${insight.id}`,
-          text: `Baseado na análise do ${insight.assistantName || 'assistente'}, recomendamos: ${insight.content?.substring(0, 150)}...`,
+          text: `Baseado na análise do ${insight.assistantName || 'assistente'}, recomendamos: ${insight.description?.substring(0, 150)}...`,
           title: `Recomendação ${index + 1}`,
-          content: insight.content || insight.description
+          content: insight.description
         }));
 
       // Dados emocionais simulados baseados nos insights
