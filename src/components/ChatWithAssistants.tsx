@@ -9,21 +9,19 @@ import {
   Bot, 
   Send, 
   Smile,
-  Heart,
   Brain,
-  Target,
   Users,
   Sparkles,
   User,
-  Paperclip,
-  Volume2
+  Volume2,
+  Loader2
 } from 'lucide-react';
 import { useAssistantsConfig } from '@/hooks/useAssistantsConfig';
-import { useConversationUpload } from '@/hooks/useConversationUpload';
 import { useVoiceRecording } from '@/hooks/useVoiceRecording';
 import { useVoiceTranscription } from '@/hooks/useVoiceTranscription';
 import { VoiceRecordButton } from '@/components/VoiceRecordButton';
 import { useToast } from "@/hooks/use-toast";
+import { useClientConfig } from '@/contexts/ClientConfigContext';
 
 interface Message {
   id: number;
@@ -50,7 +48,7 @@ export function ChatWithAssistants() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
   const { assistants } = useAssistantsConfig();
-  const { uploadAndAnalyze, isUploading } = useConversationUpload();
+  const { config } = useClientConfig();
   const { isRecording, startRecording, stopRecording, audioLevel } = useVoiceRecording();
   const { transcribeAudio, isTranscribing } = useVoiceTranscription();
   const { toast } = useToast();
@@ -62,6 +60,64 @@ export function ChatWithAssistants() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  const analyzeWithOpenAI = async (userMessage: string, assistantId: string): Promise<string> => {
+    const selectedAssistantData = assistants.find(a => a.id === assistantId);
+    
+    if (!config.openai.apiKey) {
+      throw new Error('Chave da OpenAI não configurada. Vá para Configurações → OpenAI para configurar.');
+    }
+
+    if (!selectedAssistantData) {
+      throw new Error('Assistente não encontrado');
+    }
+
+    console.log('🤖 Enviando mensagem para OpenAI:', { assistantId, message: userMessage });
+
+    const systemPrompt = `${selectedAssistantData.prompt}
+
+INSTRUÇÕES IMPORTANTES:
+- Você está conversando diretamente com o usuário em um chat
+- Seja conversacional, direto e envolvente
+- Mantenha suas respostas focadas e práticas
+- Use o tom e personalidade definidos no seu prompt
+- Responda sempre em português brasileiro
+- Seja específico e actionável em suas sugestões`;
+
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${config.openai.apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: config.openai.model || 'gpt-4o-mini',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userMessage }
+        ],
+        temperature: config.openai.temperature || 0.7,
+        max_tokens: config.openai.maxTokens || 800,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error('❌ Erro da OpenAI API:', errorData);
+      throw new Error(`Erro da OpenAI: ${response.status} - ${errorData}`);
+    }
+
+    const data = await response.json();
+    
+    if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+      throw new Error('Resposta inválida da OpenAI');
+    }
+
+    const assistantResponse = data.choices[0].message.content;
+    console.log('✅ Resposta recebida da OpenAI:', assistantResponse);
+    
+    return assistantResponse;
+  };
 
   const handleSendMessage = async (messageText?: string, isVoiceMessage = false) => {
     const textToSend = messageText || message.trim();
@@ -80,9 +136,9 @@ export function ChatWithAssistants() {
     setIsTyping(true);
 
     try {
-      // Usar análise REAL da OpenAI
-      const textFile = new File([textToSend], 'chat-message.txt', { type: 'text/plain' });
-      const response = await uploadAndAnalyze(textFile, selectedAssistant);
+      console.log('🔄 Processando mensagem com IA real...');
+      
+      const response = await analyzeWithOpenAI(textToSend, selectedAssistant);
       
       if (response) {
         const assistantMessage: Message = {
@@ -92,32 +148,32 @@ export function ChatWithAssistants() {
           timestamp: new Date(),
           assistantId: selectedAssistant
         };
+        
         setMessages(prev => [...prev, assistantMessage]);
         
         toast({
           title: "Resposta recebida",
           description: `${assistants.find(a => a.id === selectedAssistant)?.name} respondeu sua mensagem`,
         });
-      } else {
-        const errorMessage: Message = {
-          id: Date.now() + 1,
-          type: 'assistant',
-          content: 'Desculpe, não consegui processar sua mensagem no momento. Verifique se a API da OpenAI está configurada.',
-          timestamp: new Date(),
-          assistantId: selectedAssistant
-        };
-        setMessages(prev => [...prev, errorMessage]);
       }
     } catch (error) {
-      console.error('Erro no chat:', error);
+      console.error('❌ Erro no chat:', error);
+      
       const errorMessage: Message = {
         id: Date.now() + 1,
         type: 'assistant',
-        content: 'Desculpe, ocorreu um erro ao processar sua mensagem.',
+        content: `Desculpe, ocorreu um erro ao processar sua mensagem: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
         timestamp: new Date(),
         assistantId: selectedAssistant
       };
+      
       setMessages(prev => [...prev, errorMessage]);
+      
+      toast({
+        title: "Erro no chat",
+        description: error instanceof Error ? error.message : "Erro ao processar mensagem",
+        variant: "destructive",
+      });
     }
     
     setIsTyping(false);
@@ -338,7 +394,7 @@ export function ChatWithAssistants() {
               ))}
 
               {/* Indicador de digitação */}
-              {(isTyping || isUploading) && (
+              {isTyping && (
                 <div className="flex justify-start">
                   <div className="flex gap-3 max-w-[80%]">
                     <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-blue-600 rounded-full flex items-center justify-center">
@@ -364,10 +420,6 @@ export function ChatWithAssistants() {
             {/* Input de Mensagem */}
             <div className="border-t bg-white p-4 rounded-b-lg">
               <div className="flex gap-3 items-end">
-                <Button size="sm" variant="ghost" className="p-2 flex-shrink-0">
-                  <Paperclip className="w-4 h-4" />
-                </Button>
-                
                 <div className="flex-1 relative">
                   <Input
                     placeholder="Digite sua mensagem ou use o microfone..."
@@ -375,7 +427,7 @@ export function ChatWithAssistants() {
                     onChange={(e) => setMessage(e.target.value)}
                     onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
                     className="pr-12 rounded-xl border-gray-300 min-h-[40px]"
-                    disabled={isRecording || isTranscribing || isUploading}
+                    disabled={isRecording || isTranscribing || isTyping}
                   />
                   <Button
                     size="sm"
@@ -393,15 +445,19 @@ export function ChatWithAssistants() {
                   audioLevel={audioLevel}
                   onStartRecording={handleVoiceRecording}
                   onStopRecording={handleVoiceRecording}
-                  disabled={isUploading}
+                  disabled={isTyping}
                 />
                 
                 <Button
                   onClick={() => handleSendMessage()}
-                  disabled={!message.trim() || isRecording || isTranscribing || isUploading}
+                  disabled={!message.trim() || isRecording || isTranscribing || isTyping}
                   className="bg-blue-600 hover:bg-blue-700 rounded-full w-10 h-10 p-0 flex-shrink-0"
                 >
-                  <Send className="w-4 h-4" />
+                  {isTyping ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Send className="w-4 h-4" />
+                  )}
                 </Button>
               </div>
               

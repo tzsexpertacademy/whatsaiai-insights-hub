@@ -49,12 +49,21 @@ serve(async (req) => {
       throw new Error('No audio data provided')
     }
 
-    console.log('Received audio data for transcription, length:', audio.length)
+    console.log('🎤 Received audio data for transcription, length:', audio.length)
+
+    // Verificar se a chave OpenAI está configurada
+    const openaiKey = Deno.env.get('OPENAI_API_KEY');
+    if (!openaiKey) {
+      console.error('❌ OPENAI_API_KEY não configurada');
+      throw new Error('OpenAI API key not configured');
+    }
+
+    console.log('🔑 OpenAI key configurada:', openaiKey.substring(0, 7) + '...')
 
     // Process audio in chunks
     const binaryAudio = processBase64Chunks(audio)
     
-    console.log('Processed binary audio, size:', binaryAudio.length, 'bytes')
+    console.log('🔄 Processed binary audio, size:', binaryAudio.length, 'bytes')
     
     // Prepare form data
     const formData = new FormData()
@@ -63,27 +72,27 @@ serve(async (req) => {
     formData.append('model', 'whisper-1')
     formData.append('language', 'pt') // Portuguese language hint
 
-    console.log('Sending to OpenAI Whisper API...')
+    console.log('📡 Sending to OpenAI Whisper API...')
 
     // Send to OpenAI
     const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${Deno.env.get('OPENAI_API_KEY')}`,
+        'Authorization': `Bearer ${openaiKey}`,
       },
       body: formData,
     })
 
-    console.log('OpenAI response status:', response.status)
+    console.log('📊 OpenAI response status:', response.status)
 
     if (!response.ok) {
       const errorText = await response.text()
-      console.error('OpenAI API error:', errorText)
-      throw new Error(`OpenAI API error: ${errorText}`)
+      console.error('❌ OpenAI API error:', errorText)
+      throw new Error(`OpenAI API error: ${response.status} - ${errorText}`)
     }
 
     const result = await response.json()
-    console.log('Transcription result:', result.text)
+    console.log('✅ Transcription result:', result.text)
 
     return new Response(
       JSON.stringify({ text: result.text }),
@@ -91,9 +100,12 @@ serve(async (req) => {
     )
 
   } catch (error) {
-    console.error('Error in voice-to-text function:', error)
+    console.error('❌ Error in voice-to-text function:', error)
+    
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: errorMessage }),
       {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

@@ -22,13 +22,18 @@ export function useVoiceTranscription() {
         }),
       });
 
+      console.log('📡 Status da resposta:', response.status);
+
       if (!response.ok) {
-        throw new Error('Erro na transcrição do áudio');
+        const errorText = await response.text();
+        console.error('❌ Erro na API de transcrição:', errorText);
+        throw new Error(`Erro na transcrição: ${response.status} - ${errorText}`);
       }
 
       const data = await response.json();
       
       if (data.error) {
+        console.error('❌ Erro retornado pela API:', data.error);
         throw new Error(data.error);
       }
 
@@ -43,11 +48,15 @@ export function useVoiceTranscription() {
 
     } catch (error) {
       console.error('❌ Erro na transcrição:', error);
+      
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido na transcrição';
+      
       toast({
         title: "Erro na transcrição",
-        description: "Não foi possível transcrever o áudio",
+        description: errorMessage,
         variant: "destructive",
       });
+      
       return null;
     } finally {
       setIsTranscribing(false);
