@@ -54,7 +54,7 @@ export function DashboardMain() {
 
   // Status das configurações
   const isOpenAIConfigured = config.openai?.apiKey && config.openai.apiKey.startsWith('sk-');
-  const isWhatsAppConfigured = config.whatsapp?.webhookUrl;
+  const isWhatsAppConfigured = config.whatsapp?.makeWebhookUrl || config.whatsapp?.atendechatApiKey;
   const isFirebaseConfigured = config.firebase?.projectId;
 
   // Se não tem dados reais ainda - Dashboard de boas-vindas
