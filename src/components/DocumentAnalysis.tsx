@@ -48,7 +48,7 @@ export function DocumentAnalysis() {
     {
       id: 1,
       type: 'assistant',
-      content: 'Olá! Sou seu assistente de análise de documentos. Faça upload de qualquer arquivo ou cole um texto para começarmos a análise.',
+      content: 'Olá! Sou seu assistente de análise de documentos. Faça upload de qualquer arquivo ou cole um texto para começarmos a análise REAL com IA.',
       timestamp: new Date(),
       assistantId: 'kairon'
     }
@@ -60,10 +60,10 @@ export function DocumentAnalysis() {
   const { assistants } = useAssistantsConfig();
   const { toast } = useToast();
 
-  console.log('📄 DocumentAnalysis component rendered with full features');
+  console.log('📄 DocumentAnalysis component rendered - ANÁLISE REAL ATIVADA');
 
   const estimatedTokens = selectedFile 
-    ? Math.ceil(selectedFile.size / 4) // Aproximação: 1 token ≈ 4 caracteres
+    ? Math.ceil(selectedFile.size / 4)
     : Math.ceil(conversationText.length / 4);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -103,13 +103,14 @@ export function DocumentAnalysis() {
       setMessages(prev => [...prev, userMessage]);
       setIsTyping(true);
       
-      // Usar a API real para análise
+      // Preparar arquivo para análise REAL
       const fileToAnalyze = selectedFile || new File([conversationText], 'conversation.txt', { type: 'text/plain' });
       
-      console.log('🔄 Iniciando análise real com OpenAI...');
+      console.log('🔄 Iniciando análise REAL com OpenAI API...');
       console.log('Assistente selecionado:', selectedAssistantData?.name);
       console.log('Modelo:', selectedModel);
       
+      // Chamar análise REAL da OpenAI
       const analysisResult = await uploadAndAnalyze(fileToAnalyze, selectedAssistant);
       
       clearInterval(interval);
@@ -119,7 +120,7 @@ export function DocumentAnalysis() {
         const assistantMessage: Message = {
           id: Date.now() + 1,
           type: 'assistant',
-          content: analysisResult,
+          content: `## 🤖 Análise REAL por ${selectedAssistantData?.name}\n\n${analysisResult}`,
           timestamp: new Date(),
           assistantId: selectedAssistant
         };
@@ -127,15 +128,14 @@ export function DocumentAnalysis() {
         setMessages(prev => [...prev, assistantMessage]);
         
         toast({
-          title: "Análise concluída!",
-          description: `Documento analisado por ${selectedAssistantData?.name}`,
+          title: "Análise REAL concluída!",
+          description: `Documento analisado pela IA da OpenAI via ${selectedAssistantData?.name}`,
         });
       } else {
-        // Fallback se não houver resultado
         const errorMessage: Message = {
           id: Date.now() + 1,
           type: 'assistant',
-          content: `❌ Não foi possível analisar o documento. Verifique se a API da OpenAI está configurada corretamente.`,
+          content: `❌ Não foi possível analisar o documento. Verifique se a API da OpenAI está configurada corretamente em Settings > OpenAI.`,
           timestamp: new Date(),
           assistantId: selectedAssistant
         };
@@ -157,14 +157,14 @@ export function DocumentAnalysis() {
       setTimeout(() => setProgress(0), 1000);
 
     } catch (error) {
-      console.error('❌ Erro ao fazer upload:', error);
+      console.error('❌ Erro ao fazer análise REAL:', error);
       setProgress(0);
       setIsTyping(false);
       
       const errorMessage: Message = {
         id: Date.now() + 1,
         type: 'assistant',
-        content: `❌ Erro durante a análise: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
+        content: `❌ Erro durante a análise REAL: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
         timestamp: new Date(),
         assistantId: selectedAssistant
       };
@@ -173,7 +173,7 @@ export function DocumentAnalysis() {
       
       toast({
         title: "Erro na análise",
-        description: "Erro ao processar o documento",
+        description: "Erro ao processar o documento com a OpenAI",
         variant: "destructive",
       });
     }
@@ -194,7 +194,7 @@ export function DocumentAnalysis() {
     setIsTyping(true);
 
     try {
-      // Usar a API real para resposta do chat
+      // Usar a API REAL para resposta do chat
       const textFile = new File([chatMessage], 'chat-message.txt', { type: 'text/plain' });
       const response = await uploadAndAnalyze(textFile, selectedAssistant);
       
@@ -202,7 +202,7 @@ export function DocumentAnalysis() {
         const assistantMessage: Message = {
           id: messages.length + 2,
           type: 'assistant',
-          content: response,
+          content: `## 💬 Resposta REAL da IA\n\n${response}`,
           timestamp: new Date(),
           assistantId: selectedAssistant
         };
@@ -213,7 +213,7 @@ export function DocumentAnalysis() {
       const errorMessage: Message = {
         id: messages.length + 2,
         type: 'assistant',
-        content: 'Desculpe, ocorreu um erro ao processar sua mensagem.',
+        content: 'Desculpe, ocorreu um erro ao processar sua mensagem com a OpenAI.',
         timestamp: new Date(),
         assistantId: selectedAssistant
       };
@@ -225,7 +225,7 @@ export function DocumentAnalysis() {
 
   const analysisSteps = [
     { icon: FileText, title: "Upload de Documentos", description: "Adicione seus arquivos" },
-    { icon: Brain, title: "Processamento IA", description: "Análise com assistente escolhido" },
+    { icon: Brain, title: "Processamento IA REAL", description: "Análise com OpenAI" },
     { icon: Sparkles, title: "Extração de Insights", description: "Padrões identificados" },
     { icon: BarChart3, title: "Relatórios", description: "Análises detalhadas" }
   ];
@@ -244,7 +244,7 @@ export function DocumentAnalysis() {
         </div>
         <h1 className="text-3xl font-bold text-gray-900">Análise de Documentos</h1>
         <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-          Faça upload de documentos, configure o assistente e veja estimativas de custo em tempo real
+          Faça upload de documentos e receba análises REAIS feitas pela IA da OpenAI
         </p>
       </div>
 
@@ -259,7 +259,7 @@ export function DocumentAnalysis() {
           {/* Como Funciona */}
           <Card className="bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200">
             <CardHeader>
-              <CardTitle className="text-center text-blue-800">Como Funciona a Análise</CardTitle>
+              <CardTitle className="text-center text-blue-800">Como Funciona a Análise REAL</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -288,7 +288,7 @@ export function DocumentAnalysis() {
               <CardContent className="space-y-4">
                 {/* Seleção de Assistente */}
                 <div className="space-y-2">
-                  <Label>Assistente para Análise:</Label>
+                  <Label>Assistente para Análise REAL:</Label>
                   <Select value={selectedAssistant} onValueChange={setSelectedAssistant}>
                     <SelectTrigger>
                       <SelectValue />
@@ -313,7 +313,6 @@ export function DocumentAnalysis() {
                     <SelectContent>
                       <SelectItem value="gpt-4o-mini">GPT-4o Mini (Rápido e Econômico)</SelectItem>
                       <SelectItem value="gpt-4o">GPT-4o (Mais Poderoso)</SelectItem>
-                      <SelectItem value="gpt-4.5-preview">GPT-4.5 Preview (Experimental)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -345,7 +344,7 @@ export function DocumentAnalysis() {
                 {isUploading && (
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
-                      <span>Processando...</span>
+                      <span>Processando com IA REAL...</span>
                       <span>{Math.round(progress)}%</span>
                     </div>
                     <Progress value={progress} className="w-full" />
@@ -360,12 +359,12 @@ export function DocumentAnalysis() {
                   {isUploading ? (
                     <>
                       <Clock className="w-4 h-4 mr-2 animate-spin" />
-                      Analisando...
+                      Analisando com IA REAL...
                     </>
                   ) : (
                     <>
                       <Brain className="w-4 h-4 mr-2" />
-                      Analisar com {selectedAssistantData?.name}
+                      Analisar REAL com {selectedAssistantData?.name}
                     </>
                   )}
                 </Button>
@@ -386,7 +385,7 @@ export function DocumentAnalysis() {
             <CardHeader>
               <CardTitle className="text-purple-800 flex items-center gap-2">
                 <Zap className="w-5 h-5" />
-                Assistentes Disponíveis para Análise
+                Assistentes Disponíveis para Análise REAL
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -447,7 +446,7 @@ export function DocumentAnalysis() {
             <CardHeader className="border-b">
               <CardTitle className="flex items-center gap-2">
                 <MessageSquare className="w-5 h-5" />
-                Chat com {selectedAssistantData?.name}
+                Chat REAL com {selectedAssistantData?.name}
               </CardTitle>
             </CardHeader>
             
@@ -526,7 +525,7 @@ export function DocumentAnalysis() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Settings className="w-5 h-5" />
-                  Configurações de Análise
+                  Configurações de Análise REAL
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -559,7 +558,7 @@ export function DocumentAnalysis() {
                   <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
                     <CheckCircle className="w-8 h-8 text-green-600 mx-auto mb-2" />
                     <h3 className="font-semibold text-green-800">Sistema Online</h3>
-                    <p className="text-sm text-green-600">Pronto para análise</p>
+                    <p className="text-sm text-green-600">Pronto para análise REAL</p>
                   </div>
 
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
