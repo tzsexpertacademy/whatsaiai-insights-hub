@@ -4,12 +4,14 @@ import { useClientConfig } from '@/contexts/ClientConfigContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { useAssistantsConfig } from '@/hooks/useAssistantsConfig';
 
 export function useAIReportUpdate() {
   const [isUpdating, setIsUpdating] = useState(false);
   const { config } = useClientConfig();
   const { user } = useAuth();
   const { toast } = useToast();
+  const { assistants } = useAssistantsConfig();
 
   const updateReport = async () => {
     if (!user?.id) {
@@ -21,19 +23,34 @@ export function useAIReportUpdate() {
       return;
     }
 
-    if (!config.openai.apiKey) {
+    // Verificação rigorosa da configuração OpenAI
+    if (!config.openai?.apiKey || !config.openai.apiKey.startsWith('sk-')) {
       toast({
-        title: "Configuração necessária",
-        description: "Configure sua chave OpenAI antes de atualizar o relatório",
+        title: "OpenAI não configurada",
+        description: "Configure uma chave OpenAI válida antes de gerar relatórios",
         variant: "destructive"
       });
       return;
     }
 
-    if (!config.openai.apiKey.startsWith('sk-')) {
+    // Verificação se existem assistentes ativos
+    const activeAssistants = assistants.filter(a => a.isActive);
+    if (activeAssistants.length === 0) {
       toast({
-        title: "Chave inválida",
-        description: "A chave OpenAI deve começar com 'sk-'",
+        title: "Nenhum assistente ativo",
+        description: "Configure pelo menos um assistente ativo para gerar relatórios",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Verificação de modelo válido
+    const validModels = ['gpt-4o', 'gpt-4o-mini'];
+    const selectedModel = config.openai.model || 'gpt-4o-mini';
+    if (!validModels.includes(selectedModel)) {
+      toast({
+        title: "Modelo inválido",
+        description: "Configure um modelo OpenAI válido (gpt-4o ou gpt-4o-mini)",
         variant: "destructive"
       });
       return;
@@ -41,43 +58,86 @@ export function useAIReportUpdate() {
 
     try {
       setIsUpdating(true);
-      console.log('🔄 Iniciando atualização do relatório com IA...');
+      console.log('🤖 Iniciando análise por IA com assistentes configurados...');
+      console.log('📋 Assistentes ativos:', activeAssistants.map(a => a.name));
 
-      // Chamar edge function para análise por IA
+      // Preparar dados dos assistentes para a edge function
+      const assistantsData = activeAssistants.map(assistant => ({
+        id: assistant.id,
+        name: assistant.name,
+        prompt: assistant.prompt,
+        model: assistant.model || selectedModel,
+        area: assistant.area || 'geral'
+      }));
+
+      // Chamar edge function com dados dos assistentes
       const { data, error } = await supabase.functions.invoke('analyze-conversation', {
         body: { 
           userId: user.id,
-          openaiApiKey: config.openai.apiKey,
-          model: config.openai.model || 'gpt-4o-mini',
-          temperature: config.openai.temperature || 0.7,
-          maxTokens: config.openai.maxTokens || 1000
+          openaiConfig: {
+            apiKey: config.openai.apiKey,
+            model: selectedModel,
+            temperature: config.openai.temperature || 0.7,
+            maxTokens: config.openai.maxTokens || 1000
+          },
+          assistants: assistantsData,
+          analysisType: 'comprehensive',
+          timestamp: new Date().toISOString()
         }
       });
 
       if (error) {
         console.error('❌ Erro na edge function:', error);
-        throw error;
+        throw new Error(`Erro na análise: ${error.message}`);
       }
 
-      console.log('✅ Resposta da IA:', data);
+      if (!data?.success) {
+        throw new Error(data?.error || 'Erro desconhecido na análise');
+      }
 
-      toast({
-        title: "Relatório atualizado",
-        description: "Análise por IA concluída com sucesso. A página será recarregada para mostrar os novos dados.",
+      console.log('✅ Análise concluída:', {
+        insightsGenerated: data.insights?.length || 0,
+        assistantsUsed: data.assistantsUsed || [],
+        processingTime: data.processingTime
       });
 
-      console.log('✅ Relatório atualizado com sucesso');
-      
-      // Recarregar a página após um pequeno delay para mostrar o toast
+      toast({
+        title: "✅ Relatório atualizado com sucesso",
+        description: `Análise concluída por ${data.assistantsUsed?.length || 0} assistente(s). Atualizando dashboard...`,
+        duration: 3000
+      });
+
+      // Recarregar após delay para mostrar o toast
       setTimeout(() => {
         window.location.reload();
       }, 2000);
       
     } catch (error) {
       console.error('❌ Erro ao atualizar relatório:', error);
+      
+      // Erro específico para chave OpenAI inválida
+      if (error.message.includes('401') || error.message.includes('API key')) {
+        toast({
+          title: "Chave OpenAI inválida",
+          description: "Verifique sua chave OpenAI nas configurações",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Erro específico para cota excedida
+      if (error.message.includes('quota') || error.message.includes('billing')) {
+        toast({
+          title: "Cota OpenAI excedida",
+          description: "Verifique sua conta OpenAI e billing",
+          variant: "destructive"
+        });
+        return;
+      }
+
       toast({
-        title: "Erro na atualização",
-        description: "Não foi possível atualizar o relatório. Verifique suas configurações.",
+        title: "Erro na análise",
+        description: error.message || "Não foi possível gerar o relatório",
         variant: "destructive"
       });
     } finally {

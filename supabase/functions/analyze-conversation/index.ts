@@ -1,156 +1,221 @@
 
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.8';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+interface AssistantData {
+  id: string;
+  name: string;
+  prompt: string;
+  model: string;
+  area: string;
+}
+
+interface AnalysisRequest {
+  userId: string;
+  openaiConfig: {
+    apiKey: string;
+    model: string;
+    temperature: number;
+    maxTokens: number;
+  };
+  assistants: AssistantData[];
+  analysisType: string;
+  timestamp: string;
+}
+
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    console.log('🔍 Analyze Conversation - Iniciando análise');
+    console.log('🤖 ANÁLISE POR IA - Iniciando processamento...');
     
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
-    
-    if (!openaiApiKey) {
-      console.error('❌ OpenAI API key não configurada');
-      return new Response(
-        JSON.stringify({ error: 'OpenAI API key não configurada' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const supabase = createClient(supabaseUrl, supabaseKey);
-    
-    // Verificar autenticação
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: 'Token de autorização necessário' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser(
-      authHeader.replace('Bearer ', '')
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    if (authError || !user) {
-      console.error('❌ Erro de autenticação:', authError);
+    const {
+      userId,
+      openaiConfig,
+      assistants,
+      analysisType,
+      timestamp
+    }: AnalysisRequest = await req.json();
+
+    // Validações de segurança
+    if (!userId || !openaiConfig?.apiKey || !assistants?.length) {
+      console.error('❌ Dados obrigatórios faltando');
       return new Response(
-        JSON.stringify({ error: 'Usuário não autenticado' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    console.log('✅ Usuário autenticado:', user.id);
-
-    const { messages, conversationType = 'personal' } = await req.json();
-
-    if (!messages || !Array.isArray(messages)) {
-      return new Response(
-        JSON.stringify({ error: 'Mensagens inválidas' }),
+        JSON.stringify({ 
+          success: false, 
+          error: 'Dados obrigatórios: userId, openaiConfig e assistants' 
+        }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`📊 Analisando ${messages.length} mensagens do tipo: ${conversationType}`);
+    // Verificar se a chave OpenAI é válida
+    if (!openaiConfig.apiKey.startsWith('sk-')) {
+      console.error('❌ Chave OpenAI inválida');
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'Chave OpenAI inválida - deve começar com sk-' 
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
-    // Prompt base para análise
-    const analysisPrompt = conversationType === 'commercial' 
-      ? getCommercialAnalysisPrompt(messages)
-      : getPersonalAnalysisPrompt(messages);
+    console.log('👤 Processando análise para usuário:', userId);
+    console.log('🤖 Assistentes configurados:', assistants.map(a => `${a.name} (${a.model})`));
 
-    // Chamar OpenAI para análise
-    console.log('🤖 Enviando para OpenAI...');
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openaiApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          {
-            role: 'system',
-            content: analysisPrompt
+    // Buscar conversações do usuário
+    const { data: conversations, error: convError } = await supabaseClient
+      .from('conversations')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    if (convError) {
+      console.error('❌ Erro ao buscar conversações:', convError);
+      throw new Error(`Erro ao buscar conversações: ${convError.message}`);
+    }
+
+    if (!conversations || conversations.length === 0) {
+      console.log('ℹ️ Nenhuma conversação encontrada para análise');
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'Nenhuma conversação encontrada para análise' 
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log(`📊 Analisando ${conversations.length} conversações...`);
+
+    // Preparar texto para análise
+    const conversationText = conversations
+      .map(conv => `[${conv.created_at}] ${conv.message}`)
+      .join('\n');
+
+    const insights = [];
+    const assistantsUsed = [];
+    const startTime = Date.now();
+
+    // Processar com cada assistente configurado
+    for (const assistant of assistants) {
+      try {
+        console.log(`🔄 Processando com ${assistant.name} (${assistant.model})...`);
+
+        const systemPrompt = `${assistant.prompt}
+
+INSTRUÇÕES ESPECÍFICAS PARA ANÁLISE:
+- Analise as conversações do usuário
+- Foque na área: ${assistant.area}
+- Gere insights específicos e práticos
+- Seja objetivo e construtivo
+- Máximo 200 palavras por insight
+- Responda em português brasileiro
+
+DADOS PARA ANÁLISE:
+${conversationText.substring(0, 3000)}`;
+
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${openaiConfig.apiKey}`,
+            'Content-Type': 'application/json',
           },
-          {
-            role: 'user',
-            content: `Analise esta conversa: ${JSON.stringify(messages.slice(-10))}`
-          }
-        ],
-        temperature: 0.3,
-        max_tokens: 2000,
-      }),
-    });
+          body: JSON.stringify({
+            model: assistant.model,
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: 'Gere insights baseados nas conversações fornecidas.' }
+            ],
+            temperature: openaiConfig.temperature,
+            max_tokens: openaiConfig.maxTokens,
+          }),
+        });
 
-    if (!response.ok) {
-      console.error('❌ Erro na OpenAI:', response.status);
-      throw new Error(`Erro na OpenAI: ${response.status}`);
-    }
-
-    const aiResponse = await response.json();
-    const analysisText = aiResponse.choices[0].message.content;
-
-    console.log('✅ Análise gerada pela OpenAI');
-
-    // Parse da análise
-    let analysis;
-    try {
-      analysis = JSON.parse(analysisText);
-    } catch (parseError) {
-      console.error('❌ Erro ao fazer parse da análise:', parseError);
-      // Fallback: criar análise básica
-      analysis = {
-        emotional_state: { dominant_emotion: 'neutro', intensity: 5 },
-        psychological_profile: { openness: 5, conscientiousness: 5, extraversion: 5, agreeableness: 5, neuroticism: 3 },
-        life_areas: { career: 5, relationships: 5, health: 5, finance: 5, personal_growth: 5 },
-        insights: [{ type: 'general', title: 'Análise processada', description: 'Conversação analisada com sucesso' }]
-      };
-    }
-
-    // Salvar análise no banco
-    const table = conversationType === 'commercial' ? 'commercial_insights' : 'insights';
-    
-    if (analysis.insights && Array.isArray(analysis.insights)) {
-      for (const insight of analysis.insights) {
-        const { error: insertError } = await supabase
-          .from(table)
-          .insert({
-            user_id: user.id,
-            insight_type: insight.type || 'general',
-            title: insight.title || 'Insight gerado',
-            description: insight.description || 'Análise automática',
-            priority: insight.priority || 'medium',
-            ...(conversationType === 'commercial' && {
-              sales_impact: insight.sales_impact || 'medium'
-            })
-          });
-
-        if (insertError) {
-          console.error('❌ Erro ao salvar insight:', insertError);
+        if (!response.ok) {
+          console.error(`❌ Erro OpenAI para ${assistant.name}:`, response.status);
+          continue;
         }
+
+        const aiData = await response.json();
+        const insight = aiData.choices[0]?.message?.content;
+
+        if (insight) {
+          insights.push({
+            assistant_id: assistant.id,
+            assistant_name: assistant.name,
+            content: insight,
+            area: assistant.area,
+            model_used: assistant.model,
+            generated_at: new Date().toISOString()
+          });
+          
+          assistantsUsed.push(assistant.name);
+          console.log(`✅ Insight gerado por ${assistant.name}`);
+        }
+
+      } catch (error) {
+        console.error(`❌ Erro processando ${assistant.name}:`, error);
+        continue;
       }
     }
 
-    console.log('✅ Análise salva no banco de dados');
+    // Salvar insights no banco
+    if (insights.length > 0) {
+      const { error: insertError } = await supabaseClient
+        .from('insights')
+        .insert(
+          insights.map(insight => ({
+            user_id: userId,
+            title: `Análise por ${insight.assistant_name}`,
+            content: insight.content,
+            category: insight.area,
+            metadata: {
+              assistant_id: insight.assistant_id,
+              assistant_name: insight.assistant_name,
+              model_used: insight.model_used,
+              generated_at: insight.generated_at,
+              analysis_type: analysisType
+            }
+          }))
+        );
+
+      if (insertError) {
+        console.error('❌ Erro ao salvar insights:', insertError);
+        throw new Error(`Erro ao salvar insights: ${insertError.message}`);
+      }
+    }
+
+    const processingTime = Date.now() - startTime;
+    
+    console.log('✅ Análise concluída:', {
+      insightsGenerated: insights.length,
+      assistantsUsed: assistantsUsed.length,
+      processingTime: `${processingTime}ms`
+    });
 
     return new Response(
       JSON.stringify({
         success: true,
-        analysis,
-        insights_saved: analysis.insights?.length || 0
+        insights: insights,
+        assistantsUsed: assistantsUsed,
+        processingTime: processingTime,
+        conversationsAnalyzed: conversations.length
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -158,11 +223,11 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('❌ Erro na análise:', error);
+    console.error('❌ Erro na análise por IA:', error);
     return new Response(
       JSON.stringify({ 
-        error: 'Erro interno do servidor',
-        details: error.message 
+        success: false, 
+        error: error.message || 'Erro interno do servidor'
       }),
       {
         status: 500,
@@ -171,68 +236,3 @@ serve(async (req) => {
     );
   }
 });
-
-function getPersonalAnalysisPrompt(messages: any[]): string {
-  return `Você é um especialista em análise comportamental e psicológica. Analise esta conversa e retorne um JSON com:
-
-{
-  "emotional_state": {
-    "dominant_emotion": "alegria|tristeza|ansiedade|raiva|medo|neutro",
-    "intensity": 1-10,
-    "stability": "estável|instável|flutuante"
-  },
-  "psychological_profile": {
-    "openness": 1-10,
-    "conscientiousness": 1-10,
-    "extraversion": 1-10,
-    "agreeableness": 1-10,
-    "neuroticism": 1-10
-  },
-  "life_areas": {
-    "career": 1-10,
-    "relationships": 1-10,
-    "health": 1-10,
-    "finance": 1-10,
-    "personal_growth": 1-10
-  },
-  "insights": [
-    {
-      "type": "emotional|behavioral|cognitive|social",
-      "title": "Título do insight",
-      "description": "Descrição detalhada",
-      "priority": "high|medium|low"
-    }
-  ]
-}
-
-Seja preciso e baseie-se no conteúdo real das mensagens.`;
-}
-
-function getCommercialAnalysisPrompt(messages: any[]): string {
-  return `Você é um especialista em análise comercial e vendas. Analise esta conversa comercial e retorne um JSON com:
-
-{
-  "sales_analysis": {
-    "intent_score": 1-10,
-    "urgency": "high|medium|low",
-    "budget_indication": "high|medium|low|unknown",
-    "decision_maker": true|false
-  },
-  "conversion_metrics": {
-    "engagement_level": 1-10,
-    "objection_count": 0-10,
-    "closing_readiness": 1-10
-  },
-  "insights": [
-    {
-      "type": "conversion|behavioral|process|performance",
-      "title": "Título do insight comercial",
-      "description": "Descrição detalhada",
-      "sales_impact": "high|medium|low",
-      "priority": "high|medium|low"
-    }
-  ]
-}
-
-Foque em aspectos comerciais: intenção de compra, objeções, comportamento do lead.`;
-}
