@@ -20,6 +20,7 @@ import { ProfilePage } from '@/components/ProfilePage';
 import { ChatInterface } from '@/components/ChatInterface';
 import { VoiceChatInterface } from '@/components/VoiceChatInterface';
 import { NotificationsPage } from '@/components/NotificationsPage';
+import { RoutinePage } from '@/components/RoutinePage';
 
 export default function Index() {
   console.log('📱 Exibindo Dashboard Principal');
@@ -42,6 +43,7 @@ export default function Index() {
               <Route path="/dashboard/insights" element={<InsightsDashboard />} />
               <Route path="/dashboard/recommendations" element={<Recommendations />} />
               <Route path="/dashboard/pain-points" element={<PainPointsAnalysis />} />
+              <Route path="/dashboard/routine" element={<RoutinePage />} />
               <Route path="/dashboard/documents" element={<DocumentAnalysis />} />
               <Route path="/dashboard/settings" element={<SettingsPage />} />
               <Route path="/dashboard/profile" element={<ProfilePage />} />
@@ -56,6 +58,7 @@ export default function Index() {
               <Route path="/insights" element={<InsightsDashboard />} />
               <Route path="/recommendations" element={<Recommendations />} />
               <Route path="/pain-points" element={<PainPointsAnalysis />} />
+              <Route path="/routine" element={<RoutinePage />} />
               <Route path="/documents" element={<DocumentAnalysis />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="/profile" element={<ProfilePage />} />

@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from '@/hooks/use-toast';
 
@@ -228,8 +229,7 @@ export function useNotifications() {
           badge: '/favicon.ico',
           tag: notification.id,
           requireInteraction: false,
-          silent: false,
-          timestamp: Date.now()
+          silent: false
         });
 
         console.log('✅ Notificação do navegador criada com sucesso');
