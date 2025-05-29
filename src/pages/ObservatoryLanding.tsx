@@ -483,7 +483,7 @@ export function ObservatoryLanding() {
   ];
 
   return (
-    <div className="min-h-screen bg-black text-white overflow-x-hidden relative w-full max-w-full">
+    <div className="min-h-screen bg-black text-white relative w-full">
       <CursorEffect />
       
       {/* Canvas neural épico em toda a página */}
@@ -525,8 +525,8 @@ export function ObservatoryLanding() {
       
       {/* Conteúdo principal */}
       {showContent && (
-        <div className="animate-fade-in relative z-10 w-full max-w-full overflow-x-hidden">
-          {/* Seção 1 - Hero Section com animação sequencial - MUITO MAIOR NO MOBILE */}
+        <div className="animate-fade-in relative z-10 w-full">
+          {/* Seção 1 - Hero Section com animação sequencial */}
           <section ref={heroRef} className="relative min-h-screen flex items-center justify-center px-4 sm:px-4 md:px-6">
             <div className="text-center max-w-7xl mx-auto w-full">
               <div className="relative z-10">
@@ -540,7 +540,7 @@ export function ObservatoryLanding() {
                   </Badge>
                 </ScrollReveal>
 
-                {/* Primeira frase com animação de entrada - MUITO MAIOR NO MOBILE */}
+                {/* Primeira frase com animação de entrada */}
                 <div 
                   className={`mb-12 sm:mb-8 md:mb-12 transition-all duration-1000 ease-out ${
                     showFirstPhrase 
@@ -584,7 +584,7 @@ export function ObservatoryLanding() {
                   </h1>
                 </div>
                 
-                {/* Segunda frase com animação de entrada atrasada - MUITO MAIOR NO MOBILE */}
+                {/* Segunda frase com animação de entrada atrasada */}
                 <div 
                   className={`mb-12 sm:mb-8 md:mb-12 transition-all duration-1000 ease-out ${
                     showSecondPhrase 
@@ -646,18 +646,18 @@ export function ObservatoryLanding() {
                   <div className="flex flex-col gap-6 sm:gap-6 justify-center items-center px-4">
                     <Button 
                       onClick={handleActivateYumerMind}
-                      className="relative overflow-hidden w-full sm:w-auto bg-gradient-to-r from-purple-600 via-blue-600 to-cyan-600 hover:from-purple-500 hover:via-blue-500 hover:to-cyan-500 text-white px-8 sm:px-8 md:px-12 py-8 sm:py-6 md:py-8 text-xl sm:text-lg md:text-2xl font-black rounded-2xl sm:rounded-2xl shadow-2xl border-4 sm:border-4 border-white/50 backdrop-blur-sm group transform hover:scale-105 transition-all duration-500 max-w-4xl glow-button"
+                      className="relative overflow-hidden w-full sm:w-auto bg-gradient-to-r from-purple-600 via-blue-600 to-cyan-600 hover:from-purple-500 hover:via-blue-500 hover:to-cyan-500 text-white px-6 sm:px-8 md:px-12 py-6 sm:py-6 md:py-8 text-lg sm:text-lg md:text-2xl font-black rounded-2xl sm:rounded-2xl shadow-2xl border-4 sm:border-4 border-white/50 backdrop-blur-sm group transform hover:scale-105 transition-all duration-500 max-w-3xl glow-button"
                     >
-                      <Brain className="w-8 h-8 sm:w-8 sm:h-8 md:w-10 md:h-10 mr-4 sm:mr-4 group-hover:rotate-12 transition-transform duration-500" />
-                      <span className="font-black tracking-wide text-center">
+                      <Brain className="w-6 h-6 sm:w-8 sm:h-8 md:w-10 md:h-10 mr-3 sm:mr-4 group-hover:rotate-12 transition-transform duration-500" />
+                      <span className="font-black tracking-wide text-center leading-tight">
                         {isAuthenticated ? 'ACESSAR MEU YUMERMIND' : 'ATIVAR MEU YUMERMIND — 7 DIAS GRÁTIS'}
                       </span>
-                      <Sparkles className="w-8 h-8 sm:w-8 sm:h-8 md:w-10 md:h-10 ml-4 sm:ml-4 group-hover:scale-110 transition-transform duration-500" />
+                      <Sparkles className="w-6 h-6 sm:w-8 sm:h-8 md:w-10 md:h-10 ml-3 sm:ml-4 group-hover:scale-110 transition-transform duration-500" />
                     </Button>
                     
                     {!isAuthenticated && (
-                      <div className="text-center text-lg sm:text-base md:text-lg text-white font-light max-w-3xl bg-black/50 rounded-xl px-6 sm:px-6 py-4 sm:py-4 border border-green-400/30">
-                        Depois, apenas <span className="text-green-400 font-medium text-xl sm:text-lg md:text-xl">R$ 47/mês</span>. Sem contrato. Sem enrolação. Cancele quando quiser.
+                      <div className="text-center text-base sm:text-base md:text-lg text-white font-light max-w-3xl bg-black/50 rounded-xl px-4 sm:px-6 py-3 sm:py-4 border border-green-400/30">
+                        Depois, apenas <span className="text-green-400 font-medium text-lg sm:text-lg md:text-xl">R$ 47/mês</span>. Sem contrato. Sem enrolação. Cancele quando quiser.
                       </div>
                     )}
                   </div>
@@ -666,9 +666,9 @@ export function ObservatoryLanding() {
             </div>
           </section>
 
-          {/* Seção 2 - O QUE É O YUMERMIND - MAIOR NO MOBILE */}
+          {/* Seção 2 - O QUE É O YUMERMIND */}
           <section className="relative py-16 sm:py-12 md:py-20 lg:py-32 px-4 sm:px-4 md:px-6 z-10">
-            <div className="max-w-7xl mx-auto w-full overflow-x-hidden">
+            <div className="max-w-7xl mx-auto w-full">
               <ScrollReveal id="features-title" direction="up">
                 <div className="text-center mb-16 sm:mb-12 md:mb-16 lg:mb-20">
                   <h2 className="text-3xl sm:text-2xl md:text-4xl lg:text-6xl xl:text-7xl font-light mb-8 sm:mb-4 md:mb-6 lg:mb-8 text-white leading-tight px-4">
@@ -797,9 +797,9 @@ export function ObservatoryLanding() {
             </div>
           </section>
 
-          {/* Seção 6 - CTA FINAL - MUITO MAIOR NO MOBILE */}
+          {/* Seção 6 - CTA FINAL */}
           <section className="relative py-20 sm:py-16 md:py-32 lg:py-40 px-4 sm:px-4 md:px-6 z-10 bg-black">
-            <div className="max-w-6xl mx-auto text-center w-full overflow-x-hidden">
+            <div className="max-w-6xl mx-auto text-center w-full">
               <div className="relative z-10">
                 <ScrollReveal id="final-cta-title" direction="scale" delay={200}>
                   <h2 className="text-2xl sm:text-xl md:text-3xl lg:text-5xl xl:text-6xl 2xl:text-7xl font-light mb-12 sm:mb-6 md:mb-8 lg:mb-12 leading-tight px-4">
@@ -820,19 +820,19 @@ export function ObservatoryLanding() {
                           soundEffectsRef.current.hover();
                         }
                       }}
-                      className="relative overflow-hidden w-full sm:w-auto bg-gradient-to-r from-purple-600 via-blue-600 to-cyan-600 hover:from-purple-500 hover:via-blue-500 hover:to-cyan-500 text-white px-10 sm:px-10 md:px-20 lg:px-24 py-10 sm:py-8 md:py-10 lg:py-12 text-2xl sm:text-lg md:text-2xl lg:text-3xl xl:text-4xl font-black rounded-3xl sm:rounded-3xl lg:rounded-4xl shadow-2xl shadow-purple-500/60 border-4 sm:border-3 border-purple-400/50 backdrop-blur-sm glow-button-apocalypse group transform hover:scale-110 transition-all duration-700 max-w-5xl before:absolute before:inset-0 before:bg-gradient-to-r before:from-transparent before:via-white/30 before:to-transparent before:translate-x-[-100%] hover:before:translate-x-[100%] before:transition-transform before:duration-1000"
+                      className="relative overflow-hidden w-full sm:w-auto bg-gradient-to-r from-purple-600 via-blue-600 to-cyan-600 hover:from-purple-500 hover:via-blue-500 hover:to-cyan-500 text-white px-6 sm:px-10 md:px-20 lg:px-24 py-8 sm:py-8 md:py-10 lg:py-12 text-lg sm:text-lg md:text-2xl lg:text-3xl xl:text-4xl font-black rounded-3xl sm:rounded-3xl lg:rounded-4xl shadow-2xl shadow-purple-500/60 border-4 sm:border-3 border-purple-400/50 backdrop-blur-sm glow-button-apocalypse group transform hover:scale-110 transition-all duration-700 max-w-4xl before:absolute before:inset-0 before:bg-gradient-to-r before:from-transparent before:via-white/30 before:to-transparent before:translate-x-[-100%] hover:before:translate-x-[100%] before:transition-transform before:duration-1000"
                     >
-                      <Brain className="w-10 h-10 sm:w-6 sm:h-6 md:w-8 md:h-8 lg:w-10 lg:h-10 xl:w-12 xl:h-12 mr-6 sm:mr-3 md:mr-4 lg:mr-6 group-hover:rotate-12 transition-transform duration-500 drop-shadow-lg" />
+                      <Brain className="w-6 h-6 sm:w-6 sm:h-6 md:w-8 md:h-8 lg:w-10 lg:h-10 xl:w-12 xl:h-12 mr-4 sm:mr-3 md:mr-4 lg:mr-6 group-hover:rotate-12 transition-transform duration-500 drop-shadow-lg" />
                       <div className="text-center leading-tight relative z-10">
                         <div className="font-black tracking-wide drop-shadow-lg">
                           {isAuthenticated ? 'ACESSAR MEU YUMERMIND AGORA' : 'ACESSAR MEU YUMERMIND — 7 DIAS GRÁTIS'}
                         </div>
                       </div>
-                      <Network className="w-10 h-10 sm:w-6 sm:h-6 md:w-8 md:h-8 lg:w-10 lg:h-10 xl:w-12 xl:h-12 ml-6 sm:ml-3 md:ml-4 lg:ml-6 group-hover:scale-110 transition-transform duration-500 drop-shadow-lg" />
+                      <Network className="w-6 h-6 sm:w-6 sm:h-6 md:w-8 md:h-8 lg:w-10 lg:h-10 xl:w-12 xl:h-12 ml-4 sm:ml-3 md:ml-4 lg:ml-6 group-hover:scale-110 transition-transform duration-500 drop-shadow-lg" />
                     </Button>
                     
                     {!isAuthenticated && (
-                      <div className="text-center text-xl sm:text-sm md:text-base lg:text-lg xl:text-xl 2xl:text-2xl text-gray-300 font-light max-w-4xl leading-relaxed bg-black/30 backdrop-blur-sm rounded-2xl px-8 sm:px-6 py-6 sm:py-4 border border-gray-600/20">
+                      <div className="text-center text-lg sm:text-sm md:text-base lg:text-lg xl:text-xl 2xl:text-2xl text-gray-300 font-light max-w-4xl leading-relaxed bg-black/30 backdrop-blur-sm rounded-2xl px-6 sm:px-6 py-4 sm:py-4 border border-gray-600/20">
                         Depois, apenas <span className="text-green-400 font-medium glow-text">R$ 47/mês</span>. Sem enrolação. Sem obrigações.
                       </div>
                     )}
