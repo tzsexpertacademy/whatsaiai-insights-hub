@@ -58,7 +58,8 @@ Este arquivo foi carregado com sucesso e está pronto para análise quando imple
       text = await file.text();
     }
     else if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
-      text = await extractAdvancedPDFContent(file);
+      // Para PDFs, vamos tentar uma abordagem completamente diferente
+      text = await extractPDFTextContent(file);
     }
     else if (file.type.includes('word') || file.name.endsWith('.docx') || file.name.endsWith('.doc')) {
       text = await extractWordText(file);
@@ -104,214 +105,157 @@ SUGESTÃO: Tente converter o arquivo para um formato de texto (.txt, .md, .json)
   }
 }
 
-async function extractAdvancedPDFContent(file: File): Promise<string> {
-  console.log('🔍 Iniciando extração avançada de PDF...');
+async function extractPDFTextContent(file: File): Promise<string> {
+  console.log('🔍 Tentando extrair texto do PDF...');
   
   try {
     const arrayBuffer = await file.arrayBuffer();
     const uint8Array = new Uint8Array(arrayBuffer);
-    const pdfContent = new TextDecoder('latin1').decode(uint8Array);
     
-    console.log('📊 Tamanho do PDF:', pdfContent.length, 'caracteres');
+    // Converter para string usando UTF-8
+    const decoder = new TextDecoder('utf-8', { ignoreBOM: true });
+    let pdfString = '';
+    
+    try {
+      pdfString = decoder.decode(uint8Array);
+    } catch {
+      // Se UTF-8 falhar, tentar latin1
+      const latin1Decoder = new TextDecoder('latin1');
+      pdfString = latin1Decoder.decode(uint8Array);
+    }
+    
+    console.log('📊 Tamanho do conteúdo PDF:', pdfString.length);
     
     let extractedText = '';
     
-    // Método 1: Extrair texto de objetos stream (mais comum em PDFs modernos)
-    const streamMatches = pdfContent.match(/stream\s*([\s\S]*?)\s*endstream/gi);
-    console.log('🔍 Encontrados', streamMatches?.length || 0, 'streams');
-    
-    if (streamMatches) {
-      for (const stream of streamMatches) {
-        const streamContent = stream.replace(/^stream\s*|\s*endstream$/gi, '');
+    // Método 1: Extrair texto entre parênteses simples (mais comum)
+    const simpleTextMatches = pdfString.match(/\(([^)]+)\)/g);
+    if (simpleTextMatches) {
+      console.log('🔍 Encontrados', simpleTextMatches.length, 'textos simples');
+      
+      const textParts = [];
+      for (const match of simpleTextMatches) {
+        let text = match.slice(1, -1); // Remove os parênteses
         
-        // Tentar extrair texto legível do stream
-        const readableText = extractReadableTextFromStream(streamContent);
-        if (readableText && readableText.length > 10) {
-          extractedText += readableText + '\n';
+        // Limpar e validar o texto
+        text = cleanPDFText(text);
+        
+        if (isValidText(text)) {
+          textParts.push(text);
         }
       }
+      
+      extractedText = textParts.join(' ');
     }
     
-    // Método 2: Extrair texto entre parênteses (formato comum de texto em PDF)
+    // Método 2: Se não conseguiu texto suficiente, tentar padrões mais complexos
     if (extractedText.length < 100) {
-      console.log('🔍 Usando método de extração por parênteses...');
-      const textMatches = pdfContent.match(/\([^)]{3,}\)/g);
+      console.log('🔍 Tentando extração avançada...');
       
-      if (textMatches) {
-        const uniqueTexts = new Set<string>();
-        
-        textMatches.forEach(match => {
-          let text = match.slice(1, -1); // Remove parênteses
-          
-          // Decodificar caracteres especiais
-          text = decodePDFText(text);
-          
-          // Filtrar apenas texto legível
-          if (isValidPDFText(text)) {
-            uniqueTexts.add(text);
-          }
-        });
-        
-        extractedText = Array.from(uniqueTexts).join(' ');
-      }
-    }
-    
-    // Método 3: Extrair texto após comandos Tj e TJ (comandos de texto em PDF)
-    if (extractedText.length < 100) {
-      console.log('🔍 Usando método de extração por comandos Tj/TJ...');
-      
-      // Padrão para comandos Tj (show text)
-      const tjMatches = pdfContent.match(/\([^)]*\)\s*Tj/gi);
+      // Procurar por comandos Tj (show text)
+      const tjMatches = pdfString.match(/\(([^)]*)\)\s*Tj/gi);
       if (tjMatches) {
-        tjMatches.forEach(match => {
-          const text = match.match(/\(([^)]*)\)/)?.[1];
-          if (text && isValidPDFText(text)) {
-            extractedText += decodePDFText(text) + ' ';
-          }
-        });
-      }
-      
-      // Padrão para comandos TJ (show text with individual glyph positioning)
-      const tjArrayMatches = pdfContent.match(/\[[^\]]*\]\s*TJ/gi);
-      if (tjArrayMatches) {
-        tjArrayMatches.forEach(match => {
-          const arrayContent = match.match(/\[([^\]]*)\]/)?.[1];
-          if (arrayContent) {
-            const texts = arrayContent.match(/\([^)]*\)/g);
-            if (texts) {
-              texts.forEach(textMatch => {
-                const text = textMatch.slice(1, -1);
-                if (isValidPDFText(text)) {
-                  extractedText += decodePDFText(text) + ' ';
-                }
-              });
+        const textParts = [];
+        for (const match of tjMatches) {
+          const textMatch = match.match(/\(([^)]*)\)/);
+          if (textMatch) {
+            let text = cleanPDFText(textMatch[1]);
+            if (isValidText(text)) {
+              textParts.push(text);
             }
           }
-        });
-      }
-    }
-    
-    // Método 4: Busca por padrões de texto legível (último recurso)
-    if (extractedText.length < 50) {
-      console.log('🔍 Usando busca por padrões de texto legível...');
-      
-      // Procurar por sequências de texto em português/inglês
-      const textPatterns = [
-        /[A-ZÀ-Ÿ][a-zA-ZÀ-ÿ\s]{10,}/g,  // Textos que começam com maiúscula
-        /[a-zA-ZÀ-ÿ]{3,}[\s][a-zA-ZÀ-ÿ\s]{10,}/g,  // Palavras seguidas de texto
-        /\b[A-ZÀ-Ÿ][a-zA-ZÀ-ÿ]*[\s][a-zA-ZÀ-ÿ\s,\.]{15,}/g  // Parágrafo-like text
-      ];
-      
-      textPatterns.forEach(pattern => {
-        const matches = pdfContent.match(pattern);
-        if (matches) {
-          matches.forEach(match => {
-            const cleanMatch = match.replace(/[^\w\sÀ-ÿ.,!?;:\-()]/g, ' ')
-                                   .replace(/\s+/g, ' ')
-                                   .trim();
-            if (cleanMatch.length > 15 && isValidPDFText(cleanMatch)) {
-              extractedText += cleanMatch + ' ';
-            }
-          });
         }
-      });
+        extractedText = textParts.join(' ');
+      }
     }
     
-    // Limpeza final e validação
+    // Método 3: Se ainda não conseguiu, tentar arrays TJ
+    if (extractedText.length < 100) {
+      console.log('🔍 Tentando extração de arrays TJ...');
+      
+      const tjArrayMatches = pdfString.match(/\[([^\]]*)\]\s*TJ/gi);
+      if (tjArrayMatches) {
+        const textParts = [];
+        for (const match of tjArrayMatches) {
+          const arrayContent = match.match(/\[([^\]]*)\]/);
+          if (arrayContent) {
+            const textMatches = arrayContent[1].match(/\(([^)]*)\)/g);
+            if (textMatches) {
+              for (const textMatch of textMatches) {
+                let text = cleanPDFText(textMatch.slice(1, -1));
+                if (isValidText(text)) {
+                  textParts.push(text);
+                }
+              }
+            }
+          }
+        }
+        extractedText = textParts.join(' ');
+      }
+    }
+    
+    // Limpeza final
     extractedText = extractedText
       .replace(/\s+/g, ' ')
-      .replace(/(.)\1{4,}/g, '$1$1')  // Remove repetições excessivas
       .trim();
     
-    console.log(`📄 Texto extraído do PDF: ${extractedText.length} caracteres`);
+    console.log(`📄 Texto final extraído: ${extractedText.length} caracteres`);
     
-    // Se ainda não conseguiu extrair conteúdo suficiente
-    if (extractedText.length < 50) {
-      console.log('⚠️ Pouco texto extraído, gerando placeholder...');
-      return generateAdvancedPDFPlaceholder(file);
+    // Se ainda não conseguiu extrair texto legível
+    if (extractedText.length < 50 || !hasReadableContent(extractedText)) {
+      console.log('⚠️ Não foi possível extrair texto legível do PDF');
+      return generatePDFPlaceholder(file);
     }
     
     return extractedText;
     
   } catch (error) {
-    console.error('❌ Erro na extração avançada de PDF:', error);
-    return generateAdvancedPDFPlaceholder(file);
+    console.error('❌ Erro na extração de PDF:', error);
+    return generatePDFPlaceholder(file);
   }
 }
 
-function extractReadableTextFromStream(streamContent: string): string {
-  // Tentar diferentes métodos de decodificação para streams
-  let readable = '';
-  
-  // Método 1: Procurar por texto entre parênteses no stream
-  const textInParens = streamContent.match(/\([^)]+\)/g);
-  if (textInParens) {
-    textInParens.forEach(match => {
-      const text = match.slice(1, -1);
-      if (isValidPDFText(text)) {
-        readable += decodePDFText(text) + ' ';
-      }
-    });
-  }
-  
-  // Método 2: Procurar por comandos de texto
-  const tjCommands = streamContent.match(/\([^)]*\)\s*Tj/gi);
-  if (tjCommands) {
-    tjCommands.forEach(cmd => {
-      const text = cmd.match(/\(([^)]*)\)/)?.[1];
-      if (text && isValidPDFText(text)) {
-        readable += decodePDFText(text) + ' ';
-      }
-    });
-  }
-  
-  return readable.trim();
-}
-
-function decodePDFText(text: string): string {
-  // Decodificar caracteres especiais comuns em PDFs
+function cleanPDFText(text: string): string {
   return text
-    .replace(/\\n/g, '\n')
-    .replace(/\\r/g, '\r')
-    .replace(/\\t/g, '\t')
+    // Decodificar escapes básicos
+    .replace(/\\n/g, ' ')
+    .replace(/\\r/g, ' ')
+    .replace(/\\t/g, ' ')
     .replace(/\\\(/g, '(')
     .replace(/\\\)/g, ')')
     .replace(/\\\\/g, '\\')
-    .replace(/\\([0-7]{3})/g, (match, octal) => String.fromCharCode(parseInt(octal, 8)))
-    .replace(/\\u([0-9a-fA-F]{4})/g, (match, hex) => String.fromCharCode(parseInt(hex, 16)))
-    .replace(/[^\x20-\x7E\u00C0-\u017F\u0100-\u024F]/g, ' ') // Manter apenas caracteres legíveis
+    // Remover caracteres de controle
+    .replace(/[\x00-\x1F\x7F]/g, ' ')
+    // Normalizar espaços
     .replace(/\s+/g, ' ')
     .trim();
 }
 
-function isValidPDFText(text: string): boolean {
+function isValidText(text: string): boolean {
   if (!text || text.length < 2) return false;
   
-  // Filtrar comandos PDF e texto técnico
-  const technicalPatterns = [
-    /^[A-Z]{1,3}$/,  // Comandos PDF como BT, ET, Tj
-    /^\d+(\.\d+)?\s*\d+(\.\d+)?\s*\d+(\.\d+)?/,  // Coordenadas
-    /^[0-9\s\.]+$/,  // Apenas números
-    /^[\/\[\]<>]+$/,  // Apenas símbolos PDF
-    /^(obj|endobj|stream|endstream)$/i,  // Palavras-chave PDF
-    /^[a-f0-9]{8,}$/i,  // Hashes hexadecimais
-  ];
+  // Filtrar comandos PDF comuns
+  const pdfCommands = ['BT', 'ET', 'Tj', 'TJ', 'Td', 'TD', 'Tm', 'T*', 'Tf', 'TL'];
+  if (pdfCommands.includes(text.trim())) return false;
   
-  for (const pattern of technicalPatterns) {
-    if (pattern.test(text.trim())) {
-      return false;
-    }
-  }
+  // Filtrar apenas números ou coordenadas
+  if (/^[\d\s\.\-]+$/.test(text)) return false;
   
   // Deve ter pelo menos algumas letras
   const letterCount = (text.match(/[a-zA-ZÀ-ÿ]/g) || []).length;
-  const letterRatio = letterCount / text.length;
-  
-  // Pelo menos 50% deve ser letras ou espaços
-  return letterRatio > 0.3 && text.length > 2;
+  return letterCount >= 2;
 }
 
-function generateAdvancedPDFPlaceholder(file: File): string {
+function hasReadableContent(text: string): boolean {
+  // Verificar se tem conteúdo legível (não só símbolos ou códigos)
+  const readableChars = text.match(/[a-zA-ZÀ-ÿ\s]/g) || [];
+  const totalChars = text.length;
+  
+  // Pelo menos 70% deve ser legível
+  return (readableChars.length / totalChars) > 0.7;
+}
+
+function generatePDFPlaceholder(file: File): string {
   return `DOCUMENTO PDF: ${file.name}
 
 ❌ ATENÇÃO: Não foi possível extrair o texto deste PDF automaticamente.
