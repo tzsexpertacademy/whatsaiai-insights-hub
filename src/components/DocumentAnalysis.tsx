@@ -1,149 +1,56 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { PageHeader } from '@/components/PageHeader';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, Upload, Brain, TrendingUp, Target, AlertTriangle, CheckCircle, Eye, Bot } from 'lucide-react';
+import { FileText, TrendingUp, MessageSquare, Bot, Upload, BarChart3, PieChart } from 'lucide-react';
+import { PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { AIAnalysisButton } from '@/components/AIAnalysisButton';
 import { useAnalysisData } from '@/contexts/AnalysisDataContext';
 
-interface DocumentInsight {
-  id: string;
-  type: 'strength' | 'weakness' | 'opportunity' | 'threat';
-  category: string;
-  description: string;
-  confidence: number;
-  suggestions: string[];
-}
-
-interface AnalyzedDocument {
-  id: string;
-  name: string;
-  type: string;
-  uploadDate: string;
-  status: 'processing' | 'completed' | 'failed';
-  wordCount: number;
-  sentiment: 'positive' | 'neutral' | 'negative';
-  sentimentScore: number;
-  keyTopics: string[];
-  insights: DocumentInsight[];
-  summary: string;
-}
-
 export function DocumentAnalysis() {
   const { data, isLoading } = useAnalysisData();
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
 
-  // Usar dados reais dos assistentes se disponíveis
-  const hasRealData = data.hasRealData && data.conversations && data.conversations.length > 0;
-  const documentInsights = data.insightsWithAssistant || [];
+  // Filtrar insights relacionados a documentos e análise textual
+  const documentInsights = data.insightsWithAssistant?.filter(insight => 
+    insight.description.toLowerCase().includes('documento') ||
+    insight.description.toLowerCase().includes('texto') ||
+    insight.description.toLowerCase().includes('análise') ||
+    insight.description.toLowerCase().includes('conteúdo')
+  ) || [];
 
-  // Simular documentos baseados nas conversas reais
-  const realDocuments: AnalyzedDocument[] = hasRealData ? 
-    data.conversations.slice(0, 3).map((conv, index) => ({
-      id: conv.id,
-      name: `Conversa_${conv.contact_name || 'WhatsApp'}_${new Date(conv.created_at).toLocaleDateString()}.txt`,
-      type: 'chat',
-      uploadDate: new Date(conv.created_at).toLocaleDateString(),
-      status: 'completed' as const,
-      wordCount: conv.messages?.length * 50 || 500,
-      sentiment: 'positive' as const,
-      sentimentScore: 0.75,
-      keyTopics: ['trabalho', 'comunicação', 'objetivos'],
-      summary: 'Documento contém discussões analisadas pelos assistentes IA',
-      insights: documentInsights.slice(index * 2, (index + 1) * 2).map(insight => ({
-        id: insight.id,
-        type: 'strength' as const,
-        category: insight.assistantArea,
-        description: insight.description,
-        confidence: 85,
-        suggestions: [`Baseado na análise do ${insight.assistantName}`]
-      }))
-    })) : [];
+  const hasRealData = data.hasRealData && documentInsights.length > 0;
 
-  const [mockDocuments] = useState<AnalyzedDocument[]>([
-    {
-      id: '1',
-      name: 'Conversa_WhatsApp_Janeiro.txt',
-      type: 'chat',
-      uploadDate: '2024-01-15',
-      status: 'completed',
-      wordCount: 2847,
-      sentiment: 'positive',
-      sentimentScore: 0.75,
-      keyTopics: ['trabalho', 'família', 'projetos', 'saúde', 'objetivos'],
-      summary: 'Documento contém discussões sobre evolução profissional, planejamento familiar e metas pessoais. Tom geral otimista com foco em crescimento.',
-      insights: [
-        {
-          id: '1',
-          type: 'strength',
-          category: 'Comunicação',
-          description: 'Demonstra excelente capacidade de articulação e clareza nas ideias',
-          confidence: 85,
-          suggestions: ['Continue desenvolvendo suas habilidades de comunicação', 'Considere liderar mais reuniões']
-        },
-        {
-          id: '2',
-          type: 'opportunity',
-          category: 'Liderança',
-          description: 'Identifica potencial para assumir mais responsabilidades de liderança',
-          confidence: 78,
-          suggestions: ['Busque oportunidades de mentoria', 'Participe de projetos cross-funcionais']
+  // Dados de sentimento baseados nos insights reais
+  const sentimentData = hasRealData ? [
+    { name: 'Positivo', value: documentInsights.filter(i => i.priority === 'low').length, color: '#10B981' },
+    { name: 'Neutro', value: documentInsights.filter(i => i.priority === 'medium').length, color: '#F59E0B' },
+    { name: 'Negativo', value: documentInsights.filter(i => i.priority === 'high').length, color: '#EF4444' }
+  ].filter(item => item.value > 0) : [];
+
+  // Dados de tópicos baseados nas áreas dos assistentes
+  const topicsData = hasRealData ? 
+    data.insightsWithAssistant
+      .reduce((acc, insight) => {
+        const area = insight.assistantArea || 'Geral';
+        const existing = acc.find(item => item.topic === area);
+        if (existing) {
+          existing.frequency++;
+        } else {
+          acc.push({ topic: area, frequency: 1 });
         }
-      ]
-    }
-  ]);
-
-  const documents = hasRealData ? realDocuments : mockDocuments;
-
-  const handleFileUpload = async () => {
-    if (!selectedFile) return;
-    
-    setIsUploading(true);
-    setTimeout(() => {
-      setIsUploading(false);
-      setSelectedFile(null);
-    }, 3000);
-  };
-
-  const getInsightIcon = (type: string) => {
-    switch (type) {
-      case 'strength': return <CheckCircle className="h-5 w-5 text-green-600" />;
-      case 'weakness': return <AlertTriangle className="h-5 w-5 text-red-600" />;
-      case 'opportunity': return <TrendingUp className="h-5 w-5 text-blue-600" />;
-      case 'threat': return <Target className="h-5 w-5 text-orange-600" />;
-      default: return <Brain className="h-5 w-5 text-gray-600" />;
-    }
-  };
-
-  const getInsightColor = (type: string) => {
-    switch (type) {
-      case 'strength': return 'bg-green-100 text-green-800';
-      case 'weakness': return 'bg-red-100 text-red-800';
-      case 'opportunity': return 'bg-blue-100 text-blue-800';
-      case 'threat': return 'bg-orange-100 text-orange-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getSentimentColor = (sentiment: string) => {
-    switch (sentiment) {
-      case 'positive': return 'text-green-600';
-      case 'negative': return 'text-red-600';
-      default: return 'text-gray-600';
-    }
-  };
+        return acc;
+      }, [] as Array<{ topic: string; frequency: number }>)
+      .slice(0, 5) : [];
 
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50">
         <PageHeader 
           title="Análise de Documentos"
-          subtitle="Analise e extraia insights de seus documentos e textos"
+          subtitle="Análise de sentimentos e insights de documentos"
         >
           <AIAnalysisButton />
         </PageHeader>
@@ -154,7 +61,48 @@ export function DocumentAnalysis() {
               <CardContent className="p-6">
                 <div className="text-center">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                  <p>Carregando análise de documentos...</p>
+                  <p>Carregando análise de documentos dos assistentes...</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!hasRealData) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <PageHeader 
+          title="Análise de Documentos"
+          subtitle="Análise de sentimentos e insights de documentos"
+        >
+          <AIAnalysisButton />
+        </PageHeader>
+        
+        <div className="p-4 md:p-6">
+          <div className="max-w-6xl mx-auto">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-blue-600" />
+                  Análise de Documentos Aguarda Dados
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center py-8">
+                  <Bot className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Aguardando Análise dos Assistentes</h3>
+                  <p className="text-gray-600 mb-6">
+                    As análises de documentos serão geradas após análises dos assistentes IA
+                  </p>
+                  <div className="text-left max-w-md mx-auto space-y-2 mb-6">
+                    <p className="text-sm text-gray-600">• Execute análises IA das suas conversas</p>
+                    <p className="text-sm text-gray-600">• Os assistentes analisarão padrões textuais</p>
+                    <p className="text-sm text-gray-600">• Relatórios de sentimento serão gerados</p>
+                  </div>
+                  <AIAnalysisButton />
                 </div>
               </CardContent>
             </Card>
@@ -168,129 +116,16 @@ export function DocumentAnalysis() {
     <div className="min-h-screen bg-gray-50">
       <PageHeader 
         title="Análise de Documentos"
-        subtitle="Analise e extraia insights de seus documentos e textos"
+        subtitle="Análise de sentimentos e insights de documentos"
       >
-        {hasRealData && (
-          <Badge className="bg-purple-100 text-purple-800">
-            🔮 {documentInsights.length} Insights dos Assistentes
-          </Badge>
-        )}
+        <Badge className="bg-blue-100 text-blue-800">
+          🔮 {documentInsights.length} Análises dos Assistentes
+        </Badge>
         <AIAnalysisButton />
       </PageHeader>
       
       <div className="p-4 md:p-6">
         <div className="max-w-6xl mx-auto space-y-6">
-          
-          {/* Insights dos Assistentes */}
-          {hasRealData && documentInsights.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Bot className="h-5 w-5 text-purple-600" />
-                  Análises dos Assistentes IA
-                </CardTitle>
-                <CardDescription>
-                  Insights extraídos pelos seus assistentes das conversas e documentos
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {documentInsights.slice(0, 4).map((insight) => (
-                    <div key={insight.id} className="p-4 bg-gray-50 rounded-lg border-l-4 border-l-purple-500">
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <Badge className="bg-purple-100 text-purple-800">
-                            {insight.assistantName}
-                          </Badge>
-                          <Badge variant="outline">
-                            {insight.assistantArea}
-                          </Badge>
-                        </div>
-                      </div>
-                      <h4 className="font-semibold mb-1">{insight.title}</h4>
-                      <p className="text-sm text-gray-600">{insight.description}</p>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-          
-          {/* Upload de Documentos */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Upload className="h-5 w-5 text-blue-600" />
-                Upload de Documento
-              </CardTitle>
-              <CardDescription>
-                Faça upload de conversas, diários, textos ou qualquer documento para análise comportamental
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-                  <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  
-                  {!selectedFile ? (
-                    <>
-                      <p className="text-gray-600 mb-4">
-                        Arraste um arquivo aqui ou clique para selecionar
-                      </p>
-                      <input
-                        type="file"
-                        accept=".txt,.doc,.docx,.pdf"
-                        onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
-                        className="hidden"
-                        id="file-upload"
-                      />
-                      <label htmlFor="file-upload">
-                        <Button variant="outline" className="cursor-pointer">
-                          Selecionar Arquivo
-                        </Button>
-                      </label>
-                      <p className="text-sm text-gray-500 mt-2">
-                        Formatos aceitos: TXT, DOC, DOCX, PDF (máx. 10MB)
-                      </p>
-                    </>
-                  ) : (
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-center gap-2">
-                        <FileText className="h-5 w-5 text-blue-600" />
-                        <span className="font-medium">{selectedFile.name}</span>
-                      </div>
-                      
-                      <div className="flex gap-2 justify-center">
-                        <Button 
-                          onClick={handleFileUpload}
-                          disabled={isUploading}
-                          className="bg-green-600 hover:bg-green-700"
-                        >
-                          {isUploading ? 'Processando...' : 'Analisar Documento'}
-                        </Button>
-                        <Button 
-                          variant="outline"
-                          onClick={() => setSelectedFile(null)}
-                          disabled={isUploading}
-                        >
-                          Cancelar
-                        </Button>
-                      </div>
-                      
-                      {isUploading && (
-                        <div className="space-y-2">
-                          <Progress value={33} className="h-2" />
-                          <p className="text-sm text-gray-600">
-                            Analisando conteúdo e extraindo insights...
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
 
           {/* Estatísticas Gerais */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -301,187 +136,203 @@ export function DocumentAnalysis() {
                     <FileText className="h-5 w-5 text-blue-600" />
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600">Documentos</p>
-                    <p className="text-2xl font-bold">{documents.length}</p>
+                    <p className="text-sm text-gray-600">Análises</p>
+                    <p className="text-2xl font-bold">{documentInsights.length}</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                    <Brain className="h-5 w-5 text-green-600" />
+                    <TrendingUp className="h-5 w-5 text-green-600" />
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600">Insights</p>
-                    <p className="text-2xl font-bold">
-                      {hasRealData ? documentInsights.length : documents.reduce((acc, doc) => acc + doc.insights.length, 0)}
-                    </p>
+                    <p className="text-sm text-gray-600">Insights Positivos</p>
+                    <p className="text-2xl font-bold">{sentimentData.find(s => s.name === 'Positivo')?.value || 0}</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                    <TrendingUp className="h-5 w-5 text-purple-600" />
+                    <MessageSquare className="h-5 w-5 text-purple-600" />
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600">Palavras Analisadas</p>
-                    <p className="text-2xl font-bold">
-                      {documents.reduce((acc, doc) => acc + doc.wordCount, 0).toLocaleString()}
-                    </p>
+                    <p className="text-sm text-gray-600">Tópicos</p>
+                    <p className="text-2xl font-bold">{topicsData.length}</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
-                    <Target className="h-5 w-5 text-yellow-600" />
+                  <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
+                    <Bot className="h-5 w-5 text-orange-600" />
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600">Sentiment Médio</p>
-                    <p className="text-2xl font-bold">
-                      {Math.round(documents.reduce((acc, doc) => acc + doc.sentimentScore, 0) / documents.length * 100)}%
-                    </p>
+                    <p className="text-sm text-gray-600">Assistentes Ativos</p>
+                    <p className="text-2xl font-bold">{data.metrics.assistantsActive}</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
           </div>
 
-          {/* Lista de Documentos */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Documentos Analisados</CardTitle>
-              <CardDescription>
-                {hasRealData 
-                  ? 'Documentos processados pelos seus assistentes IA'
-                  : 'Histórico de documentos processados e seus insights'
-                }
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {documents.map((document) => (
-                  <Card key={document.id} className="border-l-4 border-l-blue-500">
-                    <CardContent className="p-4">
-                      <Tabs defaultValue="overview" className="w-full">
-                        <div className="flex items-center justify-between mb-4">
-                          <div className="flex items-center gap-3">
-                            <FileText className="h-5 w-5 text-blue-600" />
-                            <div>
-                              <h4 className="font-semibold">{document.name}</h4>
-                              <p className="text-sm text-gray-600">
-                                {document.wordCount.toLocaleString()} palavras • {document.uploadDate}
-                              </p>
-                            </div>
-                          </div>
-                          
-                          <div className="flex items-center gap-2">
-                            <Badge className={getSentimentColor(document.sentiment)}>
-                              {document.sentiment}
-                            </Badge>
-                            {hasRealData && (
-                              <Badge className="bg-purple-100 text-purple-800">
-                                Assistentes IA
-                              </Badge>
-                            )}
-                            <Button variant="outline" size="sm">
-                              <Eye className="h-4 w-4 mr-2" />
-                              Ver Detalhes
-                            </Button>
-                          </div>
-                        </div>
+          {/* Abas de Análise */}
+          <Tabs defaultValue="overview" className="space-y-6">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="overview">Visão Geral</TabsTrigger>
+              <TabsTrigger value="insights">Insights</TabsTrigger>
+              <TabsTrigger value="topics">Tópicos</TabsTrigger>
+            </TabsList>
 
-                        <TabsList className="grid w-full grid-cols-3">
-                          <TabsTrigger value="overview">Visão Geral</TabsTrigger>
-                          <TabsTrigger value="insights">Insights</TabsTrigger>
-                          <TabsTrigger value="topics">Tópicos</TabsTrigger>
-                        </TabsList>
-
-                        <TabsContent value="overview" className="space-y-4">
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                              <h5 className="font-medium mb-2">Resumo Executivo</h5>
-                              <p className="text-gray-600 text-sm">{document.summary}</p>
-                            </div>
-                            
-                            <div>
-                              <h5 className="font-medium mb-2">Análise de Sentimento</h5>
-                              <div className="space-y-2">
-                                <div className="flex justify-between text-sm">
-                                  <span>Score Geral</span>
-                                  <span className={getSentimentColor(document.sentiment)}>
-                                    {Math.round(document.sentimentScore * 100)}%
-                                  </span>
-                                </div>
-                                <Progress value={document.sentimentScore * 100} className="h-2" />
-                              </div>
-                            </div>
-                          </div>
-                        </TabsContent>
-
-                        <TabsContent value="insights" className="space-y-3">
-                          {document.insights.map((insight) => (
-                            <div key={insight.id} className="p-3 bg-gray-50 rounded-lg">
-                              <div className="flex items-start gap-3">
-                                {getInsightIcon(insight.type)}
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-2 mb-2">
-                                    <Badge className={getInsightColor(insight.type)}>
-                                      {insight.category}
-                                    </Badge>
-                                    <span className="text-sm text-gray-500">
-                                      Confiança: {insight.confidence}%
-                                    </span>
-                                  </div>
-                                  
-                                  <p className="text-sm text-gray-700 mb-2">{insight.description}</p>
-                                  
-                                  <div>
-                                    <h6 className="text-xs font-medium text-gray-600 mb-1">Sugestões:</h6>
-                                    <ul className="text-xs text-gray-600 space-y-1">
-                                      {insight.suggestions.map((suggestion, index) => (
-                                        <li key={index} className="flex items-center gap-1">
-                                          <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
-                                          {suggestion}
-                                        </li>
-                                      ))}
-                                    </ul>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </TabsContent>
-
-                        <TabsContent value="topics" className="space-y-3">
-                          <div>
-                            <h5 className="font-medium mb-3">Tópicos Principais Identificados</h5>
-                            <div className="flex flex-wrap gap-2">
-                              {document.keyTopics.map((topic, index) => (
-                                <Badge key={index} variant="outline">
-                                  {topic}
-                                </Badge>
+            <TabsContent value="overview" className="space-y-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Análise de Sentimento */}
+                {sentimentData.length > 0 && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <PieChart className="h-5 w-5 text-blue-600" />
+                        Análise de Sentimento
+                      </CardTitle>
+                      <CardDescription>
+                        Distribuição baseada nos insights dos assistentes
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <ChartContainer config={{}} className="h-[200px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <RechartsPieChart>
+                            <Pie
+                              data={sentimentData}
+                              cx="50%"
+                              cy="50%"
+                              outerRadius={80}
+                              dataKey="value"
+                            >
+                              {sentimentData.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={entry.color} />
                               ))}
-                            </div>
-                          </div>
-                        </TabsContent>
-                      </Tabs>
+                            </Pie>
+                            <ChartTooltip content={<ChartTooltipContent />} />
+                          </RechartsPieChart>
+                        </ResponsiveContainer>
+                      </ChartContainer>
                     </CardContent>
                   </Card>
-                ))}
+                )}
+
+                {/* Distribuição de Tópicos */}
+                {topicsData.length > 0 && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <BarChart3 className="h-5 w-5 text-purple-600" />
+                        Tópicos Principais
+                      </CardTitle>
+                      <CardDescription>
+                        Áreas mais analisadas pelos assistentes
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <ChartContainer config={{}} className="h-[200px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={topicsData}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="topic" />
+                            <YAxis />
+                            <ChartTooltip content={<ChartTooltipContent />} />
+                            <Bar dataKey="frequency" fill="#8884d8" />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </ChartContainer>
+                    </CardContent>
+                  </Card>
+                )}
               </div>
-            </CardContent>
-          </Card>
+            </TabsContent>
+
+            <TabsContent value="insights" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Insights dos Assistentes</CardTitle>
+                  <CardDescription>
+                    Análises detalhadas baseadas nos documentos processados
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {documentInsights.map((insight) => (
+                      <div key={insight.id} className="p-4 bg-gray-50 rounded-lg border-l-4 border-l-blue-500">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Badge className="bg-blue-100 text-blue-800">
+                                {insight.assistantName}
+                              </Badge>
+                              <Badge variant="outline">
+                                {insight.assistantArea || insight.category}
+                              </Badge>
+                              <Badge className={
+                                insight.priority === 'high' ? 'bg-red-100 text-red-800' :
+                                insight.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                                'bg-green-100 text-green-800'
+                              }>
+                                {insight.priority === 'high' ? 'Alta' : insight.priority === 'medium' ? 'Média' : 'Baixa'} Prioridade
+                              </Badge>
+                            </div>
+                            <h4 className="font-semibold mb-1">{insight.title}</h4>
+                            <p className="text-sm text-gray-600">{insight.description}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="topics" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Análise de Tópicos</CardTitle>
+                  <CardDescription>
+                    Temas mais frequentes identificados pelos assistentes
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {topicsData.map((topic, index) => (
+                      <div key={topic.topic} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold
+                            ${index === 0 ? 'bg-yellow-500' : index === 1 ? 'bg-gray-400' : index === 2 ? 'bg-orange-400' : 'bg-blue-500'}`}>
+                            {index + 1}
+                          </div>
+                          <div>
+                            <h4 className="font-semibold">{topic.topic}</h4>
+                            <p className="text-sm text-gray-600">{topic.frequency} menções</p>
+                          </div>
+                        </div>
+                        <Badge variant="outline">
+                          {Math.round((topic.frequency / documentInsights.length) * 100)}%
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
     </div>
