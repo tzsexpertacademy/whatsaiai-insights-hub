@@ -6,16 +6,39 @@ interface BrainAnimationProps {
   soundEnabled?: boolean;
 }
 
+interface Neuron {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  intensity: number;
+  connections: number[];
+  pulsePhase: number;
+}
+
+interface Pulse {
+  x: number;
+  y: number;
+  radius: number;
+  intensity: number;
+  id: number;
+}
+
 export function BrainAnimation({ onAnimationComplete, soundEnabled = false }: BrainAnimationProps) {
-  const [animationPhase, setAnimationPhase] = useState<'video' | 'showingLogo' | 'complete'>('video');
-  const [showVideo, setShowVideo] = useState(true);
+  const [animationPhase, setAnimationPhase] = useState<'neural' | 'showingLogo' | 'complete'>('neural');
+  const [showNeuralAnimation, setShowNeuralAnimation] = useState(true);
   const [logoOpacity, setLogoOpacity] = useState(0);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const animationFrameRef = useRef<number>();
+  const neuronsRef = useRef<Neuron[]>([]);
+  const pulsesRef = useRef<Pulse[]>([]);
+  const timeRef = useRef(0);
 
   useEffect(() => {
-    // Deixar a primeira tela por 13 segundos conforme solicitado
-    const videoTimer = setTimeout(() => {
-      console.log('🎬 Primeira tela completa (13s), mostrando logo');
-      setShowVideo(false);
+    // Animação neural por 13 segundos, depois logo por 3 segundos
+    const neuralTimer = setTimeout(() => {
+      console.log('🧠 Animação neural completa (13s), mostrando logo');
+      setShowNeuralAnimation(false);
       setAnimationPhase('showingLogo');
       
       // Fade in da logo
@@ -30,139 +53,278 @@ export function BrainAnimation({ onAnimationComplete, soundEnabled = false }: Br
         onAnimationComplete?.();
       }, 3000);
       
-    }, 13000); // 13 segundos para a primeira tela
+    }, 13000); // 13 segundos para a animação neural
 
-    return () => clearTimeout(videoTimer);
+    return () => clearTimeout(neuralTimer);
   }, [onAnimationComplete]);
+
+  // Animação neural customizada
+  useEffect(() => {
+    if (!showNeuralAnimation) return;
+    
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const resizeCanvas = () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      
+      // Reinicializar neurônios quando redimensionar
+      initializeNeurons();
+    };
+
+    const initializeNeurons = () => {
+      neuronsRef.current = [];
+      
+      // Número de neurônios baseado no tamanho da tela
+      const neuronCount = window.innerWidth < 768 ? 60 : 100;
+      
+      for (let i = 0; i < neuronCount; i++) {
+        const neuron: Neuron = {
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height,
+          vx: (Math.random() - 0.5) * 0.8,
+          vy: (Math.random() - 0.5) * 0.8,
+          intensity: Math.random(),
+          connections: [],
+          pulsePhase: Math.random() * Math.PI * 2
+        };
+        neuronsRef.current.push(neuron);
+      }
+
+      // Conectar neurônios próximos
+      neuronsRef.current.forEach((neuron, index) => {
+        const connections: number[] = [];
+        const maxConnections = window.innerWidth < 768 ? 2 : 3;
+        const connectionDistance = window.innerWidth < 768 ? 120 : 180;
+        
+        neuronsRef.current.forEach((otherNeuron, otherIndex) => {
+          if (index !== otherIndex && connections.length < maxConnections) {
+            const dx = neuron.x - otherNeuron.x;
+            const dy = neuron.y - otherNeuron.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            if (distance < connectionDistance) {
+              connections.push(otherIndex);
+            }
+          }
+        });
+        neuron.connections = connections;
+      });
+    };
+
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    let pulseIdCounter = 0;
+
+    const animate = () => {
+      timeRef.current += 0.016;
+      
+      // Fundo escuro com gradiente
+      const gradient = ctx.createRadialGradient(
+        canvas.width / 2, canvas.height / 2, 0,
+        canvas.width / 2, canvas.height / 2, Math.max(canvas.width, canvas.height) / 2
+      );
+      gradient.addColorStop(0, 'rgba(5, 0, 15, 0.98)');
+      gradient.addColorStop(0.5, 'rgba(10, 0, 25, 0.99)');
+      gradient.addColorStop(1, 'rgba(0, 0, 0, 1)');
+      
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Atualizar neurônios
+      neuronsRef.current.forEach((neuron, index) => {
+        neuron.x += neuron.vx;
+        neuron.y += neuron.vy;
+        neuron.pulsePhase += 0.02;
+        
+        // Intensidade com variação temporal
+        const baseIntensity = 0.3 + Math.sin(timeRef.current * 0.5 + index * 0.1) * 0.3;
+        neuron.intensity = Math.max(0, Math.min(1, baseIntensity + (Math.random() - 0.5) * 0.1));
+
+        // Manter dentro da tela com efeito de borda suave
+        if (neuron.x < 0 || neuron.x > canvas.width) {
+          neuron.vx *= -0.8;
+          neuron.x = Math.max(0, Math.min(canvas.width, neuron.x));
+        }
+        if (neuron.y < 0 || neuron.y > canvas.height) {
+          neuron.vy *= -0.8;
+          neuron.y = Math.max(0, Math.min(canvas.height, neuron.y));
+        }
+
+        // Criar pulsos ocasionalmente
+        if (Math.random() < 0.003 && neuron.intensity > 0.6) {
+          pulsesRef.current.push({
+            x: neuron.x,
+            y: neuron.y,
+            radius: 0,
+            intensity: neuron.intensity,
+            id: pulseIdCounter++
+          });
+        }
+      });
+
+      // Atualizar pulsos
+      pulsesRef.current = pulsesRef.current.filter(pulse => {
+        pulse.radius += 2;
+        pulse.intensity *= 0.98;
+        return pulse.radius < 150 && pulse.intensity > 0.01;
+      });
+
+      // Renderizar conexões neurais
+      ctx.strokeStyle = 'rgba(139, 92, 246, 0.1)';
+      ctx.lineWidth = 0.5;
+      
+      neuronsRef.current.forEach(neuron => {
+        neuron.connections.forEach(connectionIndex => {
+          const otherNeuron = neuronsRef.current[connectionIndex];
+          if (!otherNeuron) return;
+
+          const distance = Math.sqrt(
+            Math.pow(neuron.x - otherNeuron.x, 2) + 
+            Math.pow(neuron.y - otherNeuron.y, 2)
+          );
+          
+          const alpha = Math.max(0, Math.min(0.4, (neuron.intensity + otherNeuron.intensity) * 0.3 * (1 - distance / 200)));
+          
+          // Efeito de pulso nas conexões
+          const pulseIntensity = 1 + Math.sin(timeRef.current * 3 + distance * 0.01) * 0.2;
+          
+          ctx.strokeStyle = `rgba(139, 92, 246, ${alpha * pulseIntensity})`;
+          ctx.lineWidth = 0.5 + alpha * 1.5;
+          
+          ctx.beginPath();
+          ctx.moveTo(neuron.x, neuron.y);
+          ctx.lineTo(otherNeuron.x, otherNeuron.y);
+          ctx.stroke();
+        });
+      });
+
+      // Renderizar pulsos
+      pulsesRef.current.forEach(pulse => {
+        const gradient = ctx.createRadialGradient(
+          pulse.x, pulse.y, 0,
+          pulse.x, pulse.y, pulse.radius
+        );
+        gradient.addColorStop(0, `rgba(139, 92, 246, ${pulse.intensity * 0.6})`);
+        gradient.addColorStop(0.5, `rgba(59, 130, 246, ${pulse.intensity * 0.3})`);
+        gradient.addColorStop(1, 'rgba(139, 92, 246, 0)');
+        
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(pulse.x, pulse.y, pulse.radius, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      // Renderizar neurônios
+      neuronsRef.current.forEach(neuron => {
+        const pulseIntensity = (Math.sin(neuron.pulsePhase) + 1) * 0.5;
+        const totalIntensity = (neuron.intensity + pulseIntensity) * 0.6;
+        const size = 2 + totalIntensity * 4;
+
+        // Halo brilhante
+        const haloGradient = ctx.createRadialGradient(
+          neuron.x, neuron.y, 0,
+          neuron.x, neuron.y, size * 3
+        );
+        haloGradient.addColorStop(0, `rgba(139, 92, 246, ${totalIntensity * 0.8})`);
+        haloGradient.addColorStop(0.5, `rgba(59, 130, 246, ${totalIntensity * 0.4})`);
+        haloGradient.addColorStop(1, 'rgba(139, 92, 246, 0)');
+        
+        ctx.fillStyle = haloGradient;
+        ctx.beginPath();
+        ctx.arc(neuron.x, neuron.y, size * 3, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Núcleo do neurônio
+        ctx.fillStyle = `rgba(255, 255, 255, ${totalIntensity * 0.9})`;
+        ctx.beginPath();
+        ctx.arc(neuron.x, neuron.y, size, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Borda brilhante
+        ctx.strokeStyle = `rgba(139, 92, 246, ${totalIntensity})`;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      });
+
+      // Efeitos de partículas atmosféricas
+      for (let i = 0; i < 20; i++) {
+        const x = Math.random() * canvas.width;
+        const y = Math.random() * canvas.height;
+        const alpha = Math.random() * 0.1;
+        const size = Math.random() * 2;
+        
+        ctx.fillStyle = `rgba(139, 92, 246, ${alpha})`;
+        ctx.beginPath();
+        ctx.arc(x, y, size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      animationFrameRef.current = requestAnimationFrame(animate);
+    };
+
+    animate();
+
+    return () => {
+      window.removeEventListener('resize', resizeCanvas);
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
+  }, [showNeuralAnimation]);
 
   return (
     <div className="fixed inset-0 pointer-events-none z-20 w-full h-full flex items-center justify-center"
          style={{ 
-           background: 'radial-gradient(circle at center, rgba(15, 0, 35, 0.98) 0%, rgba(0, 0, 0, 0.99) 100%)'
+           background: 'radial-gradient(circle at center, rgba(5, 0, 15, 0.98) 0%, rgba(0, 0, 0, 0.99) 100%)'
          }}>
       
-      {/* Efeito neural de fundo tecnológico suavizado */}
-      <div className="absolute inset-0 pointer-events-none opacity-20">
-        {/* Partículas neurais mais suaves */}
-        {[...Array(60)].map((_, i) => (
-          <div
-            key={i}
-            className="absolute w-1 h-1 bg-gradient-to-r from-purple-400/40 to-cyan-400/40 rounded-full animate-pulse"
-            style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              animationDelay: `${Math.random() * 6}s`,
-              animationDuration: `${3 + Math.random() * 4}s`,
-              boxShadow: '0 0 10px currentColor'
+      {/* Animação neural customizada */}
+      {showNeuralAnimation && (
+        <div className="relative w-full h-full animate-fade-in">
+          <canvas
+            ref={canvasRef}
+            className="absolute inset-0 w-full h-full"
+            style={{ 
+              background: 'transparent'
             }}
           />
-        ))}
-        
-        {/* Linhas conectoras neurais tecnológicas */}
-        {[...Array(15)].map((_, i) => (
-          <div
-            key={`line-${i}`}
-            className="absolute border-t border-gradient-to-r from-purple-500/15 to-cyan-500/15"
-            style={{
-              left: `${Math.random() * 80}%`,
-              top: `${Math.random() * 80}%`,
-              width: `${80 + Math.random() * 150}px`,
-              transform: `rotate(${Math.random() * 360}deg)`,
-              animationDelay: `${Math.random() * 3}s`,
-              background: `linear-gradient(90deg, rgba(139, 92, 246, 0.15) 0%, rgba(6, 182, 212, 0.15) 100%)`,
-              height: '1px',
-              filter: 'blur(0.5px)'
-            }}
-          />
-        ))}
-
-        {/* Efeitos de circuito tecnológico */}
-        {[...Array(8)].map((_, i) => (
-          <div
-            key={`circuit-${i}`}
-            className="absolute"
-            style={{
-              left: `${Math.random() * 90}%`,
-              top: `${Math.random() * 90}%`,
-              width: '40px',
-              height: '40px',
-              border: '1px solid rgba(139, 92, 246, 0.2)',
-              borderRadius: '50%',
-              background: 'radial-gradient(circle, rgba(139, 92, 246, 0.1) 0%, transparent 70%)',
-              animation: `pulse ${4 + Math.random() * 3}s ease-in-out infinite`,
-              animationDelay: `${Math.random() * 2}s`
-            }}
-          />
-        ))}
-
-        {/* Ondas tecnológicas */}
-        {[...Array(3)].map((_, i) => (
-          <div
-            key={`wave-${i}`}
-            className="absolute inset-0 border border-purple-500/10 rounded-full"
-            style={{
-              animation: `ping ${8 + i * 2}s cubic-bezier(0, 0, 0.2, 1) infinite`,
-              animationDelay: `${i * 2}s`
-            }}
-          />
-        ))}
-      </div>
-      
-      {/* Vídeo responsivo melhorado para mobile */}
-      {showVideo && (
-        <div className="relative w-full h-full flex items-center justify-center animate-fade-in px-2 sm:px-4">
-          <div className="relative w-full h-full max-w-7xl max-h-[90vh] rounded-xl sm:rounded-2xl lg:rounded-3xl overflow-hidden shadow-2xl shadow-purple-500/50 border border-purple-400/30">
-            {/* Container responsivo para o iframe melhorado */}
-            <div className="relative w-full h-full">
-              {/* Versão mobile - player direto */}
-              <div className="block sm:hidden w-full h-full">
-                <iframe 
-                  width="100%" 
-                  height="100%" 
-                  src="https://www.youtube.com/embed/9xvhXm159UM?si=usOoMhipbjpx6Z3l&autoplay=1&mute=0&controls=0&showinfo=0&rel=0&modestbranding=1&start=0&playsinline=1&enablejsapi=1"
-                  title="Brain Animation Video" 
-                  frameBorder="0" 
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
-                  referrerPolicy="strict-origin-when-cross-origin" 
-                  allowFullScreen
-                  className="rounded-xl"
-                  style={{
-                    aspectRatio: '16/9',
-                    minHeight: '250px'
-                  }}
-                />
-              </div>
-              
-              {/* Versão desktop */}
-              <div className="hidden sm:block w-full h-full">
-                <iframe 
-                  width="100%" 
-                  height="100%" 
-                  src="https://www.youtube.com/embed/9xvhXm159UM?si=usOoMhipbjpx6Z3l&autoplay=1&mute=0&controls=0&showinfo=0&rel=0&modestbranding=1&start=0" 
-                  title="Brain Animation Video" 
-                  frameBorder="0" 
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
-                  referrerPolicy="strict-origin-when-cross-origin" 
-                  allowFullScreen
-                  className="rounded-xl sm:rounded-2xl lg:rounded-3xl"
-                  style={{
-                    aspectRatio: '16/9',
-                    objectFit: 'cover'
-                  }}
-                />
-              </div>
-              
-              {/* Overlay neural muito sutil */}
-              <div className="absolute inset-0 bg-gradient-to-t from-purple-900/3 via-transparent to-blue-900/3 pointer-events-none rounded-xl sm:rounded-2xl lg:rounded-3xl" />
-              
-              {/* Efeito de borda tecnológica */}
-              <div className="absolute inset-0 border-2 border-gradient-to-r from-purple-400/20 via-cyan-400/20 to-purple-400/20 rounded-xl sm:rounded-2xl lg:rounded-3xl pointer-events-none" />
+          
+          {/* Overlay com título central */}
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="text-center px-4">
+              <h1 className="text-4xl sm:text-6xl lg:text-8xl font-black text-white mb-4 drop-shadow-2xl animate-pulse">
+                <span className="bg-gradient-to-r from-purple-400 via-blue-400 to-cyan-400 bg-clip-text text-transparent">
+                  Neural
+                </span>
+              </h1>
+              <p className="text-xl sm:text-2xl lg:text-4xl font-light text-purple-300 drop-shadow-lg">
+                Network Activation
+              </p>
             </div>
+          </div>
+          
+          {/* Indicador de progresso */}
+          <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 flex space-x-3">
+            {[...Array(5)].map((_, i) => (
+              <div
+                key={i}
+                className="w-3 h-3 bg-gradient-to-r from-purple-400 to-cyan-400 rounded-full animate-pulse shadow-lg shadow-purple-500/60"
+                style={{
+                  animationDelay: `${i * 0.3}s`,
+                  animationDuration: '2s'
+                }}
+              />
+            ))}
           </div>
         </div>
       )}
 
-      {/* Logo da Yumer com transição mais suave */}
+      {/* Logo da Yumer com transição */}
       {animationPhase === 'showingLogo' && (
         <div 
           className="flex flex-col items-center justify-center text-center animate-fade-in px-4"
@@ -173,7 +335,7 @@ export function BrainAnimation({ onAnimationComplete, soundEnabled = false }: Br
               <div className="text-4xl sm:text-6xl lg:text-8xl font-black text-white drop-shadow-2xl">Y</div>
             </div>
             
-            {/* Efeitos de brilho concêntricos responsivos */}
+            {/* Efeitos de brilho concêntricos */}
             <div className="absolute inset-0 w-32 h-32 sm:w-48 sm:h-48 lg:w-64 lg:h-64 mx-auto bg-gradient-to-r from-purple-500/40 to-blue-500/40 rounded-full blur-xl sm:blur-2xl animate-pulse" />
             <div className="absolute inset-0 w-32 h-32 sm:w-48 sm:h-48 lg:w-64 lg:h-64 mx-auto bg-gradient-to-r from-cyan-500/30 to-purple-500/30 rounded-full blur-2xl sm:blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
           </div>
@@ -194,21 +356,30 @@ export function BrainAnimation({ onAnimationComplete, soundEnabled = false }: Br
         </div>
       )}
       
-      {/* Indicador de progresso elegante responsivo */}
-      {showVideo && (
-        <div className="absolute bottom-6 sm:bottom-12 left-1/2 transform -translate-x-1/2 flex space-x-2 sm:space-x-4">
-          {[...Array(5)].map((_, i) => (
-            <div
-              key={i}
-              className="w-2 h-2 sm:w-3 sm:h-3 lg:w-4 lg:h-4 bg-gradient-to-r from-purple-400 to-cyan-400 rounded-full animate-pulse shadow-lg shadow-purple-500/60"
-              style={{
-                animationDelay: `${i * 0.3}s`,
-                animationDuration: '2.5s'
-              }}
-            />
-          ))}
-        </div>
-      )}
+      {/* Estilos CSS para os efeitos de brilho */}
+      <style>{`
+        .glow-text-mega {
+          text-shadow: 
+            0 0 20px currentColor,
+            0 0 40px currentColor,
+            0 0 60px currentColor,
+            0 0 80px currentColor;
+          animation: glow-mega 3s ease-in-out infinite alternate;
+        }
+        
+        .glow-text {
+          text-shadow: 0 0 20px currentColor, 0 0 40px currentColor;
+        }
+        
+        @keyframes glow-mega {
+          0% {
+            filter: drop-shadow(0 0 20px rgba(139, 92, 246, 0.5)) brightness(1);
+          }
+          100% {
+            filter: drop-shadow(0 0 60px rgba(139, 92, 246, 0.9)) brightness(1.3);
+          }
+        }
+      `}</style>
     </div>
   );
 }
