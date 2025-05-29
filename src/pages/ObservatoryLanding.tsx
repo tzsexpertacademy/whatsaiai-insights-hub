@@ -141,7 +141,7 @@ export function ObservatoryLanding() {
     };
   }, []);
 
-  const handleAccessObservatory = async () => {
+  const handleAccessObservatory = () => {
     console.log('🚀 Botão clicado - handleAccessObservatory', { isAuthenticated });
     
     if (isAuthenticated) {
@@ -154,16 +154,12 @@ export function ObservatoryLanding() {
       navigate('/dashboard');
     } else {
       // Usuário não logado - vai para página de cadastro/login
-      toast({
-        title: "Crie sua conta para começar",
-        description: "Redirecionando para cadastro...",
-        duration: 2000
-      });
+      console.log('🎯 Redirecionando para página de cadastro');
       navigate('/auth');
     }
   };
 
-  const handleStartTrial = async () => {
+  const handleStartTrial = () => {
     console.log('🎯 Começar Trial clicado');
     
     if (isAuthenticated) {
@@ -171,11 +167,7 @@ export function ObservatoryLanding() {
       navigate('/dashboard');
     } else {
       // Se não está logado, vai para cadastro
-      toast({
-        title: "Crie sua conta",
-        description: "Cadastre-se para começar seu trial gratuito",
-        duration: 2000
-      });
+      console.log('🎯 Redirecionando para página de cadastro para trial');
       navigate('/auth');
     }
   };
