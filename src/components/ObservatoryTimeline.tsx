@@ -1,354 +1,247 @@
 
 import React from 'react';
-import { PageHeader } from '@/components/PageHeader';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, TrendingUp, Target, Award, AlertTriangle, CheckCircle, Clock, Bot } from 'lucide-react';
-import { AIAnalysisButton } from '@/components/AIAnalysisButton';
 import { useAnalysisData } from '@/contexts/AnalysisDataContext';
+import { Loader2, AlertCircle, Bot, Clock, Brain, TrendingUp, MessageCircle } from 'lucide-react';
 
 export function ObservatoryTimeline() {
   const { data, isLoading } = useAnalysisData();
 
-  // Usar APENAS dados reais dos assistentes
-  const hasRealData = data.hasRealData && data.insightsWithAssistant && data.insightsWithAssistant.length > 0;
-
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <PageHeader 
-          title="Linha do Tempo"
-          subtitle="Acompanhe sua evolução e marcos importantes ao longo do tempo"
-        >
-          <AIAnalysisButton />
-        </PageHeader>
-        
-        <div className="p-4 md:p-6">
-          <div className="max-w-6xl mx-auto">
-            <Card>
-              <CardContent className="p-6">
-                <div className="text-center">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto mb-4"></div>
-                  <p>Carregando linha do tempo dos assistentes...</p>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-800 mb-2">Linha do Tempo do YumerMind</h1>
+          <p className="text-slate-600">Cronologia das análises realizadas pelos assistentes</p>
+        </div>
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="h-12 w-12 animate-spin text-gray-500" />
         </div>
       </div>
     );
   }
 
-  if (!hasRealData) {
+  if (!data.hasRealData) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <PageHeader 
-          title="Linha do Tempo"
-          subtitle="Acompanhe sua evolução e marcos importantes ao longo do tempo"
-        >
-          <AIAnalysisButton />
-        </PageHeader>
-        
-        <div className="p-4 md:p-6">
-          <div className="max-w-6xl mx-auto">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Calendar className="h-5 w-5 text-purple-600" />
-                  Linha do Tempo Aguarda Análise
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-8">
-                  <Bot className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">Aguardando Eventos dos Assistentes</h3>
-                  <p className="text-gray-600 mb-6">
-                    A linha do tempo será construída com base nos insights dos seus assistentes IA
-                  </p>
-                  <div className="text-left max-w-md mx-auto space-y-2 mb-6">
-                    <p className="text-sm text-gray-600">• Execute análises IA das suas conversas</p>
-                    <p className="text-sm text-gray-600">• Os assistentes identificarão marcos importantes</p>
-                    <p className="text-sm text-gray-600">• Eventos serão organizados cronologicamente</p>
-                  </div>
-                  <AIAnalysisButton />
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-800 mb-2">Linha do Tempo do YumerMind</h1>
+          <p className="text-slate-600">Cronologia das análises realizadas pelos assistentes</p>
         </div>
+        
+        <Card className="bg-white/70 backdrop-blur-sm border-white/50">
+          <CardContent className="p-12">
+            <div className="flex flex-col items-center justify-center text-center space-y-4">
+              <AlertCircle className="h-16 w-16 text-gray-400" />
+              <h3 className="text-xl font-semibold text-gray-600">Timeline Aguardando Dados</h3>
+              <p className="text-gray-500 max-w-md">
+                A linha do tempo será populada conforme os assistentes processarem suas conversas.
+              </p>
+              <div className="text-left text-sm text-gray-600 space-y-1">
+                <p>• Execute análises por IA no dashboard</p>
+                <p>• Os assistentes registrarão eventos na timeline</p>
+                <p>• Histórico será construído automaticamente</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
-  // Criar eventos da timeline baseados APENAS nos insights dos assistentes
-  const timelineEvents = data.insightsWithAssistant.map((insight) => ({
-    id: insight.id,
-    date: new Date(insight.created_at || insight.createdAt),
-    title: insight.title,
-    description: insight.description,
-    type: getEventType(insight.insight_type),
-    category: getCategoryFromAssistant(insight.assistantArea),
-    impact: getImpactFromPriority(insight.priority),
-    assistantName: insight.assistantName,
-    assistantArea: insight.assistantArea
-  })).sort((a, b) => b.date.getTime() - a.date.getTime());
+  const lastUpdate = data.metrics.lastAnalysis ? 
+    new Date(data.metrics.lastAnalysis).toLocaleDateString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    }) : null;
 
-  function getEventType(insightType: string) {
-    const typeMap: { [key: string]: string } = {
-      'emotional': 'insight',
-      'behavioral': 'challenge',
-      'growth': 'goal',
-      'achievement': 'achievement',
-      'milestone': 'milestone'
-    };
-    return typeMap[insightType] || 'insight';
-  }
-
-  function getCategoryFromAssistant(assistantArea: string) {
-    const categoryMap: { [key: string]: string } = {
-      'psicologia': 'crescimento-pessoal',
-      'saude': 'saude',
-      'estrategia': 'carreira',
-      'relacionamentos': 'relacionamentos',
-      'financeiro': 'financas',
-      'proposito': 'crescimento-pessoal',
-      'criatividade': 'crescimento-pessoal'
-    };
-    return categoryMap[assistantArea] || 'crescimento-pessoal';
-  }
-
-  function getImpactFromPriority(priority: string) {
-    const impactMap: { [key: string]: string } = {
-      'high': 'negative',
-      'medium': 'neutral',
-      'low': 'positive'
-    };
-    return impactMap[priority] || 'neutral';
-  }
+  // Combinar insights e conversas para criar timeline
+  const timelineEvents = [
+    ...data.insightsWithAssistant.map(insight => ({
+      id: insight.id,
+      type: 'insight',
+      title: insight.title,
+      description: insight.description,
+      assistantName: insight.assistantName,
+      assistantArea: insight.assistantArea,
+      timestamp: insight.createdAt,
+      priority: insight.priority
+    })),
+    ...data.conversations.slice(0, 5).map(conv => ({
+      id: conv.id,
+      type: 'conversation',
+      title: `Conversa com ${conv.contact_name}`,
+      description: `${conv.messages?.length || 0} mensagens processadas`,
+      assistantName: 'Sistema de Análise',
+      assistantArea: 'geral',
+      timestamp: conv.created_at,
+      priority: 'medium'
+    }))
+  ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
   const getEventIcon = (type: string) => {
-    switch (type) {
-      case 'achievement':
-        return <Award className="h-5 w-5 text-yellow-600" />;
-      case 'milestone':
-        return <CheckCircle className="h-5 w-5 text-green-600" />;
-      case 'insight':
-        return <TrendingUp className="h-5 w-5 text-blue-600" />;
-      case 'goal':
-        return <Target className="h-5 w-5 text-purple-600" />;
-      case 'challenge':
-        return <AlertTriangle className="h-5 w-5 text-red-600" />;
-      default:
-        return <Clock className="h-5 w-5 text-gray-600" />;
-    }
+    return type === 'insight' ? Brain : MessageCircle;
   };
 
-  const getCategoryColor = (category: string) => {
-    switch (category) {
-      case 'saude': return 'bg-green-100 text-green-800';
-      case 'carreira': return 'bg-blue-100 text-blue-800';
-      case 'relacionamentos': return 'bg-pink-100 text-pink-800';
-      case 'crescimento-pessoal': return 'bg-purple-100 text-purple-800';
-      case 'financas': return 'bg-emerald-100 text-emerald-800';
-      default: return 'bg-gray-100 text-gray-800';
+  const getEventColor = (type: string, priority?: string) => {
+    if (type === 'insight') {
+      return priority === 'high' ? 'bg-red-100 text-red-800' : 
+             priority === 'low' ? 'bg-green-100 text-green-800' : 
+             'bg-blue-100 text-blue-800';
     }
+    return 'bg-gray-100 text-gray-800';
   };
-
-  const getImpactColor = (impact: string) => {
-    switch (impact) {
-      case 'positive': return 'border-l-green-500 bg-green-50';
-      case 'negative': return 'border-l-red-500 bg-red-50';
-      default: return 'border-l-blue-500 bg-blue-50';
-    }
-  };
-
-  const positiveEvents = timelineEvents.filter(e => e.impact === 'positive').length;
-  const totalEvents = timelineEvents.length;
-  const progressPercentage = totalEvents > 0 ? Math.round((positiveEvents / totalEvents) * 100) : 0;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <PageHeader 
-        title="Linha do Tempo"
-        subtitle="Acompanhe sua evolução e marcos importantes ao longo do tempo"
-      >
-        <Badge className="bg-purple-100 text-purple-800">
-          🔮 Eventos dos Assistentes - {timelineEvents.length} marcos
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold text-slate-800 mb-2">Linha do Tempo do YumerMind</h1>
+        <p className="text-slate-600">Cronologia das análises e insights gerados pelos assistentes</p>
+      </div>
+
+      {/* Indicadores dos assistentes */}
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        <Badge variant="outline" className="bg-purple-50 text-purple-700">
+          🔮 Timeline dos Assistentes
         </Badge>
-        <AIAnalysisButton />
-      </PageHeader>
-      
-      <div className="p-4 md:p-6">
-        <div className="max-w-6xl mx-auto space-y-6">
-          
-          {/* Estatísticas baseadas nos dados dos assistentes */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <Calendar className="h-5 w-5 text-blue-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Total de Eventos</p>
-                    <p className="text-2xl font-bold">{totalEvents}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                    <TrendingUp className="h-5 w-5 text-green-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Eventos Positivos</p>
-                    <p className="text-2xl font-bold">{positiveEvents}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
-                    <Award className="h-5 w-5 text-yellow-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Insights</p>
-                    <p className="text-2xl font-bold">
-                      {timelineEvents.filter(e => e.type === 'insight').length}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                    <Target className="h-5 w-5 text-purple-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Progresso Geral</p>
-                    <p className="text-2xl font-bold">{progressPercentage}%</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+        <Badge variant="outline" className="bg-blue-50 text-blue-700">
+          📊 {timelineEvents.length} eventos registrados
+        </Badge>
+        <Badge variant="outline" className="bg-green-50 text-green-700">
+          🤖 {data.metrics.assistantsActive} assistentes ativos
+        </Badge>
+        {lastUpdate && (
+          <Badge variant="outline" className="bg-gray-50 text-gray-700">
+            <Clock className="h-3 w-3 mr-1" />
+            Última atualização: {lastUpdate}
+          </Badge>
+        )}
+      </div>
 
-          {/* Linha do Tempo dos Assistentes */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Clock className="h-5 w-5 text-indigo-600" />
-                Sua Jornada de Evolução (Assistentes IA)
-                <Badge variant="outline" className="text-xs">
-                  Baseado em {timelineEvents.length} insights
-                </Badge>
-              </CardTitle>
-              <CardDescription>
-                Eventos importantes identificados pelos seus assistentes IA
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="relative">
-                {/* Linha vertical */}
-                <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-gray-200"></div>
-                
-                <div className="space-y-6">
-                  {timelineEvents.map((event, index) => (
-                    <div key={event.id} className="relative flex items-start gap-4">
-                      {/* Ícone do evento */}
-                      <div className={`relative z-10 w-12 h-12 rounded-full border-4 border-white shadow-sm flex items-center justify-center ${getImpactColor(event.impact)}`}>
-                        {getEventIcon(event.type)}
-                      </div>
-                      
-                      {/* Conteúdo do evento */}
-                      <Card className={`flex-1 border-l-4 ${getImpactColor(event.impact)}`}>
-                        <CardContent className="p-4">
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-2">
-                                <h4 className="font-semibold">{event.title}</h4>
-                                <Badge className={getCategoryColor(event.category)}>
-                                  {event.category}
-                                </Badge>
-                                <Badge className="bg-purple-100 text-purple-800">
-                                  🤖 {event.assistantName}
-                                </Badge>
-                                <Badge variant="outline">
-                                  {event.assistantArea}
-                                </Badge>
-                              </div>
-                              
-                              <p className="text-gray-600 mb-2">{event.description}</p>
-                              
-                              <div className="flex items-center gap-2 text-sm text-gray-500">
-                                <Calendar className="h-4 w-4" />
-                                {event.date.toLocaleDateString('pt-BR', {
-                                  day: '2-digit',
-                                  month: '2-digit',
-                                  year: 'numeric',
-                                  hour: '2-digit',
-                                  minute: '2-digit'
-                                })}
-                              </div>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </div>
-                  ))}
-                </div>
+      {/* Estatísticas rápidas */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <Card className="bg-white/70 backdrop-blur-sm border-white/50">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Total de Eventos</p>
+                <p className="text-2xl font-bold text-gray-800">{timelineEvents.length}</p>
               </div>
-            </CardContent>
-          </Card>
+              <Clock className="h-8 w-8 text-blue-500" />
+            </div>
+          </CardContent>
+        </Card>
 
-          {/* Resumo por Categoria - Baseado nos dados dos assistentes */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Resumo por Área da Vida (Assistentes)</CardTitle>
-              <CardDescription>
-                Distribuição dos insights por categoria identificada pelos assistentes
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {['saude', 'carreira', 'relacionamentos', 'crescimento-pessoal', 'financas'].map(category => {
-                  const categoryEvents = timelineEvents.filter(e => e.category === category);
-                  const positiveCount = categoryEvents.filter(e => e.impact === 'positive').length;
+        <Card className="bg-white/70 backdrop-blur-sm border-white/50">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Insights Gerados</p>
+                <p className="text-2xl font-bold text-purple-600">{data.insightsWithAssistant.length}</p>
+              </div>
+              <Brain className="h-8 w-8 text-purple-500" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-white/70 backdrop-blur-sm border-white/50">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Conversas</p>
+                <p className="text-2xl font-bold text-green-600">{data.conversations.length}</p>
+              </div>
+              <MessageCircle className="h-8 w-8 text-green-500" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-white/70 backdrop-blur-sm border-white/50">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Assistentes</p>
+                <p className="text-2xl font-bold text-orange-600">{data.metrics.assistantsActive}</p>
+              </div>
+              <Bot className="h-8 w-8 text-orange-500" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Timeline dos eventos */}
+      <Card className="bg-white/70 backdrop-blur-sm border-white/50">
+        <CardHeader>
+          <CardTitle>Cronologia de Eventos dos Assistentes</CardTitle>
+          <CardDescription>Histórico ordenado das análises e insights gerados</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-6">
+            {timelineEvents.map((event, index) => {
+              const IconComponent = getEventIcon(event.type);
+              return (
+                <div key={event.id} className="flex items-start space-x-4 relative">
+                  {/* Linha de conexão */}
+                  {index < timelineEvents.length - 1 && (
+                    <div className="absolute left-6 top-12 w-0.5 h-16 bg-gray-200"></div>
+                  )}
                   
-                  return (
-                    <div key={category} className="p-4 bg-gray-50 rounded-lg">
-                      <div className="flex items-center justify-between mb-2">
-                        <h4 className="font-medium capitalize">{category.replace('-', ' ')}</h4>
-                        <Badge className={getCategoryColor(category)}>
-                          {categoryEvents.length}
+                  {/* Ícone do evento */}
+                  <div className="flex-shrink-0 w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                    <IconComponent className="h-6 w-6 text-blue-600" />
+                  </div>
+                  
+                  {/* Conteúdo do evento */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-lg font-medium text-gray-900">{event.title}</h4>
+                      <div className="flex items-center gap-2">
+                        <Badge className="bg-purple-100 text-purple-800">
+                          🔮 {event.assistantName}
+                        </Badge>
+                        <Badge className={getEventColor(event.type, event.priority)}>
+                          {event.type === 'insight' ? 'Insight' : 'Conversa'}
                         </Badge>
                       </div>
-                      <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <TrendingUp className="h-4 w-4 text-green-600" />
-                        {positiveCount} positivos
-                      </div>
-                      {categoryEvents.length > 0 && (
-                        <div className="mt-2 text-xs text-gray-500">
-                          Assistentes: {[...new Set(categoryEvents.map(e => e.assistantName))].join(', ')}
-                        </div>
-                      )}
                     </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+                    
+                    <p className="text-gray-600 mb-3">{event.description}</p>
+                    
+                    <div className="flex items-center justify-between text-sm text-gray-500">
+                      <div className="flex items-center gap-4">
+                        <span>Área: {event.assistantArea}</span>
+                        {event.priority && (
+                          <span className="capitalize">Prioridade: {event.priority}</span>
+                        )}
+                      </div>
+                      <span>
+                        {new Date(event.timestamp).toLocaleDateString('pt-BR', {
+                          day: '2-digit',
+                          month: '2-digit',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          
+          {timelineEvents.length === 0 && (
+            <div className="text-center py-8">
+              <Bot className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+              <p className="text-gray-500">Nenhum evento registrado ainda pelos assistentes</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

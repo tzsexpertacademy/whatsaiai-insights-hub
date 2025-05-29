@@ -13,16 +13,9 @@ interface SidebarNavItemProps {
 
 export function SidebarNavItem({ title, url, icon: Icon }: SidebarNavItemProps) {
   const location = useLocation();
-  const { state, isMobile, setOpenMobile } = useSidebar();
+  const { state } = useSidebar();
   const isActive = location.pathname === url;
   const isCollapsed = state === "collapsed";
-
-  const handleClick = () => {
-    // Fechar o menu no mobile após clicar em um item
-    if (isMobile) {
-      setOpenMobile(false);
-    }
-  };
 
   return (
     <SidebarMenuItem>
@@ -36,7 +29,7 @@ export function SidebarNavItem({ title, url, icon: Icon }: SidebarNavItemProps) 
           isActive && "bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800"
         )}
       >
-        <Link to={url} className="flex items-center gap-3 w-full min-w-0" onClick={handleClick}>
+        <Link to={url} className="flex items-center gap-3 w-full min-w-0">
           <Icon className={cn(
             "h-5 w-5 flex-shrink-0 transition-colors",
             isActive ? "text-blue-600 dark:text-blue-400" : "text-gray-600 dark:text-gray-400"

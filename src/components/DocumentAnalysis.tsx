@@ -1,340 +1,476 @@
 
-import React from 'react';
-import { PageHeader } from '@/components/PageHeader';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import React, { useState, useRef } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, TrendingUp, MessageSquare, Bot, Upload, BarChart3, PieChart } from 'lucide-react';
-import { PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { AIAnalysisButton } from '@/components/AIAnalysisButton';
-import { useAnalysisData } from '@/contexts/AnalysisDataContext';
+import { 
+  FileText, 
+  Upload, 
+  CheckCircle, 
+  AlertCircle, 
+  Loader2, 
+  FileIcon,
+  Download,
+  Trash2,
+  Eye,
+  BarChart3,
+  Video,
+  AudioLines,
+  Brain
+} from 'lucide-react';
+import { useToast } from "@/hooks/use-toast";
+import { parseDocument, type ParsedDocument } from '@/utils/documentParser';
+import { useClientConfig } from '@/contexts/ClientConfigContext';
+import { DocumentAIAnalysis } from '@/components/DocumentAIAnalysis';
+
+interface UploadedDocument extends ParsedDocument {
+  id: string;
+  uploadDate: Date;
+}
 
 export function DocumentAnalysis() {
-  const { data, isLoading } = useAnalysisData();
+  const [documents, setDocuments] = useState<UploadedDocument[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const [selectedDocument, setSelectedDocument] = useState<UploadedDocument | null>(null);
+  const [activeTab, setActiveTab] = useState('upload');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
+  const { config } = useClientConfig();
 
-  // Filtrar insights relacionados a documentos e análise textual
-  const documentInsights = data.insightsWithAssistant?.filter(insight => 
-    insight.description.toLowerCase().includes('documento') ||
-    insight.description.toLowerCase().includes('texto') ||
-    insight.description.toLowerCase().includes('análise') ||
-    insight.description.toLowerCase().includes('conteúdo')
-  ) || [];
+  // Verificar se OpenAI está configurada
+  const isOpenAIConfigured = config.openai?.apiKey && config.openai.apiKey.startsWith('sk-');
 
-  const hasRealData = data.hasRealData && documentInsights.length > 0;
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
 
-  // Dados de sentimento baseados nos insights reais
-  const sentimentData = hasRealData ? [
-    { name: 'Positivo', value: documentInsights.filter(i => i.priority === 'low').length, color: '#10B981' },
-    { name: 'Neutro', value: documentInsights.filter(i => i.priority === 'medium').length, color: '#F59E0B' },
-    { name: 'Negativo', value: documentInsights.filter(i => i.priority === 'high').length, color: '#EF4444' }
-  ].filter(item => item.value > 0) : [];
+    setIsUploading(true);
 
-  // Dados de tópicos baseados nas áreas dos assistentes
-  const topicsData = hasRealData ? 
-    data.insightsWithAssistant
-      .reduce((acc, insight) => {
-        const area = insight.assistantArea || 'Geral';
-        const existing = acc.find(item => item.topic === area);
-        if (existing) {
-          existing.frequency++;
-        } else {
-          acc.push({ topic: area, frequency: 1 });
-        }
-        return acc;
-      }, [] as Array<{ topic: string; frequency: number }>)
-      .slice(0, 5) : [];
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <PageHeader 
-          title="Análise de Documentos"
-          subtitle="Análise de sentimentos e insights de documentos"
-        >
-          <AIAnalysisButton />
-        </PageHeader>
+    try {
+      for (const file of Array.from(files)) {
+        console.log(`📄 Processando arquivo: ${file.name}`);
         
-        <div className="p-4 md:p-6">
-          <div className="max-w-6xl mx-auto">
-            <Card>
-              <CardContent className="p-6">
-                <div className="text-center">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                  <p>Carregando análise de documentos dos assistentes...</p>
-                </div>
-              </CardContent>
-            </Card>
+        try {
+          const parsedDoc = await parseDocument(file);
+          
+          const uploadedDoc: UploadedDocument = {
+            ...parsedDoc,
+            id: `doc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            uploadDate: new Date()
+          };
+
+          setDocuments(prev => [...prev, uploadedDoc]);
+          
+          // Auto-selecionar o primeiro documento carregado
+          if (documents.length === 0) {
+            setSelectedDocument(uploadedDoc);
+          }
+          
+          toast({
+            title: "✅ Arquivo processado",
+            description: `${file.name} foi processado com sucesso`,
+          });
+
+        } catch (error) {
+          console.error(`❌ Erro ao processar ${file.name}:`, error);
+          toast({
+            title: "❌ Erro no processamento",
+            description: `Falha ao processar ${file.name}: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
+            variant: "destructive",
+          });
+        }
+      }
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleSelectDocument = (doc: UploadedDocument) => {
+    setSelectedDocument(doc);
+    // Mudar automaticamente para a aba de análise IA
+    setActiveTab('ai-analysis');
+    toast({
+      title: "📄 Documento selecionado",
+      description: `${doc.metadata.fileName} está pronto para análise`,
+    });
+  };
+
+  const removeDocument = (id: string) => {
+    setDocuments(prev => prev.filter(doc => doc.id !== id));
+    if (selectedDocument?.id === id) {
+      setSelectedDocument(null);
+    }
+    toast({
+      title: "🗑️ Arquivo removido",
+      description: "Arquivo foi removido da análise",
+    });
+  };
+
+  const exportDocuments = () => {
+    const exportData = documents.map(doc => ({
+      fileName: doc.metadata.fileName,
+      fileType: doc.metadata.fileType,
+      fileSize: doc.metadata.fileSize,
+      pageCount: doc.metadata.pageCount,
+      uploadDate: doc.uploadDate,
+      textPreview: doc.text.substring(0, 500) + '...'
+    }));
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `arquivos_analisados_${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    toast({
+      title: "📊 Exportação concluída",
+      description: "Dados dos arquivos foram exportados",
+    });
+  };
+
+  const getFileIcon = (fileType: string) => {
+    if (fileType.startsWith('video/')) {
+      return <Video className="w-5 h-5 text-purple-600" />;
+    }
+    if (fileType.startsWith('audio/')) {
+      return <AudioLines className="w-5 h-5 text-green-600" />;
+    }
+    return <FileText className="w-5 h-5 text-blue-600" />;
+  };
+
+  const getFileTypeLabel = (fileType: string) => {
+    if (fileType.startsWith('video/')) return 'VIDEO';
+    if (fileType.startsWith('audio/')) return 'AUDIO';
+    return fileType.split('/')[1]?.toUpperCase() || 'DOC';
+  };
+
+  return (
+    <div className="w-full max-w-7xl mx-auto p-4 lg:p-6 space-y-6">
+      {/* Header */}
+      <div className="text-center space-y-4">
+        <div className="flex justify-center">
+          <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+            <FileText className="w-8 h-8 text-white" />
           </div>
         </div>
+        <h1 className="text-3xl font-bold text-gray-900">Análise de Documentos com IA</h1>
+        <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+          Faça upload e analise documentos, vídeos e áudios em diversos formatos com IA avançada
+        </p>
       </div>
-    );
-  }
 
-  if (!hasRealData) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <PageHeader 
-          title="Análise de Documentos"
-          subtitle="Análise de sentimentos e insights de documentos"
-        >
-          <AIAnalysisButton />
-        </PageHeader>
-        
-        <div className="p-4 md:p-6">
-          <div className="max-w-6xl mx-auto">
+      {/* Status da Conexão OpenAI */}
+      {!isOpenAIConfigured ? (
+        <Alert className="border-red-200 bg-red-50">
+          <AlertCircle className="h-4 w-4 text-red-600" />
+          <AlertDescription className="text-red-800">
+            <strong>❌ OpenAI não configurada:</strong> Configure sua API key da OpenAI em Configurações para análises com IA.
+            <Button variant="link" className="ml-2 p-0 h-auto text-red-600" onClick={() => window.location.href = '/dashboard/settings'}>
+              Ir para Configurações
+            </Button>
+          </AlertDescription>
+        </Alert>
+      ) : (
+        <Alert className="border-green-200 bg-green-50">
+          <CheckCircle className="h-4 w-4 text-green-600" />
+          <AlertDescription className="text-green-800">
+            <strong>✅ OpenAI configurada:</strong> Análise com IA ativa e funcionando!
+          </AlertDescription>
+        </Alert>
+      )}
+
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="upload">Upload</TabsTrigger>
+          <TabsTrigger value="documents">Arquivos ({documents.length})</TabsTrigger>
+          <TabsTrigger value="analysis">Visualizar</TabsTrigger>
+          <TabsTrigger value="ai-analysis" className="flex items-center gap-2">
+            <Brain className="w-4 h-4" />
+            Análise IA
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="upload" className="space-y-6">
+          {/* Upload Section */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Upload className="w-5 h-5" />
+                Upload de Arquivos
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-gray-400 transition-colors">
+                <FileIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <div className="space-y-2">
+                  <Label htmlFor="document-upload" className="cursor-pointer">
+                    <Button asChild disabled={isUploading}>
+                      <span>
+                        {isUploading ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Processando...
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="w-4 h-4 mr-2" />
+                            Selecionar Arquivos
+                          </>
+                        )}
+                      </span>
+                    </Button>
+                  </Label>
+                  <Input
+                    id="document-upload"
+                    type="file"
+                    multiple
+                    accept=".txt,.pdf,.md,.json,.csv,.doc,.docx,.mp4,.avi,.mov,.mp3,.wav,.m4a,.flac"
+                    onChange={handleFileUpload}
+                    className="hidden"
+                    ref={fileInputRef}
+                    disabled={isUploading}
+                  />
+                  <p className="text-sm text-gray-600">
+                    Arraste arquivos aqui ou clique para selecionar
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    <strong>Suportados:</strong> Textos (TXT, PDF, MD, JSON, CSV, DOC, DOCX)<br/>
+                    <strong>Vídeos:</strong> MP4, AVI, MOV<br/>
+                    <strong>Áudios:</strong> MP3, WAV, M4A, FLAC
+                  </p>
+                </div>
+              </div>
+
+              {/* Upload Progress */}
+              {isUploading && (
+                <Alert>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <AlertDescription>
+                    Processando arquivos... Por favor, aguarde.
+                  </AlertDescription>
+                </Alert>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="documents" className="space-y-6">
+          {/* Documents List */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="w-5 h-5" />
+                Arquivos Processados
+              </CardTitle>
+              {documents.length > 0 && (
+                <div className="flex gap-2">
+                  <Button onClick={exportDocuments} variant="outline" size="sm">
+                    <Download className="w-4 h-4 mr-2" />
+                    Exportar
+                  </Button>
+                </div>
+              )}
+            </CardHeader>
+            <CardContent>
+              {documents.length === 0 ? (
+                <div className="text-center py-8">
+                  <FileIcon className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                  <p className="text-gray-500">Nenhum arquivo processado ainda</p>
+                  <p className="text-sm text-gray-400">Faça upload de arquivos na aba Upload</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {documents.map((doc) => (
+                    <div
+                      key={doc.id}
+                      className={`flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors ${
+                        selectedDocument?.id === doc.id ? 'border-blue-500 bg-blue-50' : ''
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                          {getFileIcon(doc.metadata.fileType)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-medium text-gray-900 truncate">
+                            {doc.metadata.fileName}
+                          </h3>
+                          <div className="flex items-center gap-4 text-sm text-gray-500">
+                            <span>{(doc.metadata.fileSize / 1024).toFixed(1)} KB</span>
+                            {doc.metadata.pageCount && (
+                              <span>{doc.metadata.pageCount} página(s)</span>
+                            )}
+                            <span>{doc.uploadDate.toLocaleDateString()}</span>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <Badge variant="outline">
+                            {getFileTypeLabel(doc.metadata.fileType)}
+                          </Badge>
+                          {selectedDocument?.id === doc.id && (
+                            <Badge variant="default" className="bg-blue-600">
+                              Selecionado
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 ml-4">
+                        <Button
+                          onClick={() => handleSelectDocument(doc)}
+                          variant={selectedDocument?.id === doc.id ? "default" : "outline"}
+                          size="sm"
+                        >
+                          <Brain className="w-4 h-4 mr-1" />
+                          {selectedDocument?.id === doc.id ? 'Analisar' : 'Selecionar'}
+                        </Button>
+                        <Button
+                          onClick={() => setSelectedDocument(doc)}
+                          variant="outline"
+                          size="sm"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          onClick={() => removeDocument(doc.id)}
+                          variant="outline"
+                          size="sm"
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="analysis" className="space-y-6">
+          {/* Analysis Section */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Document Viewer */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <FileText className="h-5 w-5 text-blue-600" />
-                  Análise de Documentos Aguarda Dados
+                  <Eye className="w-5 h-5" />
+                  Visualizador de Arquivo
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-center py-8">
-                  <Bot className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">Aguardando Análise dos Assistentes</h3>
-                  <p className="text-gray-600 mb-6">
-                    As análises de documentos serão geradas após análises dos assistentes IA
-                  </p>
-                  <div className="text-left max-w-md mx-auto space-y-2 mb-6">
-                    <p className="text-sm text-gray-600">• Execute análises IA das suas conversas</p>
-                    <p className="text-sm text-gray-600">• Os assistentes analisarão padrões textuais</p>
-                    <p className="text-sm text-gray-600">• Relatórios de sentimento serão gerados</p>
-                  </div>
-                  <AIAnalysisButton />
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <PageHeader 
-        title="Análise de Documentos"
-        subtitle="Análise de sentimentos e insights de documentos"
-      >
-        <Badge className="bg-blue-100 text-blue-800">
-          🔮 {documentInsights.length} Análises dos Assistentes
-        </Badge>
-        <AIAnalysisButton />
-      </PageHeader>
-      
-      <div className="p-4 md:p-6">
-        <div className="max-w-6xl mx-auto space-y-6">
-
-          {/* Estatísticas Gerais */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <FileText className="h-5 w-5 text-blue-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Análises</p>
-                    <p className="text-2xl font-bold">{documentInsights.length}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                    <TrendingUp className="h-5 w-5 text-green-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Insights Positivos</p>
-                    <p className="text-2xl font-bold">{sentimentData.find(s => s.name === 'Positivo')?.value || 0}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                    <MessageSquare className="h-5 w-5 text-purple-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Tópicos</p>
-                    <p className="text-2xl font-bold">{topicsData.length}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
-                    <Bot className="h-5 w-5 text-orange-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Assistentes Ativos</p>
-                    <p className="text-2xl font-bold">{data.metrics.assistantsActive}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Abas de Análise */}
-          <Tabs defaultValue="overview" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="overview">Visão Geral</TabsTrigger>
-              <TabsTrigger value="insights">Insights</TabsTrigger>
-              <TabsTrigger value="topics">Tópicos</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="overview" className="space-y-6">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Análise de Sentimento */}
-                {sentimentData.length > 0 && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <PieChart className="h-5 w-5 text-blue-600" />
-                        Análise de Sentimento
-                      </CardTitle>
-                      <CardDescription>
-                        Distribuição baseada nos insights dos assistentes
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <ChartContainer config={{}} className="h-[200px]">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <RechartsPieChart>
-                            <Pie
-                              data={sentimentData}
-                              cx="50%"
-                              cy="50%"
-                              outerRadius={80}
-                              dataKey="value"
-                            >
-                              {sentimentData.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={entry.color} />
-                              ))}
-                            </Pie>
-                            <ChartTooltip content={<ChartTooltipContent />} />
-                          </RechartsPieChart>
-                        </ResponsiveContainer>
-                      </ChartContainer>
-                    </CardContent>
-                  </Card>
-                )}
-
-                {/* Distribuição de Tópicos */}
-                {topicsData.length > 0 && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <BarChart3 className="h-5 w-5 text-purple-600" />
-                        Tópicos Principais
-                      </CardTitle>
-                      <CardDescription>
-                        Áreas mais analisadas pelos assistentes
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <ChartContainer config={{}} className="h-[200px]">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={topicsData}>
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis dataKey="topic" />
-                            <YAxis />
-                            <ChartTooltip content={<ChartTooltipContent />} />
-                            <Bar dataKey="frequency" fill="#8884d8" />
-                          </BarChart>
-                        </ResponsiveContainer>
-                      </ChartContainer>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-            </TabsContent>
-
-            <TabsContent value="insights" className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Insights dos Assistentes</CardTitle>
-                  <CardDescription>
-                    Análises detalhadas baseadas nos documentos processados
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
+                {selectedDocument ? (
                   <div className="space-y-4">
-                    {documentInsights.map((insight) => (
-                      <div key={insight.id} className="p-4 bg-gray-50 rounded-lg border-l-4 border-l-blue-500">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-2">
-                              <Badge className="bg-blue-100 text-blue-800">
-                                {insight.assistantName}
-                              </Badge>
-                              <Badge variant="outline">
-                                {insight.assistantArea || insight.category}
-                              </Badge>
-                              <Badge className={
-                                insight.priority === 'high' ? 'bg-red-100 text-red-800' :
-                                insight.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                                'bg-green-100 text-green-800'
-                              }>
-                                {insight.priority === 'high' ? 'Alta' : insight.priority === 'medium' ? 'Média' : 'Baixa'} Prioridade
-                              </Badge>
-                            </div>
-                            <h4 className="font-semibold mb-1">{insight.title}</h4>
-                            <p className="text-sm text-gray-600">{insight.description}</p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="topics" className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Análise de Tópicos</CardTitle>
-                  <CardDescription>
-                    Temas mais frequentes identificados pelos assistentes
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {topicsData.map((topic, index) => (
-                      <div key={topic.topic} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold
-                            ${index === 0 ? 'bg-yellow-500' : index === 1 ? 'bg-gray-400' : index === 2 ? 'bg-orange-400' : 'bg-blue-500'}`}>
-                            {index + 1}
-                          </div>
-                          <div>
-                            <h4 className="font-semibold">{topic.topic}</h4>
-                            <p className="text-sm text-gray-600">{topic.frequency} menções</p>
-                          </div>
-                        </div>
+                    <div className="p-3 bg-gray-50 rounded-lg">
+                      <h3 className="font-medium text-gray-900 mb-2 flex items-center gap-2">
+                        {getFileIcon(selectedDocument.metadata.fileType)}
+                        {selectedDocument.metadata.fileName}
+                      </h3>
+                      <div className="flex flex-wrap gap-2 text-sm text-gray-600">
                         <Badge variant="outline">
-                          {Math.round((topic.frequency / documentInsights.length) * 100)}%
+                          {(selectedDocument.metadata.fileSize / 1024).toFixed(1)} KB
+                        </Badge>
+                        {selectedDocument.metadata.pageCount && (
+                          <Badge variant="outline">
+                            {selectedDocument.metadata.pageCount} página(s)
+                          </Badge>
+                        )}
+                        <Badge variant="outline">
+                          {selectedDocument.uploadDate.toLocaleDateString()}
+                        </Badge>
+                        <Badge variant="outline">
+                          {getFileTypeLabel(selectedDocument.metadata.fileType)}
                         </Badge>
                       </div>
-                    ))}
+                    </div>
+                    <div className="max-h-96 overflow-y-auto p-4 bg-white border rounded-lg">
+                      <pre className="whitespace-pre-wrap text-sm text-gray-700 font-mono">
+                        {selectedDocument.text}
+                      </pre>
+                    </div>
                   </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
-        </div>
-      </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <FileText className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                    <p className="text-gray-500">Selecione um arquivo para visualizar</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Analysis Results */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BarChart3 className="w-5 h-5" />
+                  Estatísticas do Arquivo
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {selectedDocument ? (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="p-3 bg-blue-50 rounded-lg">
+                        <p className="text-sm text-blue-600 font-medium">Caracteres</p>
+                        <p className="text-xl font-bold text-blue-900">
+                          {selectedDocument.text.length.toLocaleString()}
+                        </p>
+                      </div>
+                      <div className="p-3 bg-green-50 rounded-lg">
+                        <p className="text-sm text-green-600 font-medium">Palavras</p>
+                        <p className="text-xl font-bold text-green-900">
+                          {selectedDocument.text.split(/\s+/).length.toLocaleString()}
+                        </p>
+                      </div>
+                      <div className="p-3 bg-purple-50 rounded-lg">
+                        <p className="text-sm text-purple-600 font-medium">Tokens (est.)</p>
+                        <p className="text-xl font-bold text-purple-900">
+                          {Math.ceil(selectedDocument.text.length / 4).toLocaleString()}
+                        </p>
+                      </div>
+                      <div className="p-3 bg-orange-50 rounded-lg">
+                        <p className="text-sm text-orange-600 font-medium">Tamanho</p>
+                        <p className="text-xl font-bold text-orange-900">
+                          {(selectedDocument.metadata.fileSize / 1024).toFixed(1)} KB
+                        </p>
+                      </div>
+                    </div>
+
+                    {isOpenAIConfigured && (
+                      <Alert className="border-green-200 bg-green-50">
+                        <CheckCircle className="h-4 w-4 text-green-600" />
+                        <AlertDescription className="text-green-800">
+                          <strong>✅ Análise IA disponível:</strong> Use a aba "Análise IA" para análise completa.
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <BarChart3 className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                    <p className="text-gray-500">Selecione um arquivo para ver estatísticas</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="ai-analysis" className="space-y-6">
+          <DocumentAIAnalysis selectedDocument={selectedDocument} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

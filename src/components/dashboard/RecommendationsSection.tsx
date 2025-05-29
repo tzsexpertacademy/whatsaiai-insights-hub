@@ -62,14 +62,25 @@ export function RecommendationsSection() {
             <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
             <span className="ml-2 text-gray-500">Carregando recomendações dos assistentes...</span>
           </div>
-        ) : !data.hasRealData || !data.recommendationsWithAssistant || data.recommendationsWithAssistant.length === 0 ? (
+        ) : !data.hasRealData ? (
           <div className="flex items-center justify-center py-8 text-center">
             <div>
-              <Bot className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+              <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-3" />
               <p className="text-gray-500 text-sm">
                 Nenhuma recomendação disponível ainda.
                 <br />
                 Configure assistentes e execute a análise por IA.
+              </p>
+            </div>
+          </div>
+        ) : data.recommendations.length === 0 ? (
+          <div className="flex items-center justify-center py-8 text-center">
+            <div>
+              <Bot className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+              <p className="text-gray-500 text-sm">
+                Assistentes processando recomendações...
+                <br />
+                Execute "Atualizar com IA" para gerar sugestões.
               </p>
             </div>
           </div>

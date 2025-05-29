@@ -11,7 +11,6 @@ import { InsightsAlerts } from '@/components/dashboard/InsightsAlerts';
 import { RecommendationsSection } from '@/components/dashboard/RecommendationsSection';
 import { AIAnalysisButton } from '@/components/AIAnalysisButton';
 import { useAnalysisData } from '@/contexts/AnalysisDataContext';
-import { PageHeader } from '@/components/PageHeader';
 
 export function InsightsDashboard() {
   const { user } = useAuth();
@@ -25,42 +24,44 @@ export function InsightsDashboard() {
   });
   
   return (
-    <div className="min-h-screen bg-gray-50">
-      <PageHeader 
-        title="YumerMind da Consciência"
-        subtitle="Um espelho da sua mente, comportamentos e evolução pessoal"
-      >
-        <Badge className="bg-purple-100 text-purple-800">
-          🔮 {data.metrics.assistantsActive} Assistentes Ativos
-        </Badge>
-        <Badge className="bg-blue-100 text-blue-800">
-          📊 {data.insightsWithAssistant?.length || 0} Insights Gerados
-        </Badge>
-        <AIAnalysisButton />
-      </PageHeader>
-
-      <div className="p-4 md:p-6 space-y-6">
-        {/* Métricas principais */}
-        <MetricCards />
-
-        {/* Mapa de Áreas da Vida e Termômetro Emocional */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-          <LifeAreasMap />
-          <EmotionalChart />
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-800 mb-2">YumerMind da Consciência</h1>
+          <p className="text-slate-600 text-sm sm:text-base">Um espelho da sua mente, comportamentos e evolução pessoal</p>
         </div>
-
-        {/* Perfil Psicológico */}
-        <PsychologicalProfile />
-
-        {/* Habilidades e Desenvolvimento */}
-        <SkillsCards />
-
-        {/* Insights e alertas */}
-        <InsightsAlerts />
-
-        {/* Recomendações */}
-        <RecommendationsSection />
+        
+        <div className="flex flex-wrap items-center gap-3">
+          <Badge className="bg-purple-100 text-purple-800">
+            🔮 {data.metrics.assistantsActive} Assistentes Ativos
+          </Badge>
+          <Badge className="bg-blue-100 text-blue-800">
+            📊 {data.insightsWithAssistant?.length || 0} Insights Gerados
+          </Badge>
+          <AIAnalysisButton />
+        </div>
       </div>
+
+      {/* Métricas principais */}
+      <MetricCards />
+
+      {/* Mapa de Áreas da Vida e Termômetro Emocional */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+        <LifeAreasMap />
+        <EmotionalChart />
+      </div>
+
+      {/* Perfil Psicológico */}
+      <PsychologicalProfile />
+
+      {/* Habilidades e Desenvolvimento */}
+      <SkillsCards />
+
+      {/* Insights e alertas */}
+      <InsightsAlerts />
+
+      {/* Recomendações */}
+      <RecommendationsSection />
     </div>
   );
 }
