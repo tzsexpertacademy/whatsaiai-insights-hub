@@ -17,13 +17,10 @@ import {
   Download,
   Trash2,
   Eye,
-  Brain,
-  BarChart3,
-  Zap
+  BarChart3
 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { parseDocument, type ParsedDocument } from '@/utils/documentParser';
-import { useAIReportUpdate } from '@/hooks/useAIReportUpdate';
 import { useClientConfig } from '@/contexts/ClientConfigContext';
 
 interface UploadedDocument extends ParsedDocument {
@@ -37,7 +34,6 @@ export function DocumentAnalysis() {
   const [selectedDocument, setSelectedDocument] = useState<UploadedDocument | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
-  const { updateReport, isUpdating } = useAIReportUpdate();
   const { config } = useClientConfig();
 
   // Verificar se OpenAI está configurada
@@ -136,31 +132,6 @@ export function DocumentAnalysis() {
         <p className="text-lg text-gray-600 max-w-2xl mx-auto">
           Faça upload e analise documentos em diversos formatos para extrair insights valiosos
         </p>
-
-        {/* Botão de Atualizar Relatórios com IA */}
-        {isOpenAIConfigured && (
-          <div className="flex justify-center pt-4">
-            <Button
-              onClick={updateReport}
-              disabled={isUpdating}
-              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg"
-            >
-              {isUpdating ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Analisando conversas com IA...
-                </>
-              ) : (
-                <>
-                  <Brain className="w-4 h-4 mr-2" />
-                  <BarChart3 className="w-3 h-3 mr-1" />
-                  <Zap className="w-3 h-3 mr-1" />
-                  Atualizar Todos os Relatórios com IA
-                </>
-              )}
-            </Button>
-          </div>
-        )}
       </div>
 
       {/* Status da Conexão OpenAI */}

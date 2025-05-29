@@ -12,15 +12,17 @@ import { SkillsCards } from '@/components/dashboard/SkillsCards';
 import { InsightsAlerts } from '@/components/dashboard/InsightsAlerts';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { MessageSquare, Brain, Sparkles, Settings, BarChart3 } from 'lucide-react';
+import { MessageSquare, Brain, Sparkles, Settings, BarChart3, Loader2, Zap } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useClientConfig } from '@/contexts/ClientConfigContext';
+import { useAIReportUpdate } from '@/hooks/useAIReportUpdate';
 
 export function DashboardMain() {
   const { isFirstVisit, completed, showDemo } = useOnboarding();
   const { data, isLoading } = useAnalysisData();
   const { config } = useClientConfig();
   const navigate = useNavigate();
+  const { updateReport, isUpdating } = useAIReportUpdate();
 
   console.log('📊 DashboardMain - Estado atual:', {
     isFirstVisit,
@@ -77,6 +79,31 @@ export function DashboardMain() {
               <p className="text-lg text-gray-600 max-w-2xl mx-auto">
                 Sua plataforma de análise comportamental está configurada e pronta para uso!
               </p>
+
+              {/* Botão de Atualizar Relatórios com IA */}
+              {isOpenAIConfigured && (
+                <div className="flex justify-center pt-4">
+                  <Button
+                    onClick={updateReport}
+                    disabled={isUpdating}
+                    className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg"
+                  >
+                    {isUpdating ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Analisando conversas com IA...
+                      </>
+                    ) : (
+                      <>
+                        <Brain className="w-4 h-4 mr-2" />
+                        <BarChart3 className="w-3 h-3 mr-1" />
+                        <Zap className="w-3 h-3 mr-1" />
+                        Atualizar Todos os Relatórios com IA
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
             </div>
 
             {/* Status das Configurações */}
@@ -203,10 +230,35 @@ export function DashboardMain() {
       <DashboardHeader />
       <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="space-y-6">
-          {/* Header com dados */}
-          <div className="text-center space-y-2 mb-8">
+          {/* Header com dados e botão de atualização */}
+          <div className="text-center space-y-4 mb-8">
             <h1 className="text-3xl font-bold text-gray-900">Dashboard Completo</h1>
             <p className="text-gray-600">Análises comportamentais baseadas em suas conversas</p>
+            
+            {/* Botão de Atualizar Relatórios com IA */}
+            {isOpenAIConfigured && (
+              <div className="flex justify-center pt-4">
+                <Button
+                  onClick={updateReport}
+                  disabled={isUpdating}
+                  className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg"
+                >
+                  {isUpdating ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Analisando conversas com IA...
+                    </>
+                  ) : (
+                    <>
+                      <Brain className="w-4 h-4 mr-2" />
+                      <BarChart3 className="w-3 h-3 mr-1" />
+                      <Zap className="w-3 h-3 mr-1" />
+                      Atualizar Todos os Relatórios com IA
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
           </div>
 
           {/* Métricas principais */}
