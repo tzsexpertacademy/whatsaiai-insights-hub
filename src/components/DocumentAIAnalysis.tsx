@@ -4,11 +4,19 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { AIAnalysisSelector } from '@/components/AIAnalysisSelector';
 import { CostEstimator } from '@/components/CostEstimator';
 import { useClientConfig } from '@/contexts/ClientConfigContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { useAssistantsConfig } from '@/hooks/useAssistantsConfig';
 import { 
   Brain, 
   Send, 
@@ -16,7 +24,8 @@ import {
   User, 
   Bot,
   FileText,
-  Calculator
+  Calculator,
+  MessageSquare
 } from 'lucide-react';
 
 interface Message {
@@ -53,11 +62,16 @@ export function DocumentAIAnalysis({ selectedDocument }: DocumentAIAnalysisProps
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<string | null>(null);
   const [showCostCalculator, setShowCostCalculator] = useState(false);
+  const [selectedAssistant, setSelectedAssistant] = useState<string>('');
   const { config } = useClientConfig();
   const { user } = useAuth();
   const { toast } = useToast();
+  const { assistants } = useAssistantsConfig();
 
   const isOpenAIConfigured = config.openai?.apiKey && config.openai.apiKey.startsWith('sk-');
+
+  // Filtrar apenas assistentes ativos
+  const activeAssistants = assistants.filter(assistant => assistant.isActive);
 
   // Estimar tokens baseado no texto (aproximadamente 4 caracteres por token)
   const estimateTokens = (text: string): number => {
@@ -74,22 +88,53 @@ export function DocumentAIAnalysis({ selectedDocument }: DocumentAIAnalysisProps
       return;
     }
 
+    if (!selectedAssistant) {
+      toast({
+        title: "Erro",
+        description: "Selecione um assistente para fazer a análise",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Verificar se o documento tem conteúdo válido
+    if (!selectedDocument.text || selectedDocument.text.length < 50) {
+      toast({
+        title: "Documento sem conteúdo",
+        description: "O documento não contém texto suficiente para análise. Verifique se o arquivo foi processado corretamente.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setIsAnalyzing(true);
     
     try {
-      const systemPrompt = `Você é um especialista em análise de documentos. Analise o documento fornecido e forneça insights detalhados baseados no tipo de análise solicitado:
+      const assistant = activeAssistants.find(a => a.id === selectedAssistant);
+      if (!assistant) {
+        throw new Error('Assistente não encontrado');
+      }
 
-TIPO DE ANÁLISE: ${analysisConfig.type}
-- Micro (50-100 tokens): Resumo ultra conciso
-- Simples (100-250 tokens): Resumo básico com pontos principais
-- Completa (250-500 tokens): Análise equilibrada com insights
-- Detalhada (500-800 tokens): Análise profunda e completa
+      const systemPrompt = `${assistant.prompt}
 
-INSTRUÇÕES:
-- Responda sempre em português brasileiro
-- Foque nos aspectos mais importantes do documento
+CONTEXTO DE ANÁLISE DE DOCUMENTO:
+- Você é o assistente "${assistant.name}" especializado em "${assistant.area}"
+- Sua função é analisar documentos e fornecer insights na sua área de especialização
+- Tipo de análise solicitado: ${analysisConfig.type}
+
+DIRETRIZES DE ANÁLISE:
+- Micro (50-100 tokens): Resumo ultra conciso e direto
+- Simples (100-250 tokens): Resumo básico com pontos principais  
+- Completa (250-500 tokens): Análise equilibrada com insights práticos
+- Detalhada (500-800 tokens): Análise profunda e completa com recomendações
+
+INSTRUÇÕES ESPECÍFICAS:
+- Analise o documento do ponto de vista da sua especialização
+- Identifique os pontos mais relevantes para sua área
 - Forneça insights práticos e acionáveis
 - Mantenha o limite de tokens para o tipo de análise selecionado
+- Responda sempre em português brasileiro
+- Seja objetivo e construtivo
 
 DOCUMENTO PARA ANÁLISE:
 Arquivo: ${selectedDocument.metadata.fileName}
@@ -137,7 +182,7 @@ ${selectedDocument.text}`;
         
         toast({
           title: "✅ Análise concluída",
-          description: `Documento analisado com sucesso (${analysisConfig.type})`,
+          description: `Documento analisado por ${assistant.name} (${analysisConfig.type})`,
         });
       }
 
@@ -154,7 +199,10 @@ ${selectedDocument.text}`;
   };
 
   const handleSendMessage = async () => {
-    if (!input.trim() || !analysisResult || !isOpenAIConfigured) return;
+    if (!input.trim() || !analysisResult || !isOpenAIConfigured || !selectedAssistant) return;
+
+    const assistant = activeAssistants.find(a => a.id === selectedAssistant);
+    if (!assistant) return;
 
     const userMessage: Message = {
       id: Date.now().toString() + '-user',
@@ -169,12 +217,17 @@ ${selectedDocument.text}`;
 
     try {
       const conversationContext = messages.map(m => 
-        `${m.sender === 'user' ? 'Usuário' : 'Assistente'}: ${m.text}`
+        `${m.sender === 'user' ? 'Usuário' : assistant.name}: ${m.text}`
       ).join('\n\n');
 
-      const systemPrompt = `Você é um assistente especializado em análise de documentos. Você já analisou um documento e agora está conversando com o usuário sobre essa análise.
+      const systemPrompt = `${assistant.prompt}
 
-CONTEXTO DA ANÁLISE ANTERIOR:
+CONTEXTO DA CONVERSA:
+- Você é o assistente "${assistant.name}" especializado em "${assistant.area}"
+- Você já analisou um documento e agora está conversando com o usuário sobre essa análise
+- Mantenha o foco na sua área de especialização
+
+ANÁLISE ANTERIOR REALIZADA:
 ${analysisResult}
 
 DOCUMENTO ANALISADO:
@@ -187,7 +240,7 @@ ${conversationContext}
 INSTRUÇÕES:
 - Responda perguntas sobre a análise realizada
 - Forneça esclarecimentos e detalhamentos quando solicitado
-- Mantenha o foco no documento analisado
+- Mantenha o foco no documento analisado e na sua área de especialização
 - Seja objetivo e útil
 - Responda sempre em português brasileiro
 - Máximo 300 palavras por resposta`;
@@ -253,6 +306,46 @@ INSTRUÇÕES:
 
   return (
     <div className="space-y-6">
+      {/* Seletor de Assistente */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <MessageSquare className="h-5 w-5" />
+            Escolher Assistente para Análise
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Selecione o assistente especializado:</label>
+            <Select value={selectedAssistant} onValueChange={setSelectedAssistant}>
+              <SelectTrigger>
+                <SelectValue placeholder="Escolha um assistente para fazer a análise" />
+              </SelectTrigger>
+              <SelectContent className="bg-white">
+                {activeAssistants.map((assistant) => (
+                  <SelectItem key={assistant.id} value={assistant.id}>
+                    <div className="flex items-center gap-2">
+                      <span>{assistant.icon}</span>
+                      <div className="flex flex-col">
+                        <span className="font-medium">{assistant.name}</span>
+                        <span className="text-xs text-gray-500">
+                          Especialista em {assistant.area}
+                        </span>
+                      </div>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {selectedAssistant && (
+              <p className="text-sm text-green-600 mt-2">
+                ✅ {activeAssistants.find(a => a.id === selectedAssistant)?.name} selecionado
+              </p>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Seletor de Análise */}
       <AIAnalysisSelector 
         onAnalyze={handleAnalyzeDocument}
@@ -281,12 +374,12 @@ INSTRUÇÕES:
       )}
 
       {/* Área de Chat com o Assistente */}
-      {analysisResult && (
+      {analysisResult && selectedAssistant && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Brain className="w-5 h-5" />
-              Chat sobre a Análise
+              Chat com {activeAssistants.find(a => a.id === selectedAssistant)?.name}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
