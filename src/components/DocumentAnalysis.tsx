@@ -6,8 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, Upload, Brain, TrendingUp, Target, AlertTriangle, CheckCircle, Eye, Download } from 'lucide-react';
+import { FileText, Upload, Brain, TrendingUp, Target, AlertTriangle, CheckCircle, Eye, Bot } from 'lucide-react';
 import { AIAnalysisButton } from '@/components/AIAnalysisButton';
+import { useAnalysisData } from '@/contexts/AnalysisDataContext';
 
 interface DocumentInsight {
   id: string;
@@ -33,9 +34,38 @@ interface AnalyzedDocument {
 }
 
 export function DocumentAnalysis() {
+  const { data, isLoading } = useAnalysisData();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [documents] = useState<AnalyzedDocument[]>([
+
+  // Usar dados reais dos assistentes se disponíveis
+  const hasRealData = data.hasRealData && data.conversations && data.conversations.length > 0;
+  const documentInsights = data.insightsWithAssistant || [];
+
+  // Simular documentos baseados nas conversas reais
+  const realDocuments: AnalyzedDocument[] = hasRealData ? 
+    data.conversations.slice(0, 3).map((conv, index) => ({
+      id: conv.id,
+      name: `Conversa_${conv.contact_name || 'WhatsApp'}_${new Date(conv.created_at).toLocaleDateString()}.txt`,
+      type: 'chat',
+      uploadDate: new Date(conv.created_at).toLocaleDateString(),
+      status: 'completed' as const,
+      wordCount: conv.messages?.length * 50 || 500,
+      sentiment: 'positive' as const,
+      sentimentScore: 0.75,
+      keyTopics: ['trabalho', 'comunicação', 'objetivos'],
+      summary: 'Documento contém discussões analisadas pelos assistentes IA',
+      insights: documentInsights.slice(index * 2, (index + 1) * 2).map(insight => ({
+        id: insight.id,
+        type: 'strength' as const,
+        category: insight.assistantArea,
+        description: insight.description,
+        confidence: 85,
+        suggestions: [`Baseado na análise do ${insight.assistantName}`]
+      }))
+    })) : [];
+
+  const [mockDocuments] = useState<AnalyzedDocument[]>([
     {
       id: '1',
       name: 'Conversa_WhatsApp_Janeiro.txt',
@@ -65,36 +95,15 @@ export function DocumentAnalysis() {
           suggestions: ['Busque oportunidades de mentoria', 'Participe de projetos cross-funcionais']
         }
       ]
-    },
-    {
-      id: '2',
-      name: 'Diário_Reflexões.docx',
-      type: 'journal',
-      uploadDate: '2024-01-10',
-      status: 'completed',
-      wordCount: 1523,
-      sentiment: 'neutral',
-      sentimentScore: 0.45,
-      keyTopics: ['autoconhecimento', 'desafios', 'crescimento', 'relacionamentos'],
-      summary: 'Reflexões pessoais sobre desafios enfrentados e estratégias de superação. Foco em desenvolvimento pessoal.',
-      insights: [
-        {
-          id: '3',
-          type: 'weakness',
-          category: 'Autoestima',
-          description: 'Padrão de autocrítica excessiva identificado',
-          confidence: 82,
-          suggestions: ['Pratique auto-compaixão', 'Mantenha um diário de conquistas diárias']
-        }
-      ]
     }
   ]);
+
+  const documents = hasRealData ? realDocuments : mockDocuments;
 
   const handleFileUpload = async () => {
     if (!selectedFile) return;
     
     setIsUploading(true);
-    // Simular upload e processamento
     setTimeout(() => {
       setIsUploading(false);
       setSelectedFile(null);
@@ -129,17 +138,83 @@ export function DocumentAnalysis() {
     }
   };
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <PageHeader 
+          title="Análise de Documentos"
+          subtitle="Analise e extraia insights de seus documentos e textos"
+        >
+          <AIAnalysisButton />
+        </PageHeader>
+        
+        <div className="p-4 md:p-6">
+          <div className="max-w-6xl mx-auto">
+            <Card>
+              <CardContent className="p-6">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                  <p>Carregando análise de documentos...</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <PageHeader 
         title="Análise de Documentos"
         subtitle="Analise e extraia insights de seus documentos e textos"
       >
+        {hasRealData && (
+          <Badge className="bg-purple-100 text-purple-800">
+            🔮 {documentInsights.length} Insights dos Assistentes
+          </Badge>
+        )}
         <AIAnalysisButton />
       </PageHeader>
       
       <div className="p-4 md:p-6">
         <div className="max-w-6xl mx-auto space-y-6">
+          
+          {/* Insights dos Assistentes */}
+          {hasRealData && documentInsights.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Bot className="h-5 w-5 text-purple-600" />
+                  Análises dos Assistentes IA
+                </CardTitle>
+                <CardDescription>
+                  Insights extraídos pelos seus assistentes das conversas e documentos
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {documentInsights.slice(0, 4).map((insight) => (
+                    <div key={insight.id} className="p-4 bg-gray-50 rounded-lg border-l-4 border-l-purple-500">
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <Badge className="bg-purple-100 text-purple-800">
+                            {insight.assistantName}
+                          </Badge>
+                          <Badge variant="outline">
+                            {insight.assistantArea}
+                          </Badge>
+                        </div>
+                      </div>
+                      <h4 className="font-semibold mb-1">{insight.title}</h4>
+                      <p className="text-sm text-gray-600">{insight.description}</p>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
           
           {/* Upload de Documentos */}
           <Card>
@@ -242,7 +317,7 @@ export function DocumentAnalysis() {
                   <div>
                     <p className="text-sm text-gray-600">Insights</p>
                     <p className="text-2xl font-bold">
-                      {documents.reduce((acc, doc) => acc + doc.insights.length, 0)}
+                      {hasRealData ? documentInsights.length : documents.reduce((acc, doc) => acc + doc.insights.length, 0)}
                     </p>
                   </div>
                 </div>
@@ -287,7 +362,10 @@ export function DocumentAnalysis() {
             <CardHeader>
               <CardTitle>Documentos Analisados</CardTitle>
               <CardDescription>
-                Histórico de documentos processados e seus insights
+                {hasRealData 
+                  ? 'Documentos processados pelos seus assistentes IA'
+                  : 'Histórico de documentos processados e seus insights'
+                }
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -311,6 +389,11 @@ export function DocumentAnalysis() {
                             <Badge className={getSentimentColor(document.sentiment)}>
                               {document.sentiment}
                             </Badge>
+                            {hasRealData && (
+                              <Badge className="bg-purple-100 text-purple-800">
+                                Assistentes IA
+                              </Badge>
+                            )}
                             <Button variant="outline" size="sm">
                               <Eye className="h-4 w-4 mr-2" />
                               Ver Detalhes

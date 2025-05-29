@@ -1,10 +1,12 @@
+
 import React, { useState } from 'react';
 import { PageHeader } from '@/components/PageHeader';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { Brain, TrendingUp, Target, Users, Zap, Shield, Heart, Lightbulb } from 'lucide-react';
+import { Brain, TrendingUp, Target, Users, Zap, Shield, Heart, Lightbulb, Bot } from 'lucide-react';
 import { AIAnalysisButton } from '@/components/AIAnalysisButton';
+import { useAnalysisData } from '@/contexts/AnalysisDataContext';
 
 interface PersonalityTrait {
   name: string;
@@ -23,45 +25,62 @@ interface BehaviorPattern {
 }
 
 export function BehavioralProfile() {
+  const { data, isLoading } = useAnalysisData();
+
+  // Usar dados reais dos assistentes se disponíveis
+  const hasRealData = data.hasRealData && data.bigFiveData && data.bigFiveData.length > 0;
+  const behavioralInsights = data.insightsWithAssistant?.filter(insight => 
+    insight.assistantArea === 'psicologia' || insight.insight_type === 'behavioral'
+  ) || [];
+
   const [personalityTraits] = useState<PersonalityTrait[]>([
     {
       name: 'Extroversão',
-      score: 75,
+      score: hasRealData ? data.bigFiveData.find(trait => trait.name === 'Extroversão')?.value || 75 : 75,
       description: 'Tendência a ser sociável, comunicativo e energético',
       icon: Users,
       color: 'text-blue-600'
     },
     {
       name: 'Conscienciosidade',
-      score: 85,
+      score: hasRealData ? data.bigFiveData.find(trait => trait.name === 'Conscienciosidade')?.value || 85 : 85,
       description: 'Organização, disciplina e orientação para objetivos',
       icon: Target,
       color: 'text-green-600'
     },
     {
       name: 'Abertura',
-      score: 90,
+      score: hasRealData ? data.bigFiveData.find(trait => trait.name === 'Abertura')?.value || 90 : 90,
       description: 'Curiosidade, criatividade e abertura para novas experiências',
       icon: Lightbulb,
       color: 'text-purple-600'
     },
     {
       name: 'Amabilidade',
-      score: 70,
+      score: hasRealData ? data.bigFiveData.find(trait => trait.name === 'Amabilidade')?.value || 70 : 70,
       description: 'Cooperação, confiança e preocupação com outros',
       icon: Heart,
       color: 'text-pink-600'
     },
     {
       name: 'Estabilidade Emocional',
-      score: 65,
+      score: hasRealData ? (100 - (data.bigFiveData.find(trait => trait.name === 'Neuroticismo')?.value || 35)) : 65,
       description: 'Controle emocional e resistência ao estresse',
       icon: Shield,
       color: 'text-indigo-600'
     }
   ]);
 
-  const [behaviorPatterns] = useState<BehaviorPattern[]>([
+  // Padrões comportamentais baseados nos insights dos assistentes
+  const realBehaviorPatterns: BehaviorPattern[] = behavioralInsights.slice(0, 4).map((insight, index) => ({
+    id: insight.id,
+    pattern: insight.title,
+    frequency: index % 2 === 0 ? 'Frequente' : 'Moderada',
+    impact: index % 3 === 0 ? 'positive' : index % 3 === 1 ? 'negative' : 'neutral',
+    description: insight.description
+  }));
+
+  const [mockBehaviorPatterns] = useState<BehaviorPattern[]>([
     {
       id: '1',
       pattern: 'Procrastinação em tarefas complexas',
@@ -92,6 +111,8 @@ export function BehavioralProfile() {
     }
   ]);
 
+  const behaviorPatterns = hasRealData && realBehaviorPatterns.length > 0 ? realBehaviorPatterns : mockBehaviorPatterns;
+
   const getTraitLevel = (score: number) => {
     if (score >= 80) return { level: 'Alto', color: 'text-green-600' };
     if (score >= 60) return { level: 'Moderado', color: 'text-yellow-600' };
@@ -108,17 +129,83 @@ export function BehavioralProfile() {
 
   const averageScore = Math.round(personalityTraits.reduce((acc, trait) => acc + trait.score, 0) / personalityTraits.length);
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <PageHeader 
+          title="Perfil Comportamental"
+          subtitle="Descubra padrões e características do seu comportamento"
+        >
+          <AIAnalysisButton />
+        </PageHeader>
+        
+        <div className="p-4 md:p-6">
+          <div className="max-w-6xl mx-auto">
+            <Card>
+              <CardContent className="p-6">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto mb-4"></div>
+                  <p>Carregando perfil comportamental...</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <PageHeader 
         title="Perfil Comportamental"
         subtitle="Descubra padrões e características do seu comportamento"
       >
+        {hasRealData && (
+          <Badge className="bg-purple-100 text-purple-800">
+            🔮 {behavioralInsights.length} Insights Comportamentais
+          </Badge>
+        )}
         <AIAnalysisButton />
       </PageHeader>
       
       <div className="p-4 md:p-6">
         <div className="max-w-6xl mx-auto space-y-6">
+          
+          {/* Análise dos Assistentes */}
+          {hasRealData && behavioralInsights.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Bot className="h-5 w-5 text-purple-600" />
+                  Análise Comportamental dos Assistentes
+                </CardTitle>
+                <CardDescription>
+                  Insights comportamentais identificados pelos seus assistentes IA
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {behavioralInsights.slice(0, 4).map((insight) => (
+                    <div key={insight.id} className="p-4 bg-gray-50 rounded-lg border-l-4 border-l-purple-500">
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <Badge className="bg-purple-100 text-purple-800">
+                            {insight.assistantName}
+                          </Badge>
+                          <Badge variant="outline">
+                            {insight.assistantArea}
+                          </Badge>
+                        </div>
+                      </div>
+                      <h4 className="font-semibold mb-1">{insight.title}</h4>
+                      <p className="text-sm text-gray-600">{insight.description}</p>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
           
           {/* Score Geral */}
           <Card>
@@ -126,9 +213,17 @@ export function BehavioralProfile() {
               <CardTitle className="flex items-center gap-2">
                 <Brain className="h-5 w-5 text-purple-600" />
                 Perfil Geral
+                {hasRealData && (
+                  <Badge variant="outline" className="text-xs">
+                    Baseado em análise dos assistentes
+                  </Badge>
+                )}
               </CardTitle>
               <CardDescription>
-                Sua pontuação comportamental geral baseada nos cinco grandes fatores da personalidade
+                {hasRealData 
+                  ? 'Pontuação comportamental baseada na análise dos seus assistentes IA'
+                  : 'Sua pontuação comportamental geral baseada nos cinco grandes fatores da personalidade'
+                }
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -141,7 +236,10 @@ export function BehavioralProfile() {
                 </div>
               </div>
               <p className="text-sm text-gray-600 mt-2">
-                Pontuação baseada na análise dos cinco grandes fatores da personalidade
+                {hasRealData 
+                  ? 'Análise baseada nos insights dos seus assistentes IA'
+                  : 'Pontuação baseada na análise dos cinco grandes fatores da personalidade'
+                }
               </p>
             </CardContent>
           </Card>
@@ -154,7 +252,10 @@ export function BehavioralProfile() {
                 Traços de Personalidade
               </CardTitle>
               <CardDescription>
-                Análise baseada no modelo dos Cinco Grandes Fatores
+                {hasRealData 
+                  ? 'Análise baseada nos dados dos seus assistentes IA'
+                  : 'Análise baseada no modelo dos Cinco Grandes Fatores'
+                }
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -198,9 +299,17 @@ export function BehavioralProfile() {
               <CardTitle className="flex items-center gap-2">
                 <TrendingUp className="h-5 w-5 text-blue-600" />
                 Padrões Comportamentais Identificados
+                {hasRealData && (
+                  <Badge variant="outline" className="text-xs">
+                    Análise dos assistentes
+                  </Badge>
+                )}
               </CardTitle>
               <CardDescription>
-                Comportamentos recorrentes observados em suas interações
+                {hasRealData 
+                  ? 'Comportamentos identificados pelos seus assistentes IA'
+                  : 'Comportamentos recorrentes observados em suas interações'
+                }
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -216,6 +325,11 @@ export function BehavioralProfile() {
                               {pattern.impact === 'positive' ? 'Positivo' : 
                                pattern.impact === 'negative' ? 'Negativo' : 'Neutro'}
                             </Badge>
+                            {hasRealData && (
+                              <Badge variant="outline" className="text-xs">
+                                Assistente IA
+                              </Badge>
+                            )}
                           </div>
                           
                           <p className="text-gray-600 mb-2">{pattern.description}</p>

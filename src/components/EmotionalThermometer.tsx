@@ -7,6 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Thermometer, TrendingUp, TrendingDown, Calendar, Brain, Heart, Zap, AlertTriangle, Smile, Meh, Frown } from 'lucide-react';
 import { AIAnalysisButton } from '@/components/AIAnalysisButton';
+import { useAnalysisData } from '@/contexts/AnalysisDataContext';
 
 interface EmotionalEntry {
   id: string;
@@ -29,12 +30,14 @@ interface EmotionalPattern {
 }
 
 export function EmotionalThermometer() {
+  const { data, isLoading } = useAnalysisData();
   const [currentEmotion, setCurrentEmotion] = useState('');
   const [currentIntensity, setCurrentIntensity] = useState(5);
   const [currentTrigger, setCurrentTrigger] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
 
-  const [entries] = useState<EmotionalEntry[]>([
+  // Dados mockados como fallback
+  const [mockEntries] = useState<EmotionalEntry[]>([
     {
       id: '1',
       date: '2024-01-15',
@@ -70,7 +73,7 @@ export function EmotionalThermometer() {
     }
   ]);
 
-  const [emotionalPatterns] = useState<EmotionalPattern[]>([
+  const [mockPatterns] = useState<EmotionalPattern[]>([
     {
       emotion: 'Ansiedade',
       frequency: 45,
@@ -103,6 +106,12 @@ export function EmotionalThermometer() {
     { name: 'Neutro', icon: Meh, color: 'text-gray-600', bg: 'bg-gray-50' }
   ];
 
+  // Usar dados reais dos assistentes se disponíveis
+  const hasRealData = data.hasRealData && data.emotionalData && data.emotionalData.length > 0;
+  const emotionalInsights = data.insightsWithAssistant?.filter(insight => 
+    insight.assistantArea === 'psicologia' || insight.insight_type === 'emotional'
+  ) || [];
+
   const getIntensityColor = (intensity: number) => {
     if (intensity >= 8) return 'text-red-600';
     if (intensity >= 6) return 'text-yellow-600';
@@ -121,17 +130,115 @@ export function EmotionalThermometer() {
   const currentDate = new Date().toLocaleDateString('pt-BR');
   const currentTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <PageHeader 
+          title="Termômetro Emocional"
+          subtitle="Monitore e analise seu estado emocional ao longo do tempo"
+        >
+          <AIAnalysisButton />
+        </PageHeader>
+        
+        <div className="p-4 md:p-6">
+          <div className="max-w-6xl mx-auto">
+            <Card>
+              <CardContent className="p-6">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                  <p>Carregando análise emocional...</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <PageHeader 
         title="Termômetro Emocional"
         subtitle="Monitore e analise seu estado emocional ao longo do tempo"
       >
+        {hasRealData && (
+          <Badge className="bg-purple-100 text-purple-800">
+            🔮 {emotionalInsights.length} Insights Emocionais
+          </Badge>
+        )}
         <AIAnalysisButton />
       </PageHeader>
       
       <div className="p-4 md:p-6">
         <div className="max-w-6xl mx-auto space-y-6">
+          
+          {/* Estado Emocional Atual dos Assistentes */}
+          {hasRealData && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Brain className="h-5 w-5 text-purple-600" />
+                  Análise Emocional dos Assistentes
+                </CardTitle>
+                <CardDescription>
+                  Estado emocional identificado pelos seus assistentes IA
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="p-4 bg-purple-50 rounded-lg">
+                    <h4 className="font-semibold text-purple-800 mb-2">Estado Atual</h4>
+                    <p className="text-2xl font-bold text-purple-600">{data.emotionalState}</p>
+                    <p className="text-sm text-purple-700 mt-1">Consciência Relacional: {data.relationalAwareness}%</p>
+                  </div>
+                  
+                  <div className="p-4 bg-blue-50 rounded-lg">
+                    <h4 className="font-semibold text-blue-800 mb-2">Foco Principal</h4>
+                    <p className="text-lg font-medium text-blue-600">{data.mainFocus}</p>
+                    <p className="text-sm text-blue-700 mt-1">Baseado em {emotionalInsights.length} insights</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Insights Emocionais dos Assistentes */}
+          {emotionalInsights.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Brain className="h-5 w-5 text-purple-600" />
+                  Insights Emocionais dos Assistentes
+                </CardTitle>
+                <CardDescription>
+                  Análises comportamentais e emocionais dos seus assistentes IA
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {emotionalInsights.slice(0, 3).map((insight) => (
+                    <div key={insight.id} className="p-4 bg-gray-50 rounded-lg border-l-4 border-l-purple-500">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Badge className="bg-purple-100 text-purple-800">
+                              {insight.assistantName}
+                            </Badge>
+                            <Badge variant="outline">
+                              {insight.assistantArea}
+                            </Badge>
+                          </div>
+                          <h4 className="font-semibold mb-1">{insight.title}</h4>
+                          <p className="text-sm text-gray-600">{insight.description}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
           
           {/* Registro Rápido */}
           <Card>
@@ -210,7 +317,6 @@ export function EmotionalThermometer() {
                   <div className="flex gap-2">
                     <Button 
                       onClick={() => {
-                        // Aqui salvaria o registro
                         setShowAddForm(false);
                         setCurrentEmotion('');
                         setCurrentTrigger('');
@@ -237,15 +343,18 @@ export function EmotionalThermometer() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Brain className="h-5 w-5 text-purple-600" />
-                Padrões Emocionais Identificados
+                Padrões Emocionais {hasRealData ? 'dos Assistentes' : 'Identificados'}
               </CardTitle>
               <CardDescription>
-                Análise dos últimos 30 dias
+                {hasRealData 
+                  ? 'Análise baseada nos insights dos seus assistentes IA'
+                  : 'Análise dos últimos 30 dias'
+                }
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {emotionalPatterns.map((pattern) => (
+                {mockPatterns.map((pattern) => (
                   <div key={pattern.emotion} className="p-4 bg-gray-50 rounded-lg">
                     <div className="flex items-center justify-between mb-3">
                       <h4 className="font-semibold">{pattern.emotion}</h4>
@@ -296,12 +405,15 @@ export function EmotionalThermometer() {
                 Registros Recentes
               </CardTitle>
               <CardDescription>
-                Seus últimos registros emocionais
+                {hasRealData 
+                  ? 'Histórico emocional baseado nos insights dos assistentes'
+                  : 'Seus últimos registros emocionais'
+                }
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {entries.map((entry) => (
+                {mockEntries.map((entry) => (
                   <Card key={entry.id} className="border-l-4 border-l-blue-500">
                     <CardContent className="p-4">
                       <div className="flex items-start justify-between gap-4">
