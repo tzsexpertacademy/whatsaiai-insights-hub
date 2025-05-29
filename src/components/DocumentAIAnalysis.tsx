@@ -26,8 +26,10 @@ import {
   Calculator,
   MessageSquare,
   Zap,
-  Settings2
+  Settings2,
+  AlertTriangle
 } from 'lucide-react';
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface Message {
   id: string;
@@ -63,6 +65,40 @@ const ANALYSIS_TYPES = {
   detalhada: { label: 'Análise Detalhada', maxTokens: 800, description: 'Análise profunda e completa (500-800 tokens)' }
 };
 
+// Função para truncar texto de forma inteligente
+function truncateTextForAnalysis(text: string, maxTokens: number = 100000): string {
+  console.log(`📏 Texto original: ${text.length} caracteres`);
+  
+  // Estimar tokens (aproximadamente 4 caracteres por token)
+  const estimatedTokens = Math.ceil(text.length / 4);
+  
+  if (estimatedTokens <= maxTokens) {
+    console.log(`✅ Texto dentro do limite: ${estimatedTokens} tokens`);
+    return text;
+  }
+  
+  // Calcular quantos caracteres manter (deixando margem para o prompt do sistema)
+  const maxChars = Math.floor(maxTokens * 3.5); // Margem de segurança
+  
+  console.log(`✂️ Truncando texto de ${text.length} para ${maxChars} caracteres`);
+  
+  // Truncar e tentar cortar em uma quebra de parágrafo próxima
+  let truncatedText = text.substring(0, maxChars);
+  
+  // Procurar por uma quebra de parágrafo nos últimos 500 caracteres
+  const lastParagraphBreak = truncatedText.lastIndexOf('\n\n');
+  if (lastParagraphBreak > maxChars - 1000 && lastParagraphBreak > 0) {
+    truncatedText = truncatedText.substring(0, lastParagraphBreak);
+  }
+  
+  // Adicionar indicação de truncamento
+  truncatedText += '\n\n[DOCUMENTO TRUNCADO - Analisando apenas a primeira parte do texto]';
+  
+  console.log(`📋 Texto final: ${truncatedText.length} caracteres (~${Math.ceil(truncatedText.length / 4)} tokens)`);
+  
+  return truncatedText;
+}
+
 export function DocumentAIAnalysis({ selectedDocument }: DocumentAIAnalysisProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -86,6 +122,9 @@ export function DocumentAIAnalysis({ selectedDocument }: DocumentAIAnalysisProps
   const estimateTokens = (text: string): number => {
     return Math.ceil(text.length / 4);
   };
+
+  // Verificar se o documento é muito grande
+  const isDocumentTooLarge = selectedDocument ? estimateTokens(selectedDocument.text) > 100000 : false;
 
   const handleAnalyzeDocument = async () => {
     console.log('🤖 Iniciando análise do documento...');
@@ -128,11 +167,17 @@ export function DocumentAIAnalysis({ selectedDocument }: DocumentAIAnalysisProps
 
       const analysisConfig = ANALYSIS_TYPES[selectedAnalysisType as keyof typeof ANALYSIS_TYPES];
       
+      // Truncar o texto se necessário
+      const documentText = truncateTextForAnalysis(selectedDocument.text);
+      const finalTokens = estimateTokens(documentText);
+      
       console.log('📊 Configuração da análise:', {
         type: selectedAnalysisType,
         maxTokens: analysisConfig.maxTokens,
         assistant: assistant.name,
-        documentSize: selectedDocument.text.length
+        originalDocumentSize: selectedDocument.text.length,
+        processedDocumentSize: documentText.length,
+        estimatedTokens: finalTokens
       });
 
       const systemPrompt = `${assistant.prompt}
@@ -161,12 +206,12 @@ INSTRUÇÕES ESPECÍFICAS:
 DOCUMENTO PARA ANÁLISE:
 Arquivo: ${selectedDocument.metadata.fileName}
 Tipo: ${selectedDocument.metadata.fileType}
-Tamanho: ${selectedDocument.metadata.fileSize} bytes
-
-Conteúdo a ser analisado:
-${selectedDocument.text}`;
+Tamanho: ${selectedDocument.metadata.fileSize} bytes`;
 
       console.log('🚀 Enviando requisição para OpenAI...');
+      console.log('📋 Tokens estimados do prompt:', estimateTokens(systemPrompt));
+      console.log('📋 Tokens estimados do documento:', finalTokens);
+      console.log('📋 Total estimado:', estimateTokens(systemPrompt) + finalTokens);
 
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -178,7 +223,7 @@ ${selectedDocument.text}`;
           model: config.openai?.model || 'gpt-4o-mini',
           messages: [
             { role: 'system', content: systemPrompt },
-            { role: 'user', content: 'Analise o conteúdo deste documento conforme as instruções. Foque no significado e valor do conteúdo, não nas características técnicas do arquivo.' }
+            { role: 'user', content: `Analise o seguinte conteúdo do documento:\n\n${documentText}` }
           ],
           temperature: 0.7,
           max_tokens: analysisConfig.maxTokens,
@@ -364,6 +409,17 @@ INSTRUÇÕES:
               </p>
             </div>
           </div>
+          
+          {/* Aviso para documentos muito grandes */}
+          {isDocumentTooLarge && (
+            <Alert className="mt-3 border-orange-200 bg-orange-50">
+              <AlertTriangle className="h-4 w-4 text-orange-600" />
+              <AlertDescription className="text-orange-800">
+                <strong>⚠️ Documento grande:</strong> O documento será automaticamente truncado para caber no limite da IA. 
+                Apenas a primeira parte será analisada.
+              </AlertDescription>
+            </Alert>
+          )}
         </CardContent>
       </Card>
 
@@ -452,7 +508,7 @@ INSTRUÇÕES:
               
               {showCostCalculator && (
                 <CostEstimator
-                  estimatedTokens={estimatedTokens}
+                  estimatedTokens={Math.min(estimatedTokens, 100000)}
                   maxTokens={selectedAnalysisConfig.maxTokens}
                   model={config.openai?.model || 'gpt-4o-mini'}
                   fileName={selectedDocument.metadata.fileName}
