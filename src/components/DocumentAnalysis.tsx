@@ -19,7 +19,8 @@ import {
   Eye,
   BarChart3,
   Video,
-  AudioLines
+  AudioLines,
+  Brain
 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { parseDocument, type ParsedDocument } from '@/utils/documentParser';
@@ -35,6 +36,7 @@ export function DocumentAnalysis() {
   const [documents, setDocuments] = useState<UploadedDocument[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState<UploadedDocument | null>(null);
+  const [activeTab, setActiveTab] = useState('upload');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const { config } = useClientConfig();
@@ -63,6 +65,11 @@ export function DocumentAnalysis() {
 
           setDocuments(prev => [...prev, uploadedDoc]);
           
+          // Auto-selecionar o primeiro documento carregado
+          if (documents.length === 0) {
+            setSelectedDocument(uploadedDoc);
+          }
+          
           toast({
             title: "✅ Arquivo processado",
             description: `${file.name} foi processado com sucesso`,
@@ -83,6 +90,16 @@ export function DocumentAnalysis() {
         fileInputRef.current.value = '';
       }
     }
+  };
+
+  const handleSelectDocument = (doc: UploadedDocument) => {
+    setSelectedDocument(doc);
+    // Mudar automaticamente para a aba de análise IA
+    setActiveTab('ai-analysis');
+    toast({
+      title: "📄 Documento selecionado",
+      description: `${doc.metadata.fileName} está pronto para análise`,
+    });
   };
 
   const removeDocument = (id: string) => {
@@ -173,12 +190,15 @@ export function DocumentAnalysis() {
         </Alert>
       )}
 
-      <Tabs defaultValue="upload" className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="upload">Upload</TabsTrigger>
           <TabsTrigger value="documents">Arquivos ({documents.length})</TabsTrigger>
           <TabsTrigger value="analysis">Visualizar</TabsTrigger>
-          <TabsTrigger value="ai-analysis">Análise IA</TabsTrigger>
+          <TabsTrigger value="ai-analysis" className="flex items-center gap-2">
+            <Brain className="w-4 h-4" />
+            Análise IA
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="upload" className="space-y-6">
@@ -274,7 +294,9 @@ export function DocumentAnalysis() {
                   {documents.map((doc) => (
                     <div
                       key={doc.id}
-                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors"
+                      className={`flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors ${
+                        selectedDocument?.id === doc.id ? 'border-blue-500 bg-blue-50' : ''
+                      }`}
                     >
                       <div className="flex items-center gap-3 flex-1 min-w-0">
                         <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -296,9 +318,22 @@ export function DocumentAnalysis() {
                           <Badge variant="outline">
                             {getFileTypeLabel(doc.metadata.fileType)}
                           </Badge>
+                          {selectedDocument?.id === doc.id && (
+                            <Badge variant="default" className="bg-blue-600">
+                              Selecionado
+                            </Badge>
+                          )}
                         </div>
                       </div>
                       <div className="flex items-center gap-2 ml-4">
+                        <Button
+                          onClick={() => handleSelectDocument(doc)}
+                          variant={selectedDocument?.id === doc.id ? "default" : "outline"}
+                          size="sm"
+                        >
+                          <Brain className="w-4 h-4 mr-1" />
+                          {selectedDocument?.id === doc.id ? 'Analisar' : 'Selecionar'}
+                        </Button>
                         <Button
                           onClick={() => setSelectedDocument(doc)}
                           variant="outline"
