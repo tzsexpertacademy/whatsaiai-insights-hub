@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,7 +7,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useClientConfig } from '@/contexts/ClientConfigContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { Send, Bot, User, Loader2, RefreshCw, Zap, Settings, BarChart3, Brain } from 'lucide-react';
+import { Send, Bot, User, Loader2, RefreshCw, Zap, Settings, BarChart3, Brain, MessageSquare } from 'lucide-react';
 import { useAssistantsConfig } from '@/hooks/useAssistantsConfig';
 import { useAIReportUpdate } from '@/hooks/useAIReportUpdate';
 
@@ -34,10 +35,10 @@ export function ChatWithAssistants() {
   const { config } = useClientConfig();
   const { user } = useAuth();
   const { toast } = useToast();
-  const { assistants, updateAssistant } = useAssistantsConfig();
+  const { assistants, saveAssistants } = useAssistantsConfig();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isConfiguring, setIsConfiguring] = useState(false);
-  const { updateReport: updateAIReport, isUpdating } = useAIReportUpdate();
+  const { updateReport, isUpdating } = useAIReportUpdate();
 
   const isOpenAIConfigured = config.openai?.apiKey && config.openai.apiKey.startsWith('sk-');
 
@@ -139,7 +140,11 @@ ${input}`;
       const assistantToUpdate = assistants.find(a => a.id === assistantId);
       if (!assistantToUpdate) throw new Error('Assistente não encontrado');
 
-      await updateAssistant(assistantId, { isActive: !assistantToUpdate.isActive });
+      const updatedAssistants = assistants.map(a => 
+        a.id === assistantId ? { ...a, isActive: !a.isActive } : a
+      );
+      
+      await saveAssistants(updatedAssistants);
       toast({
         title: "Assistente atualizado",
         description: `Assistente "${assistantToUpdate.name}" ${!assistantToUpdate.isActive ? 'ativado' : 'desativado'} com sucesso.`,
@@ -302,7 +307,7 @@ ${input}`;
                 </p>
               </div>
               <Button
-                onClick={() => updateAIReport()}
+                onClick={() => updateReport()}
                 disabled={isUpdating}
                 className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white"
               >

@@ -17,11 +17,14 @@ import {
   Download,
   Trash2,
   Eye,
-  BarChart3
+  BarChart3,
+  Video,
+  AudioLines
 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { parseDocument, type ParsedDocument } from '@/utils/documentParser';
 import { useClientConfig } from '@/contexts/ClientConfigContext';
+import { DocumentAIAnalysis } from '@/components/DocumentAIAnalysis';
 
 interface UploadedDocument extends ParsedDocument {
   id: string;
@@ -61,8 +64,8 @@ export function DocumentAnalysis() {
           setDocuments(prev => [...prev, uploadedDoc]);
           
           toast({
-            title: "✅ Documento processado",
-            description: `${file.name} foi analisado com sucesso`,
+            title: "✅ Arquivo processado",
+            description: `${file.name} foi processado com sucesso`,
           });
 
         } catch (error) {
@@ -88,8 +91,8 @@ export function DocumentAnalysis() {
       setSelectedDocument(null);
     }
     toast({
-      title: "🗑️ Documento removido",
-      description: "Documento foi removido da análise",
+      title: "🗑️ Arquivo removido",
+      description: "Arquivo foi removido da análise",
     });
   };
 
@@ -107,7 +110,7 @@ export function DocumentAnalysis() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `documentos_analisados_${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `arquivos_analisados_${new Date().toISOString().split('T')[0]}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -115,8 +118,24 @@ export function DocumentAnalysis() {
 
     toast({
       title: "📊 Exportação concluída",
-      description: "Dados dos documentos foram exportados",
+      description: "Dados dos arquivos foram exportados",
     });
+  };
+
+  const getFileIcon = (fileType: string) => {
+    if (fileType.startsWith('video/')) {
+      return <Video className="w-5 h-5 text-purple-600" />;
+    }
+    if (fileType.startsWith('audio/')) {
+      return <AudioLines className="w-5 h-5 text-green-600" />;
+    }
+    return <FileText className="w-5 h-5 text-blue-600" />;
+  };
+
+  const getFileTypeLabel = (fileType: string) => {
+    if (fileType.startsWith('video/')) return 'VIDEO';
+    if (fileType.startsWith('audio/')) return 'AUDIO';
+    return fileType.split('/')[1]?.toUpperCase() || 'DOC';
   };
 
   return (
@@ -128,9 +147,9 @@ export function DocumentAnalysis() {
             <FileText className="w-8 h-8 text-white" />
           </div>
         </div>
-        <h1 className="text-3xl font-bold text-gray-900">Análise de Documentos</h1>
+        <h1 className="text-3xl font-bold text-gray-900">Análise de Documentos com IA</h1>
         <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-          Faça upload e analise documentos em diversos formatos para extrair insights valiosos
+          Faça upload e analise documentos, vídeos e áudios em diversos formatos com IA avançada
         </p>
       </div>
 
@@ -155,10 +174,11 @@ export function DocumentAnalysis() {
       )}
 
       <Tabs defaultValue="upload" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="upload">Upload</TabsTrigger>
-          <TabsTrigger value="documents">Documentos ({documents.length})</TabsTrigger>
-          <TabsTrigger value="analysis">Análise</TabsTrigger>
+          <TabsTrigger value="documents">Arquivos ({documents.length})</TabsTrigger>
+          <TabsTrigger value="analysis">Visualizar</TabsTrigger>
+          <TabsTrigger value="ai-analysis">Análise IA</TabsTrigger>
         </TabsList>
 
         <TabsContent value="upload" className="space-y-6">
@@ -167,7 +187,7 @@ export function DocumentAnalysis() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Upload className="w-5 h-5" />
-                Upload de Documentos
+                Upload de Arquivos
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -195,7 +215,7 @@ export function DocumentAnalysis() {
                     id="document-upload"
                     type="file"
                     multiple
-                    accept=".txt,.pdf,.md,.json,.csv,.doc,.docx"
+                    accept=".txt,.pdf,.md,.json,.csv,.doc,.docx,.mp4,.avi,.mov,.mp3,.wav,.m4a,.flac"
                     onChange={handleFileUpload}
                     className="hidden"
                     ref={fileInputRef}
@@ -205,7 +225,9 @@ export function DocumentAnalysis() {
                     Arraste arquivos aqui ou clique para selecionar
                   </p>
                   <p className="text-xs text-gray-500">
-                    Formatos suportados: TXT, PDF, MD, JSON, CSV, DOC, DOCX
+                    <strong>Suportados:</strong> Textos (TXT, PDF, MD, JSON, CSV, DOC, DOCX)<br/>
+                    <strong>Vídeos:</strong> MP4, AVI, MOV<br/>
+                    <strong>Áudios:</strong> MP3, WAV, M4A, FLAC
                   </p>
                 </div>
               </div>
@@ -215,7 +237,7 @@ export function DocumentAnalysis() {
                 <Alert>
                   <Loader2 className="h-4 w-4 animate-spin" />
                   <AlertDescription>
-                    Processando documentos... Por favor, aguarde.
+                    Processando arquivos... Por favor, aguarde.
                   </AlertDescription>
                 </Alert>
               )}
@@ -229,7 +251,7 @@ export function DocumentAnalysis() {
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="flex items-center gap-2">
                 <FileText className="w-5 h-5" />
-                Documentos Processados
+                Arquivos Processados
               </CardTitle>
               {documents.length > 0 && (
                 <div className="flex gap-2">
@@ -244,8 +266,8 @@ export function DocumentAnalysis() {
               {documents.length === 0 ? (
                 <div className="text-center py-8">
                   <FileIcon className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-500">Nenhum documento processado ainda</p>
-                  <p className="text-sm text-gray-400">Faça upload de documentos na aba Upload</p>
+                  <p className="text-gray-500">Nenhum arquivo processado ainda</p>
+                  <p className="text-sm text-gray-400">Faça upload de arquivos na aba Upload</p>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -256,7 +278,7 @@ export function DocumentAnalysis() {
                     >
                       <div className="flex items-center gap-3 flex-1 min-w-0">
                         <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                          <FileText className="w-5 h-5 text-blue-600" />
+                          {getFileIcon(doc.metadata.fileType)}
                         </div>
                         <div className="flex-1 min-w-0">
                           <h3 className="font-medium text-gray-900 truncate">
@@ -272,7 +294,7 @@ export function DocumentAnalysis() {
                         </div>
                         <div className="flex gap-2">
                           <Badge variant="outline">
-                            {doc.metadata.fileType.split('/')[1]?.toUpperCase() || 'DOC'}
+                            {getFileTypeLabel(doc.metadata.fileType)}
                           </Badge>
                         </div>
                       </div>
@@ -309,14 +331,15 @@ export function DocumentAnalysis() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Eye className="w-5 h-5" />
-                  Visualizador de Documento
+                  Visualizador de Arquivo
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 {selectedDocument ? (
                   <div className="space-y-4">
                     <div className="p-3 bg-gray-50 rounded-lg">
-                      <h3 className="font-medium text-gray-900 mb-2">
+                      <h3 className="font-medium text-gray-900 mb-2 flex items-center gap-2">
+                        {getFileIcon(selectedDocument.metadata.fileType)}
                         {selectedDocument.metadata.fileName}
                       </h3>
                       <div className="flex flex-wrap gap-2 text-sm text-gray-600">
@@ -331,6 +354,9 @@ export function DocumentAnalysis() {
                         <Badge variant="outline">
                           {selectedDocument.uploadDate.toLocaleDateString()}
                         </Badge>
+                        <Badge variant="outline">
+                          {getFileTypeLabel(selectedDocument.metadata.fileType)}
+                        </Badge>
                       </div>
                     </div>
                     <div className="max-h-96 overflow-y-auto p-4 bg-white border rounded-lg">
@@ -342,7 +368,7 @@ export function DocumentAnalysis() {
                 ) : (
                   <div className="text-center py-8">
                     <FileText className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                    <p className="text-gray-500">Selecione um documento para visualizar</p>
+                    <p className="text-gray-500">Selecione um arquivo para visualizar</p>
                   </div>
                 )}
               </CardContent>
@@ -353,7 +379,7 @@ export function DocumentAnalysis() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <BarChart3 className="w-5 h-5" />
-                  Análise do Documento
+                  Estatísticas do Arquivo
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -373,9 +399,9 @@ export function DocumentAnalysis() {
                         </p>
                       </div>
                       <div className="p-3 bg-purple-50 rounded-lg">
-                        <p className="text-sm text-purple-600 font-medium">Linhas</p>
+                        <p className="text-sm text-purple-600 font-medium">Tokens (est.)</p>
                         <p className="text-xl font-bold text-purple-900">
-                          {selectedDocument.text.split('\n').length.toLocaleString()}
+                          {Math.ceil(selectedDocument.text.length / 4).toLocaleString()}
                         </p>
                       </div>
                       <div className="p-3 bg-orange-50 rounded-lg">
@@ -390,7 +416,7 @@ export function DocumentAnalysis() {
                       <Alert className="border-green-200 bg-green-50">
                         <CheckCircle className="h-4 w-4 text-green-600" />
                         <AlertDescription className="text-green-800">
-                          <strong>✅ Análise avançada disponível:</strong> Use o botão "Atualizar Relatórios com IA" para análise completa.
+                          <strong>✅ Análise IA disponível:</strong> Use a aba "Análise IA" para análise completa.
                         </AlertDescription>
                       </Alert>
                     )}
@@ -398,12 +424,16 @@ export function DocumentAnalysis() {
                 ) : (
                   <div className="text-center py-8">
                     <BarChart3 className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                    <p className="text-gray-500">Selecione um documento para análise</p>
+                    <p className="text-gray-500">Selecione um arquivo para ver estatísticas</p>
                   </div>
                 )}
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        <TabsContent value="ai-analysis" className="space-y-6">
+          <DocumentAIAnalysis selectedDocument={selectedDocument} />
         </TabsContent>
       </Tabs>
     </div>
