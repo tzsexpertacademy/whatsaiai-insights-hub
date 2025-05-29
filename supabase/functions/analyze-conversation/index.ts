@@ -241,7 +241,7 @@ ${conversationText.substring(0, 3000)}`;
       );
     }
 
-    // Salvar insights no banco
+    // Salvar insights no banco usando as colunas corretas
     console.log('💾 Salvando insights no banco de dados...');
     
     const { error: insertError } = await supabaseClient
@@ -250,8 +250,10 @@ ${conversationText.substring(0, 3000)}`;
         insights.map(insight => ({
           user_id: userId,
           title: `Análise por ${insight.assistant_name}`,
+          description: insight.content,
           content: insight.content,
           category: insight.area,
+          insight_type: insight.area,
           metadata: {
             assistant_id: insight.assistant_id,
             assistant_name: insight.assistant_name,

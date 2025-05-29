@@ -210,33 +210,42 @@ export type Database = {
       }
       insights: {
         Row: {
+          category: string | null
+          content: string | null
           conversation_id: string | null
           created_at: string | null
           description: string
           id: string
           insight_type: string
+          metadata: Json | null
           priority: string | null
           status: string | null
           title: string
           user_id: string | null
         }
         Insert: {
+          category?: string | null
+          content?: string | null
           conversation_id?: string | null
           created_at?: string | null
           description: string
           id?: string
           insight_type: string
+          metadata?: Json | null
           priority?: string | null
           status?: string | null
           title: string
           user_id?: string | null
         }
         Update: {
+          category?: string | null
+          content?: string | null
           conversation_id?: string | null
           created_at?: string | null
           description?: string
           id?: string
           insight_type?: string
+          metadata?: Json | null
           priority?: string | null
           status?: string | null
           title?: string
