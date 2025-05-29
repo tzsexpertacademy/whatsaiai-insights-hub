@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { LoginPage } from './auth/LoginPage';
 import { SolutionsHub } from '@/pages/SolutionsHub';
 import { ObservatoryLanding } from '@/pages/ObservatoryLanding';
+import { WelcomeTour } from '@/pages/WelcomeTour';
 import Index from '@/pages/Index';
 import { CommercialBrain } from '@/pages/CommercialBrain';
 import { AdminDashboard } from './admin/AdminDashboard';
@@ -32,6 +33,18 @@ export function AppRouter() {
     );
   }
 
+  // Verificar se deve mostrar o tour de boas vindas
+  const shouldShowWelcomeTour = () => {
+    if (!isAuthenticated) return false;
+    
+    const showTour = localStorage.getItem('show_welcome_tour') === 'true';
+    const tourCompleted = localStorage.getItem('welcome_tour_completed') === 'true';
+    
+    console.log('🎯 Verificando tour:', { showTour, tourCompleted });
+    
+    return showTour && !tourCompleted;
+  };
+
   return (
     <>
       {/* Sistema de lembretes para trial expirado */}
@@ -41,6 +54,10 @@ export function AppRouter() {
         <Route 
           path="/auth" 
           element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginPage />} 
+        />
+        <Route 
+          path="/welcome" 
+          element={isAuthenticated ? <WelcomeTour /> : <Navigate to="/auth" replace />} 
         />
         <Route 
           path="/admin" 
@@ -68,7 +85,17 @@ export function AppRouter() {
         />
         <Route 
           path="/dashboard/*" 
-          element={isAuthenticated ? <Index /> : <Navigate to="/auth" replace />} 
+          element={
+            isAuthenticated ? (
+              shouldShowWelcomeTour() ? (
+                <Navigate to="/welcome" replace />
+              ) : (
+                <Index />
+              )
+            ) : (
+              <Navigate to="/auth" replace />
+            )
+          } 
         />
         <Route 
           path="/commercial/*" 

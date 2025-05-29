@@ -1,11 +1,10 @@
+
 import React from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { AppSidebar } from '@/components/AppSidebar';
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { DashboardMain } from '@/components/dashboard/DashboardMain';
 import { AnalysisDataProvider } from '@/contexts/AnalysisDataContext';
-import { useOnboarding } from '@/hooks/useOnboarding';
-import { OnboardingExperience } from '@/components/onboarding/OnboardingExperience';
 
 // Dashboard pages
 import { ObservatoryTimeline } from '@/components/ObservatoryTimeline';
@@ -22,16 +21,6 @@ import { ChatInterface } from '@/components/ChatInterface';
 import { VoiceChatInterface } from '@/components/VoiceChatInterface';
 
 export default function Index() {
-  const { isFirstVisit, completed } = useOnboarding();
-  
-  console.log('📱 Index - Estado do onboarding:', { isFirstVisit, completed });
-
-  // Se é primeira visita e onboarding não foi completado, mostrar experiência de onboarding
-  if (isFirstVisit && !completed) {
-    console.log('🎯 Exibindo experiência de onboarding para novo usuário');
-    return <OnboardingExperience />;
-  }
-
   console.log('📱 Exibindo Dashboard Principal');
 
   return (
