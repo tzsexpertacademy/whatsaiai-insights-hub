@@ -46,7 +46,7 @@ export function ObservatoryLanding() {
   const heroRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const scrollY = useParallax();
-  const [soundEnabled, setSoundEnabled] = React.useState(false);
+  const [soundEnabled, setSoundEnabled] = React.useState(true); // Som ativado por padrão
   const [showBrainAnimation, setShowBrainAnimation] = React.useState(true);
   const [showContent, setShowContent] = React.useState(false);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -441,7 +441,7 @@ export function ObservatoryLanding() {
       {/* Conteúdo principal */}
       {showContent && (
         <div className="animate-fade-in relative z-10">
-          {/* Seção 1 - Hero Section com texto mais harmônico */}
+          {/* Seção 1 - Hero Section com texto harmonioso */}
           <section ref={heroRef} className="relative min-h-screen flex items-center justify-center px-4 sm:px-6">
             <div className="text-center max-w-7xl mx-auto w-full">
               <div className="relative z-10">
@@ -454,18 +454,18 @@ export function ObservatoryLanding() {
 
                 <ScrollReveal id="hero-title" direction="up" delay={400}>
                   <div className="mb-8 sm:mb-12">
-                    <h1 className="text-4xl sm:text-6xl md:text-8xl lg:text-9xl xl:text-[8rem] font-black mb-6 leading-[0.9] tracking-tight">
+                    <h1 className="text-3xl sm:text-5xl md:text-7xl lg:text-8xl xl:text-9xl font-black mb-6 leading-[0.9] tracking-tight">
                       <div className="mb-4">
                         <span className="block text-white font-black mb-2">
                           O que você
                         </span>
                         <span 
-                          className="block font-black bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent"
+                          className="block font-black bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent"
                           style={{
                             textShadow: `
-                              0 0 20px rgba(6, 182, 212, 0.8),
-                              0 0 40px rgba(6, 182, 212, 0.6),
-                              0 0 60px rgba(6, 182, 212, 0.4)
+                              0 0 20px rgba(139, 92, 246, 0.8),
+                              0 0 40px rgba(139, 92, 246, 0.6),
+                              0 0 60px rgba(139, 92, 246, 0.4)
                             `
                           }}
                         >
@@ -473,12 +473,12 @@ export function ObservatoryLanding() {
                         </span>
                       </div>
                       <div 
-                        className="block font-black bg-gradient-to-r from-red-400 to-pink-400 bg-clip-text text-transparent mb-8"
+                        className="block font-black bg-gradient-to-r from-purple-500 to-pink-500 bg-clip-text text-transparent mb-8"
                         style={{
                           textShadow: `
-                            0 0 30px rgba(248, 113, 113, 0.8),
-                            0 0 60px rgba(248, 113, 113, 0.6),
-                            0 0 90px rgba(248, 113, 113, 0.4)
+                            0 0 30px rgba(168, 85, 247, 0.8),
+                            0 0 60px rgba(168, 85, 247, 0.6),
+                            0 0 90px rgba(168, 85, 247, 0.4)
                           `
                         }}
                       >
@@ -486,18 +486,18 @@ export function ObservatoryLanding() {
                       </div>
                     </h1>
                     
-                    <h2 className="text-3xl sm:text-5xl md:text-7xl lg:text-8xl xl:text-[7rem] font-black leading-[0.9] tracking-tight">
+                    <h2 className="text-2xl sm:text-4xl md:text-6xl lg:text-7xl xl:text-8xl font-black leading-[0.9] tracking-tight">
                       <div className="mb-4">
                         <span className="block text-white font-black mb-2">
                           O que você
                         </span>
                         <span 
-                          className="block font-black bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent"
+                          className="block font-black bg-gradient-to-r from-purple-400 to-cyan-400 bg-clip-text text-transparent"
                           style={{
                             textShadow: `
-                              0 0 20px rgba(34, 197, 94, 0.8),
-                              0 0 40px rgba(34, 197, 94, 0.6),
-                              0 0 60px rgba(34, 197, 94, 0.4)
+                              0 0 20px rgba(139, 92, 246, 0.8),
+                              0 0 40px rgba(139, 92, 246, 0.6),
+                              0 0 60px rgba(139, 92, 246, 0.4)
                             `
                           }}
                         >
@@ -505,12 +505,12 @@ export function ObservatoryLanding() {
                         </span>
                       </div>
                       <div 
-                        className="block font-black bg-gradient-to-r from-lime-400 to-green-400 bg-clip-text text-transparent"
+                        className="block font-black bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent"
                         style={{
                           textShadow: `
-                            0 0 30px rgba(163, 230, 53, 0.8),
-                            0 0 60px rgba(163, 230, 53, 0.6),
-                            0 0 90px rgba(163, 230, 53, 0.4)
+                            0 0 30px rgba(6, 182, 212, 0.8),
+                            0 0 60px rgba(6, 182, 212, 0.6),
+                            0 0 90px rgba(6, 182, 212, 0.4)
                           `
                         }}
                       >
@@ -732,7 +732,7 @@ export function ObservatoryLanding() {
             </div>
           </section>
 
-          {/* Estilos CSS atualizados para harmonia */}
+          {/* Estilos CSS harmonizados */}
           <style>{`
             .glow-text {
               text-shadow: 0 0 20px currentColor, 0 0 40px currentColor;

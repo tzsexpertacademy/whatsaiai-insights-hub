@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState } from 'react';
 
 interface BrainAnimationProps {
@@ -12,9 +11,9 @@ export function BrainAnimation({ onAnimationComplete, soundEnabled = false }: Br
   const [logoOpacity, setLogoOpacity] = useState(0);
 
   useEffect(() => {
-    // Deixar o vídeo rodar por tempo suficiente para ser assistido completo
+    // Deixar a primeira tela por 13 segundos conforme solicitado
     const videoTimer = setTimeout(() => {
-      console.log('🎬 Vídeo terminado, mostrando logo');
+      console.log('🎬 Primeira tela completa (13s), mostrando logo');
       setShowVideo(false);
       setAnimationPhase('showingLogo');
       
@@ -30,7 +29,7 @@ export function BrainAnimation({ onAnimationComplete, soundEnabled = false }: Br
         onAnimationComplete?.();
       }, 3000);
       
-    }, 30000); // 30 segundos para assistir o vídeo completo
+    }, 13000); // 13 segundos para a primeira tela
 
     return () => clearTimeout(videoTimer);
   }, [onAnimationComplete]);
@@ -72,7 +71,7 @@ export function BrainAnimation({ onAnimationComplete, soundEnabled = false }: Br
         ))}
       </div>
       
-      {/* Novo vídeo do YouTube */}
+      {/* Vídeo do YouTube */}
       {showVideo && (
         <div className="relative w-full h-full flex items-center justify-center animate-fade-in">
           <div className="relative w-[95vw] h-[95vh] max-w-6xl max-h-[800px] rounded-3xl overflow-hidden shadow-2xl shadow-purple-500/50 border-2 border-purple-400/40">
