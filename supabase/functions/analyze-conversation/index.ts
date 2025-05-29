@@ -108,6 +108,13 @@ serve(async (req) => {
 
       if (convError) {
         console.error('❌ Erro ao buscar conversações WhatsApp:', convError);
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: `Erro ao buscar conversas: ${convError.message}` 
+          }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
 
       conversations = whatsappConversations || [];
@@ -115,56 +122,15 @@ serve(async (req) => {
 
     console.log(`📊 Total de conversas para análise: ${conversations.length}`);
 
+    // SEMPRE EXIGIR CONVERSAS REAIS - NUNCA CRIAR DADOS DEMO
     if (!conversations || conversations.length === 0) {
-      console.log('ℹ️ Nenhuma conversação encontrada - criando insights demonstrativos');
-      
-      // Criar insights demonstrativos baseados nos assistentes
-      const demoInsights = assistants.slice(0, 3).map((assistant, index) => ({
-        user_id: userId,
-        title: `Análise Demonstrativa - ${assistant.name}`,
-        content: `Este é um insight demonstrativo gerado pelo assistente ${assistant.name}, especializado em ${assistant.area}. Em uma análise real, este assistente analisaria suas conversas para fornecer insights específicos sobre padrões comportamentais e oportunidades de melhoria.`,
-        category: assistant.area,
-        metadata: {
-          assistant_id: assistant.id,
-          assistant_name: assistant.name,
-          model_used: assistant.model,
-          generated_at: new Date().toISOString(),
-          analysis_type: 'demo',
-          demo_mode: true
-        }
-      }));
-
-      // Salvar insights demonstrativos
-      const { error: insertError } = await supabaseClient
-        .from('insights')
-        .insert(demoInsights);
-
-      if (insertError) {
-        console.error('❌ Erro ao salvar insights demo:', insertError);
-        return new Response(
-          JSON.stringify({ 
-            success: false, 
-            error: `Erro ao salvar insights: ${insertError.message}` 
-          }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      console.log('✅ Insights demonstrativos criados com sucesso');
-
+      console.log('❌ Nenhuma conversa encontrada - análise cancelada');
       return new Response(
-        JSON.stringify({
-          success: true,
-          insights: demoInsights,
-          assistantsUsed: assistants.map(a => a.name),
-          processingTime: 500,
-          conversationsAnalyzed: 0,
-          message: `Insights demonstrativos criados por ${assistants.length} assistentes`,
-          demoMode: true
+        JSON.stringify({ 
+          success: false, 
+          error: 'Nenhuma conversa encontrada para análise. Importe conversas do WhatsApp primeiro.' 
         }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -184,8 +150,8 @@ serve(async (req) => {
     const assistantsUsed = [];
     const startTime = Date.now();
 
-    // Processar com cada assistente configurado
-    for (const assistant of assistants.slice(0, 3)) { // Limitar a 3 assistentes para evitar timeout
+    // Processar com TODOS os assistentes configurados
+    for (const assistant of assistants) {
       try {
         console.log(`🔄 Processando com ${assistant.name} (${assistant.model}) - Área: ${assistant.area}...`);
 
@@ -263,42 +229,52 @@ ${conversationText.substring(0, 3000)}`;
 
     console.log(`📊 Total de insights gerados: ${insights.length}`);
 
-    // Salvar insights no banco
-    if (insights.length > 0) {
-      console.log('💾 Salvando insights no banco de dados...');
-      
-      const { error: insertError } = await supabaseClient
-        .from('insights')
-        .insert(
-          insights.map(insight => ({
-            user_id: userId,
-            title: `Análise por ${insight.assistant_name}`,
-            content: insight.content,
-            category: insight.area,
-            metadata: {
-              assistant_id: insight.assistant_id,
-              assistant_name: insight.assistant_name,
-              model_used: insight.model_used,
-              generated_at: insight.generated_at,
-              analysis_type: analysisType,
-              conversations_analyzed: conversations.length
-            }
-          }))
-        );
-
-      if (insertError) {
-        console.error('❌ Erro ao salvar insights:', insertError);
-        return new Response(
-          JSON.stringify({ 
-            success: false, 
-            error: `Erro ao salvar insights: ${insertError.message}` 
-          }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      console.log('✅ Insights salvos com sucesso no banco');
+    // SEMPRE EXIGIR INSIGHTS REAIS DOS ASSISTENTES
+    if (insights.length === 0) {
+      console.log('❌ Nenhum insight gerado pelos assistentes');
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'Nenhum insight foi gerado pelos assistentes. Verifique a configuração da OpenAI.' 
+        }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
+
+    // Salvar insights no banco
+    console.log('💾 Salvando insights no banco de dados...');
+    
+    const { error: insertError } = await supabaseClient
+      .from('insights')
+      .insert(
+        insights.map(insight => ({
+          user_id: userId,
+          title: `Análise por ${insight.assistant_name}`,
+          content: insight.content,
+          category: insight.area,
+          metadata: {
+            assistant_id: insight.assistant_id,
+            assistant_name: insight.assistant_name,
+            model_used: insight.model_used,
+            generated_at: insight.generated_at,
+            analysis_type: analysisType,
+            conversations_analyzed: conversations.length
+          }
+        }))
+      );
+
+    if (insertError) {
+      console.error('❌ Erro ao salvar insights:', insertError);
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: `Erro ao salvar insights: ${insertError.message}` 
+        }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log('✅ Insights salvos com sucesso no banco');
 
     const processingTime = Date.now() - startTime;
     

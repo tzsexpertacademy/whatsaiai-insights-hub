@@ -80,49 +80,19 @@ export function useAIReportUpdate() {
 
       if (conversationsError) {
         console.error('❌ Erro ao buscar conversas do WhatsApp:', conversationsError);
+        throw new Error(`Erro ao buscar conversas: ${conversationsError.message}`);
       }
 
       const conversationsCount = conversations?.length || 0;
       console.log('💬 Conversas encontradas:', conversationsCount);
 
+      // SEMPRE EXIGIR CONVERSAS REAIS
       if (conversationsCount === 0) {
-        // Se não há conversas, criar insights demo baseados nos assistentes
-        console.log('🎭 Criando insights demonstrativos...');
-        
-        const demoInsights = activeAssistants.slice(0, 3).map((assistant, index) => ({
-          user_id: user.id,
-          insight_type: assistant.area || 'behavioral',
-          title: `Análise ${assistant.name}`,
-          description: `Insight gerado pelo assistente ${assistant.name} para demonstração da plataforma.`,
-          priority: index === 0 ? 'high' : 'medium',
-          status: 'active',
-          metadata: {
-            assistant_id: assistant.id,
-            assistant_name: assistant.name,
-            generated_at: new Date().toISOString()
-          }
-        }));
-
-        const { error: insertError } = await supabase
-          .from('insights')
-          .insert(demoInsights);
-
-        if (insertError) {
-          throw new Error(`Erro ao criar insights: ${insertError.message}`);
-        }
-
         toast({
-          title: "✅ Relatório atualizado",
-          description: `${demoInsights.length} insights demonstrativos criados pelos assistentes ativos.`,
-          duration: 5000
+          title: "Nenhuma conversa para analisar",
+          description: "Importe conversas do WhatsApp primeiro antes de executar a análise por IA.",
+          variant: "destructive"
         });
-
-        // Recarregar após delay
-        setTimeout(() => {
-          console.log('🔄 Recarregando página para exibir novos dados...');
-          window.location.reload();
-        }, 2000);
-
         return;
       }
 
@@ -181,7 +151,7 @@ export function useAIReportUpdate() {
 
       toast({
         title: "✅ Relatório atualizado com sucesso",
-        description: `Análise concluída por ${data.assistantsUsed?.length || 0} assistente(s). ${data.insights?.length || 0} insights gerados. Atualizando dashboard...`,
+        description: `Análise concluída por ${data.assistantsUsed?.length || 0} assistente(s). ${data.insights?.length || 0} insights gerados pelos assistentes reais.`,
         duration: 5000
       });
 
@@ -214,58 +184,10 @@ export function useAIReportUpdate() {
         return;
       }
 
-      // Erro específico para assistentes
-      if (error.message.includes('assistente')) {
-        toast({
-          title: "Erro nos assistentes",
-          description: "Verifique se os assistentes estão configurados corretamente",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      // Se a edge function falhar, criar insights locais
-      console.log('🎭 Edge function falhou, criando insights locais...');
-      
-      try {
-        const localInsights = activeAssistants.slice(0, 2).map((assistant, index) => ({
-          user_id: user.id,
-          insight_type: assistant.area || 'behavioral',
-          title: `Insight ${assistant.name}`,
-          description: `Análise realizada pelo assistente ${assistant.name}. Baseado em padrões comportamentais identificados.`,
-          priority: index === 0 ? 'high' : 'medium',
-          status: 'active',
-          metadata: {
-            assistant_id: assistant.id,
-            assistant_name: assistant.name,
-            fallback_mode: true,
-            generated_at: new Date().toISOString()
-          }
-        }));
-
-        const { error: insertError } = await supabase
-          .from('insights')
-          .insert(localInsights);
-
-        if (!insertError) {
-          toast({
-            title: "✅ Relatório atualizado (modo local)",
-            description: `${localInsights.length} insights criados pelos assistentes. Recarregando...`,
-            duration: 4000
-          });
-
-          setTimeout(() => {
-            window.location.reload();
-          }, 2000);
-          return;
-        }
-      } catch (localError) {
-        console.error('❌ Erro ao criar insights locais:', localError);
-      }
-
+      // Erro geral
       toast({
         title: "Erro na análise",
-        description: error.message || "Não foi possível gerar o relatório",
+        description: error.message || "Não foi possível gerar o relatório. Verifique as configurações e tente novamente.",
         variant: "destructive"
       });
     } finally {
