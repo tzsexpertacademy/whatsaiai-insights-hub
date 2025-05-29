@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -144,40 +143,13 @@ export function ObservatoryLanding() {
     };
   }, [soundEnabled]);
 
-  // Animação de cérebro neural épica com efeitos especiais
+  // Animação de cérebro humano realista épica
   useEffect(() => {
     const canvas = brainCanvasRef.current;
     if (!canvas) return;
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-
-    const nodes: Array<{
-      x: number;
-      y: number;
-      z: number;
-      vx: number;
-      vy: number;
-      vz: number;
-      size: number;
-      pulse: number;
-      pulseSpeed: number;
-      type: 'neuron' | 'synapse' | 'core';
-      connections: number[];
-      energy: number;
-      lastFire: number;
-    }> = [];
-
-    const particles: Array<{
-      x: number;
-      y: number;
-      vx: number;
-      vy: number;
-      life: number;
-      maxLife: number;
-      size: number;
-      color: string;
-    }> = [];
 
     const resizeCanvas = () => {
       canvas.width = window.innerWidth;
@@ -189,92 +161,139 @@ export function ObservatoryLanding() {
 
     const centerX = canvas.width / 2;
     const centerY = canvas.height / 2;
-    const brainWidth = Math.min(canvas.width * 0.8, 1000);
-    const brainHeight = Math.min(canvas.height * 0.6, 600);
+    
+    // Cérebro humano proporcional
+    const brainWidth = Math.min(canvas.width * 0.7, 1200);
+    const brainHeight = Math.min(canvas.height * 0.8, 900);
 
-    // Criar estrutura cerebral mais realista
-    for (let i = 0; i < 120; i++) {
-      const angle = (i / 120) * Math.PI * 2;
-      const layer = Math.floor(i / 40); // 3 camadas
-      const radiusX = (brainWidth / 2) * (0.4 + layer * 0.2);
-      const radiusY = (brainHeight / 2) * (0.3 + layer * 0.15);
-      
-      // Formato cerebral (duas metades conectadas)
-      const hemisphere = i < 60 ? -1 : 1;
-      const brainShape = Math.sin(angle * 2) * 0.3 + 1;
-      
-      const x = centerX + hemisphere * radiusX * Math.cos(angle) * brainShape * 0.8;
-      const y = centerY + radiusY * Math.sin(angle) * brainShape * 0.6;
-      
-      const nodeType = layer === 1 ? 'core' : (Math.random() > 0.7 ? 'neuron' : 'synapse');
-      
-      nodes.push({
-        x,
-        y,
-        z: layer * 30 + Math.random() * 20,
-        vx: (Math.random() - 0.5) * 0.1,
-        vy: (Math.random() - 0.5) * 0.1,
-        vz: (Math.random() - 0.5) * 0.05,
-        size: nodeType === 'core' ? 4 + Math.random() * 3 : 2 + Math.random() * 2,
-        pulse: Math.random() * Math.PI * 2,
-        pulseSpeed: 0.005 + Math.random() * 0.015,
-        type: nodeType,
-        connections: [],
-        energy: Math.random(),
-        lastFire: 0
-      });
-    }
+    // Estrutura cerebral realista
+    const brainRegions: Array<{
+      x: number;
+      y: number;
+      z: number;
+      radius: number;
+      intensity: number;
+      region: 'frontal' | 'parietal' | 'temporal' | 'occipital' | 'cerebellum' | 'brainstem';
+      connections: number[];
+      activity: number;
+      pulsePhase: number;
+      color: string;
+    }> = [];
 
-    // Conectar neurônios com lógica inteligente
-    nodes.forEach((node, index) => {
+    // Criar regiões cerebrais anatômicas
+    const regions = [
+      // Córtex frontal (raciocínio, personalidade)
+      { name: 'frontal', count: 25, baseX: centerX, baseY: centerY - brainHeight * 0.2, color: 'rgba(139, 92, 246, 0.8)' },
+      // Córtex parietal (sensações, espacial)
+      { name: 'parietal', count: 20, baseX: centerX, baseY: centerY - brainHeight * 0.1, color: 'rgba(59, 130, 246, 0.8)' },
+      // Córtex temporal (audição, memória)
+      { name: 'temporal', count: 18, baseX: centerX - brainWidth * 0.2, baseY: centerY + brainHeight * 0.1, color: 'rgba(34, 197, 94, 0.8)' },
+      // Córtex occipital (visão)
+      { name: 'occipital', count: 15, baseX: centerX + brainWidth * 0.2, baseY: centerY + brainHeight * 0.1, color: 'rgba(168, 85, 247, 0.8)' },
+      // Cerebelo (coordenação)
+      { name: 'cerebellum', count: 12, baseX: centerX, baseY: centerY + brainHeight * 0.25, color: 'rgba(236, 72, 153, 0.8)' },
+      // Tronco cerebral (funções vitais)
+      { name: 'brainstem', count: 8, baseX: centerX, baseY: centerY + brainHeight * 0.35, color: 'rgba(245, 158, 11, 0.8)' }
+    ];
+
+    regions.forEach((region, regionIndex) => {
+      for (let i = 0; i < region.count; i++) {
+        const angle = (i / region.count) * Math.PI * 2;
+        const distance = (Math.random() * 0.5 + 0.3) * brainWidth * 0.15;
+        
+        // Forma cerebral mais realista
+        const brainShapeX = Math.cos(angle * 1.5) * (1 + Math.sin(angle * 3) * 0.2);
+        const brainShapeY = Math.sin(angle) * 0.7; // Cérebro mais largo que alto
+        
+        const x = region.baseX + brainShapeX * distance;
+        const y = region.baseY + brainShapeY * distance * 0.8;
+        
+        brainRegions.push({
+          x,
+          y,
+          z: Math.random() * 100 + regionIndex * 20,
+          radius: 3 + Math.random() * 4,
+          intensity: Math.random(),
+          region: region.name as any,
+          connections: [],
+          activity: Math.random(),
+          pulsePhase: Math.random() * Math.PI * 2,
+          color: region.color
+        });
+      }
+    });
+
+    // Conectar regiões cerebrais de forma inteligente
+    brainRegions.forEach((region, index) => {
       const connections: number[] = [];
-      const maxConnections = node.type === 'core' ? 6 : 3;
+      const maxConnections = region.region === 'frontal' ? 5 : 3;
       
-      nodes.forEach((otherNode, otherIndex) => {
+      brainRegions.forEach((otherRegion, otherIndex) => {
         if (index !== otherIndex && connections.length < maxConnections) {
-          const dx = node.x - otherNode.x;
-          const dy = node.y - otherNode.y;
+          const dx = region.x - otherRegion.x;
+          const dy = region.y - otherRegion.y;
           const distance = Math.sqrt(dx * dx + dy * dy);
           
-          const maxDistance = node.type === 'core' ? 150 : 100;
-          if (distance < maxDistance) {
+          // Conexões preferenciais entre regiões específicas
+          let connectionProbability = 0.1;
+          if (region.region === 'frontal' && otherRegion.region === 'parietal') connectionProbability = 0.8;
+          if (region.region === 'temporal' && otherRegion.region === 'frontal') connectionProbability = 0.7;
+          if (region.region === 'occipital' && otherRegion.region === 'parietal') connectionProbability = 0.6;
+          
+          if (distance < brainWidth * 0.3 && Math.random() < connectionProbability) {
             connections.push(otherIndex);
           }
         }
       });
-      node.connections = connections;
+      region.connections = connections;
     });
+
+    // Partículas de energia neural
+    const neuralParticles: Array<{
+      x: number;
+      y: number;
+      vx: number;
+      vy: number;
+      life: number;
+      maxLife: number;
+      size: number;
+      color: string;
+      trail: Array<{ x: number; y: number; alpha: number }>;
+    }> = [];
 
     let animationTime = 0;
 
     const animate = () => {
       animationTime += 0.016;
       
-      // Fundo com efeito de profundidade épico
-      const gradient = ctx.createRadialGradient(
-        centerX, centerY, 0,
-        centerX, centerY, Math.max(canvas.width, canvas.height) / 1.5
-      );
-      gradient.addColorStop(0, 'rgba(15, 23, 42, 0.98)');
-      gradient.addColorStop(0.3, 'rgba(30, 41, 59, 0.9)');
-      gradient.addColorStop(0.6, 'rgba(15, 23, 42, 0.95)');
-      gradient.addColorStop(1, 'rgba(0, 0, 0, 1)');
-      
-      ctx.fillStyle = gradient;
+      // Fundo escuro mais intenso
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.95)';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // Ondas cerebrais de fundo dinâmicas
-      ctx.strokeStyle = 'rgba(139, 92, 246, 0.08)';
-      ctx.lineWidth = 1;
-      for (let i = 0; i < 8; i++) {
+      // Gradiente de fundo cerebral
+      const brainGradient = ctx.createRadialGradient(
+        centerX, centerY, 0,
+        centerX, centerY, brainWidth * 0.6
+      );
+      brainGradient.addColorStop(0, 'rgba(30, 41, 59, 0.1)');
+      brainGradient.addColorStop(0.5, 'rgba(15, 23, 42, 0.2)');
+      brainGradient.addColorStop(1, 'rgba(0, 0, 0, 0.8)');
+      
+      ctx.fillStyle = brainGradient;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Ondas cerebrais de fundo mais visíveis
+      for (let i = 0; i < 12; i++) {
+        ctx.strokeStyle = `rgba(139, 92, 246, ${0.1 + Math.sin(animationTime * 2 + i) * 0.05})`;
+        ctx.lineWidth = 1 + Math.sin(animationTime + i) * 0.5;
         ctx.beginPath();
-        const waveAmplitude = 30 + Math.sin(animationTime * 2 + i) * 15;
-        const waveY = centerY + Math.sin(animationTime * 1.5 + i * 0.5) * waveAmplitude;
         
-        for (let x = 0; x <= canvas.width; x += 15) {
+        const waveY = centerY + Math.sin(animationTime * 1.5 + i * 0.3) * brainHeight * 0.1;
+        
+        for (let x = 0; x <= canvas.width; x += 20) {
           const y = waveY + 
-            Math.sin((x / 80) + animationTime * 3 + i) * 20 +
-            Math.sin((x / 40) + animationTime * 2 + i * 2) * 10;
+            Math.sin((x / 100) + animationTime * 4 + i) * 30 +
+            Math.sin((x / 50) + animationTime * 3 + i * 1.5) * 15;
           
           if (x === 0) ctx.moveTo(x, y);
           else ctx.lineTo(x, y);
@@ -282,178 +301,185 @@ export function ObservatoryLanding() {
         ctx.stroke();
       }
 
-      // Grid neural de fundo
-      ctx.strokeStyle = 'rgba(59, 130, 246, 0.05)';
-      ctx.lineWidth = 0.5;
-      const gridSize = 60;
-      for (let x = 0; x < canvas.width; x += gridSize) {
-        for (let y = 0; y < canvas.height; y += gridSize) {
-          const intensity = Math.sin(animationTime + x * 0.01 + y * 0.01) * 0.5 + 0.5;
-          if (intensity > 0.7) {
-            ctx.beginPath();
-            ctx.rect(x, y, 2, 2);
-            ctx.stroke();
-          }
-        }
+      // Contorno cerebral
+      ctx.strokeStyle = 'rgba(139, 92, 246, 0.3)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      
+      for (let angle = 0; angle <= Math.PI * 2; angle += 0.1) {
+        const brainShapeX = Math.cos(angle * 1.2) * (1 + Math.sin(angle * 4) * 0.15);
+        const brainShapeY = Math.sin(angle) * 0.65; // Cérebro mais largo que alto
+        
+        const x = centerX + brainShapeX * brainWidth * 0.35;
+        const y = centerY + brainShapeY * brainHeight * 0.3;
+        
+        if (angle === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
       }
+      ctx.stroke();
 
-      // Atualizar partículas
-      particles.forEach((particle, index) => {
+      // Linha divisória entre hemisférios
+      ctx.strokeStyle = 'rgba(59, 130, 246, 0.4)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(centerX, centerY - brainHeight * 0.3);
+      ctx.lineTo(centerX, centerY + brainHeight * 0.3);
+      ctx.stroke();
+
+      // Atualizar partículas neurais
+      neuralParticles.forEach((particle, index) => {
         particle.x += particle.vx;
         particle.y += particle.vy;
         particle.life--;
         
+        // Adicionar rastro
+        particle.trail.unshift({ x: particle.x, y: particle.y, alpha: 1 });
+        if (particle.trail.length > 8) particle.trail.pop();
+        
+        // Atualizar alpha do rastro
+        particle.trail.forEach((point, i) => {
+          point.alpha = (particle.trail.length - i) / particle.trail.length;
+        });
+        
         if (particle.life <= 0) {
-          particles.splice(index, 1);
+          neuralParticles.splice(index, 1);
         }
       });
 
-      // Renderizar neurônios e conexões
-      nodes.forEach((node, index) => {
-        // Movimento orgânico
-        node.x += node.vx * Math.sin(animationTime * 0.5 + index * 0.1);
-        node.y += node.vy * Math.cos(animationTime * 0.5 + index * 0.1);
-        node.z += node.vz * Math.sin(animationTime * 0.3);
-        node.pulse += node.pulseSpeed;
-        node.energy += (Math.random() - 0.5) * 0.02;
-        node.energy = Math.max(0, Math.min(1, node.energy));
+      // Renderizar regiões cerebrais
+      brainRegions.forEach((region, index) => {
+        // Atualizar atividade
+        region.activity += (Math.random() - 0.5) * 0.03;
+        region.activity = Math.max(0, Math.min(1, region.activity));
+        region.pulsePhase += 0.02 + region.activity * 0.05;
 
-        // Sistema de disparo neural
-        if (node.energy > 0.8 && animationTime - node.lastFire > 2) {
-          node.lastFire = animationTime;
-          
+        const pulseIntensity = (Math.sin(region.pulsePhase) + 1) * 0.5;
+        const totalIntensity = (region.activity + pulseIntensity) * 0.5;
+
+        // Efeito 3D
+        const scale = 0.6 + (region.z / 200) * 0.4;
+        const alpha = 0.4 + (region.z / 200) * 0.6;
+
+        // Disparos neurais
+        if (region.activity > 0.8 && Math.random() < 0.05) {
           // Criar partículas de energia
-          for (let i = 0; i < 5; i++) {
-            particles.push({
-              x: node.x,
-              y: node.y,
-              vx: (Math.random() - 0.5) * 4,
-              vy: (Math.random() - 0.5) * 4,
-              life: 30,
-              maxLife: 30,
+          for (let i = 0; i < 3; i++) {
+            neuralParticles.push({
+              x: region.x,
+              y: region.y,
+              vx: (Math.random() - 0.5) * 6,
+              vy: (Math.random() - 0.5) * 6,
+              life: 60,
+              maxLife: 60,
               size: 2 + Math.random() * 3,
-              color: node.type === 'core' ? 'rgba(255, 215, 0, 0.8)' : 'rgba(34, 197, 94, 0.8)'
+              color: region.color,
+              trail: []
             });
           }
         }
 
-        // Efeito 3D
-        const scale = 0.4 + (node.z / 100) * 0.6;
-        const alpha = 0.2 + (node.z / 100) * 0.8;
+        // Renderizar conexões com mais intensidade
+        region.connections.forEach(connectionIndex => {
+          const otherRegion = brainRegions[connectionIndex];
+          if (!otherRegion) return;
 
-        // Intensidade baseada na energia
-        const energyIntensity = node.energy;
-        const pulseIntensity = (Math.sin(node.pulse) + 1) * 0.5;
-        const totalIntensity = (energyIntensity + pulseIntensity) * 0.5;
-
-        // Cores baseadas no tipo e energia
-        let nodeColor;
-        switch (node.type) {
-          case 'core':
-            nodeColor = `rgba(255, 215, 0, ${alpha * (0.6 + totalIntensity * 0.4)})`;
-            break;
-          case 'neuron':
-            nodeColor = `rgba(139, 92, 246, ${alpha * (0.4 + totalIntensity * 0.6)})`;
-            break;
-          default:
-            nodeColor = `rgba(59, 130, 246, ${alpha * (0.3 + totalIntensity * 0.5)})`;
-        }
-
-        // Renderizar conexões com efeitos elétricos
-        node.connections.forEach(connectionIndex => {
-          const otherNode = nodes[connectionIndex];
-          if (!otherNode) return;
-
-          const connectionIntensity = (node.energy + otherNode.energy) * 0.5;
-          const distance = Math.sqrt(
-            Math.pow(node.x - otherNode.x, 2) + Math.pow(node.y - otherNode.y, 2)
-          );
+          const connectionIntensity = (region.activity + otherRegion.activity) * 0.5;
           
-          // Conexões mais intensas quando há energia
-          if (connectionIntensity > 0.3) {
-            const baseAlpha = 0.1 + connectionIntensity * 0.4;
+          if (connectionIntensity > 0.2) {
+            const baseAlpha = 0.2 + connectionIntensity * 0.6;
             
-            // Gradiente dinâmico
-            const gradient = ctx.createLinearGradient(
-              node.x, node.y, otherNode.x, otherNode.y
-            );
-            gradient.addColorStop(0, `rgba(139, 92, 246, ${baseAlpha})`);
-            gradient.addColorStop(0.5, `rgba(34, 197, 94, ${baseAlpha * 1.5})`);
-            gradient.addColorStop(1, `rgba(59, 130, 246, ${baseAlpha})`);
-            
-            ctx.strokeStyle = gradient;
-            ctx.lineWidth = 0.5 + connectionIntensity * 2;
+            ctx.strokeStyle = `rgba(139, 92, 246, ${baseAlpha})`;
+            ctx.lineWidth = 1 + connectionIntensity * 3;
             ctx.beginPath();
             
-            // Linha com curvatura suave
-            const midX = (node.x + otherNode.x) / 2;
-            const midY = (node.y + otherNode.y) / 2;
-            const controlOffset = Math.sin(animationTime + distance * 0.01) * 10;
+            // Conexão curvada
+            const midX = (region.x + otherRegion.x) / 2;
+            const midY = (region.y + otherRegion.y) / 2;
+            const distance = Math.sqrt(
+              Math.pow(region.x - otherRegion.x, 2) + Math.pow(region.y - otherRegion.y, 2)
+            );
+            const controlOffset = Math.sin(animationTime * 2 + distance * 0.01) * 15;
             
-            ctx.moveTo(node.x, node.y);
+            ctx.moveTo(region.x, region.y);
             ctx.quadraticCurveTo(
               midX + controlOffset, 
               midY + controlOffset, 
-              otherNode.x, 
-              otherNode.y
+              otherRegion.x, 
+              otherRegion.y
             );
             ctx.stroke();
 
-            // Pulsos de energia nas conexões
-            if (connectionIntensity > 0.7) {
-              const pulseProgress = (animationTime * 2 + distance * 0.01) % 1;
-              const pulseX = node.x + (otherNode.x - node.x) * pulseProgress;
-              const pulseY = node.y + (otherNode.y - node.y) * pulseProgress;
+            // Pulsos elétricos nas conexões
+            if (connectionIntensity > 0.6) {
+              const pulseProgress = (animationTime * 3 + distance * 0.01) % 1;
+              const pulseX = region.x + (otherRegion.x - region.x) * pulseProgress;
+              const pulseY = region.y + (otherRegion.y - region.y) * pulseProgress;
               
-              ctx.shadowBlur = 15;
-              ctx.shadowColor = 'rgba(34, 197, 94, 1)';
-              ctx.fillStyle = 'rgba(34, 197, 94, 0.9)';
+              ctx.shadowBlur = 20;
+              ctx.shadowColor = region.color;
+              ctx.fillStyle = region.color;
               ctx.beginPath();
-              ctx.arc(pulseX, pulseY, 2 + connectionIntensity * 2, 0, Math.PI * 2);
+              ctx.arc(pulseX, pulseY, 3 + connectionIntensity * 2, 0, Math.PI * 2);
               ctx.fill();
               ctx.shadowBlur = 0;
             }
           }
         });
 
-        // Renderizar neurônio com múltiplas camadas
-        ctx.shadowBlur = 15 * scale * totalIntensity;
-        ctx.shadowColor = nodeColor;
+        // Renderizar região cerebral
+        ctx.shadowBlur = 20 * scale * totalIntensity;
+        ctx.shadowColor = region.color;
         
-        // Anel externo
-        if (node.type === 'core') {
-          ctx.strokeStyle = `rgba(255, 215, 0, ${alpha * 0.6})`;
+        // Anel externo pulsante
+        if (totalIntensity > 0.5) {
+          ctx.strokeStyle = region.color.replace(/[\d.]+\)/, `${alpha * 0.8})`);
           ctx.lineWidth = 2;
           ctx.beginPath();
-          ctx.arc(node.x, node.y, node.size * scale * 1.5, 0, Math.PI * 2);
+          ctx.arc(region.x, region.y, region.radius * scale * (1.5 + pulseIntensity * 0.5), 0, Math.PI * 2);
           ctx.stroke();
         }
         
-        // Corpo principal
-        ctx.fillStyle = nodeColor;
+        // Corpo principal da região
+        ctx.fillStyle = region.color.replace(/[\d.]+\)/, `${alpha * (0.6 + totalIntensity * 0.4)})`);
         ctx.beginPath();
-        ctx.arc(node.x, node.y, node.size * scale, 0, Math.PI * 2);
+        ctx.arc(region.x, region.y, region.radius * scale, 0, Math.PI * 2);
         ctx.fill();
 
         // Núcleo brilhante
-        if (totalIntensity > 0.5) {
-          ctx.shadowBlur = 8;
-          ctx.fillStyle = `rgba(255, 255, 255, ${alpha * totalIntensity * 0.8})`;
+        if (totalIntensity > 0.4) {
+          ctx.fillStyle = `rgba(255, 255, 255, ${alpha * totalIntensity * 0.9})`;
           ctx.beginPath();
-          ctx.arc(node.x, node.y, node.size * scale * 0.4, 0, Math.PI * 2);
+          ctx.arc(region.x, region.y, region.radius * scale * 0.3, 0, Math.PI * 2);
           ctx.fill();
         }
         
         ctx.shadowBlur = 0;
       });
 
-      // Renderizar partículas
-      particles.forEach(particle => {
+      // Renderizar partículas neurais
+      neuralParticles.forEach(particle => {
+        // Rastro da partícula
+        particle.trail.forEach((point, i) => {
+          if (i < particle.trail.length - 1) {
+            const alpha = point.alpha * (particle.life / particle.maxLife);
+            ctx.strokeStyle = particle.color.replace(/[\d.]+\)/, `${alpha * 0.6})`);
+            ctx.lineWidth = particle.size * alpha;
+            ctx.beginPath();
+            ctx.moveTo(point.x, point.y);
+            ctx.lineTo(particle.trail[i + 1].x, particle.trail[i + 1].y);
+            ctx.stroke();
+          }
+        });
+
+        // Partícula principal
         const alpha = particle.life / particle.maxLife;
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = particle.color;
         ctx.fillStyle = particle.color.replace(/[\d.]+\)/, `${alpha})`);
         ctx.beginPath();
         ctx.arc(particle.x, particle.y, particle.size * alpha, 0, Math.PI * 2);
         ctx.fill();
+        ctx.shadowBlur = 0;
       });
 
       requestAnimationFrame(animate);
@@ -583,12 +609,12 @@ export function ObservatoryLanding() {
         )}
       </button>
       
-      {/* Canvas de cérebro neural épico */}
+      {/* Canvas de cérebro humano realista */}
       <canvas
         ref={brainCanvasRef}
         className="fixed inset-0 pointer-events-none z-0 w-full h-full"
         style={{ 
-          transform: `translateY(${scrollY * 0.2}px)`
+          transform: `translateY(${scrollY * 0.1}px)`
         }}
       />
 
@@ -597,7 +623,7 @@ export function ObservatoryLanding() {
         <div className="text-center max-w-7xl mx-auto w-full">
           <div className="relative z-10">
             <ScrollReveal id="hero-badge" direction="scale" delay={200}>
-              <Badge className="mb-6 sm:mb-8 bg-gradient-to-r from-purple-600/30 to-blue-600/30 text-purple-200 border border-purple-400/40 px-4 sm:px-6 py-2 sm:py-3 text-sm sm:text-base backdrop-blur-sm hover:bg-purple-500/30 transition-all glow-badge">
+              <Badge className="mb-6 sm:mb-8 bg-gradient-to-r from-purple-600/40 to-blue-600/40 text-purple-200 border border-purple-400/50 px-4 sm:px-6 py-2 sm:py-3 text-sm sm:text-base backdrop-blur-sm hover:bg-purple-500/40 transition-all glow-badge">
                 <CircuitBoard className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
                 YumerMind - O segundo cérebro do ser humano
               </Badge>
@@ -663,8 +689,8 @@ export function ObservatoryLanding() {
                 </Button>
                 
                 {!isAuthenticated && (
-                  <div className="text-center text-sm sm:text-base md:text-lg lg:text-xl text-gray-400 font-light max-w-3xl leading-relaxed">
-                    Depois, apenas <span className="text-green-400 font-medium">R$ 47/mês</span>. Sem contrato. Sem enrolação. Cancele quando quiser.
+                  <div className="text-center text-sm sm:text-base md:text-lg lg:text-xl text-gray-300 font-light max-w-3xl leading-relaxed bg-black/30 backdrop-blur-sm rounded-2xl px-6 py-4 border border-gray-600/20">
+                    Depois, apenas <span className="text-green-400 font-medium glow-text">R$ 47/mês</span>. Sem contrato. Sem enrolação. Cancele quando quiser.
                   </div>
                 )}
               </div>
@@ -696,7 +722,7 @@ export function ObservatoryLanding() {
             {features.map((feature, index) => (
               <ScrollReveal key={index} id={`feature-${index}`} direction="up" delay={index * 200}>
                 <Card 
-                  className="bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/10 backdrop-blur-md hover:bg-white/10 transition-all duration-700 hover:scale-105 group glow-card-neural cursor-pointer"
+                  className="bg-gradient-to-br from-white/10 to-white/[0.05] border border-white/20 backdrop-blur-md hover:bg-white/15 transition-all duration-700 hover:scale-105 group glow-card-neural cursor-pointer"
                   onMouseEnter={() => {
                     if (soundEnabled && soundEffectsRef.current.hover) {
                       soundEffectsRef.current.hover();
@@ -704,11 +730,11 @@ export function ObservatoryLanding() {
                   }}
                 >
                   <CardContent className="p-4 sm:p-6 md:p-8 text-center">
-                    <div className="w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 mx-auto mb-3 sm:mb-4 md:mb-6 bg-gradient-to-r from-purple-500/20 to-blue-500/20 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform duration-500 border border-purple-500/30">
+                    <div className="w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 mx-auto mb-3 sm:mb-4 md:mb-6 bg-gradient-to-r from-purple-500/30 to-blue-500/30 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform duration-500 border border-purple-500/40">
                       <feature.icon className="w-6 h-6 sm:w-8 sm:h-8 md:w-10 md:h-10 text-purple-300" />
                     </div>
                     <h3 className="text-base sm:text-lg md:text-xl font-medium text-white mb-2 sm:mb-3 md:mb-4">{feature.title}</h3>
-                    <p className="text-gray-400 text-sm sm:text-base font-light">{feature.description}</p>
+                    <p className="text-gray-300 text-sm sm:text-base font-light">{feature.description}</p>
                   </CardContent>
                 </Card>
               </ScrollReveal>
@@ -730,14 +756,14 @@ export function ObservatoryLanding() {
             {processSteps.map((step, index) => (
               <ScrollReveal key={index} id={`step-${index}`} direction="up" delay={index * 300}>
                 <div className="text-center group">
-                  <div className="w-16 h-16 sm:w-24 sm:h-24 md:w-32 md:h-32 mx-auto mb-4 sm:mb-6 md:mb-8 bg-gradient-to-r from-purple-600/20 to-blue-600/20 rounded-full flex items-center justify-center text-xl sm:text-3xl md:text-5xl font-light text-white group-hover:scale-110 transition-transform duration-700 border border-purple-500/30 backdrop-blur-sm">
+                  <div className="w-16 h-16 sm:w-24 sm:h-24 md:w-32 md:h-32 mx-auto mb-4 sm:mb-6 md:mb-8 bg-gradient-to-r from-purple-600/30 to-blue-600/30 rounded-full flex items-center justify-center text-xl sm:text-3xl md:text-5xl font-light text-white group-hover:scale-110 transition-transform duration-700 border border-purple-500/40 backdrop-blur-sm">
                     {step.number}
                   </div>
-                  <div className="w-8 h-8 sm:w-12 sm:h-12 md:w-16 md:h-16 mx-auto mb-3 sm:mb-4 md:mb-6 bg-gradient-to-r from-purple-500/20 to-cyan-500/20 rounded-full flex items-center justify-center group-hover:rotate-12 transition-transform duration-500 border border-purple-400/30">
+                  <div className="w-8 h-8 sm:w-12 sm:h-12 md:w-16 md:h-16 mx-auto mb-3 sm:mb-4 md:mb-6 bg-gradient-to-r from-purple-500/30 to-cyan-500/30 rounded-full flex items-center justify-center group-hover:rotate-12 transition-transform duration-500 border border-purple-400/40">
                     <step.icon className="w-4 h-4 sm:w-6 sm:h-6 md:w-8 md:h-8 text-purple-300" />
                   </div>
                   <h3 className="text-xl sm:text-2xl md:text-3xl font-medium text-white mb-3 sm:mb-4 md:mb-6">{step.title}</h3>
-                  <p className="text-gray-400 text-sm sm:text-base md:text-lg leading-relaxed font-light">{step.description}</p>
+                  <p className="text-gray-300 text-sm sm:text-base md:text-lg leading-relaxed font-light">{step.description}</p>
                 </div>
               </ScrollReveal>
             ))}
@@ -757,15 +783,15 @@ export function ObservatoryLanding() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 md:gap-8">
             {benefits.map((benefit, index) => (
               <ScrollReveal key={index} id={`benefit-${index}`} direction="up" delay={index * 150}>
-                <Card className="bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/10 backdrop-blur-md hover:bg-white/10 transition-all duration-500 hover:scale-105 group glow-card-neural cursor-pointer">
+                <Card className="bg-gradient-to-br from-white/10 to-white/[0.05] border border-white/20 backdrop-blur-md hover:bg-white/15 transition-all duration-500 hover:scale-105 group glow-card-neural cursor-pointer">
                   <CardContent className="p-4 sm:p-6 md:p-8">
                     <div className="flex items-center mb-3 sm:mb-4">
-                      <div className="w-8 h-8 sm:w-12 sm:h-12 bg-gradient-to-r from-purple-500/20 to-cyan-500/20 rounded-full flex items-center justify-center mr-3 sm:mr-4 group-hover:scale-110 transition-transform border border-purple-400/30">
+                      <div className="w-8 h-8 sm:w-12 sm:h-12 bg-gradient-to-r from-purple-500/30 to-cyan-500/30 rounded-full flex items-center justify-center mr-3 sm:mr-4 group-hover:scale-110 transition-transform border border-purple-400/40">
                         <benefit.icon className="w-4 h-4 sm:w-6 sm:h-6 text-purple-300" />
                       </div>
                       <h3 className="text-lg sm:text-xl font-medium text-white">{benefit.title}</h3>
                     </div>
-                    <p className="text-gray-400 text-sm sm:text-base font-light leading-relaxed">{benefit.description}</p>
+                    <p className="text-gray-300 text-sm sm:text-base font-light leading-relaxed">{benefit.description}</p>
                   </CardContent>
                 </Card>
               </ScrollReveal>
@@ -788,10 +814,10 @@ export function ObservatoryLanding() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
             {testimonials.map((testimonial, index) => (
               <ScrollReveal key={index} id={`testimonial-${index}`} direction="up" delay={index * 200}>
-                <Card className="bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/10 backdrop-blur-md hover:bg-white/10 transition-all duration-500 hover:scale-105 group glow-card-neural">
+                <Card className="bg-gradient-to-br from-white/10 to-white/[0.05] border border-white/20 backdrop-blur-md hover:bg-white/15 transition-all duration-500 hover:scale-105 group glow-card-neural">
                   <CardContent className="p-4 sm:p-6 md:p-8 text-center">
                     <Quote className="w-6 h-6 sm:w-8 sm:h-8 text-purple-400 mx-auto mb-3 sm:mb-4 opacity-60" />
-                    <p className="text-base sm:text-lg md:text-xl text-gray-300 mb-4 sm:mb-6 font-light italic leading-relaxed">
+                    <p className="text-base sm:text-lg md:text-xl text-gray-200 mb-4 sm:mb-6 font-light italic leading-relaxed">
                       "{testimonial.text}"
                     </p>
                     <p className="text-purple-400 font-medium text-sm sm:text-base">{testimonial.author}</p>
@@ -837,8 +863,8 @@ export function ObservatoryLanding() {
                 </Button>
                 
                 {!isAuthenticated && (
-                  <div className="text-center text-base sm:text-lg md:text-xl lg:text-2xl text-gray-400 font-light max-w-4xl leading-relaxed">
-                    Depois, apenas <span className="text-green-400 font-medium">R$ 47/mês</span>. Sem enrolação. Sem obrigações.
+                  <div className="text-center text-base sm:text-lg md:text-xl lg:text-2xl text-gray-300 font-light max-w-4xl leading-relaxed bg-black/30 backdrop-blur-sm rounded-2xl px-6 py-4 border border-gray-600/20">
+                    Depois, apenas <span className="text-green-400 font-medium glow-text">R$ 47/mês</span>. Sem enrolação. Sem obrigações.
                   </div>
                 )}
               </div>
@@ -906,18 +932,18 @@ export function ObservatoryLanding() {
         }
         
         .glow-card-neural {
-          box-shadow: 0 0 15px rgba(147, 51, 234, 0.1), 0 0 30px rgba(79, 70, 229, 0.05);
+          box-shadow: 0 0 15px rgba(147, 51, 234, 0.2), 0 0 30px rgba(79, 70, 229, 0.1);
         }
         
         .glow-card-neural:hover {
           box-shadow: 
-            0 0 25px rgba(147, 51, 234, 0.3), 
-            0 0 50px rgba(79, 70, 229, 0.2),
-            0 0 75px rgba(34, 197, 94, 0.1);
+            0 0 25px rgba(147, 51, 234, 0.4), 
+            0 0 50px rgba(79, 70, 229, 0.3),
+            0 0 75px rgba(34, 197, 94, 0.2);
         }
         
         .glow-badge {
-          box-shadow: 0 0 20px rgba(147, 51, 234, 0.3);
+          box-shadow: 0 0 20px rgba(147, 51, 234, 0.4);
         }
         
         .animate-pulse-slow {
