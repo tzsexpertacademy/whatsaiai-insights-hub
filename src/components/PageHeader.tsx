@@ -1,7 +1,6 @@
 
 import React from 'react';
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import { Button } from "@/components/ui/button";
 import { Menu } from 'lucide-react';
 
 interface PageHeaderProps {
@@ -16,11 +15,9 @@ export function PageHeader({ title, subtitle, children }: PageHeaderProps) {
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <div className="md:hidden">
-            <SidebarTrigger>
-              <Button variant="ghost" size="icon">
-                <Menu className="h-5 w-5" />
-                <span className="sr-only">Abrir menu</span>
-              </Button>
+            <SidebarTrigger className="h-8 w-8 p-0">
+              <Menu className="h-5 w-5" />
+              <span className="sr-only">Abrir menu</span>
             </SidebarTrigger>
           </div>
           
