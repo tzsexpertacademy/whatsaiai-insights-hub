@@ -97,10 +97,10 @@ export function useNotifications() {
     }
   }, []);
 
-  // Função para mostrar notificação
+  // Função para mostrar notificação com redirecionamento
   const showNotification = useCallback((notification: NotificationConfig) => {
     if (permission === 'granted' && 'Notification' in window) {
-      new Notification(notification.title, {
+      const browserNotification = new Notification(notification.title, {
         body: notification.message,
         icon: '/favicon.ico',
         badge: '/favicon.ico',
@@ -108,13 +108,26 @@ export function useNotifications() {
         requireInteraction: false,
         silent: false
       });
+
+      // Adicionar handler de clique para redirecionar ao chat
+      browserNotification.onclick = () => {
+        window.focus();
+        window.location.href = '/dashboard/chat';
+        browserNotification.close();
+      };
     }
     
-    // Sempre mostrar toast como fallback
+    // Toast com ação para ir ao chat
     toast({
       title: notification.title,
       description: notification.message,
-      duration: 5000,
+      duration: 8000,
+      action: {
+        altText: "Ir para o Chat",
+        onClick: () => {
+          window.location.href = '/dashboard/chat';
+        }
+      }
     });
   }, [permission]);
 

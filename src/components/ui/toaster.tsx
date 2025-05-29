@@ -1,4 +1,4 @@
-import { useToast } from "@/hooks/use-toast"
+
 import {
   Toast,
   ToastClose,
@@ -6,7 +6,10 @@ import {
   ToastProvider,
   ToastTitle,
   ToastViewport,
+  ToastAction,
 } from "@/components/ui/toast"
+import { useToast } from "@/hooks/use-toast"
+import { Button } from "@/components/ui/button"
 
 export function Toaster() {
   const { toasts } = useToast()
@@ -22,7 +25,16 @@ export function Toaster() {
                 <ToastDescription>{description}</ToastDescription>
               )}
             </div>
-            {action}
+            {action && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={action.onClick}
+                className="ml-auto"
+              >
+                {action.altText}
+              </Button>
+            )}
             <ToastClose />
           </Toast>
         )
