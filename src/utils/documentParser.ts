@@ -58,11 +58,10 @@ Este arquivo foi carregado com sucesso e está pronto para análise quando imple
       text = await file.text();
     }
     else if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
-      // Para PDFs, vamos tentar uma abordagem completamente diferente
-      text = await extractPDFTextContent(file);
+      text = await extractPDFTextAdvanced(file);
     }
     else if (file.type.includes('word') || file.name.endsWith('.docx') || file.name.endsWith('.doc')) {
-      text = await extractWordText(file);
+      text = await extractWordTextAdvanced(file);
     }
     else {
       try {
@@ -81,13 +80,13 @@ SUGESTÃO: Tente converter o arquivo para um formato de texto (.txt, .md, .json)
       }
     }
 
+    // Limpar e validar o texto extraído
+    text = cleanAndValidateText(text);
+
     // Verificar se o texto extraído é válido
     if (!text || text.trim().length < 10) {
       throw new Error('Não foi possível extrair texto suficiente do arquivo');
     }
-
-    // Limpar caracteres especiais e normalizar o texto
-    text = cleanExtractedText(text);
 
     console.log(`✅ Texto extraído com sucesso: ${text.length} caracteres`);
 
@@ -105,104 +104,55 @@ SUGESTÃO: Tente converter o arquivo para um formato de texto (.txt, .md, .json)
   }
 }
 
-async function extractPDFTextContent(file: File): Promise<string> {
-  console.log('🔍 Tentando extrair texto do PDF...');
+async function extractPDFTextAdvanced(file: File): Promise<string> {
+  console.log('🔍 Iniciando extração avançada de PDF...');
   
   try {
     const arrayBuffer = await file.arrayBuffer();
     const uint8Array = new Uint8Array(arrayBuffer);
     
-    // Converter para string usando UTF-8
-    const decoder = new TextDecoder('utf-8', { ignoreBOM: true });
+    // Tentar múltiplas codificações
     let pdfString = '';
-    
     try {
-      pdfString = decoder.decode(uint8Array);
+      pdfString = new TextDecoder('utf-8').decode(uint8Array);
     } catch {
-      // Se UTF-8 falhar, tentar latin1
-      const latin1Decoder = new TextDecoder('latin1');
-      pdfString = latin1Decoder.decode(uint8Array);
+      try {
+        pdfString = new TextDecoder('latin1').decode(uint8Array);
+      } catch {
+        pdfString = new TextDecoder('ascii').decode(uint8Array);
+      }
     }
     
     console.log('📊 Tamanho do conteúdo PDF:', pdfString.length);
     
+    // Estratégias múltiplas de extração
     let extractedText = '';
     
-    // Método 1: Extrair texto entre parênteses simples (mais comum)
-    const simpleTextMatches = pdfString.match(/\(([^)]+)\)/g);
-    if (simpleTextMatches) {
-      console.log('🔍 Encontrados', simpleTextMatches.length, 'textos simples');
-      
-      const textParts = [];
-      for (const match of simpleTextMatches) {
-        let text = match.slice(1, -1); // Remove os parênteses
-        
-        // Limpar e validar o texto
-        text = cleanPDFText(text);
-        
-        if (isValidText(text)) {
-          textParts.push(text);
-        }
-      }
-      
-      extractedText = textParts.join(' ');
-    }
+    // Estratégia 1: Texto entre parênteses simples
+    extractedText = extractTextFromPDFPatterns(pdfString, /\(([^)]+)\)/g);
     
-    // Método 2: Se não conseguiu texto suficiente, tentar padrões mais complexos
+    // Estratégia 2: Se não conseguiu texto suficiente, tentar comandos Tj
     if (extractedText.length < 100) {
-      console.log('🔍 Tentando extração avançada...');
-      
-      // Procurar por comandos Tj (show text)
-      const tjMatches = pdfString.match(/\(([^)]*)\)\s*Tj/gi);
-      if (tjMatches) {
-        const textParts = [];
-        for (const match of tjMatches) {
-          const textMatch = match.match(/\(([^)]*)\)/);
-          if (textMatch) {
-            let text = cleanPDFText(textMatch[1]);
-            if (isValidText(text)) {
-              textParts.push(text);
-            }
-          }
-        }
-        extractedText = textParts.join(' ');
-      }
+      extractedText = extractTextFromPDFPatterns(pdfString, /\(([^)]*)\)\s*Tj/gi);
     }
     
-    // Método 3: Se ainda não conseguiu, tentar arrays TJ
+    // Estratégia 3: Arrays TJ
     if (extractedText.length < 100) {
-      console.log('🔍 Tentando extração de arrays TJ...');
-      
-      const tjArrayMatches = pdfString.match(/\[([^\]]*)\]\s*TJ/gi);
-      if (tjArrayMatches) {
-        const textParts = [];
-        for (const match of tjArrayMatches) {
-          const arrayContent = match.match(/\[([^\]]*)\]/);
-          if (arrayContent) {
-            const textMatches = arrayContent[1].match(/\(([^)]*)\)/g);
-            if (textMatches) {
-              for (const textMatch of textMatches) {
-                let text = cleanPDFText(textMatch.slice(1, -1));
-                if (isValidText(text)) {
-                  textParts.push(text);
-                }
-              }
-            }
-          }
-        }
-        extractedText = textParts.join(' ');
-      }
+      extractedText = extractTextFromPDFArrays(pdfString);
     }
     
-    // Limpeza final
-    extractedText = extractedText
-      .replace(/\s+/g, ' ')
-      .trim();
+    // Estratégia 4: Busca por texto livre (última tentativa)
+    if (extractedText.length < 100) {
+      extractedText = extractFreeTextFromPDF(pdfString);
+    }
+    
+    // Limpeza final rigorosa
+    extractedText = cleanPDFTextRigorously(extractedText);
     
     console.log(`📄 Texto final extraído: ${extractedText.length} caracteres`);
     
     // Se ainda não conseguiu extrair texto legível
-    if (extractedText.length < 50 || !hasReadableContent(extractedText)) {
+    if (extractedText.length < 50 || !isTextReadable(extractedText)) {
       console.log('⚠️ Não foi possível extrair texto legível do PDF');
       return generatePDFPlaceholder(file);
     }
@@ -215,44 +165,122 @@ async function extractPDFTextContent(file: File): Promise<string> {
   }
 }
 
-function cleanPDFText(text: string): string {
+function extractTextFromPDFPatterns(pdfString: string, pattern: RegExp): string {
+  const matches = pdfString.match(pattern);
+  if (!matches) return '';
+  
+  const textParts = [];
+  for (const match of matches) {
+    const textMatch = match.match(/\(([^)]*)\)/);
+    if (textMatch) {
+      let text = cleanPDFTextBasic(textMatch[1]);
+      if (isValidTextSegment(text)) {
+        textParts.push(text);
+      }
+    }
+  }
+  
+  return textParts.join(' ');
+}
+
+function extractTextFromPDFArrays(pdfString: string): string {
+  const tjArrayMatches = pdfString.match(/\[([^\]]*)\]\s*TJ/gi);
+  if (!tjArrayMatches) return '';
+  
+  const textParts = [];
+  for (const match of tjArrayMatches) {
+    const arrayContent = match.match(/\[([^\]]*)\]/);
+    if (arrayContent) {
+      const textMatches = arrayContent[1].match(/\(([^)]*)\)/g);
+      if (textMatches) {
+        for (const textMatch of textMatches) {
+          let text = cleanPDFTextBasic(textMatch.slice(1, -1));
+          if (isValidTextSegment(text)) {
+            textParts.push(text);
+          }
+        }
+      }
+    }
+  }
+  
+  return textParts.join(' ');
+}
+
+function extractFreeTextFromPDF(pdfString: string): string {
+  // Procurar por sequências de texto legível
+  const textMatches = pdfString.match(/[A-Za-zÀ-ÿ0-9\s\.,!?;:]{10,}/g);
+  if (!textMatches) return '';
+  
+  const validTexts = textMatches
+    .filter(text => isTextReadable(text))
+    .filter(text => !isPDFCommand(text))
+    .slice(0, 50); // Limitar para evitar excesso
+  
+  return validTexts.join(' ');
+}
+
+function cleanPDFTextBasic(text: string): string {
   return text
-    // Decodificar escapes básicos
     .replace(/\\n/g, ' ')
     .replace(/\\r/g, ' ')
     .replace(/\\t/g, ' ')
     .replace(/\\\(/g, '(')
     .replace(/\\\)/g, ')')
     .replace(/\\\\/g, '\\')
-    // Remover caracteres de controle
     .replace(/[\x00-\x1F\x7F]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function cleanPDFTextRigorously(text: string): string {
+  return text
+    // Remover códigos de escape e caracteres de controle
+    .replace(/\\[nrt]/g, ' ')
+    .replace(/\\\([)]/g, '')
+    .replace(/[\x00-\x1F\x7F-\x9F]/g, ' ')
+    // Remover símbolos e caracteres especiais em excesso
+    .replace(/[^\w\sÀ-ÿ\.,!?;:\-()]/g, ' ')
+    // Remover sequências de símbolos
+    .replace(/[^\w\s]{3,}/g, ' ')
     // Normalizar espaços
     .replace(/\s+/g, ' ')
     .trim();
 }
 
-function isValidText(text: string): boolean {
+function isValidTextSegment(text: string): boolean {
   if (!text || text.length < 2) return false;
   
-  // Filtrar comandos PDF comuns
-  const pdfCommands = ['BT', 'ET', 'Tj', 'TJ', 'Td', 'TD', 'Tm', 'T*', 'Tf', 'TL'];
-  if (pdfCommands.includes(text.trim())) return false;
+  // Filtrar comandos PDF
+  if (isPDFCommand(text)) return false;
   
   // Filtrar apenas números ou coordenadas
   if (/^[\d\s\.\-]+$/.test(text)) return false;
   
-  // Deve ter pelo menos algumas letras
+  // Deve ter letras suficientes
   const letterCount = (text.match(/[a-zA-ZÀ-ÿ]/g) || []).length;
-  return letterCount >= 2;
+  return letterCount >= 2 && letterCount > text.length * 0.3;
 }
 
-function hasReadableContent(text: string): boolean {
-  // Verificar se tem conteúdo legível (não só símbolos ou códigos)
-  const readableChars = text.match(/[a-zA-ZÀ-ÿ\s]/g) || [];
+function isPDFCommand(text: string): boolean {
+  const pdfCommands = [
+    'BT', 'ET', 'Tj', 'TJ', 'Td', 'TD', 'Tm', 'T*', 'Tf', 'TL',
+    'obj', 'endobj', 'stream', 'endstream', 'xref', 'trailer',
+    'startxref', 'PDF', 'Type', 'Font', 'Page', 'Kids', 'Parent'
+  ];
+  
+  const cleanText = text.trim().toUpperCase();
+  return pdfCommands.some(cmd => cleanText === cmd || cleanText.includes(cmd));
+}
+
+function isTextReadable(text: string): boolean {
+  if (!text || text.length < 5) return false;
+  
+  // Verificar se tem conteúdo legível
+  const readableChars = text.match(/[a-zA-ZÀ-ÿ0-9\s\.,!?;:]/g) || [];
   const totalChars = text.length;
   
-  // Pelo menos 70% deve ser legível
-  return (readableChars.length / totalChars) > 0.7;
+  // Pelo menos 80% deve ser legível
+  return (readableChars.length / totalChars) > 0.8;
 }
 
 function generatePDFPlaceholder(file: File): string {
@@ -283,13 +311,39 @@ INFORMAÇÕES DO ARQUIVO:
 PDFs escaneados aparecem como imagens e precisam de OCR para extração de texto.`;
 }
 
-async function extractWordText(file: File): Promise<string> {
+async function extractWordTextAdvanced(file: File): Promise<string> {
   try {
-    const text = await file.text();
-    return cleanExtractedText(text);
+    const arrayBuffer = await file.arrayBuffer();
+    const uint8Array = new Uint8Array(arrayBuffer);
+    
+    // Tentar extrair texto de documento Word
+    let text = '';
+    
+    try {
+      // Tentar UTF-8 primeiro
+      text = new TextDecoder('utf-8').decode(uint8Array);
+    } catch {
+      try {
+        // Fallback para latin1
+        text = new TextDecoder('latin1').decode(uint8Array);
+      } catch {
+        // Último fallback
+        text = new TextDecoder('ascii').decode(uint8Array);
+      }
+    }
+    
+    // Extrair texto legível do conteúdo Word
+    const readableText = extractReadableTextFromWord(text);
+    
+    if (readableText && readableText.length > 50) {
+      return readableText;
+    }
+    
+    throw new Error('Não foi possível extrair texto do documento Word');
+    
   } catch (error) {
     console.error('Erro na extração de Word:', error);
-    return `[WORD] ${file.name}
+    return `[DOCUMENTO WORD] ${file.name}
 
 Este é um documento Word que requer processamento especial.
 
@@ -297,14 +351,42 @@ INFORMAÇÕES DO ARQUIVO:
 - Nome: ${file.name}
 - Tamanho: ${(file.size / 1024).toFixed(2)} KB
 
-SUGESTÃO: Para melhor análise, converta o documento para formato .txt ou .md antes do upload.`;
+SUGESTÕES PARA ANÁLISE:
+1. 📄 Copie o texto do documento e cole em um arquivo .txt
+2. 🔄 Salve o documento como .txt no Word
+3. 📤 Use Google Docs para converter automaticamente
+
+NOTA: Documentos .docx são arquivos compactados que precisam de processamento especial para extração de texto.`;
   }
 }
 
-function cleanExtractedText(text: string): string {
+function extractReadableTextFromWord(content: string): string {
+  // Procurar por texto legível no conteúdo XML do Word
+  const textMatches = content.match(/>([^<]{10,})</g);
+  if (!textMatches) return '';
+  
+  const textParts = [];
+  for (const match of textMatches) {
+    const text = match.slice(1, -1); // Remove > e <
+    if (isTextReadable(text) && !text.includes('xml') && !text.includes('docx')) {
+      textParts.push(text.trim());
+    }
+  }
+  
+  return textParts.join(' ').replace(/\s+/g, ' ').trim();
+}
+
+function cleanAndValidateText(text: string): string {
+  // Limpeza geral para todos os tipos de arquivo
   return text
+    // Normalizar quebras de linha
     .replace(/\r\n/g, '\n')
     .replace(/\r/g, '\n')
+    // Remover caracteres de controle problemáticos
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, ' ')
+    // Remover sequências excessivas de símbolos especiais
+    .replace(/[^\w\sÀ-ÿ\.,!?;:\-()]{5,}/g, ' ')
+    // Normalizar espaços
     .replace(/\n{3,}/g, '\n\n')
     .replace(/\s{3,}/g, ' ')
     .trim();
