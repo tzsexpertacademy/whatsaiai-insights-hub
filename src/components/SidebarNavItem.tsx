@@ -26,17 +26,18 @@ export function SidebarNavItem({ title, url, icon: Icon }: SidebarNavItemProps) 
           "w-full h-10 px-3 rounded-lg transition-all duration-200",
           "hover:bg-blue-50 dark:hover:bg-gray-800",
           "group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-2",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500",
           isActive && "bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800"
         )}
       >
-        <Link to={url} className="flex items-center gap-3 w-full min-w-0">
+        <Link to={url} className="flex items-center gap-3 w-full min-w-0 p-1">
           <Icon className={cn(
-            "h-5 w-5 flex-shrink-0 transition-colors",
+            "h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0 transition-colors",
             isActive ? "text-blue-600 dark:text-blue-400" : "text-gray-600 dark:text-gray-400"
           )} />
           {!isCollapsed && (
             <span className={cn(
-              "font-medium text-sm truncate transition-colors",
+              "font-medium text-xs sm:text-sm truncate transition-colors",
               isActive ? "text-blue-700 dark:text-blue-300" : "text-gray-700 dark:text-gray-300"
             )}>
               {title}
