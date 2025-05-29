@@ -1,180 +1,171 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, AreaChart, Area } from 'recharts';
+import { Button } from "@/components/ui/button";
+import { Thermometer, TrendingUp, TrendingDown, Minus, AlertCircle } from 'lucide-react';
 import { useAnalysisData } from '@/contexts/AnalysisDataContext';
-import { Loader2, AlertCircle, Bot, Clock } from 'lucide-react';
+import { AIAnalysisButton } from '@/components/AIAnalysisButton';
+import { PageLayout } from '@/components/layout/PageLayout';
 
 export function EmotionalThermometer() {
-  const { data, isLoading } = useAnalysisData();
+  const { data } = useAnalysisData();
+  const [currentEmotion, setCurrentEmotion] = useState(5);
 
-  if (isLoading) {
-    return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-800 mb-2">Termômetro Emocional</h1>
-          <p className="text-slate-600">Análise detalhada dos seus estados emocionais gerada pelos assistentes</p>
-        </div>
-        <div className="flex items-center justify-center py-20">
-          <Loader2 className="h-12 w-12 animate-spin text-gray-500" />
-        </div>
-      </div>
-    );
-  }
+  const headerActions = (
+    <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+      <Badge className="bg-red-100 text-red-800 text-xs sm:text-sm">
+        🌡️ Estado Emocional
+      </Badge>
+      <AIAnalysisButton />
+    </div>
+  );
+
+  const emotionColors = {
+    1: 'bg-red-500',
+    2: 'bg-orange-500', 
+    3: 'bg-yellow-500',
+    4: 'bg-blue-500',
+    5: 'bg-green-500'
+  };
+
+  const emotionLabels = {
+    1: 'Muito Baixo',
+    2: 'Baixo',
+    3: 'Neutro', 
+    4: 'Alto',
+    5: 'Muito Alto'
+  };
 
   if (!data.hasRealData) {
     return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-800 mb-2">Termômetro Emocional</h1>
-          <p className="text-slate-600">Análise detalhada dos seus estados emocionais gerada pelos assistentes</p>
-        </div>
-        
-        <Card className="bg-white/70 backdrop-blur-sm border-white/50">
-          <CardContent className="p-12">
-            <div className="flex flex-col items-center justify-center text-center space-y-4">
-              <AlertCircle className="h-16 w-16 text-gray-400" />
-              <h3 className="text-xl font-semibold text-gray-600">Termômetro não calibrado</h3>
-              <p className="text-gray-500 max-w-md">
-                Para medir seu estado emocional, os assistentes precisam analisar suas conversas.
-              </p>
-              <div className="text-left text-sm text-gray-600 space-y-1">
-                <p>• Execute a análise por IA no dashboard</p>
-                <p>• Os assistentes irão mapear seus padrões emocionais</p>
-                <p>• Dados serão atualizados automaticamente</p>
+      <PageLayout
+        title="Termômetro Emocional"
+        description="Monitore seu estado emocional baseado na análise dos assistentes"
+        showBackButton={true}
+        headerActions={headerActions}
+      >
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-orange-500" />
+              Termômetro Emocional Vazio
+            </CardTitle>
+            <CardDescription>
+              Para monitorar suas emoções, os assistentes precisam analisar suas conversas.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="text-center py-8">
+              <Thermometer className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+              <div className="space-y-2">
+                <p className="text-sm text-gray-600">• Execute a análise por IA no dashboard</p>
+                <p className="text-sm text-gray-600">• Os assistentes irão mapear suas emoções</p>
+                <p className="text-sm text-gray-600">• Dados serão atualizados automaticamente</p>
               </div>
             </div>
           </CardContent>
         </Card>
-      </div>
+      </PageLayout>
     );
   }
 
-  // Filtrar insights emocionais dos assistentes
-  const emotionalInsights = data.insightsWithAssistant.filter(insight => 
-    insight.insight_type === 'emotional' || insight.assistantArea === 'psicologia'
-  );
-
-  const lastUpdate = data.metrics.lastAnalysis ? 
-    new Date(data.metrics.lastAnalysis).toLocaleDateString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    }) : null;
-
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-slate-800 mb-2">Termômetro Emocional</h1>
-        <p className="text-slate-600">Estados emocionais identificados pelos assistentes especializados</p>
-      </div>
-
-      {/* Indicadores dos assistentes */}
-      <div className="flex flex-wrap items-center gap-2 mb-4">
-        <Badge variant="outline" className="bg-purple-50 text-purple-700">
-          🔮 Análise dos Assistentes
-        </Badge>
-        <Badge variant="outline" className="bg-blue-50 text-blue-700">
-          📊 {emotionalInsights.length} padrões emocionais detectados
-        </Badge>
-        <Badge variant="outline" className="bg-green-50 text-green-700">
-          🤖 {data.metrics.assistantsActive} assistentes ativos
-        </Badge>
-        {lastUpdate && (
-          <Badge variant="outline" className="bg-gray-50 text-gray-700">
-            <Clock className="h-3 w-3 mr-1" />
-            Última análise: {lastUpdate}
-          </Badge>
-        )}
-      </div>
-
+    <PageLayout
+      title="Termômetro Emocional"
+      description="Monitore seu estado emocional baseado na análise dos assistentes"
+      showBackButton={true}
+      headerActions={headerActions}
+    >
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="bg-white/70 backdrop-blur-sm border-white/50">
+        {/* Termômetro Principal */}
+        <Card>
           <CardHeader>
-            <CardTitle>Estado Emocional Semanal</CardTitle>
-            <CardDescription>Evolução baseada na análise dos assistentes</CardDescription>
+            <CardTitle className="flex items-center gap-2">
+              <Thermometer className="h-5 w-5 text-blue-500" />
+              Estado Atual
+            </CardTitle>
+            <CardDescription>
+              Nível emocional baseado na análise dos assistentes
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={data.emotionalData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis domain={[0, 100]} />
-                <Tooltip 
-                  formatter={(value, name) => [`${value}%`, 'Nível de Bem-estar']}
-                  labelFormatter={(day) => {
-                    const dayData = data.emotionalData.find(d => d.name === day);
-                    return `${day}: ${dayData?.emotion}`;
-                  }}
+            <div className="flex flex-col items-center space-y-6">
+              <div className="relative w-32 h-64 bg-gray-200 rounded-full overflow-hidden">
+                <div 
+                  className={`absolute bottom-0 w-full transition-all duration-500 ${emotionColors[currentEmotion]}`}
+                  style={{ height: `${(currentEmotion / 5) * 100}%` }}
                 />
-                <Line 
-                  type="monotone" 
-                  dataKey="value" 
-                  stroke="#8884d8" 
-                  strokeWidth={3}
-                  dot={{ stroke: '#8884d8', strokeWidth: 2, r: 4 }}
-                  activeDot={{ r: 6 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-white/70 backdrop-blur-sm border-white/50">
-          <CardHeader>
-            <CardTitle>Estado Emocional Atual</CardTitle>
-            <CardDescription>Análise dos assistentes especializados</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-col items-center justify-center h-[300px]">
-              <div className="relative w-48 h-48">
-                <div className="absolute inset-0 rounded-full bg-gradient-to-br from-blue-100 to-blue-50 border-4 border-blue-300 flex items-center justify-center">
-                  <div className="text-center">
-                    <h3 className="text-xl font-bold text-blue-700 mb-2">{data.emotionalState}</h3>
-                    <p className="text-blue-600">{data.relationalAwareness}% estável</p>
-                    <div className="mt-3 flex items-center justify-center">
-                      <Bot className="h-4 w-4 text-blue-500 mr-1" />
-                      <span className="text-xs text-blue-500">Por assistentes IA</span>
-                    </div>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="text-white font-bold text-xl">
+                    {currentEmotion}
                   </div>
                 </div>
+              </div>
+              
+              <div className="text-center">
+                <div className="text-2xl font-bold text-gray-800 mb-2">
+                  {emotionLabels[currentEmotion]}
+                </div>
+                <p className="text-gray-600">
+                  Baseado em {data.insightsWithAssistant?.length || 0} análises
+                </p>
+              </div>
+
+              <div className="flex gap-2">
+                {[1, 2, 3, 4, 5].map((level) => (
+                  <Button
+                    key={level}
+                    variant={currentEmotion === level ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setCurrentEmotion(level)}
+                  >
+                    {level}
+                  </Button>
+                ))}
               </div>
             </div>
           </CardContent>
         </Card>
-      </div>
 
-      {/* Insights emocionais dos assistentes */}
-      {emotionalInsights.length > 0 && (
-        <Card className="bg-white/70 backdrop-blur-sm border-white/50">
+        {/* Histórico e Tendências */}
+        <Card>
           <CardHeader>
-            <CardTitle>Insights Emocionais dos Assistentes</CardTitle>
-            <CardDescription>Padrões identificados pelos assistentes especializados</CardDescription>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-green-500" />
+              Tendências
+            </CardTitle>
+            <CardDescription>
+              Padrões emocionais identificados pelos assistentes
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {emotionalInsights.slice(0, 3).map((insight, index) => (
-                <div key={insight.id} className="border rounded-lg p-4 bg-gradient-to-r from-purple-50 to-blue-50">
-                  <div className="flex items-start justify-between mb-2">
-                    <h4 className="font-medium text-slate-800">{insight.title}</h4>
-                    <Badge className="bg-purple-100 text-purple-800">
-                      🔮 {insight.assistantName}
-                    </Badge>
+              {data.emotionalMetrics?.trends?.map((trend, index) => (
+                <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    {trend.direction === 'up' ? (
+                      <TrendingUp className="h-4 w-4 text-green-500" />
+                    ) : trend.direction === 'down' ? (
+                      <TrendingDown className="h-4 w-4 text-red-500" />
+                    ) : (
+                      <Minus className="h-4 w-4 text-gray-500" />
+                    )}
+                    <span className="font-medium">{trend.label}</span>
                   </div>
-                  <p className="text-sm text-slate-600 mb-3">{insight.description}</p>
-                  <div className="flex items-center justify-between text-xs text-slate-500">
-                    <span>Área: {insight.assistantArea}</span>
-                    <span>{new Date(insight.createdAt).toLocaleDateString('pt-BR')}</span>
-                  </div>
+                  <Badge variant="outline">
+                    {trend.period}
+                  </Badge>
                 </div>
-              ))}
+              )) || (
+                <div className="text-center py-4 text-gray-500">
+                  Aguardando mais dados para identificar tendências
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
-      )}
-    </div>
+      </div>
+    </PageLayout>
   );
 }
