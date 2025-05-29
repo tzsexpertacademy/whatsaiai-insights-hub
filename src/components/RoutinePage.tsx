@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { PageHeader } from '@/components/PageHeader';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -20,7 +21,7 @@ import {
 } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox"
-import { useToast } from "@/components/ui/use-toast"
+import { useToast } from "@/hooks/use-toast"
 import {
   Drawer,
   DrawerClose,
@@ -46,7 +47,7 @@ export function RoutinePage() {
   });
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [energyLevel, setEnergyLevel] = useState(50);
-  const [toast] = useToast();
+  const { toast } = useToast();
 
   useEffect(() => {
     // Simulação de carregamento de atividades do backend
@@ -63,8 +64,8 @@ export function RoutinePage() {
     setNewActivity(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setNewActivity(prev => ({ ...prev, completed: e.target.checked }));
+  const handleCheckboxChange = (checked: boolean | string) => {
+    setNewActivity(prev => ({ ...prev, completed: checked === true }));
   };
 
   const addActivity = () => {
@@ -212,7 +213,13 @@ export function RoutinePage() {
                   <Label htmlFor="completed" className="text-right">
                     Concluída
                   </Label>
-                  <Checkbox id="completed" name="completed" checked={newActivity.completed} onCheckedChange={handleCheckboxChange} className="col-span-3" />
+                  <Checkbox 
+                    id="completed" 
+                    name="completed" 
+                    checked={newActivity.completed} 
+                    onCheckedChange={handleCheckboxChange} 
+                    className="col-span-3" 
+                  />
                 </div>
               </div>
               <DrawerFooter>
