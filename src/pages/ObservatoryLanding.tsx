@@ -394,6 +394,15 @@ export function ObservatoryLanding() {
     <div className="min-h-screen bg-black text-white overflow-x-hidden relative">
       <CursorEffect />
       
+      {/* Canvas neural épico em toda a página - sempre visível */}
+      <canvas
+        ref={canvasRef}
+        className="fixed inset-0 pointer-events-none z-0 w-full h-full opacity-40"
+        style={{ 
+          transform: `translateY(${scrollY * 0.1}px)`
+        }}
+      />
+      
       {/* Animação do cérebro neural */}
       {showBrainAnimation && (
         <div className="relative z-30">
@@ -405,7 +414,7 @@ export function ObservatoryLanding() {
           {/* Botão para pular animação */}
           <button
             onClick={skipAnimation}
-            className="fixed bottom-8 right-8 z-50 bg-black/50 backdrop-blur-sm border border-purple-500/30 rounded-full px-6 py-3 hover:bg-purple-500/20 transition-all text-purple-400 text-sm"
+            className="fixed bottom-8 right-8 z-50 bg-black/70 backdrop-blur-sm border border-purple-500/40 rounded-full px-6 py-3 hover:bg-purple-500/30 transition-all text-purple-300 text-sm font-medium"
           >
             Pular animação →
           </button>
@@ -415,7 +424,7 @@ export function ObservatoryLanding() {
       {/* Controle de som */}
       <button
         onClick={handleSoundToggle}
-        className="fixed top-4 right-4 z-50 bg-black/50 backdrop-blur-sm border border-purple-500/30 rounded-full p-3 hover:bg-purple-500/20 transition-all group"
+        className="fixed top-4 right-4 z-50 bg-black/70 backdrop-blur-sm border border-purple-500/40 rounded-full p-3 hover:bg-purple-500/30 transition-all group"
         onMouseEnter={() => {
           if (soundEnabled && soundEffectsRef.current.hover) {
             soundEffectsRef.current.hover();
@@ -429,98 +438,88 @@ export function ObservatoryLanding() {
         )}
       </button>
       
-      {/* Canvas neural simples (mantém o fundo) */}
-      {showContent && (
-        <canvas
-          ref={canvasRef}
-          className="fixed inset-0 pointer-events-none z-0 w-full h-full"
-          style={{ 
-            transform: `translateY(${scrollY * 0.1}px)`
-          }}
-        />
-      )}
-
       {/* Conteúdo principal - só aparece após animação do cérebro */}
       {showContent && (
-        <div className="animate-fade-in">
-          {/* Seção 1 - O IMPACTO ÉPICO */}
-          <section ref={heroRef} className="relative min-h-screen flex items-center justify-center px-4 sm:px-6 z-10">
-            <div className="text-center max-w-7xl mx-auto w-full">
-              <div className="relative z-10">
-                <ScrollReveal id="hero-badge" direction="scale" delay={200}>
-                  <Badge className="mb-6 sm:mb-8 bg-gradient-to-r from-purple-600/40 to-blue-600/40 text-purple-200 border border-purple-400/50 px-4 sm:px-6 py-2 sm:py-3 text-sm sm:text-base backdrop-blur-sm hover:bg-purple-500/40 transition-all glow-badge">
-                    <CircuitBoard className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
-                    YumerMind - O segundo cérebro do ser humano
-                  </Badge>
-                </ScrollReveal>
+        <div className="animate-fade-in relative z-10">
+          {/* Seção 1 - O IMPACTO ÉPICO com texto muito mais visível */}
+          <section ref={heroRef} className="relative min-h-screen flex items-center justify-center px-4 sm:px-6">
+            {/* Overlay escuro para contraste do texto */}
+            <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-black/60"></div>
+            
+            <div className="text-center max-w-7xl mx-auto w-full relative z-10">
+              <ScrollReveal id="hero-badge" direction="scale" delay={200}>
+                <Badge className="mb-6 sm:mb-8 bg-gradient-to-r from-purple-600/50 to-blue-600/50 text-purple-200 border border-purple-400/60 px-4 sm:px-6 py-2 sm:py-3 text-sm sm:text-base backdrop-blur-md hover:bg-purple-500/50 transition-all glow-badge">
+                  <CircuitBoard className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
+                  YumerMind - O segundo cérebro do ser humano
+                </Badge>
+              </ScrollReveal>
 
-                <ScrollReveal id="hero-title" direction="up" delay={400}>
-                  <div className="mb-8 sm:mb-12">
-                    {/* Primeira frase com MUITO mais destaque */}
-                    <h1 className="text-4xl sm:text-6xl md:text-8xl lg:text-9xl xl:text-[10rem] font-extralight mb-4 sm:mb-6 leading-[0.85] tracking-tight">
-                      <span className="block text-white mb-2 sm:mb-4 transform hover:scale-105 transition-transform duration-700">
-                        O que você 
-                        <span className="italic text-red-400 font-light glow-text-mega"> não vê</span>...
-                      </span>
-                      <span className="block text-6xl sm:text-8xl md:text-[10rem] lg:text-[12rem] xl:text-[15rem] font-bold text-red-500 glow-text-apocalypse mb-6 sm:mb-8 transform hover:scale-110 transition-all duration-500 animate-pulse-slow drop-shadow-2xl">
-                        te controla.
-                      </span>
-                    </h1>
-                    
-                    <h2 className="text-3xl sm:text-5xl md:text-7xl lg:text-8xl xl:text-9xl font-extralight mb-2 sm:mb-4 leading-[0.85] tracking-tight">
-                      <span className="block text-white mb-2 sm:mb-4 transform hover:scale-105 transition-transform duration-700">
-                        O que você 
-                        <span className="italic text-emerald-400 font-light glow-text-mega"> vê</span>...
-                      </span>
-                      <span className="block text-5xl sm:text-7xl md:text-9xl lg:text-[11rem] xl:text-[14rem] font-bold text-emerald-400 glow-text-liberation transform hover:scale-110 transition-all duration-500">
-                        te liberta.
-                      </span>
-                    </h2>
-                  </div>
-                </ScrollReveal>
+              <ScrollReveal id="hero-title" direction="up" delay={400}>
+                <div className="mb-8 sm:mb-12">
+                  {/* Texto com contraste máximo baseado na imagem */}
+                  <h1 className="text-4xl sm:text-6xl md:text-8xl lg:text-9xl xl:text-[10rem] font-extralight mb-4 sm:mb-6 leading-[0.85] tracking-tight">
+                    <span className="block text-white mb-2 sm:mb-4 transform hover:scale-105 transition-transform duration-700 drop-shadow-[0_0_30px_rgba(255,255,255,0.8)] font-bold">
+                      O que você 
+                      <span className="italic text-red-400 font-black glow-text-red-mega"> não vê</span>...
+                    </span>
+                    <span className="block text-6xl sm:text-8xl md:text-[10rem] lg:text-[12rem] xl:text-[15rem] font-black mb-6 sm:mb-8 transform hover:scale-110 transition-all duration-500 animate-pulse-slow glow-text-cyan-mega">
+                      te controla.
+                    </span>
+                  </h1>
+                  
+                  <h2 className="text-3xl sm:text-5xl md:text-7xl lg:text-8xl xl:text-9xl font-extralight mb-2 sm:mb-4 leading-[0.85] tracking-tight">
+                    <span className="block text-white mb-2 sm:mb-4 transform hover:scale-105 transition-transform duration-700 drop-shadow-[0_0_30px_rgba(255,255,255,0.8)] font-bold">
+                      O que você 
+                      <span className="italic text-emerald-400 font-black glow-text-green-mega"> vê</span>...
+                    </span>
+                    <span className="block text-5xl sm:text-7xl md:text-9xl lg:text-[11rem] xl:text-[14rem] font-black glow-text-green-mega transform hover:scale-110 transition-all duration-500">
+                      te liberta.
+                    </span>
+                  </h2>
+                </div>
+              </ScrollReveal>
 
-                <ScrollReveal id="hero-subtitle" direction="up" delay={600}>
-                  <div className="mb-8 sm:mb-12 space-y-3 sm:space-y-4">
-                    <p className="text-xl sm:text-2xl md:text-4xl lg:text-5xl font-light text-white leading-tight">
-                      Ative seu <span className="text-purple-400 font-medium glow-text">segundo cérebro</span>.
-                    </p>
-                    <p className="text-lg sm:text-xl md:text-3xl lg:text-4xl text-blue-300 font-light leading-relaxed">
-                      Veja padrões, emoções, forças e sombras que você nunca percebeu.
-                    </p>
-                    <p className="text-base sm:text-lg md:text-2xl lg:text-3xl text-gray-300 max-w-5xl mx-auto font-light leading-relaxed">
-                      Acesse agora o <span className="text-cyan-400 glow-text">Observatório</span> da sua própria mente.
-                    </p>
-                  </div>
-                </ScrollReveal>
+              <ScrollReveal id="hero-subtitle" direction="up" delay={600}>
+                <div className="mb-8 sm:mb-12 space-y-3 sm:space-y-4">
+                  <p className="text-xl sm:text-2xl md:text-4xl lg:text-5xl font-light text-white leading-tight">
+                    Ative seu <span className="text-purple-400 font-medium glow-text">segundo cérebro</span>.
+                  </p>
+                  <p className="text-lg sm:text-xl md:text-3xl lg:text-4xl text-blue-300 font-light leading-relaxed">
+                    Veja padrões, emoções, forças e sombras que você nunca percebeu.
+                  </p>
+                  <p className="text-base sm:text-lg md:text-2xl lg:text-3xl text-gray-300 max-w-5xl mx-auto font-light leading-relaxed">
+                    Acesse agora o <span className="text-cyan-400 glow-text">Observatório</span> da sua própria mente.
+                  </p>
+                </div>
+              </ScrollReveal>
 
-                <ScrollReveal id="hero-buttons" direction="up" delay={800}>
-                  <div className="flex flex-col gap-4 sm:gap-6 justify-center items-center mb-8 sm:mb-12">
-                    <Button 
-                      onClick={handleActivateYumerMind}
-                      onMouseEnter={() => {
-                        if (soundEnabled && soundEffectsRef.current.hover) {
-                          soundEffectsRef.current.hover();
-                        }
-                      }}
-                      className="relative overflow-hidden w-full sm:w-auto bg-gradient-to-r from-purple-600 via-blue-600 to-cyan-600 hover:from-purple-500 hover:via-blue-500 hover:to-cyan-500 text-white px-8 sm:px-16 md:px-20 py-6 sm:py-8 md:py-10 text-xl sm:text-2xl md:text-3xl lg:text-4xl font-black rounded-3xl sm:rounded-4xl shadow-2xl shadow-purple-500/50 border-3 border-purple-400/50 backdrop-blur-sm glow-button-apocalypse group transform hover:scale-110 transition-all duration-700 max-w-4xl before:absolute before:inset-0 before:bg-gradient-to-r before:from-transparent before:via-white/20 before:to-transparent before:translate-x-[-100%] hover:before:translate-x-[100%] before:transition-transform before:duration-1000"
-                    >
-                      <Brain className="w-8 h-8 sm:w-10 h-10 md:w-12 md:h-12 mr-4 sm:mr-6 group-hover:rotate-12 transition-transform duration-500 drop-shadow-lg" />
-                      <div className="text-center leading-tight relative z-10">
-                        <div className="font-black tracking-wide drop-shadow-lg">
-                          {isAuthenticated ? 'ACESSAR MEU YUMERMIND' : 'ATIVAR MEU YUMERMIND — 7 DIAS GRÁTIS'}
-                        </div>
+              <ScrollReveal id="hero-buttons" direction="up" delay={800}>
+                <div className="flex flex-col gap-4 sm:gap-6 justify-center items-center mb-8 sm:mb-12">
+                  <Button 
+                    onClick={handleActivateYumerMind}
+                    onMouseEnter={() => {
+                      if (soundEnabled && soundEffectsRef.current.hover) {
+                        soundEffectsRef.current.hover();
+                      }
+                    }}
+                    className="relative overflow-hidden w-full sm:w-auto bg-gradient-to-r from-purple-600 via-blue-600 to-cyan-600 hover:from-purple-500 hover:via-blue-500 hover:to-cyan-500 text-white px-8 sm:px-16 md:px-20 py-6 sm:py-8 md:py-10 text-xl sm:text-2xl md:text-3xl lg:text-4xl font-black rounded-3xl sm:rounded-4xl shadow-2xl shadow-purple-500/50 border-3 border-purple-400/50 backdrop-blur-sm glow-button-apocalypse group transform hover:scale-110 transition-all duration-700 max-w-4xl before:absolute before:inset-0 before:bg-gradient-to-r before:from-transparent before:via-white/20 before:to-transparent before:translate-x-[-100%] hover:before:translate-x-[100%] before:transition-transform before:duration-1000"
+                  >
+                    <Brain className="w-8 h-8 sm:w-10 h-10 md:w-12 md:h-12 mr-4 sm:mr-6 group-hover:rotate-12 transition-transform duration-500 drop-shadow-lg" />
+                    <div className="text-center leading-tight relative z-10">
+                      <div className="font-black tracking-wide drop-shadow-lg">
+                        {isAuthenticated ? 'ACESSAR MEU YUMERMIND' : 'ATIVAR MEU YUMERMIND — 7 DIAS GRÁTIS'}
                       </div>
-                      <Sparkles className="w-8 h-8 sm:w-10 h-10 md:w-12 md:h-12 ml-4 sm:ml-6 group-hover:scale-110 transition-transform duration-500 drop-shadow-lg" />
-                    </Button>
-                    
-                    {!isAuthenticated && (
-                      <div className="text-center text-sm sm:text-base md:text-lg lg:text-xl text-gray-300 font-light max-w-3xl leading-relaxed bg-black/30 backdrop-blur-sm rounded-2xl px-6 py-4 border border-gray-600/20">
-                        Depois, apenas <span className="text-green-400 font-medium glow-text">R$ 47/mês</span>. Sem contrato. Sem enrolação. Cancele quando quiser.
-                      </div>
-                    )}
-                  </div>
-                </ScrollReveal>
-              </div>
+                    </div>
+                    <Sparkles className="w-8 h-8 sm:w-10 h-10 md:w-12 md:h-12 ml-4 sm:ml-6 group-hover:scale-110 transition-transform duration-500 drop-shadow-lg" />
+                  </Button>
+                  
+                  {!isAuthenticated && (
+                    <div className="text-center text-sm sm:text-base md:text-lg lg:text-xl text-gray-300 font-light max-w-3xl leading-relaxed bg-black/30 backdrop-blur-sm rounded-2xl px-6 py-4 border border-gray-600/20">
+                      Depois, apenas <span className="text-green-400 font-medium glow-text">R$ 47/mês</span>. Sem contrato. Sem enrolação. Cancele quando quiser.
+                    </div>
+                  )}
+                </div>
+              </ScrollReveal>
             </div>
           </section>
 
@@ -698,35 +697,51 @@ export function ObservatoryLanding() {
             </div>
           </section>
 
-          {/* Estilos CSS customizados para a estética neural épica */}
+          {/* Estilos CSS customizados com efeitos de brilho intensos */}
           <style>{`
-            .glow-text-apocalypse {
+            .glow-text-red-mega {
+              color: #06b6d4;
               text-shadow: 
-                0 0 30px currentColor, 
-                0 0 60px currentColor, 
-                0 0 120px currentColor,
-                0 0 200px rgba(239, 68, 68, 0.8),
-                0 0 300px rgba(239, 68, 68, 0.6);
-              filter: drop-shadow(0 0 50px currentColor);
+                0 0 5px #06b6d4,
+                0 0 10px #06b6d4,
+                0 0 20px #06b6d4,
+                0 0 40px #06b6d4,
+                0 0 80px #06b6d4,
+                0 0 120px #06b6d4;
+              filter: 
+                drop-shadow(0 0 20px #06b6d4) 
+                drop-shadow(0 0 40px #06b6d4)
+                drop-shadow(0 0 60px #06b6d4);
             }
             
-            .glow-text-liberation {
+            .glow-text-cyan-mega {
+              color: #06b6d4;
               text-shadow: 
-                0 0 30px currentColor, 
-                0 0 60px currentColor, 
-                0 0 120px currentColor,
-                0 0 200px rgba(52, 211, 153, 0.8),
-                0 0 300px rgba(52, 211, 153, 0.6);
-              filter: drop-shadow(0 0 50px currentColor);
+                0 0 5px #06b6d4,
+                0 0 10px #06b6d4,
+                0 0 20px #06b6d4,
+                0 0 40px #06b6d4,
+                0 0 80px #06b6d4,
+                0 0 120px #06b6d4;
+              filter: 
+                drop-shadow(0 0 20px #06b6d4) 
+                drop-shadow(0 0 40px #06b6d4)
+                drop-shadow(0 0 60px #06b6d4);
             }
             
-            .glow-text-mega {
+            .glow-text-green-mega {
+              color: #10b981;
               text-shadow: 
-                0 0 20px currentColor, 
-                0 0 40px currentColor, 
-                0 0 80px currentColor,
-                0 0 120px currentColor;
-              filter: drop-shadow(0 0 30px currentColor);
+                0 0 5px #10b981,
+                0 0 10px #10b981,
+                0 0 20px #10b981,
+                0 0 40px #10b981,
+                0 0 80px #10b981,
+                0 0 120px #10b981;
+              filter: 
+                drop-shadow(0 0 20px #10b981) 
+                drop-shadow(0 0 40px #10b981)
+                drop-shadow(0 0 60px #10b981);
             }
             
             .glow-text {

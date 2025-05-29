@@ -12,7 +12,7 @@ export function BrainAnimation({ onAnimationComplete, soundEnabled = false }: Br
   const [logoOpacity, setLogoOpacity] = useState(0);
 
   useEffect(() => {
-    // Mostrar vídeo por 6 segundos
+    // Deixar o vídeo rodar por muito mais tempo para ser assistido completo
     const videoTimer = setTimeout(() => {
       console.log('🎬 Vídeo terminado, mostrando logo');
       setShowVideo(false);
@@ -30,7 +30,7 @@ export function BrainAnimation({ onAnimationComplete, soundEnabled = false }: Br
         onAnimationComplete?.();
       }, 3000);
       
-    }, 6000);
+    }, 30000); // 30 segundos para assistir o vídeo completo
 
     return () => clearTimeout(videoTimer);
   }, [onAnimationComplete]);
@@ -38,93 +38,104 @@ export function BrainAnimation({ onAnimationComplete, soundEnabled = false }: Br
   return (
     <div className="fixed inset-0 pointer-events-none z-20 w-full h-full flex items-center justify-center"
          style={{ 
-           background: 'radial-gradient(circle at center, rgba(20, 0, 40, 0.95) 0%, rgba(0, 0, 0, 0.98) 100%)'
+           background: 'radial-gradient(circle at center, rgba(15, 0, 35, 0.98) 0%, rgba(0, 0, 0, 0.99) 100%)'
          }}>
+      
+      {/* Efeito neural de fundo durante a animação */}
+      <div className="absolute inset-0 pointer-events-none opacity-30">
+        {[...Array(100)].map((_, i) => (
+          <div
+            key={i}
+            className="absolute w-px h-px bg-purple-400/60 rounded-full animate-pulse"
+            style={{
+              left: `${Math.random() * 100}%`,
+              top: `${Math.random() * 100}%`,
+              animationDelay: `${Math.random() * 4}s`,
+              animationDuration: `${2 + Math.random() * 3}s`
+            }}
+          />
+        ))}
+        
+        {/* Linhas conectoras neurais */}
+        {[...Array(20)].map((_, i) => (
+          <div
+            key={`line-${i}`}
+            className="absolute border-t border-purple-500/20"
+            style={{
+              left: `${Math.random() * 80}%`,
+              top: `${Math.random() * 80}%`,
+              width: `${50 + Math.random() * 200}px`,
+              transform: `rotate(${Math.random() * 360}deg)`,
+              animationDelay: `${Math.random() * 2}s`
+            }}
+          />
+        ))}
+      </div>
       
       {/* Vídeo do YouTube */}
       {showVideo && (
         <div className="relative w-full h-full flex items-center justify-center animate-fade-in">
-          <div className="relative w-[90vw] h-[90vh] max-w-4xl max-h-[600px] rounded-2xl overflow-hidden shadow-2xl shadow-purple-500/30 border border-purple-500/20">
+          <div className="relative w-[95vw] h-[95vh] max-w-6xl max-h-[800px] rounded-3xl overflow-hidden shadow-2xl shadow-purple-500/50 border-2 border-purple-400/40">
             <iframe 
               width="100%" 
               height="100%" 
-              src="https://www.youtube.com/embed/p1y4YsZSyaA?si=39ic_TKTdrFaojkY&autoplay=1&mute=0&controls=0&showinfo=0&rel=0&modestbranding=1&loop=1&playlist=p1y4YsZSyaA" 
+              src="https://www.youtube.com/embed/p1y4YsZSyaA?si=39ic_TKTdrFaojkY&autoplay=1&mute=0&controls=0&showinfo=0&rel=0&modestbranding=1" 
               title="Brain Animation Video" 
               frameBorder="0" 
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
               referrerPolicy="strict-origin-when-cross-origin" 
               allowFullScreen
-              className="rounded-2xl"
+              className="rounded-3xl"
             />
             
-            {/* Overlay neural sutil */}
-            <div className="absolute inset-0 bg-gradient-to-t from-purple-900/20 via-transparent to-blue-900/10 pointer-events-none" />
+            {/* Overlay neural muito sutil */}
+            <div className="absolute inset-0 bg-gradient-to-t from-purple-900/5 via-transparent to-blue-900/5 pointer-events-none" />
           </div>
         </div>
       )}
 
-      {/* Logo da Yumer */}
+      {/* Logo da Yumer com transição mais suave */}
       {animationPhase === 'showingLogo' && (
         <div 
           className="flex flex-col items-center justify-center text-center animate-fade-in"
-          style={{ opacity: logoOpacity, transition: 'opacity 1s ease-in-out' }}
+          style={{ opacity: logoOpacity, transition: 'opacity 2s ease-in-out' }}
         >
-          {/* Logo principal */}
           <div className="mb-8 relative">
-            <div className="w-48 h-48 mx-auto mb-6 bg-gradient-to-r from-purple-600/30 to-blue-600/30 rounded-full flex items-center justify-center backdrop-blur-sm border border-purple-400/50">
-              <div className="text-6xl font-black text-white drop-shadow-2xl">Y</div>
+            <div className="w-64 h-64 mx-auto mb-8 bg-gradient-to-r from-purple-600/50 to-blue-600/50 rounded-full flex items-center justify-center backdrop-blur-sm border-2 border-purple-400/70 shadow-2xl shadow-purple-500/60">
+              <div className="text-8xl font-black text-white drop-shadow-2xl">Y</div>
             </div>
             
-            {/* Efeito de brilho ao redor */}
-            <div className="absolute inset-0 w-48 h-48 mx-auto bg-gradient-to-r from-purple-500/20 to-blue-500/20 rounded-full blur-xl animate-pulse" />
+            {/* Efeitos de brilho concêntricos */}
+            <div className="absolute inset-0 w-64 h-64 mx-auto bg-gradient-to-r from-purple-500/40 to-blue-500/40 rounded-full blur-2xl animate-pulse" />
+            <div className="absolute inset-0 w-64 h-64 mx-auto bg-gradient-to-r from-cyan-500/30 to-purple-500/30 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
           </div>
           
-          {/* Texto "Yumer" estilizado */}
-          <h1 className="text-7xl font-black text-white mb-4 drop-shadow-2xl">
-            <span className="bg-gradient-to-r from-purple-400 via-blue-400 to-cyan-400 bg-clip-text text-transparent">
+          <h1 className="text-9xl font-black text-white mb-6 drop-shadow-2xl">
+            <span className="bg-gradient-to-r from-purple-400 via-blue-400 to-cyan-400 bg-clip-text text-transparent glow-text-mega">
               Yumer
             </span>
           </h1>
           
-          {/* Subtitle "Mind" */}
-          <p className="text-3xl font-light text-gray-300 mb-8 drop-shadow-lg">
+          <p className="text-5xl font-light text-gray-300 mb-10 drop-shadow-lg glow-text">
             Mind
           </p>
           
-          {/* Tagline */}
-          <p className="text-xl text-purple-300 font-light max-w-2xl leading-relaxed">
+          <p className="text-2xl text-purple-300 font-light max-w-3xl leading-relaxed glow-text">
             Seu segundo cérebro está ativando...
           </p>
-          
-          {/* Efeitos visuais */}
-          <div className="absolute inset-0 pointer-events-none">
-            {/* Partículas flutuantes */}
-            {[...Array(20)].map((_, i) => (
-              <div
-                key={i}
-                className="absolute w-2 h-2 bg-purple-400/60 rounded-full animate-bounce"
-                style={{
-                  left: `${Math.random() * 100}%`,
-                  top: `${Math.random() * 100}%`,
-                  animationDelay: `${Math.random() * 2}s`,
-                  animationDuration: `${2 + Math.random() * 2}s`
-                }}
-              />
-            ))}
-          </div>
         </div>
       )}
       
-      {/* Indicador de progresso sutil */}
+      {/* Indicador de progresso elegante */}
       {showVideo && (
-        <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 flex space-x-2">
-          {[...Array(3)].map((_, i) => (
+        <div className="absolute bottom-12 left-1/2 transform -translate-x-1/2 flex space-x-4">
+          {[...Array(5)].map((_, i) => (
             <div
               key={i}
-              className="w-3 h-3 bg-purple-400/60 rounded-full animate-pulse"
+              className="w-4 h-4 bg-gradient-to-r from-purple-400 to-cyan-400 rounded-full animate-pulse shadow-lg shadow-purple-500/60"
               style={{
                 animationDelay: `${i * 0.3}s`,
-                animationDuration: '1.5s'
+                animationDuration: '2.5s'
               }}
             />
           ))}
