@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState } from 'react';
 
 interface BrainAnimationProps {
@@ -78,7 +79,7 @@ export function BrainAnimation({ onAnimationComplete, soundEnabled = false }: Br
             <iframe 
               width="100%" 
               height="100%" 
-              src="https://www.youtube.com/embed/9xvhXm159UM?si=usOoMhipbjpx6Z3l&autoplay=1&mute=0&controls=0&showinfo=0&rel=0&modestbranding=1" 
+              src="https://www.youtube.com/embed/9xvhXm159UM?si=usOoMhipbjpx6Z3l&autoplay=1&mute=0&controls=0&showinfo=0&rel=0&modestbranding=1&start=0" 
               title="Brain Animation Video" 
               frameBorder="0" 
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 

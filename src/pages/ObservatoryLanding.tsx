@@ -454,64 +454,70 @@ export function ObservatoryLanding() {
 
                 <ScrollReveal id="hero-title" direction="up" delay={400}>
                   <div className="mb-8 sm:mb-12">
-                    <h1 className="text-3xl sm:text-5xl md:text-7xl lg:text-8xl xl:text-9xl font-black mb-6 leading-[0.9] tracking-tight">
+                    <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black mb-6 leading-[0.9] tracking-tight">
                       <div className="mb-4">
                         <span className="block text-white font-black mb-2">
                           O que você
                         </span>
                         <span 
-                          className="block font-black bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent"
+                          className="block font-black bg-gradient-to-r from-red-500 via-orange-500 to-yellow-500 bg-clip-text text-transparent animate-pulse"
                           style={{
                             textShadow: `
-                              0 0 20px rgba(139, 92, 246, 0.8),
-                              0 0 40px rgba(139, 92, 246, 0.6),
-                              0 0 60px rgba(139, 92, 246, 0.4)
-                            `
+                              0 0 30px rgba(239, 68, 68, 0.8),
+                              0 0 60px rgba(249, 115, 22, 0.6),
+                              0 0 90px rgba(234, 179, 8, 0.4)
+                            `,
+                            filter: 'drop-shadow(0 0 20px rgba(239, 68, 68, 0.5))'
                           }}
                         >
                           NÃO VÊ...
                         </span>
                       </div>
                       <div 
-                        className="block font-black bg-gradient-to-r from-purple-500 to-pink-500 bg-clip-text text-transparent mb-8"
+                        className="block font-black bg-gradient-to-r from-red-600 via-pink-600 to-purple-600 bg-clip-text text-transparent animate-pulse"
                         style={{
                           textShadow: `
-                            0 0 30px rgba(168, 85, 247, 0.8),
-                            0 0 60px rgba(168, 85, 247, 0.6),
+                            0 0 30px rgba(220, 38, 127, 0.8),
+                            0 0 60px rgba(147, 51, 234, 0.6),
                             0 0 90px rgba(168, 85, 247, 0.4)
-                          `
+                          `,
+                          filter: 'drop-shadow(0 0 20px rgba(220, 38, 127, 0.5))',
+                          animationDelay: '0.5s'
                         }}
                       >
                         TE CONTROLA.
                       </div>
                     </h1>
                     
-                    <h2 className="text-2xl sm:text-4xl md:text-6xl lg:text-7xl xl:text-8xl font-black leading-[0.9] tracking-tight">
+                    <h2 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black leading-[0.9] tracking-tight">
                       <div className="mb-4">
                         <span className="block text-white font-black mb-2">
                           O que você
                         </span>
                         <span 
-                          className="block font-black bg-gradient-to-r from-purple-400 to-cyan-400 bg-clip-text text-transparent"
+                          className="block font-black bg-gradient-to-r from-blue-400 via-cyan-400 to-emerald-400 bg-clip-text text-transparent"
                           style={{
                             textShadow: `
-                              0 0 20px rgba(139, 92, 246, 0.8),
-                              0 0 40px rgba(139, 92, 246, 0.6),
-                              0 0 60px rgba(139, 92, 246, 0.4)
-                            `
+                              0 0 30px rgba(59, 130, 246, 0.8),
+                              0 0 60px rgba(6, 182, 212, 0.6),
+                              0 0 90px rgba(16, 185, 129, 0.4)
+                            `,
+                            filter: 'drop-shadow(0 0 20px rgba(59, 130, 246, 0.5))'
                           }}
                         >
                           VÊ...
                         </span>
                       </div>
                       <div 
-                        className="block font-black bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent"
+                        className="block font-black bg-gradient-to-r from-emerald-400 via-green-400 to-lime-400 bg-clip-text text-transparent animate-pulse"
                         style={{
                           textShadow: `
-                            0 0 30px rgba(6, 182, 212, 0.8),
-                            0 0 60px rgba(6, 182, 212, 0.6),
-                            0 0 90px rgba(6, 182, 212, 0.4)
-                          `
+                            0 0 30px rgba(16, 185, 129, 0.8),
+                            0 0 60px rgba(34, 197, 94, 0.6),
+                            0 0 90px rgba(163, 230, 53, 0.4)
+                          `,
+                          filter: 'drop-shadow(0 0 20px rgba(16, 185, 129, 0.5))',
+                          animationDelay: '0.3s'
                         }}
                       >
                         TE LIBERTA.
