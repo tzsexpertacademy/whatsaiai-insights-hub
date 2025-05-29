@@ -1,7 +1,7 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { User, Session } from '@supabase/supabase-js';
+import { useToast } from '@/hooks/use-toast';
 
 interface UserProfile {
   id: string;
@@ -35,6 +35,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const { toast } = useToast();
 
   // Função para criar perfil do usuário
   const createUserProfile = (session: Session, subscriptionData?: any): UserProfile => {
@@ -93,6 +94,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       window.open(data.url, '_blank');
     } catch (error) {
       console.error('Error creating checkout:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível abrir o checkout. Tente novamente.",
+        variant: "destructive",
+      });
       throw error;
     }
   };
@@ -107,13 +113,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         },
       });
 
-      if (error) throw error;
+      if (error || data?.redirectToCheckout) {
+        console.log('Portal not available, redirecting to checkout');
+        await createCheckout();
+        return;
+      }
 
       // Open customer portal in a new tab
       window.open(data.url, '_blank');
     } catch (error) {
       console.error('Error opening customer portal:', error);
-      throw error;
+      toast({
+        title: "Redirecionando...",
+        description: "Abrindo página de pagamento.",
+      });
+      // Se falhar, redirecionar para checkout
+      await createCheckout();
     }
   };
 

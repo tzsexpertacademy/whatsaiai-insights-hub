@@ -50,11 +50,50 @@ serve(async (req) => {
     const customerId = customers.data[0].id;
     logStep("Found Stripe customer", { customerId });
 
-    const origin = req.headers.get("origin") || "http://localhost:3000";
-    const portalSession = await stripe.billingPortal.sessions.create({
-      customer: customerId,
-      return_url: `${origin}/dashboard`,
-    });
+    // Criar configuração básica do portal se não existir
+    let portalSession;
+    try {
+      const origin = req.headers.get("origin") || "http://localhost:3000";
+      portalSession = await stripe.billingPortal.sessions.create({
+        customer: customerId,
+        return_url: `${origin}/dashboard`,
+      });
+    } catch (portalError: any) {
+      logStep("Portal creation failed, trying with configuration", { error: portalError.message });
+      
+      // Se falhar, tentar criar uma configuração básica
+      try {
+        const configuration = await stripe.billingPortal.configurations.create({
+          business_profile: {
+            privacy_policy_url: `${req.headers.get("origin") || "http://localhost:3000"}/privacy`,
+            terms_of_service_url: `${req.headers.get("origin") || "http://localhost:3000"}/terms`,
+          },
+          features: {
+            payment_method_update: { enabled: true },
+            subscription_cancel: { enabled: true },
+            subscription_pause: { enabled: false },
+          },
+        });
+        
+        const origin = req.headers.get("origin") || "http://localhost:3000";
+        portalSession = await stripe.billingPortal.sessions.create({
+          customer: customerId,
+          configuration: configuration.id,
+          return_url: `${origin}/dashboard`,
+        });
+      } catch (configError: any) {
+        // Se ainda falhar, redirecionar para checkout
+        logStep("Portal configuration failed, redirecting to checkout");
+        return new Response(JSON.stringify({ 
+          error: "Portal not available, redirecting to checkout",
+          redirectToCheckout: true 
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 400,
+        });
+      }
+    }
+
     logStep("Customer portal session created", { sessionId: portalSession.id, url: portalSession.url });
 
     return new Response(JSON.stringify({ url: portalSession.url }), {
@@ -64,7 +103,10 @@ serve(async (req) => {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logStep("ERROR in customer-portal", { message: errorMessage });
-    return new Response(JSON.stringify({ error: errorMessage }), {
+    return new Response(JSON.stringify({ 
+      error: errorMessage,
+      redirectToCheckout: true 
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
     });

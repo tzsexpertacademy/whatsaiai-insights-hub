@@ -27,11 +27,13 @@ export function SidebarSubscriptionStatus() {
 
   const handleManageSubscription = async () => {
     try {
-      // Se o trial expirou ou não tem assinatura, vai para checkout
+      // Se o trial expirou ou não tem assinatura, vai direto para checkout
       if (!user?.subscribed || isTrialExpired) {
+        console.log('Trial expired or no subscription, redirecting to checkout');
         await createCheckout();
       } else {
-        // Se tem assinatura ativa, vai para portal de gerenciamento
+        // Se tem assinatura ativa, tenta abrir o portal (que pode falhar e redirecionar para checkout)
+        console.log('Active subscription, trying to open customer portal');
         await openCustomerPortal();
       }
     } catch (error) {
