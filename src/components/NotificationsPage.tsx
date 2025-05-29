@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNotifications } from '@/hooks/useNotifications';
 import { Button } from '@/components/ui/button';
@@ -11,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
-import { Bell, BellOff, Plus, Trash2, Edit, Clock, Info, Settings, AlertCircle, CheckCircle } from 'lucide-react';
+import { Bell, BellOff, Plus, Trash2, Edit, Clock, Info, Settings, AlertCircle, CheckCircle, TestTube } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 export function NotificationsPage() {
@@ -22,7 +21,8 @@ export function NotificationsPage() {
     addNotification, 
     updateNotification, 
     deleteNotification, 
-    toggleNotification 
+    toggleNotification,
+    testNotification
   } = useNotifications();
 
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -48,6 +48,14 @@ export function NotificationsPage() {
         variant: "destructive"
       });
     }
+  };
+
+  const handleTestNotification = () => {
+    testNotification();
+    toast({
+      title: "Teste enviado!",
+      description: "Verifique se a notificação apareceu.",
+    });
   };
 
   const handleAddNotification = () => {
@@ -112,12 +120,67 @@ export function NotificationsPage() {
 
   const getBrowserName = () => {
     const userAgent = navigator.userAgent;
+    if (userAgent.includes('Safari') && !userAgent.includes('Chrome')) return 'Safari';
     if (userAgent.includes('Chrome')) return 'Chrome';
     if (userAgent.includes('Firefox')) return 'Firefox';
-    if (userAgent.includes('Safari')) return 'Safari';
     if (userAgent.includes('Edge')) return 'Edge';
     return 'seu navegador';
   };
+
+  const isMobile = () => {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  };
+
+  const renderSafariInstructions = () => (
+    <Card className="bg-blue-50 border-blue-200">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-sm flex items-center gap-2 text-blue-800">
+          <Settings className="w-4 h-4" />
+          Como habilitar notificações no Safari {isMobile() ? '(iPhone/iPad)' : '(Desktop)'}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3 text-sm text-blue-700">
+        {isMobile() ? (
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <p className="font-medium">📱 No iPhone/iPad:</p>
+              <ol className="list-decimal list-inside space-y-1 ml-4">
+                <li>Vá em <strong>Configurações</strong> do iPhone</li>
+                <li>Role para baixo e toque em <strong>Safari</strong></li>
+                <li>Toque em <strong>Notificações</strong></li>
+                <li>Encontre este site na lista</li>
+                <li>Ative <strong>"Permitir Notificações"</strong></li>
+                <li>Volte a esta página e clique em <strong>"Tentar Novamente"</strong></li>
+              </ol>
+            </div>
+            
+            <div className="bg-orange-100 p-3 rounded border border-orange-200">
+              <p className="text-xs text-orange-700">
+                ⚠️ <strong>Importante:</strong> No Safari mobile, as notificações só funcionam se o site estiver adicionado à tela inicial como um PWA (Progressive Web App).
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <p className="font-medium">🖥️ No Safari Desktop:</p>
+            <ol className="list-decimal list-inside space-y-1 ml-4">
+              <li>No Safari, vá no menu <strong>Safari → Preferências</strong></li>
+              <li>Clique na aba <strong>"Sites"</strong></li>
+              <li>No lado esquerdo, clique em <strong>"Notificações"</strong></li>
+              <li>Encontre este site e mude para <strong>"Permitir"</strong></li>
+              <li>Feche as preferências e recarregue a página</li>
+            </ol>
+          </div>
+        )}
+
+        <div className="bg-white p-3 rounded border border-blue-200 mt-3">
+          <p className="text-xs text-blue-600">
+            💡 <strong>Dica:</strong> Após habilitar, use o botão "Testar Notificação" abaixo para verificar se está funcionando.
+          </p>
+        </div>
+      </CardContent>
+    </Card>
+  );
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 sm:p-6">
@@ -197,7 +260,20 @@ export function NotificationsPage() {
                   Permissões e configurações do navegador
                 </CardDescription>
               </div>
-              {getPermissionBadge()}
+              <div className="flex items-center gap-2">
+                {getPermissionBadge()}
+                {permission === 'granted' && (
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={handleTestNotification}
+                    className="flex items-center gap-1"
+                  >
+                    <TestTube className="w-3 h-3" />
+                    Testar
+                  </Button>
+                )}
+              </div>
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -231,49 +307,55 @@ export function NotificationsPage() {
                           <Bell className="w-4 h-4 mr-2" />
                           Tentar Novamente
                         </Button>
+                        <Button size="sm" onClick={handleTestNotification} variant="outline" className="w-full sm:w-auto">
+                          <TestTube className="w-4 h-4 mr-2" />
+                          Testar Notificação
+                        </Button>
                       </div>
                     </div>
                   </AlertDescription>
                 </Alert>
 
-                {/* Instruções detalhadas para habilitar notificações */}
-                <Card className="bg-blue-50 border-blue-200">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-sm flex items-center gap-2 text-blue-800">
-                      <Settings className="w-4 h-4" />
-                      Como habilitar notificações no {getBrowserName()}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3 text-sm text-blue-700">
-                    <div className="space-y-2">
-                      <p className="font-medium">Método 1 - Pelo ícone do cadeado:</p>
-                      <ol className="list-decimal list-inside space-y-1 ml-4">
-                        <li>Clique no ícone do <strong>cadeado</strong> na barra de endereços</li>
-                        <li>Procure por "Notificações" e mude para <strong>"Permitir"</strong></li>
-                        <li>Recarregue a página</li>
-                      </ol>
-                    </div>
-                    
-                    <Separator className="bg-blue-200" />
-                    
-                    <div className="space-y-2">
-                      <p className="font-medium">Método 2 - Pelas configurações do navegador:</p>
-                      <ol className="list-decimal list-inside space-y-1 ml-4">
-                        <li>Abra as <strong>Configurações</strong> do {getBrowserName()}</li>
-                        <li>Vá em <strong>"Privacidade e segurança"</strong></li>
-                        <li>Clique em <strong>"Configurações do site"</strong></li>
-                        <li>Procure por <strong>"Notificações"</strong></li>
-                        <li>Encontre este site e mude para <strong>"Permitir"</strong></li>
-                      </ol>
-                    </div>
+                {/* Instruções específicas por navegador */}
+                {getBrowserName() === 'Safari' ? renderSafariInstructions() : (
+                  <Card className="bg-blue-50 border-blue-200">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-sm flex items-center gap-2 text-blue-800">
+                        <Settings className="w-4 h-4" />
+                        Como habilitar notificações no {getBrowserName()}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3 text-sm text-blue-700">
+                      <div className="space-y-2">
+                        <p className="font-medium">Método 1 - Pelo ícone do cadeado:</p>
+                        <ol className="list-decimal list-inside space-y-1 ml-4">
+                          <li>Clique no ícone do <strong>cadeado</strong> na barra de endereços</li>
+                          <li>Procure por "Notificações" e mude para <strong>"Permitir"</strong></li>
+                          <li>Recarregue a página</li>
+                        </ol>
+                      </div>
+                      
+                      <Separator className="bg-blue-200" />
+                      
+                      <div className="space-y-2">
+                        <p className="font-medium">Método 2 - Pelas configurações do navegador:</p>
+                        <ol className="list-decimal list-inside space-y-1 ml-4">
+                          <li>Abra as <strong>Configurações</strong> do {getBrowserName()}</li>
+                          <li>Vá em <strong>"Privacidade e segurança"</strong></li>
+                          <li>Clique em <strong>"Configurações do site"</strong></li>
+                          <li>Procure por <strong>"Notificações"</strong></li>
+                          <li>Encontre este site e mude para <strong>"Permitir"</strong></li>
+                        </ol>
+                      </div>
 
-                    <div className="bg-white p-3 rounded border border-blue-200 mt-3">
-                      <p className="text-xs text-blue-600">
-                        💡 <strong>Dica:</strong> Após habilitar as notificações, clique no botão "Tentar Novamente" acima para ativar os lembretes.
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
+                      <div className="bg-white p-3 rounded border border-blue-200 mt-3">
+                        <p className="text-xs text-blue-600">
+                          💡 <strong>Dica:</strong> Após habilitar as notificações, clique no botão "Tentar Novamente" acima para ativar os lembretes.
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
               </div>
             )}
             
@@ -282,9 +364,20 @@ export function NotificationsPage() {
                 <CheckCircle className="h-4 w-4" />
                 <AlertDescription className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <span>✅ Notificações ativadas! Você receberá lembretes conforme configurado.</span>
-                  <Badge className="bg-green-100 text-green-800 w-fit">
-                    Sistema Funcionando
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    <Badge className="bg-green-100 text-green-800 w-fit">
+                      Sistema Funcionando
+                    </Badge>
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={handleTestNotification}
+                      className="flex items-center gap-1"
+                    >
+                      <TestTube className="w-3 h-3" />
+                      Testar
+                    </Button>
+                  </div>
                 </AlertDescription>
               </Alert>
             )}
@@ -378,10 +471,10 @@ export function NotificationsPage() {
                 </p>
               </div>
               <div>
-                <h4 className="font-medium mb-2">🎯 Padrão do Sistema</h4>
+                <h4 className="font-medium mb-2">🧪 Teste</h4>
                 <p className="text-sm text-gray-600">
-                  As notificações padrão seguem um fluxo otimizado para máximo 
-                  engajamento: manhã, almoço, tarde e noite.
+                  Use o botão "Testar" para verificar se as notificações estão funcionando 
+                  corretamente no seu dispositivo.
                 </p>
               </div>
             </div>

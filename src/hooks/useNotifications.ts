@@ -57,67 +57,125 @@ export function useNotifications() {
 
   // Carregar notificações do localStorage
   useEffect(() => {
+    console.log('🔔 Carregando notificações do localStorage...');
     const saved = localStorage.getItem('user-notifications');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        setNotifications(parsed.map((n: any) => ({
+        const loadedNotifications = parsed.map((n: any) => ({
           ...n,
           createdAt: new Date(n.createdAt)
-        })));
+        }));
+        console.log('📋 Notificações carregadas:', loadedNotifications);
+        setNotifications(loadedNotifications);
       } catch (error) {
-        console.error('Erro ao carregar notificações:', error);
+        console.error('❌ Erro ao carregar notificações:', error);
         setNotifications(defaultNotifications);
       }
     } else {
+      console.log('📝 Usando notificações padrão');
       setNotifications(defaultNotifications);
     }
   }, []);
 
   // Salvar notificações no localStorage
   const saveNotifications = useCallback((newNotifications: NotificationConfig[]) => {
+    console.log('💾 Salvando notificações:', newNotifications);
     localStorage.setItem('user-notifications', JSON.stringify(newNotifications));
     setNotifications(newNotifications);
   }, []);
 
   // Solicitar permissão para notificações
   const requestPermission = useCallback(async () => {
-    if ('Notification' in window) {
-      const result = await Notification.requestPermission();
-      setPermission(result);
-      return result === 'granted';
+    console.log('🔔 Solicitando permissão para notificações...');
+    
+    if (!('Notification' in window)) {
+      console.warn('⚠️ Este navegador não suporta notificações');
+      return false;
     }
-    return false;
+
+    try {
+      const result = await Notification.requestPermission();
+      console.log('✅ Resultado da permissão:', result);
+      setPermission(result);
+      
+      if (result === 'granted') {
+        // Testar notificação imediatamente no Safari
+        console.log('🧪 Testando notificação...');
+        const testNotification = new Notification('Notificações Ativadas! 🎉', {
+          body: 'Agora você receberá lembretes personalizados',
+          icon: '/favicon.ico',
+          badge: '/favicon.ico',
+          tag: 'permission-granted-test',
+          requireInteraction: false
+        });
+        
+        testNotification.onclick = () => {
+          console.log('🖱️ Clique na notificação de teste');
+          window.focus();
+          testNotification.close();
+        };
+        
+        // Auto-fechar após 4 segundos
+        setTimeout(() => testNotification.close(), 4000);
+      }
+      
+      return result === 'granted';
+    } catch (error) {
+      console.error('❌ Erro ao solicitar permissão:', error);
+      return false;
+    }
   }, []);
 
   // Verificar permissão atual
   useEffect(() => {
     if ('Notification' in window) {
-      setPermission(Notification.permission);
+      const currentPermission = Notification.permission;
+      console.log('🔍 Permissão atual:', currentPermission);
+      setPermission(currentPermission);
+    } else {
+      console.warn('⚠️ Notificações não suportadas neste navegador');
     }
   }, []);
 
   // Função para mostrar notificação com redirecionamento
   const showNotification = useCallback((notification: NotificationConfig) => {
+    console.log('🔔 Mostrando notificação:', notification);
+    
     if (permission === 'granted' && 'Notification' in window) {
-      const browserNotification = new Notification(notification.title, {
-        body: notification.message,
-        icon: '/favicon.ico',
-        badge: '/favicon.ico',
-        tag: notification.id,
-        requireInteraction: false,
-        silent: false
-      });
+      try {
+        const browserNotification = new Notification(notification.title, {
+          body: notification.message,
+          icon: '/favicon.ico',
+          badge: '/favicon.ico',
+          tag: notification.id,
+          requireInteraction: false,
+          silent: false
+        });
 
-      // Adicionar handler de clique para redirecionar ao chat
-      browserNotification.onclick = () => {
-        window.focus();
-        window.location.href = '/dashboard/chat';
-        browserNotification.close();
-      };
+        console.log('✅ Notificação do navegador criada');
+
+        // Adicionar handler de clique para redirecionar ao chat
+        browserNotification.onclick = () => {
+          console.log('🖱️ Clique na notificação - redirecionando para chat');
+          window.focus();
+          window.location.href = '/dashboard/chat';
+          browserNotification.close();
+        };
+
+        // Auto-fechar após 8 segundos no Safari para evitar acúmulo
+        setTimeout(() => {
+          browserNotification.close();
+        }, 8000);
+      } catch (error) {
+        console.error('❌ Erro ao criar notificação do navegador:', error);
+      }
+    } else {
+      console.log('⚠️ Notificação do navegador não disponível. Permissão:', permission);
     }
     
-    // Toast com ação para ir ao chat
+    // Toast com ação para ir ao chat (sempre mostrar)
+    console.log('🍞 Mostrando toast');
     toast({
       title: notification.title,
       description: notification.message,
@@ -125,6 +183,7 @@ export function useNotifications() {
       action: {
         altText: "Ir para o Chat",
         onClick: () => {
+          console.log('🖱️ Clique no botão do toast - redirecionando para chat');
           window.location.href = '/dashboard/chat';
         }
       }
@@ -136,8 +195,14 @@ export function useNotifications() {
     const now = new Date();
     const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
     
-    notifications.forEach(notification => {
-      if (notification.enabled && notification.time === currentTime) {
+    console.log(`⏰ Verificando notificações para ${currentTime}...`);
+    
+    const activeNotifications = notifications.filter(n => n.enabled);
+    console.log(`📋 ${activeNotifications.length} notificações ativas de ${notifications.length} total`);
+    
+    activeNotifications.forEach(notification => {
+      if (notification.time === currentTime) {
+        console.log(`🎯 Disparando notificação: ${notification.title} (${notification.time})`);
         showNotification(notification);
       }
     });
@@ -145,12 +210,21 @@ export function useNotifications() {
 
   // Configurar verificação periódica
   useEffect(() => {
+    console.log('⏱️ Configurando verificação periódica de notificações');
     const interval = setInterval(checkNotifications, 60000); // Verifica a cada minuto
-    return () => clearInterval(interval);
+    
+    // Verificar imediatamente também
+    checkNotifications();
+    
+    return () => {
+      console.log('🛑 Parando verificação periódica');
+      clearInterval(interval);
+    };
   }, [checkNotifications]);
 
   // Funções de gerenciamento
   const addNotification = useCallback((notification: Omit<NotificationConfig, 'id' | 'createdAt'>) => {
+    console.log('➕ Adicionando nova notificação:', notification);
     const newNotification: NotificationConfig = {
       ...notification,
       id: Date.now().toString(),
@@ -161,6 +235,7 @@ export function useNotifications() {
   }, [notifications, saveNotifications]);
 
   const updateNotification = useCallback((id: string, updates: Partial<NotificationConfig>) => {
+    console.log('📝 Atualizando notificação:', id, updates);
     const updated = notifications.map(n => 
       n.id === id ? { ...n, ...updates } : n
     );
@@ -168,13 +243,32 @@ export function useNotifications() {
   }, [notifications, saveNotifications]);
 
   const deleteNotification = useCallback((id: string) => {
+    console.log('🗑️ Removendo notificação:', id);
     const updated = notifications.filter(n => n.id !== id);
     saveNotifications(updated);
   }, [notifications, saveNotifications]);
 
   const toggleNotification = useCallback((id: string) => {
-    updateNotification(id, { enabled: !notifications.find(n => n.id === id)?.enabled });
+    const notification = notifications.find(n => n.id === id);
+    const newState = !notification?.enabled;
+    console.log(`🔄 Alternando notificação ${id}: ${newState ? 'ativada' : 'desativada'}`);
+    updateNotification(id, { enabled: newState });
   }, [notifications, updateNotification]);
+
+  // Função para testar notificação imediatamente
+  const testNotification = useCallback(() => {
+    console.log('🧪 Testando notificação manualmente');
+    const testConfig: NotificationConfig = {
+      id: 'test-notification',
+      title: '🧪 Teste de Notificação',
+      message: 'Esta é uma notificação de teste para verificar se está funcionando!',
+      time: '00:00',
+      enabled: true,
+      type: 'custom',
+      createdAt: new Date()
+    };
+    showNotification(testConfig);
+  }, [showNotification]);
 
   return {
     notifications,
@@ -184,6 +278,7 @@ export function useNotifications() {
     updateNotification,
     deleteNotification,
     toggleNotification,
-    showNotification
+    showNotification,
+    testNotification
   };
 }
