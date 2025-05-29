@@ -19,6 +19,7 @@ import { SettingsPage } from '@/components/SettingsPage';
 import { ProfilePage } from '@/components/ProfilePage';
 import { ChatInterface } from '@/components/ChatInterface';
 import { VoiceChatInterface } from '@/components/VoiceChatInterface';
+import { NotificationsPage } from '@/components/NotificationsPage';
 
 export default function Index() {
   console.log('📱 Exibindo Dashboard Principal');
@@ -44,6 +45,7 @@ export default function Index() {
               <Route path="/dashboard/documents" element={<DocumentAnalysis />} />
               <Route path="/dashboard/settings" element={<SettingsPage />} />
               <Route path="/dashboard/profile" element={<ProfilePage />} />
+              <Route path="/dashboard/notifications" element={<NotificationsPage />} />
               
               {/* Rotas legacy para compatibilidade */}
               <Route path="/observatory" element={<ObservatoryTimeline />} />
@@ -59,6 +61,7 @@ export default function Index() {
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/chat" element={<VoiceChatInterface />} />
               <Route path="/whatsapp" element={<ChatInterface />} />
+              <Route path="/notifications" element={<NotificationsPage />} />
             </Routes>
           </main>
         </div>

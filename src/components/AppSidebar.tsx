@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
@@ -29,7 +30,8 @@ import {
   User,
   Activity,
   MessageSquare,
-  Sparkles
+  Sparkles,
+  Bell
 } from 'lucide-react';
 
 const mainItems = [
@@ -51,6 +53,7 @@ const analysisItems = [
 const configItems = [
   { title: "Configurações", url: "/dashboard/settings", icon: Settings, description: "Configurar sistema" },
   { title: "Perfil", url: "/dashboard/profile", icon: User, description: "Dados pessoais" },
+  { title: "Notificações", url: "/dashboard/notifications", icon: Bell, description: "Gerenciar lembretes" },
   { title: "Tour de Boas-vindas", url: "/welcome", icon: Sparkles, description: "Revisar introdução" },
 ];
 

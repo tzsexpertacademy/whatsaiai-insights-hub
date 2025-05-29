@@ -11,6 +11,7 @@ import { AnalysisDataProvider } from "@/contexts/AnalysisDataContext";
 import { ThemeProvider } from "@/hooks/useTheme";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppRouter } from "@/components/AppRouter";
+import { NotificationManager } from "@/components/NotificationManager";
 
 const queryClient = new QueryClient();
 
@@ -27,6 +28,7 @@ const App = () => (
                 <AnalysisDataProvider>
                   <SidebarProvider defaultOpen={true}>
                     <AppRouter />
+                    <NotificationManager />
                   </SidebarProvider>
                 </AnalysisDataProvider>
               </ClientConfigProvider>
