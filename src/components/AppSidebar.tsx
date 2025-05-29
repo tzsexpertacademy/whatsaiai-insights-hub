@@ -77,7 +77,7 @@ export function AppSidebar() {
             </div>
             {!isCollapsed && (
               <div className="min-w-0">
-                <h2 className="font-bold text-gray-900 truncate">Observatório</h2>
+                <h2 className="font-bold text-gray-900 truncate">YumerMind</h2>
                 <p className="text-xs text-gray-500 truncate">Consciência Pessoal</p>
               </div>
             )}

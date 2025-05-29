@@ -12,7 +12,7 @@ export function ObservatoryTimeline() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-slate-800 mb-2">Linha do Tempo do Observatório</h1>
+          <h1 className="text-3xl font-bold text-slate-800 mb-2">Linha do Tempo do YumerMind</h1>
           <p className="text-slate-600">Cronologia das análises realizadas pelos assistentes</p>
         </div>
         <div className="flex items-center justify-center py-20">
@@ -26,7 +26,7 @@ export function ObservatoryTimeline() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-slate-800 mb-2">Linha do Tempo do Observatório</h1>
+          <h1 className="text-3xl font-bold text-slate-800 mb-2">Linha do Tempo do YumerMind</h1>
           <p className="text-slate-600">Cronologia das análises realizadas pelos assistentes</p>
         </div>
         
@@ -99,7 +99,7 @@ export function ObservatoryTimeline() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-slate-800 mb-2">Linha do Tempo do Observatório</h1>
+        <h1 className="text-3xl font-bold text-slate-800 mb-2">Linha do Tempo do YumerMind</h1>
         <p className="text-slate-600">Cronologia das análises e insights gerados pelos assistentes</p>
       </div>
 

@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useAnalysisData } from '@/contexts/AnalysisDataContext';
@@ -46,7 +47,7 @@ export function DashboardMain() {
           <div className="flex items-center justify-center min-h-[60vh]">
             <div className="text-center space-y-4">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-              <p className="text-gray-600">Carregando seu observatório...</p>
+              <p className="text-gray-600">Carregando seu YumerMind...</p>
             </div>
           </div>
         </div>
@@ -74,7 +75,7 @@ export function DashboardMain() {
                 </div>
               </div>
               <h1 className="text-3xl sm:text-4xl font-bold text-gray-900">
-                Observatório da Consciência
+                YumerMind da Consciência
               </h1>
               <p className="text-lg text-gray-600 max-w-2xl mx-auto">
                 Sua plataforma de análise comportamental está configurada e pronta para uso!

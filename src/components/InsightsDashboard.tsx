@@ -27,7 +27,7 @@ export function InsightsDashboard() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-slate-800 mb-2">Observatório da Consciência</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-800 mb-2">YumerMind da Consciência</h1>
           <p className="text-slate-600 text-sm sm:text-base">Um espelho da sua mente, comportamentos e evolução pessoal</p>
         </div>
         

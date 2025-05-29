@@ -37,7 +37,7 @@ export function OnboardingExperience() {
 
   const steps = [
     {
-      title: "Bem-vindo ao Observatório da Consciência",
+      title: "Bem-vindo ao YumerMind da Consciência",
       subtitle: "Sua jornada de autoconhecimento começa aqui",
       content: (
         <div className="text-center space-y-6">
@@ -121,7 +121,7 @@ export function OnboardingExperience() {
       )
     },
     {
-      title: "Seu Observatório Pessoal",
+      title: "Seu YumerMind Pessoal",
       subtitle: "Veja o que você terá acesso",
       content: (
         <div className="space-y-6">

@@ -20,7 +20,7 @@ export function DashboardHeader() {
           <div className="flex items-center gap-3">
             <SidebarTrigger />
             <div className="hidden sm:block">
-              <h1 className="font-bold text-lg text-gray-900">Observatório</h1>
+              <h1 className="font-bold text-lg text-gray-900">YumerMind</h1>
               <p className="text-xs text-gray-500">Consciência Pessoal</p>
             </div>
           </div>
