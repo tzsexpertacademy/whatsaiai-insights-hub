@@ -85,7 +85,7 @@ export function ObservatoryLanding() {
 
   // Inicializar conteúdo após um tempo máximo (fallback)
   useEffect(() => {
-    const maxWaitTime = 10000; // 10 segundos máximo
+    const maxWaitTime = 20000; // 20 segundos máximo (13s video + 3s logo + margem)
     const timer = setTimeout(() => {
       if (!showContent) {
         console.log('⏰ Timeout da animação, forçando exibição do conteúdo');
@@ -421,14 +421,6 @@ export function ObservatoryLanding() {
             onAnimationComplete={handleBrainAnimationComplete}
             soundEnabled={soundEnabled}
           />
-          
-          {/* Botão para pular animação */}
-          <button
-            onClick={skipAnimation}
-            className="fixed bottom-8 right-8 z-50 bg-black/80 backdrop-blur-sm border border-white/20 rounded-full px-6 py-3 hover:bg-white/10 transition-all text-white text-sm font-medium"
-          >
-            Pular animação →
-          </button>
         </div>
       )}
       
