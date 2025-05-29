@@ -6,6 +6,12 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAssistantsConfig } from '@/hooks/useAssistantsConfig';
 
+interface AnalysisConfig {
+  type: string;
+  maxTokens: number;
+  temperature: number;
+}
+
 export function useAIReportUpdate() {
   const [isUpdating, setIsUpdating] = useState(false);
   const { config } = useClientConfig();
@@ -13,8 +19,17 @@ export function useAIReportUpdate() {
   const { toast } = useToast();
   const { assistants } = useAssistantsConfig();
 
-  const updateReport = async () => {
+  const updateReport = async (analysisConfig?: AnalysisConfig) => {
     console.log('🤖 Iniciando atualização do relatório por IA...');
+    
+    // Configuração padrão se não for fornecida
+    const defaultConfig: AnalysisConfig = {
+      type: 'simple',
+      maxTokens: 250,
+      temperature: 0.5
+    };
+    
+    const finalConfig = analysisConfig || defaultConfig;
     
     if (!user?.id) {
       console.error('❌ Usuário não autenticado');
@@ -67,7 +82,7 @@ export function useAIReportUpdate() {
 
     try {
       setIsUpdating(true);
-      console.log('🤖 Iniciando análise por IA com assistentes configurados...');
+      console.log('🤖 Iniciando análise por IA com configuração:', finalConfig);
       console.log('📋 Assistentes ativos:', activeAssistants.map(a => a.name));
 
       // Verificar se existem conversas do WhatsApp para analisar
@@ -110,21 +125,22 @@ export function useAIReportUpdate() {
         assistantsCount: assistantsData.length,
         model: selectedModel,
         conversationsCount,
+        analysisConfig: finalConfig,
         assistants: assistantsData.map(a => ({ name: a.name, area: a.area }))
       });
 
-      // Chamar edge function com configuração otimizada para análises simples
+      // Chamar edge function com configuração personalizada
       const { data, error } = await supabase.functions.invoke('analyze-conversation', {
         body: { 
           userId: user.id,
           openaiConfig: {
             apiKey: config.openai.apiKey,
             model: selectedModel,
-            temperature: 0.5, // Menos criativo, mais preciso
-            maxTokens: 300 // REDUZIDO para análises mais simples e econômicas
+            temperature: finalConfig.temperature,
+            maxTokens: finalConfig.maxTokens
           },
           assistants: assistantsData,
-          analysisType: 'simple', // Tipo de análise mais simples
+          analysisType: finalConfig.type,
           conversationsData: conversations,
           timestamp: new Date().toISOString()
         }
@@ -146,12 +162,20 @@ export function useAIReportUpdate() {
         insightsGenerated: data.insights?.length || 0,
         assistantsUsed: data.assistantsUsed || [],
         processingTime: data.processingTime,
-        conversationsAnalyzed: data.conversationsAnalyzed
+        conversationsAnalyzed: data.conversationsAnalyzed,
+        analysisType: finalConfig.type,
+        tokensUsed: finalConfig.maxTokens
       });
+
+      const analysisTypeNames = {
+        'simple': 'SIMPLES',
+        'complete': 'COMPLETA', 
+        'detailed': 'DETALHADA'
+      };
 
       toast({
         title: "✅ Relatório atualizado com sucesso",
-        description: `Análise SIMPLES concluída por ${data.assistantsUsed?.length || 0} assistente(s). ${data.insights?.length || 0} insights econômicos gerados (300 tokens).`,
+        description: `Análise ${analysisTypeNames[finalConfig.type]} concluída por ${data.assistantsUsed?.length || 0} assistente(s). ${data.insights?.length || 0} insights gerados (${finalConfig.maxTokens} tokens).`,
         duration: 5000
       });
 
