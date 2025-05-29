@@ -43,7 +43,7 @@ export function ObservatoryLanding() {
   const { isAuthenticated } = useAuth();
   const { toast } = useToast();
   const heroRef = useRef<HTMLDivElement>(null);
-  const brainCanvasRef = useRef<HTMLCanvasElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const scrollY = useParallax();
   const [soundEnabled, setSoundEnabled] = React.useState(false);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -143,9 +143,9 @@ export function ObservatoryLanding() {
     };
   }, [soundEnabled]);
 
-  // Animação de cérebro humano realista épica
+  // Animação neural de fundo (versão anterior mais simples)
   useEffect(() => {
-    const canvas = brainCanvasRef.current;
+    const canvas = canvasRef.current;
     if (!canvas) return;
 
     const ctx = canvas.getContext('2d');
@@ -159,325 +159,91 @@ export function ObservatoryLanding() {
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
 
-    const centerX = canvas.width / 2;
-    const centerY = canvas.height / 2;
-    
-    // Cérebro humano proporcional
-    const brainWidth = Math.min(canvas.width * 0.7, 1200);
-    const brainHeight = Math.min(canvas.height * 0.8, 900);
-
-    // Estrutura cerebral realista
-    const brainRegions: Array<{
-      x: number;
-      y: number;
-      z: number;
-      radius: number;
-      intensity: number;
-      region: 'frontal' | 'parietal' | 'temporal' | 'occipital' | 'cerebellum' | 'brainstem';
-      connections: number[];
-      activity: number;
-      pulsePhase: number;
-      color: string;
-    }> = [];
-
-    // Criar regiões cerebrais anatômicas
-    const regions = [
-      // Córtex frontal (raciocínio, personalidade)
-      { name: 'frontal', count: 25, baseX: centerX, baseY: centerY - brainHeight * 0.2, color: 'rgba(139, 92, 246, 0.8)' },
-      // Córtex parietal (sensações, espacial)
-      { name: 'parietal', count: 20, baseX: centerX, baseY: centerY - brainHeight * 0.1, color: 'rgba(59, 130, 246, 0.8)' },
-      // Córtex temporal (audição, memória)
-      { name: 'temporal', count: 18, baseX: centerX - brainWidth * 0.2, baseY: centerY + brainHeight * 0.1, color: 'rgba(34, 197, 94, 0.8)' },
-      // Córtex occipital (visão)
-      { name: 'occipital', count: 15, baseX: centerX + brainWidth * 0.2, baseY: centerY + brainHeight * 0.1, color: 'rgba(168, 85, 247, 0.8)' },
-      // Cerebelo (coordenação)
-      { name: 'cerebellum', count: 12, baseX: centerX, baseY: centerY + brainHeight * 0.25, color: 'rgba(236, 72, 153, 0.8)' },
-      // Tronco cerebral (funções vitais)
-      { name: 'brainstem', count: 8, baseX: centerX, baseY: centerY + brainHeight * 0.35, color: 'rgba(245, 158, 11, 0.8)' }
-    ];
-
-    regions.forEach((region, regionIndex) => {
-      for (let i = 0; i < region.count; i++) {
-        const angle = (i / region.count) * Math.PI * 2;
-        const distance = (Math.random() * 0.5 + 0.3) * brainWidth * 0.15;
-        
-        // Forma cerebral mais realista
-        const brainShapeX = Math.cos(angle * 1.5) * (1 + Math.sin(angle * 3) * 0.2);
-        const brainShapeY = Math.sin(angle) * 0.7; // Cérebro mais largo que alto
-        
-        const x = region.baseX + brainShapeX * distance;
-        const y = region.baseY + brainShapeY * distance * 0.8;
-        
-        brainRegions.push({
-          x,
-          y,
-          z: Math.random() * 100 + regionIndex * 20,
-          radius: 3 + Math.random() * 4,
-          intensity: Math.random(),
-          region: region.name as any,
-          connections: [],
-          activity: Math.random(),
-          pulsePhase: Math.random() * Math.PI * 2,
-          color: region.color
-        });
-      }
-    });
-
-    // Conectar regiões cerebrais de forma inteligente
-    brainRegions.forEach((region, index) => {
-      const connections: number[] = [];
-      const maxConnections = region.region === 'frontal' ? 5 : 3;
-      
-      brainRegions.forEach((otherRegion, otherIndex) => {
-        if (index !== otherIndex && connections.length < maxConnections) {
-          const dx = region.x - otherRegion.x;
-          const dy = region.y - otherRegion.y;
-          const distance = Math.sqrt(dx * dx + dy * dy);
-          
-          // Conexões preferenciais entre regiões específicas
-          let connectionProbability = 0.1;
-          if (region.region === 'frontal' && otherRegion.region === 'parietal') connectionProbability = 0.8;
-          if (region.region === 'temporal' && otherRegion.region === 'frontal') connectionProbability = 0.7;
-          if (region.region === 'occipital' && otherRegion.region === 'parietal') connectionProbability = 0.6;
-          
-          if (distance < brainWidth * 0.3 && Math.random() < connectionProbability) {
-            connections.push(otherIndex);
-          }
-        }
-      });
-      region.connections = connections;
-    });
-
-    // Partículas de energia neural
-    const neuralParticles: Array<{
+    // Pontos neurais
+    const neurons: Array<{
       x: number;
       y: number;
       vx: number;
       vy: number;
-      life: number;
-      maxLife: number;
-      size: number;
-      color: string;
-      trail: Array<{ x: number; y: number; alpha: number }>;
+      intensity: number;
+      connections: number[];
     }> = [];
+
+    // Criar neurônios
+    for (let i = 0; i < 80; i++) {
+      neurons.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        vx: (Math.random() - 0.5) * 0.5,
+        vy: (Math.random() - 0.5) * 0.5,
+        intensity: Math.random(),
+        connections: []
+      });
+    }
+
+    // Conectar neurônios próximos
+    neurons.forEach((neuron, index) => {
+      const connections: number[] = [];
+      neurons.forEach((otherNeuron, otherIndex) => {
+        if (index !== otherIndex && connections.length < 3) {
+          const dx = neuron.x - otherNeuron.x;
+          const dy = neuron.y - otherNeuron.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          if (distance < 150) {
+            connections.push(otherIndex);
+          }
+        }
+      });
+      neuron.connections = connections;
+    });
 
     let animationTime = 0;
 
     const animate = () => {
       animationTime += 0.016;
       
-      // Fundo escuro mais intenso
+      // Fundo escuro
       ctx.fillStyle = 'rgba(0, 0, 0, 0.95)';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // Gradiente de fundo cerebral
-      const brainGradient = ctx.createRadialGradient(
-        centerX, centerY, 0,
-        centerX, centerY, brainWidth * 0.6
-      );
-      brainGradient.addColorStop(0, 'rgba(30, 41, 59, 0.1)');
-      brainGradient.addColorStop(0.5, 'rgba(15, 23, 42, 0.2)');
-      brainGradient.addColorStop(1, 'rgba(0, 0, 0, 0.8)');
-      
-      ctx.fillStyle = brainGradient;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      // Atualizar neurônios
+      neurons.forEach(neuron => {
+        neuron.x += neuron.vx;
+        neuron.y += neuron.vy;
+        neuron.intensity += (Math.random() - 0.5) * 0.02;
+        neuron.intensity = Math.max(0, Math.min(1, neuron.intensity));
 
-      // Ondas cerebrais de fundo mais visíveis
-      for (let i = 0; i < 12; i++) {
-        ctx.strokeStyle = `rgba(139, 92, 246, ${0.1 + Math.sin(animationTime * 2 + i) * 0.05})`;
-        ctx.lineWidth = 1 + Math.sin(animationTime + i) * 0.5;
-        ctx.beginPath();
-        
-        const waveY = centerY + Math.sin(animationTime * 1.5 + i * 0.3) * brainHeight * 0.1;
-        
-        for (let x = 0; x <= canvas.width; x += 20) {
-          const y = waveY + 
-            Math.sin((x / 100) + animationTime * 4 + i) * 30 +
-            Math.sin((x / 50) + animationTime * 3 + i * 1.5) * 15;
-          
-          if (x === 0) ctx.moveTo(x, y);
-          else ctx.lineTo(x, y);
-        }
-        ctx.stroke();
-      }
-
-      // Contorno cerebral
-      ctx.strokeStyle = 'rgba(139, 92, 246, 0.3)';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      
-      for (let angle = 0; angle <= Math.PI * 2; angle += 0.1) {
-        const brainShapeX = Math.cos(angle * 1.2) * (1 + Math.sin(angle * 4) * 0.15);
-        const brainShapeY = Math.sin(angle) * 0.65; // Cérebro mais largo que alto
-        
-        const x = centerX + brainShapeX * brainWidth * 0.35;
-        const y = centerY + brainShapeY * brainHeight * 0.3;
-        
-        if (angle === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-      }
-      ctx.stroke();
-
-      // Linha divisória entre hemisférios
-      ctx.strokeStyle = 'rgba(59, 130, 246, 0.4)';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.moveTo(centerX, centerY - brainHeight * 0.3);
-      ctx.lineTo(centerX, centerY + brainHeight * 0.3);
-      ctx.stroke();
-
-      // Atualizar partículas neurais
-      neuralParticles.forEach((particle, index) => {
-        particle.x += particle.vx;
-        particle.y += particle.vy;
-        particle.life--;
-        
-        // Adicionar rastro
-        particle.trail.unshift({ x: particle.x, y: particle.y, alpha: 1 });
-        if (particle.trail.length > 8) particle.trail.pop();
-        
-        // Atualizar alpha do rastro
-        particle.trail.forEach((point, i) => {
-          point.alpha = (particle.trail.length - i) / particle.trail.length;
-        });
-        
-        if (particle.life <= 0) {
-          neuralParticles.splice(index, 1);
-        }
+        // Manter dentro da tela
+        if (neuron.x < 0 || neuron.x > canvas.width) neuron.vx *= -1;
+        if (neuron.y < 0 || neuron.y > canvas.height) neuron.vy *= -1;
       });
 
-      // Renderizar regiões cerebrais
-      brainRegions.forEach((region, index) => {
-        // Atualizar atividade
-        region.activity += (Math.random() - 0.5) * 0.03;
-        region.activity = Math.max(0, Math.min(1, region.activity));
-        region.pulsePhase += 0.02 + region.activity * 0.05;
+      // Renderizar conexões
+      neurons.forEach(neuron => {
+        neuron.connections.forEach(connectionIndex => {
+          const otherNeuron = neurons[connectionIndex];
+          if (!otherNeuron) return;
 
-        const pulseIntensity = (Math.sin(region.pulsePhase) + 1) * 0.5;
-        const totalIntensity = (region.activity + pulseIntensity) * 0.5;
-
-        // Efeito 3D
-        const scale = 0.6 + (region.z / 200) * 0.4;
-        const alpha = 0.4 + (region.z / 200) * 0.6;
-
-        // Disparos neurais
-        if (region.activity > 0.8 && Math.random() < 0.05) {
-          // Criar partículas de energia
-          for (let i = 0; i < 3; i++) {
-            neuralParticles.push({
-              x: region.x,
-              y: region.y,
-              vx: (Math.random() - 0.5) * 6,
-              vy: (Math.random() - 0.5) * 6,
-              life: 60,
-              maxLife: 60,
-              size: 2 + Math.random() * 3,
-              color: region.color,
-              trail: []
-            });
-          }
-        }
-
-        // Renderizar conexões com mais intensidade
-        region.connections.forEach(connectionIndex => {
-          const otherRegion = brainRegions[connectionIndex];
-          if (!otherRegion) return;
-
-          const connectionIntensity = (region.activity + otherRegion.activity) * 0.5;
-          
-          if (connectionIntensity > 0.2) {
-            const baseAlpha = 0.2 + connectionIntensity * 0.6;
-            
-            ctx.strokeStyle = `rgba(139, 92, 246, ${baseAlpha})`;
-            ctx.lineWidth = 1 + connectionIntensity * 3;
-            ctx.beginPath();
-            
-            // Conexão curvada
-            const midX = (region.x + otherRegion.x) / 2;
-            const midY = (region.y + otherRegion.y) / 2;
-            const distance = Math.sqrt(
-              Math.pow(region.x - otherRegion.x, 2) + Math.pow(region.y - otherRegion.y, 2)
-            );
-            const controlOffset = Math.sin(animationTime * 2 + distance * 0.01) * 15;
-            
-            ctx.moveTo(region.x, region.y);
-            ctx.quadraticCurveTo(
-              midX + controlOffset, 
-              midY + controlOffset, 
-              otherRegion.x, 
-              otherRegion.y
-            );
-            ctx.stroke();
-
-            // Pulsos elétricos nas conexões
-            if (connectionIntensity > 0.6) {
-              const pulseProgress = (animationTime * 3 + distance * 0.01) % 1;
-              const pulseX = region.x + (otherRegion.x - region.x) * pulseProgress;
-              const pulseY = region.y + (otherRegion.y - region.y) * pulseProgress;
-              
-              ctx.shadowBlur = 20;
-              ctx.shadowColor = region.color;
-              ctx.fillStyle = region.color;
-              ctx.beginPath();
-              ctx.arc(pulseX, pulseY, 3 + connectionIntensity * 2, 0, Math.PI * 2);
-              ctx.fill();
-              ctx.shadowBlur = 0;
-            }
-          }
-        });
-
-        // Renderizar região cerebral
-        ctx.shadowBlur = 20 * scale * totalIntensity;
-        ctx.shadowColor = region.color;
-        
-        // Anel externo pulsante
-        if (totalIntensity > 0.5) {
-          ctx.strokeStyle = region.color.replace(/[\d.]+\)/, `${alpha * 0.8})`);
-          ctx.lineWidth = 2;
+          const alpha = (neuron.intensity + otherNeuron.intensity) * 0.3;
+          ctx.strokeStyle = `rgba(139, 92, 246, ${alpha})`;
+          ctx.lineWidth = 1;
           ctx.beginPath();
-          ctx.arc(region.x, region.y, region.radius * scale * (1.5 + pulseIntensity * 0.5), 0, Math.PI * 2);
+          ctx.moveTo(neuron.x, neuron.y);
+          ctx.lineTo(otherNeuron.x, otherNeuron.y);
           ctx.stroke();
-        }
-        
-        // Corpo principal da região
-        ctx.fillStyle = region.color.replace(/[\d.]+\)/, `${alpha * (0.6 + totalIntensity * 0.4)})`);
-        ctx.beginPath();
-        ctx.arc(region.x, region.y, region.radius * scale, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Núcleo brilhante
-        if (totalIntensity > 0.4) {
-          ctx.fillStyle = `rgba(255, 255, 255, ${alpha * totalIntensity * 0.9})`;
-          ctx.beginPath();
-          ctx.arc(region.x, region.y, region.radius * scale * 0.3, 0, Math.PI * 2);
-          ctx.fill();
-        }
-        
-        ctx.shadowBlur = 0;
+        });
       });
 
-      // Renderizar partículas neurais
-      neuralParticles.forEach(particle => {
-        // Rastro da partícula
-        particle.trail.forEach((point, i) => {
-          if (i < particle.trail.length - 1) {
-            const alpha = point.alpha * (particle.life / particle.maxLife);
-            ctx.strokeStyle = particle.color.replace(/[\d.]+\)/, `${alpha * 0.6})`);
-            ctx.lineWidth = particle.size * alpha;
-            ctx.beginPath();
-            ctx.moveTo(point.x, point.y);
-            ctx.lineTo(particle.trail[i + 1].x, particle.trail[i + 1].y);
-            ctx.stroke();
-          }
-        });
+      // Renderizar neurônios
+      neurons.forEach(neuron => {
+        const pulseIntensity = (Math.sin(animationTime * 2 + neuron.x * 0.01) + 1) * 0.5;
+        const totalIntensity = (neuron.intensity + pulseIntensity) * 0.5;
 
-        // Partícula principal
-        const alpha = particle.life / particle.maxLife;
-        ctx.shadowBlur = 15;
-        ctx.shadowColor = particle.color;
-        ctx.fillStyle = particle.color.replace(/[\d.]+\)/, `${alpha})`);
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = 'rgba(139, 92, 246, 0.8)';
+        ctx.fillStyle = `rgba(139, 92, 246, ${totalIntensity * 0.8})`;
         ctx.beginPath();
-        ctx.arc(particle.x, particle.y, particle.size * alpha, 0, Math.PI * 2);
+        ctx.arc(neuron.x, neuron.y, 3 + totalIntensity * 2, 0, Math.PI * 2);
         ctx.fill();
         ctx.shadowBlur = 0;
       });
@@ -609,9 +375,9 @@ export function ObservatoryLanding() {
         )}
       </button>
       
-      {/* Canvas de cérebro humano realista */}
+      {/* Canvas neural simples */}
       <canvas
-        ref={brainCanvasRef}
+        ref={canvasRef}
         className="fixed inset-0 pointer-events-none z-0 w-full h-full"
         style={{ 
           transform: `translateY(${scrollY * 0.1}px)`
