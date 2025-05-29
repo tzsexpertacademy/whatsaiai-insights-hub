@@ -4,6 +4,8 @@
  * 
  * Este hook garante que os dados de análise sempre sejam processados
  * de forma consistente, independente de outras alterações no sistema.
+ * 
+ * ATUALIZADO: Removidos completamente os dados simulados
  */
 
 import { useState, useEffect } from 'react';
@@ -42,6 +44,8 @@ export function useProtectedAnalysisData() {
   const loadProtectedInsights = async () => {
     if (!user?.id || !systemIntegrity) {
       console.warn('⚠️ Carregamento bloqueado - usuário não autenticado ou sistema comprometido');
+      setInsights([]);
+      setIsLoading(false);
       return;
     }
 
@@ -59,7 +63,7 @@ export function useProtectedAnalysisData() {
         throw error;
       }
 
-      // Processamento protegido dos insights
+      // Processamento protegido dos insights - APENAS dados reais
       const protectedInsights: ProtectedInsight[] = (rawInsights || []).map(insight => {
         // Validação de campos obrigatórios
         const hasRequiredFields = ANALYSIS_SYSTEM_CONFIG.REQUIRED_INSIGHT_FIELDS.every(
@@ -109,6 +113,8 @@ export function useProtectedAnalysisData() {
   useEffect(() => {
     if (systemIntegrity) {
       loadProtectedInsights();
+    } else {
+      setIsLoading(false);
     }
   }, [user?.id, systemIntegrity]);
 
@@ -124,7 +130,7 @@ export function useProtectedAnalysisData() {
     return integrity;
   };
 
-  // Estatísticas protegidas
+  // Estatísticas protegidas - APENAS dados reais
   const getProtectedStats = () => {
     const assistantCounts = insights.reduce((acc, insight) => {
       acc[insight.assistantName] = (acc[insight.assistantName] || 0) + 1;
@@ -136,7 +142,8 @@ export function useProtectedAnalysisData() {
       assistantCounts,
       lastAnalysis: insights[0]?.created_at || null,
       systemIntegrity,
-      assistantsActive: Object.keys(assistantCounts).length
+      assistantsActive: Object.keys(assistantCounts).length,
+      hasRealData: insights.length > 0
     };
   };
 
