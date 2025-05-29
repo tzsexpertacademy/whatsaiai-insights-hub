@@ -1,5 +1,5 @@
 
-import { Calendar, TrendingUp, TrendingDown, Target, Brain, Users, BarChart3, MessageSquare, FileText, Settings, User, Clock, AlertTriangle, Bell } from 'lucide-react';
+import { Calendar, TrendingUp, TrendingDown, Target, Brain, Users, BarChart3, MessageSquare, FileText, Settings, User, Clock, AlertTriangle, Bell, X } from 'lucide-react';
 import {
   Sidebar,
   SidebarContent,
@@ -9,11 +9,15 @@ import {
   SidebarMenu,
   SidebarHeader,
   SidebarFooter,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { SidebarNavItem } from '@/components/SidebarNavItem';
 import { SidebarSubscriptionStatus } from '@/components/SidebarSubscriptionStatus';
+import { Button } from "@/components/ui/button";
 
 export function AppSidebar() {
+  const { isMobile, setOpenMobile } = useSidebar();
+
   const mainNavItems = [
     { title: 'Dashboard', icon: BarChart3, url: '/dashboard' },
     { title: 'Termômetro Emocional', icon: TrendingUp, url: '/dashboard/thermometer' },
@@ -44,14 +48,29 @@ export function AppSidebar() {
   return (
     <Sidebar>
       <SidebarHeader className="p-6">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-            <Brain className="w-5 h-5 text-white" />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+              <Brain className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h1 className="font-bold text-lg">YumerMind</h1>
+              <p className="text-xs text-muted-foreground">Análise Comportamental</p>
+            </div>
           </div>
-          <div>
-            <h1 className="font-bold text-lg">YumerMind</h1>
-            <p className="text-xs text-muted-foreground">Análise Comportamental</p>
-          </div>
+          
+          {/* Botão de fechar visível apenas no mobile */}
+          {isMobile && (
+            <Button 
+              variant="ghost" 
+              size="icon"
+              onClick={() => setOpenMobile(false)}
+              className="h-8 w-8 shrink-0"
+            >
+              <X className="h-4 w-4" />
+              <span className="sr-only">Fechar menu</span>
+            </Button>
+          )}
         </div>
       </SidebarHeader>
 
