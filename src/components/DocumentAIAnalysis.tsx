@@ -11,7 +11,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { AIAnalysisSelector } from '@/components/AIAnalysisSelector';
 import { CostEstimator } from '@/components/CostEstimator';
 import { useClientConfig } from '@/contexts/ClientConfigContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -25,7 +24,8 @@ import {
   Bot,
   FileText,
   Calculator,
-  MessageSquare
+  MessageSquare,
+  Zap
 } from 'lucide-react';
 
 interface Message {
@@ -55,6 +55,13 @@ interface DocumentAIAnalysisProps {
   selectedDocument: ParsedDocument | null;
 }
 
+const ANALYSIS_TYPES = {
+  micro: { label: 'Análise Micro', maxTokens: 100, description: 'Resumo ultra conciso (50-100 tokens)' },
+  simples: { label: 'Análise Simples', maxTokens: 250, description: 'Resumo básico com pontos principais (100-250 tokens)' },
+  completa: { label: 'Análise Completa', maxTokens: 500, description: 'Análise equilibrada com insights práticos (250-500 tokens)' },
+  detalhada: { label: 'Análise Detalhada', maxTokens: 800, description: 'Análise profunda e completa (500-800 tokens)' }
+};
+
 export function DocumentAIAnalysis({ selectedDocument }: DocumentAIAnalysisProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -63,6 +70,7 @@ export function DocumentAIAnalysis({ selectedDocument }: DocumentAIAnalysisProps
   const [analysisResult, setAnalysisResult] = useState<string | null>(null);
   const [showCostCalculator, setShowCostCalculator] = useState(false);
   const [selectedAssistant, setSelectedAssistant] = useState<string>('');
+  const [selectedAnalysisType, setSelectedAnalysisType] = useState<string>('simples');
   const { config } = useClientConfig();
   const { user } = useAuth();
   const { toast } = useToast();
@@ -78,7 +86,9 @@ export function DocumentAIAnalysis({ selectedDocument }: DocumentAIAnalysisProps
     return Math.ceil(text.length / 4);
   };
 
-  const handleAnalyzeDocument = async (analysisConfig: AnalysisConfig) => {
+  const handleAnalyzeDocument = async () => {
+    console.log('🤖 Iniciando análise do documento...');
+    
     if (!selectedDocument || !isOpenAIConfigured) {
       toast({
         title: "Erro",
@@ -115,12 +125,21 @@ export function DocumentAIAnalysis({ selectedDocument }: DocumentAIAnalysisProps
         throw new Error('Assistente não encontrado');
       }
 
+      const analysisConfig = ANALYSIS_TYPES[selectedAnalysisType as keyof typeof ANALYSIS_TYPES];
+      
+      console.log('📊 Configuração da análise:', {
+        type: selectedAnalysisType,
+        maxTokens: analysisConfig.maxTokens,
+        assistant: assistant.name,
+        documentSize: selectedDocument.text.length
+      });
+
       const systemPrompt = `${assistant.prompt}
 
 CONTEXTO DE ANÁLISE DE DOCUMENTO:
 - Você é o assistente "${assistant.name}" especializado em "${assistant.area}"
 - Sua função é analisar documentos e fornecer insights na sua área de especialização
-- Tipo de análise solicitado: ${analysisConfig.type}
+- Tipo de análise solicitado: ${analysisConfig.label}
 
 DIRETRIZES DE ANÁLISE:
 - Micro (50-100 tokens): Resumo ultra conciso e direto
@@ -144,6 +163,8 @@ Tamanho: ${selectedDocument.metadata.fileSize} bytes
 Conteúdo:
 ${selectedDocument.text}`;
 
+      console.log('🚀 Enviando requisição para OpenAI...');
+
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -156,16 +177,22 @@ ${selectedDocument.text}`;
             { role: 'system', content: systemPrompt },
             { role: 'user', content: 'Analise este documento conforme as instruções.' }
           ],
-          temperature: analysisConfig.temperature,
+          temperature: 0.7,
           max_tokens: analysisConfig.maxTokens,
         }),
       });
 
+      console.log('📡 Resposta da OpenAI:', response.status, response.statusText);
+
       if (!response.ok) {
-        throw new Error(`Erro na API OpenAI: ${response.statusText}`);
+        const errorText = await response.text();
+        console.error('❌ Erro na API OpenAI:', errorText);
+        throw new Error(`Erro na API OpenAI: ${response.status} - ${errorText}`);
       }
 
       const data = await response.json();
+      console.log('📊 Dados recebidos da OpenAI:', data);
+      
       const analysis = data.choices[0]?.message?.content;
 
       if (analysis) {
@@ -180,14 +207,18 @@ ${selectedDocument.text}`;
         
         setMessages([analysisMessage]);
         
+        console.log('✅ Análise concluída com sucesso');
+        
         toast({
           title: "✅ Análise concluída",
-          description: `Documento analisado por ${assistant.name} (${analysisConfig.type})`,
+          description: `Documento analisado por ${assistant.name} (${analysisConfig.label})`,
         });
+      } else {
+        throw new Error('Resposta vazia da OpenAI');
       }
 
     } catch (error: any) {
-      console.error('Erro ao analisar documento:', error);
+      console.error('❌ Erro ao analisar documento:', error);
       toast({
         title: "Erro na análise",
         description: error.message || "Não foi possível analisar o documento",
@@ -263,7 +294,8 @@ INSTRUÇÕES:
       });
 
       if (!response.ok) {
-        throw new Error(`Erro na API OpenAI: ${response.statusText}`);
+        const errorText = await response.text();
+        throw new Error(`Erro na API OpenAI: ${response.status} - ${errorText}`);
       }
 
       const data = await response.json();
@@ -280,7 +312,7 @@ INSTRUÇÕES:
       }
 
     } catch (error: any) {
-      console.error('Erro ao enviar mensagem:', error);
+      console.error('❌ Erro ao enviar mensagem:', error);
       toast({
         title: "Erro ao enviar mensagem",
         description: error.message || "Ocorreu um erro ao processar a mensagem.",
@@ -303,6 +335,7 @@ INSTRUÇÕES:
   }
 
   const estimatedTokens = estimateTokens(selectedDocument.text);
+  const selectedAnalysisConfig = ANALYSIS_TYPES[selectedAnalysisType as keyof typeof ANALYSIS_TYPES];
 
   return (
     <div className="space-y-6">
@@ -325,7 +358,7 @@ INSTRUÇÕES:
                 {activeAssistants.map((assistant) => (
                   <SelectItem key={assistant.id} value={assistant.id}>
                     <div className="flex items-center gap-2">
-                      <span>{assistant.icon}</span>
+                      <span>{assistant.icon || '🤖'}</span>
                       <div className="flex flex-col">
                         <span className="font-medium">{assistant.name}</span>
                         <span className="text-xs text-gray-500">
@@ -346,11 +379,52 @@ INSTRUÇÕES:
         </CardContent>
       </Card>
 
-      {/* Seletor de Análise */}
-      <AIAnalysisSelector 
-        onAnalyze={handleAnalyzeDocument}
-        isAnalyzing={isAnalyzing}
-      />
+      {/* Seletor de Tipo de Análise */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Brain className="h-5 w-5" />
+            Tipo de Análise
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <Select value={selectedAnalysisType} onValueChange={setSelectedAnalysisType}>
+              <SelectTrigger>
+                <SelectValue placeholder="Escolha o tipo de análise" />
+              </SelectTrigger>
+              <SelectContent className="bg-white">
+                {Object.entries(ANALYSIS_TYPES).map(([key, config]) => (
+                  <SelectItem key={key} value={key}>
+                    <div className="flex flex-col">
+                      <span className="font-medium">{config.label}</span>
+                      <span className="text-xs text-gray-500">{config.description}</span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Button
+              onClick={handleAnalyzeDocument}
+              disabled={isAnalyzing || !selectedAssistant || !isOpenAIConfigured}
+              className="w-full"
+            >
+              {isAnalyzing ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Analisando...
+                </>
+              ) : (
+                <>
+                  <Zap className="w-4 h-4 mr-2" />
+                  Gerar {selectedAnalysisConfig.label}
+                </>
+              )}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Calculadora de Custo */}
       <div className="flex items-center gap-2 mb-4">
@@ -367,7 +441,7 @@ INSTRUÇÕES:
       {showCostCalculator && (
         <CostEstimator
           estimatedTokens={estimatedTokens}
-          maxTokens={800} // Máximo para análise detalhada
+          maxTokens={selectedAnalysisConfig.maxTokens}
           model={config.openai?.model || 'gpt-4o-mini'}
           fileName={selectedDocument.metadata.fileName}
         />
@@ -407,7 +481,7 @@ INSTRUÇÕES:
                           ? 'bg-blue-500 text-white' 
                           : 'bg-gray-100 text-gray-800'
                       }`}>
-                        {message.text}
+                        <pre className="whitespace-pre-wrap font-sans">{message.text}</pre>
                       </div>
                       <p className="text-xs text-gray-500 mt-1">
                         {message.timestamp}
@@ -424,7 +498,7 @@ INSTRUÇÕES:
                 placeholder="Faça perguntas sobre a análise..."
                 value={input}
                 onChange={e => setInput(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleSendMessage()}
+                onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
                 disabled={isSubmitting || !isOpenAIConfigured}
               />
               <Button 
