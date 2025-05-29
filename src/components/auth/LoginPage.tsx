@@ -1,313 +1,320 @@
 
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Separator } from "@/components/ui/separator";
-import { useAuth } from '@/contexts/AuthContext';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Brain, Mail, Lock, User, Building } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { Eye, EyeOff, Brain, Sparkles, Users, TrendingUp } from 'lucide-react';
 
 export function LoginPage() {
-  const { login, signup, user, isLoading } = useAuth();
+  const { login, signup } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [searchParams] = useSearchParams();
-
-  const [loginData, setLoginData] = useState({
-    email: '',
-    password: ''
-  });
-
-  const [signupData, setSignupData] = useState({
-    email: '',
-    password: '',
-    confirmPassword: '',
-    fullName: '',
-    companyName: ''
-  });
-
-  // Verificar se veio do checkout
-  const fromCheckout = searchParams.get('checkout') === 'success';
-
-  // Quando usuário se autentica
-  useEffect(() => {
-    if (user) {
-      console.log('✅ Usuário autenticado, redirecionando para dashboard');
-      
-      if (fromCheckout) {
-        toast({
-          title: "Bem-vindo ao Observatório!",
-          description: "Vamos começar sua jornada de autoconhecimento",
-          duration: 2000
-        });
-      } else {
-        toast({
-          title: "Login realizado com sucesso!",
-          description: "Bem-vindo de volta!",
-          duration: 2000
-        });
-      }
-      
-      setTimeout(() => {
-        navigate('/dashboard');
-      }, 1000);
-    }
-  }, [user, navigate, toast, fromCheckout]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  
+  // Estados para login
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  
+  // Estados para cadastro
+  const [signupEmail, setSignupEmail] = useState('');
+  const [signupPassword, setSignupPassword] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [companyName, setCompanyName] = useState('');
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('🔐 Tentando fazer login...');
+    setIsLoading(true);
+
     try {
-      await login(loginData.email, loginData.password);
+      console.log('🔑 Tentando fazer login com:', loginEmail);
+      await login(loginEmail, loginPassword);
+      
+      toast({
+        title: "Login realizado com sucesso!",
+        description: "Bem-vindo de volta ao Observatório",
+        duration: 2000
+      });
+      
+      navigate('/dashboard');
     } catch (error: any) {
       console.error('❌ Erro no login:', error);
+      let errorMessage = "Erro ao fazer login";
+      
+      if (error.message?.includes('Invalid login credentials')) {
+        errorMessage = "Email ou senha incorretos";
+      } else if (error.message?.includes('Email not confirmed')) {
+        errorMessage = "Confirme seu email antes de fazer login";
+      }
+      
       toast({
         title: "Erro no login",
-        description: error.message || "Credenciais inválidas",
-        variant: "destructive"
+        description: errorMessage,
+        variant: "destructive",
+        duration: 4000
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (signupData.password !== signupData.confirmPassword) {
-      toast({
-        title: "Erro",
-        description: "As senhas não coincidem",
-        variant: "destructive"
-      });
-      return;
-    }
+    setIsLoading(true);
 
-    if (signupData.password.length < 6) {
-      toast({
-        title: "Erro",
-        description: "A senha deve ter pelo menos 6 caracteres",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (!signupData.fullName.trim()) {
-      toast({
-        title: "Erro",
-        description: "Nome completo é obrigatório",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (!signupData.email.trim()) {
-      toast({
-        title: "Erro",
-        description: "Email é obrigatório",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    console.log('📝 Criando conta real para:', signupData.email);
     try {
-      await signup(signupData.email, signupData.password, {
-        fullName: signupData.fullName,
-        companyName: signupData.companyName
-      });
+      console.log('📝 Criando conta real para:', signupEmail);
+      await signup(signupEmail, signupPassword, { fullName, companyName });
       
       toast({
         title: "Conta criada com sucesso!",
-        description: "Bem-vindo ao Observatório!",
+        description: "Redirecionando para seu observatório...",
         duration: 2000
       });
+      
+      // Aguardar um pouco para o contexto atualizar
+      setTimeout(() => {
+        navigate('/dashboard');
+      }, 1000);
+      
     } catch (error: any) {
       console.error('❌ Erro no cadastro:', error);
+      let errorMessage = "Erro ao criar conta";
+      
+      if (error.message?.includes('User already registered')) {
+        errorMessage = "Email já cadastrado. Tente fazer login.";
+      } else if (error.message?.includes('Password should be at least 6 characters')) {
+        errorMessage = "A senha deve ter pelo menos 6 caracteres";
+      } else if (error.message?.includes('Invalid email')) {
+        errorMessage = "Email inválido";
+      }
+      
       toast({
         title: "Erro no cadastro",
-        description: error.message || "Erro ao criar conta",
-        variant: "destructive"
+        description: errorMessage,
+        variant: "destructive",
+        duration: 4000
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen bg-black text-white flex items-center justify-center p-4">
+      {/* Background com efeito neural */}
+      <div className="absolute inset-0 bg-gradient-to-br from-blue-900/20 via-purple-900/20 to-cyan-900/20" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent_0%,_rgba(0,0,0,0.8)_100%)]" />
+      
+      <div className="relative z-10 w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="flex items-center justify-center gap-2 mb-4">
-            <Brain className="h-8 w-8 text-blue-600" />
-            <h1 className="text-2xl font-bold text-gray-900">Observatório</h1>
+          <div className="flex items-center justify-center mb-4">
+            <div className="p-3 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full">
+              <Brain className="w-8 h-8 text-white" />
+            </div>
           </div>
-          <p className="text-gray-600">Seu painel de consciência pessoal</p>
-          {fromCheckout && (
-            <p className="text-sm text-green-600 font-medium mt-2">
-              ✅ Assinatura confirmada! Crie sua conta para começar
-            </p>
-          )}
+          <h1 className="text-3xl font-bold mb-2">Observatório da Consciência</h1>
+          <p className="text-gray-400">Acesse ou crie sua conta para começar</p>
         </div>
 
-        <Card className="shadow-xl border-0">
-          <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl text-center">
-              {fromCheckout ? 'Complete seu cadastro' : 'Crie sua conta'}
-            </CardTitle>
-            <CardDescription className="text-center">
-              {fromCheckout ? 'Finalize seu cadastro para acessar a plataforma' : 'Cadastre-se ou faça login para começar'}
+        <Card className="bg-gray-900/50 border-gray-800 backdrop-blur-sm">
+          <CardHeader className="text-center pb-4">
+            <CardTitle className="text-white">Bem-vindo</CardTitle>
+            <CardDescription className="text-gray-400">
+              Entre na sua conta ou crie uma nova para começar
             </CardDescription>
           </CardHeader>
+          
           <CardContent>
-            <Tabs defaultValue="signup" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="signup">
+            <Tabs defaultValue="login" className="w-full">
+              <TabsList className="grid w-full grid-cols-2 bg-gray-800">
+                <TabsTrigger value="login" className="text-white data-[state=active]:bg-blue-600">
+                  Entrar
+                </TabsTrigger>
+                <TabsTrigger value="signup" className="text-white data-[state=active]:bg-green-600">
                   Criar Conta
                 </TabsTrigger>
-                <TabsTrigger value="login">Já tenho conta</TabsTrigger>
               </TabsList>
 
-              <TabsContent value="signup" className="space-y-4">
-                <form onSubmit={handleSignup} className="space-y-4">
+              {/* Tab de Login */}
+              <TabsContent value="login">
+                <form onSubmit={handleLogin} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="signup-name">Nome Completo *</Label>
-                    <div className="relative">
-                      <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                      <Input
-                        id="signup-name"
-                        type="text"
-                        placeholder="Seu nome completo"
-                        className="pl-10"
-                        value={signupData.fullName}
-                        onChange={(e) => setSignupData({...signupData, fullName: e.target.value})}
-                        required
-                      />
-                    </div>
+                    <Label htmlFor="login-email" className="text-white">Email</Label>
+                    <Input
+                      id="login-email"
+                      type="email"
+                      value={loginEmail}
+                      onChange={(e) => setLoginEmail(e.target.value)}
+                      placeholder="seu@email.com"
+                      required
+                      className="bg-gray-800 border-gray-700 text-white placeholder-gray-400"
+                    />
                   </div>
-
+                  
                   <div className="space-y-2">
-                    <Label htmlFor="signup-company">Empresa (Opcional)</Label>
+                    <Label htmlFor="login-password" className="text-white">Senha</Label>
                     <div className="relative">
-                      <Building className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                       <Input
-                        id="signup-company"
-                        type="text"
-                        placeholder="Nome da empresa"
-                        className="pl-10"
-                        value={signupData.companyName}
-                        onChange={(e) => setSignupData({...signupData, companyName: e.target.value})}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-email">Email *</Label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                      <Input
-                        id="signup-email"
-                        type="email"
-                        placeholder="seu@email.com"
-                        className="pl-10"
-                        value={signupData.email}
-                        onChange={(e) => setSignupData({...signupData, email: e.target.value})}
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-password">Senha *</Label>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                      <Input
-                        id="signup-password"
-                        type="password"
+                        id="login-password"
+                        type={showPassword ? "text" : "password"}
+                        value={loginPassword}
+                        onChange={(e) => setLoginPassword(e.target.value)}
                         placeholder="••••••••"
-                        className="pl-10"
-                        value={signupData.password}
-                        onChange={(e) => setSignupData({...signupData, password: e.target.value})}
                         required
+                        className="bg-gray-800 border-gray-700 text-white placeholder-gray-400 pr-10"
                       />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-0 top-0 h-full px-3 text-gray-400 hover:text-white"
+                        onClick={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </Button>
                     </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-confirm">Confirmar Senha *</Label>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                      <Input
-                        id="signup-confirm"
-                        type="password"
-                        placeholder="••••••••"
-                        className="pl-10"
-                        value={signupData.confirmPassword}
-                        onChange={(e) => setSignupData({...signupData, confirmPassword: e.target.value})}
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={isLoading}>
-                    {isLoading ? 'Criando conta...' : 'Criar Conta e Começar Trial'}
+                  <Button 
+                    type="submit" 
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white" 
+                    disabled={isLoading}
+                  >
+                    {isLoading ? 'Entrando...' : 'Entrar'}
                   </Button>
                 </form>
               </TabsContent>
 
-              <TabsContent value="login" className="space-y-4">
-                <form onSubmit={handleLogin} className="space-y-4">
+              {/* Tab de Cadastro */}
+              <TabsContent value="signup">
+                <form onSubmit={handleSignup} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="login-email">Email</Label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                      <Input
-                        id="login-email"
-                        type="email"
-                        placeholder="seu@email.com"
-                        className="pl-10"
-                        value={loginData.email}
-                        onChange={(e) => setLoginData({...loginData, email: e.target.value})}
-                        required
-                      />
-                    </div>
+                    <Label htmlFor="signup-name" className="text-white">Nome Completo</Label>
+                    <Input
+                      id="signup-name"
+                      type="text"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      placeholder="Seu nome completo"
+                      required
+                      className="bg-gray-800 border-gray-700 text-white placeholder-gray-400"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-company" className="text-white">Nome da Empresa (opcional)</Label>
+                    <Input
+                      id="signup-company"
+                      type="text"
+                      value={companyName}
+                      onChange={(e) => setCompanyName(e.target.value)}
+                      placeholder="Nome da sua empresa"
+                      className="bg-gray-800 border-gray-700 text-white placeholder-gray-400"
+                    />
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="login-password">Senha</Label>
+                    <Label htmlFor="signup-email" className="text-white">Email</Label>
+                    <Input
+                      id="signup-email"
+                      type="email"
+                      value={signupEmail}
+                      onChange={(e) => setSignupEmail(e.target.value)}
+                      placeholder="seu@email.com"
+                      required
+                      className="bg-gray-800 border-gray-700 text-white placeholder-gray-400"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-password" className="text-white">Senha</Label>
                     <div className="relative">
-                      <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                       <Input
-                        id="login-password"
-                        type="password"
+                        id="signup-password"
+                        type={showPassword ? "text" : "password"}
+                        value={signupPassword}
+                        onChange={(e) => setSignupPassword(e.target.value)}
                         placeholder="••••••••"
-                        className="pl-10"
-                        value={loginData.password}
-                        onChange={(e) => setLoginData({...loginData, password: e.target.value})}
                         required
+                        minLength={6}
+                        className="bg-gray-800 border-gray-700 text-white placeholder-gray-400 pr-10"
                       />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-0 top-0 h-full px-3 text-gray-400 hover:text-white"
+                        onClick={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </Button>
                     </div>
+                    <p className="text-xs text-gray-400">Mínimo de 6 caracteres</p>
                   </div>
 
-                  <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading ? 'Entrando...' : 'Entrar no Observatório'}
+                  <div className="bg-green-900/20 border border-green-700/30 rounded-lg p-4 mb-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Sparkles className="w-4 h-4 text-green-400" />
+                      <span className="text-sm font-medium text-green-400">Trial Gratuito Incluído</span>
+                    </div>
+                    <ul className="text-xs text-gray-300 space-y-1">
+                      <li>• 7 dias grátis para explorar</li>
+                      <li>• Acesso completo a todas as funcionalidades</li>
+                      <li>• Depois apenas R$ 47/mês</li>
+                      <li>• Cancele a qualquer momento</li>
+                    </ul>
+                  </div>
+
+                  <Button 
+                    type="submit" 
+                    className="w-full bg-green-600 hover:bg-green-700 text-white" 
+                    disabled={isLoading}
+                  >
+                    {isLoading ? 'Criando conta...' : 'Criar Conta e Começar Trial'}
                   </Button>
                 </form>
               </TabsContent>
             </Tabs>
 
-            <Separator className="my-6" />
-            
-            <div className="text-center text-sm text-gray-600">
-              <p>Ao criar uma conta, você concorda com nossos</p>
-              <p>
-                <span className="text-blue-600 hover:underline cursor-pointer">Termos de Serviço</span>
-                {' e '}
-                <span className="text-blue-600 hover:underline cursor-pointer">Política de Privacidade</span>
-              </p>
+            {/* Benefícios */}
+            <div className="mt-6 pt-6 border-t border-gray-700">
+              <h3 className="text-sm font-medium text-white mb-3 flex items-center gap-2">
+                <Users className="w-4 h-4" />
+                Por que escolher o Observatório?
+              </h3>
+              <div className="space-y-2 text-xs text-gray-400">
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="w-3 h-3 text-blue-400" />
+                  <span>Análise profunda da sua consciência por IA</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Brain className="w-3 h-3 text-purple-400" />
+                  <span>Mapeamento de padrões emocionais e comportamentais</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-3 h-3 text-green-400" />
+                  <span>Insights personalizados para seu crescimento</span>
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>
+
+        <div className="mt-6 text-center">
+          <Button
+            variant="ghost"
+            onClick={() => navigate('/')}
+            className="text-gray-400 hover:text-white"
+          >
+            ← Voltar para página inicial
+          </Button>
+        </div>
       </div>
     </div>
   );

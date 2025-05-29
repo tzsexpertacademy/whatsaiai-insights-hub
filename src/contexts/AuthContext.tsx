@@ -58,13 +58,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!session) return;
     
     try {
+      console.log('🔍 Verificando status da assinatura...');
       const { data, error } = await supabase.functions.invoke('check-subscription', {
         headers: {
           Authorization: `Bearer ${session.access_token}`,
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Erro ao verificar assinatura:', error);
+        throw error;
+      }
+
+      console.log('✅ Status da assinatura verificado:', data);
 
       if (user) {
         setUser({
@@ -75,28 +81,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
       }
     } catch (error) {
-      console.error('Error checking subscription:', error);
+      console.error('❌ Erro ao verificar assinatura:', error);
     }
   };
 
   const createCheckout = async () => {
-    if (!session) throw new Error('User not authenticated');
+    if (!session) {
+      console.error('❌ Usuário não autenticado para checkout');
+      toast({
+        title: "Erro",
+        description: "Você precisa estar logado para acessar o checkout.",
+        variant: "destructive",
+      });
+      throw new Error('User not authenticated');
+    }
     
     try {
+      console.log('💳 Criando sessão de checkout...');
       const { data, error } = await supabase.functions.invoke('create-checkout', {
         headers: {
           Authorization: `Bearer ${session.access_token}`,
         },
+        body: {
+          planType: 'premium',
+          successUrl: `${window.location.origin}/dashboard?checkout=success`,
+          cancelUrl: `${window.location.origin}/dashboard?checkout=cancelled`
+        }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Erro ao criar checkout:', error);
+        throw error;
+      }
 
-      // Open Stripe checkout in a new tab
-      window.open(data.url, '_blank');
+      console.log('✅ Checkout criado com sucesso:', data);
+
+      if (data.url) {
+        // Abrir checkout em nova aba
+        window.open(data.url, '_blank');
+        toast({
+          title: "Redirecionando para pagamento",
+          description: "Uma nova aba foi aberta para completar seu pagamento.",
+        });
+      } else {
+        throw new Error('URL do checkout não retornada');
+      }
     } catch (error) {
-      console.error('Error creating checkout:', error);
+      console.error('❌ Erro no checkout:', error);
       toast({
-        title: "Erro",
+        title: "Erro no checkout",
         description: "Não foi possível abrir o checkout. Tente novamente.",
         variant: "destructive",
       });
@@ -105,9 +138,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const openCustomerPortal = async () => {
-    if (!session) throw new Error('User not authenticated');
+    if (!session) {
+      console.error('❌ Usuário não autenticado para portal');
+      throw new Error('User not authenticated');
+    }
     
     try {
+      console.log('🏛️ Abrindo portal do cliente...');
       const { data, error } = await supabase.functions.invoke('customer-portal', {
         headers: {
           Authorization: `Bearer ${session.access_token}`,
@@ -115,18 +152,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (error || data?.redirectToCheckout) {
-        console.log('Portal not available, redirecting to checkout');
+        console.log('⚠️ Portal não disponível, redirecionando para checkout');
         await createCheckout();
         return;
       }
 
-      // Open customer portal in a new tab
-      window.open(data.url, '_blank');
+      if (data.url) {
+        // Abrir portal em nova aba
+        window.open(data.url, '_blank');
+        toast({
+          title: "Portal do cliente aberto",
+          description: "Uma nova aba foi aberta para gerenciar sua assinatura.",
+        });
+      } else {
+        throw new Error('URL do portal não retornada');
+      }
     } catch (error) {
-      console.error('Error opening customer portal:', error);
+      console.error('❌ Erro no portal do cliente:', error);
       toast({
-        title: "Redirecionando...",
-        description: "Abrindo página de pagamento.",
+        title: "Redirecionando para checkout",
+        description: "Portal não disponível. Abrindo página de pagamento.",
       });
       // Se falhar, redirecionar para checkout
       await createCheckout();
@@ -165,7 +210,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               } : null);
             }
           } catch (error) {
-            console.error('Error checking subscription on login:', error);
+            console.error('❌ Erro ao verificar assinatura no login:', error);
           }
         }, 0);
       } else {
@@ -193,6 +238,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = async (email: string, password: string): Promise<void> => {
+    console.log('🔑 Fazendo login real para:', email);
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password
@@ -224,6 +270,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = async (): Promise<void> => {
+    console.log('🚪 Fazendo logout...');
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
   };
