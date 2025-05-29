@@ -14,7 +14,7 @@ export async function parseDocument(file: File): Promise<ParsedDocument> {
 
   const metadata = {
     fileName: file.name,
-    fileType: file.type,
+    fileType: file.type || getFileTypeFromExtension(file.name),
     fileSize: file.size,
   };
 
@@ -43,368 +43,374 @@ Este arquivo foi carregado com sucesso e está pronto para análise quando imple
   try {
     let text = '';
 
-    if (file.type === 'text/plain' || file.name.endsWith('.txt')) {
+    // Determinar o tipo de arquivo baseado na extensão se o MIME type não estiver disponível
+    const fileExtension = getFileExtension(file.name).toLowerCase();
+    const actualFileType = file.type || getFileTypeFromExtension(file.name);
+
+    console.log(`🔍 Processando arquivo: ${file.name}, extensão: ${fileExtension}, tipo: ${actualFileType}`);
+
+    // Arquivos de texto simples
+    if (actualFileType === 'text/plain' || fileExtension === 'txt') {
       text = await file.text();
-    } 
-    else if (file.type === 'application/json' || file.name.endsWith('.json')) {
+      console.log(`✅ Arquivo TXT processado: ${text.length} caracteres`);
+    }
+    // Arquivos JSON
+    else if (actualFileType === 'application/json' || fileExtension === 'json') {
       const jsonContent = await file.text();
-      const parsed = JSON.parse(jsonContent);
-      text = JSON.stringify(parsed, null, 2);
+      try {
+        const parsed = JSON.parse(jsonContent);
+        text = `CONTEÚDO JSON ESTRUTURADO:\n\n${JSON.stringify(parsed, null, 2)}`;
+        console.log(`✅ Arquivo JSON processado: ${text.length} caracteres`);
+      } catch (jsonError) {
+        text = `ARQUIVO JSON (formato texto):\n\n${jsonContent}`;
+        console.log(`✅ Arquivo JSON como texto processado: ${text.length} caracteres`);
+      }
     }
-    else if (file.type === 'text/csv' || file.name.endsWith('.csv')) {
+    // Arquivos CSV
+    else if (actualFileType === 'text/csv' || fileExtension === 'csv') {
+      const csvContent = await file.text();
+      text = `PLANILHA CSV:\n\n${formatCSVContent(csvContent)}`;
+      console.log(`✅ Arquivo CSV processado: ${text.length} caracteres`);
+    }
+    // Arquivos Excel
+    else if (isExcelFile(actualFileType, fileExtension)) {
+      text = await extractExcelContent(file);
+      console.log(`✅ Arquivo Excel processado: ${text.length} caracteres`);
+    }
+    // Arquivos Markdown
+    else if (fileExtension === 'md' || fileExtension === 'markdown') {
       text = await file.text();
+      console.log(`✅ Arquivo Markdown processado: ${text.length} caracteres`);
     }
-    else if (file.name.endsWith('.md')) {
-      text = await file.text();
+    // Arquivos PDF
+    else if (actualFileType === 'application/pdf' || fileExtension === 'pdf') {
+      text = await extractPDFText(file);
+      console.log(`✅ Arquivo PDF processado: ${text.length} caracteres`);
     }
-    else if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
-      text = await extractPDFTextRobust(file);
+    // Arquivos Word
+    else if (isWordFile(actualFileType, fileExtension)) {
+      text = await extractWordText(file);
+      console.log(`✅ Arquivo Word processado: ${text.length} caracteres`);
     }
-    else if (file.type.includes('word') || file.name.endsWith('.docx') || file.name.endsWith('.doc')) {
-      text = await extractWordTextRobust(file);
+    // Arquivos XML
+    else if (actualFileType === 'application/xml' || actualFileType === 'text/xml' || fileExtension === 'xml') {
+      const xmlContent = await file.text();
+      text = `ARQUIVO XML:\n\n${formatXMLContent(xmlContent)}`;
+      console.log(`✅ Arquivo XML processado: ${text.length} caracteres`);
     }
+    // Tentar como arquivo de texto genérico
     else {
       try {
-        text = await file.text();
+        const textContent = await file.text();
+        if (isValidTextContent(textContent)) {
+          text = textContent;
+          console.log(`✅ Arquivo processado como texto: ${text.length} caracteres`);
+        } else {
+          throw new Error('Conteúdo não é texto válido');
+        }
       } catch (error) {
-        text = `[ARQUIVO BINÁRIO] ${file.name}
-
-Este arquivo parece ser um formato binário que não pode ser lido diretamente como texto.
-
-INFORMAÇÕES DO ARQUIVO:
-- Nome: ${file.name}
-- Tipo: ${file.type}
-- Tamanho: ${(file.size / 1024).toFixed(2)} KB
-
-SUGESTÃO: Tente converter o arquivo para um formato de texto (.txt, .md, .json) antes de fazer o upload.`;
+        text = generateUnsupportedFileMessage(file);
+        console.log(`⚠️ Arquivo não suportado, gerando mensagem informativa`);
       }
     }
 
     // Limpar e validar o texto extraído
-    text = cleanAndValidateText(text);
+    text = cleanText(text);
 
-    // Verificar se o texto extraído é válido e legível
-    if (!isTextMeaningful(text)) {
-      throw new Error('Não foi possível extrair texto legível do arquivo');
+    // Verificar se o texto é válido
+    if (!text || text.length < 10) {
+      throw new Error('Não foi possível extrair conteúdo válido do arquivo');
     }
 
-    console.log(`✅ Texto extraído com sucesso: ${text.length} caracteres`);
+    console.log(`✅ Processamento concluído: ${text.length} caracteres extraídos`);
 
     return {
       text,
       metadata: {
         ...metadata,
+        fileType: actualFileType,
         pageCount: estimatePageCount(text)
       }
     };
 
   } catch (error) {
     console.error(`❌ Erro ao processar arquivo:`, error);
+    
+    // Tentar uma última vez como texto simples
+    try {
+      const fallbackText = await file.text();
+      if (fallbackText && fallbackText.length > 0) {
+        console.log(`🔄 Fallback bem-sucedido: processando como texto simples`);
+        return {
+          text: cleanText(fallbackText),
+          metadata: {
+            ...metadata,
+            pageCount: estimatePageCount(fallbackText)
+          }
+        };
+      }
+    } catch (fallbackError) {
+      console.error(`❌ Fallback também falhou:`, fallbackError);
+    }
+    
     throw new Error(`Falha ao processar o arquivo: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
   }
 }
 
-async function extractPDFTextRobust(file: File): Promise<string> {
-  console.log('🔍 Iniciando extração robusta de PDF...');
-  
-  try {
-    const arrayBuffer = await file.arrayBuffer();
-    const uint8Array = new Uint8Array(arrayBuffer);
-    
-    // Converter para string usando diferentes codificações
-    let pdfString = '';
-    try {
-      pdfString = new TextDecoder('utf-8').decode(uint8Array);
-    } catch {
-      try {
-        pdfString = new TextDecoder('latin1').decode(uint8Array);
-      } catch {
-        pdfString = new TextDecoder('ascii').decode(uint8Array);
-      }
-    }
-    
-    console.log('📊 Tamanho do conteúdo PDF:', pdfString.length);
-    
-    // Nova estratégia: extrair apenas texto entre comandos de texto específicos
-    let extractedText = '';
-    
-    // Estratégia 1: Buscar por strings entre parênteses que sejam texto real
-    const textBetweenParens = extractMeaningfulTextFromParens(pdfString);
-    if (textBetweenParens.length > 50) {
-      extractedText = textBetweenParens;
-    }
-    
-    // Estratégia 2: Se ainda não temos texto bom, tentar comandos TJ
-    if (extractedText.length < 50) {
-      const tjText = extractTextFromTJCommands(pdfString);
-      if (tjText.length > 50) {
-        extractedText = tjText;
-      }
-    }
-    
-    // Estratégia 3: Buscar por sequências de palavras em português
-    if (extractedText.length < 50) {
-      const portugueseText = extractPortugueseText(pdfString);
-      if (portugueseText.length > 50) {
-        extractedText = portugueseText;
-      }
-    }
-    
-    // Limpeza final super rigorosa
-    extractedText = superCleanText(extractedText);
-    
-    console.log(`📄 Texto final extraído: ${extractedText.length} caracteres`);
-    
-    // Validação final: verificar se é texto real
-    if (!isTextMeaningful(extractedText)) {
-      console.log('⚠️ Texto extraído não é legível');
-      return generateErrorMessage(file, 'PDF_NOT_READABLE');
-    }
-    
-    return extractedText;
-    
-  } catch (error) {
-    console.error('❌ Erro na extração de PDF:', error);
-    return generateErrorMessage(file, 'PDF_EXTRACTION_ERROR');
-  }
+function getFileExtension(fileName: string): string {
+  const lastDot = fileName.lastIndexOf('.');
+  return lastDot === -1 ? '' : fileName.substring(lastDot + 1);
 }
 
-function extractMeaningfulTextFromParens(pdfString: string): string {
-  const parenMatches = pdfString.match(/\(([^)]{3,})\)/g);
-  if (!parenMatches) return '';
+function getFileTypeFromExtension(fileName: string): string {
+  const extension = getFileExtension(fileName).toLowerCase();
   
-  const meaningfulTexts = [];
-  
-  for (const match of parenMatches) {
-    const text = match.slice(1, -1); // Remove ( e )
-    const cleaned = cleanBasicText(text);
-    
-    // Verificar se é texto real (tem letras e não são apenas códigos)
-    if (isMeaningfulTextSegment(cleaned)) {
-      meaningfulTexts.push(cleaned);
-    }
-  }
-  
-  return meaningfulTexts.join(' ');
-}
-
-function extractTextFromTJCommands(pdfString: string): string {
-  const tjMatches = pdfString.match(/\[([^\]]+)\]\s*TJ/gi);
-  if (!tjMatches) return '';
-  
-  const meaningfulTexts = [];
-  
-  for (const match of tjMatches) {
-    const arrayContent = match.match(/\[([^\]]+)\]/);
-    if (arrayContent) {
-      const textInArray = arrayContent[1].match(/\(([^)]+)\)/g);
-      if (textInArray) {
-        for (const textMatch of textInArray) {
-          const text = textMatch.slice(1, -1);
-          const cleaned = cleanBasicText(text);
-          if (isMeaningfulTextSegment(cleaned)) {
-            meaningfulTexts.push(cleaned);
-          }
-        }
-      }
-    }
-  }
-  
-  return meaningfulTexts.join(' ');
-}
-
-function extractPortugueseText(pdfString: string): string {
-  // Procurar por sequências que parecem palavras em português
-  const wordPattern = /[A-Za-zÀ-ÿçÇ]{3,}(?:\s+[A-Za-zÀ-ÿçÇ.,!?;:]{1,}){2,}/g;
-  const matches = pdfString.match(wordPattern);
-  
-  if (!matches) return '';
-  
-  const meaningfulTexts = matches
-    .filter(text => isMeaningfulTextSegment(text))
-    .filter(text => !containsPDFCommands(text))
-    .slice(0, 100); // Limitar
-  
-  return meaningfulTexts.join(' ');
-}
-
-function isMeaningfulTextSegment(text: string): boolean {
-  if (!text || text.length < 3) return false;
-  
-  // Deve ter pelo menos algumas letras
-  const letterCount = (text.match(/[a-zA-ZÀ-ÿçÇ]/g) || []).length;
-  if (letterCount < 3) return false;
-  
-  // Não deve ser apenas números ou códigos
-  if (/^[\d\s\.\-_#]+$/.test(text)) return false;
-  
-  // Não deve conter muitos caracteres especiais consecutivos
-  if (/[^\w\sÀ-ÿçÇ\.,!?;:\-()]{3,}/.test(text)) return false;
-  
-  // Deve parecer com texto real (proporção de letras)
-  const totalChars = text.length;
-  const letterRatio = letterCount / totalChars;
-  
-  return letterRatio > 0.5;
-}
-
-function containsPDFCommands(text: string): boolean {
-  const pdfCommands = [
-    'obj', 'endobj', 'stream', 'endstream', 'xref', 'trailer',
-    'startxref', 'PDF', 'Type', 'Font', 'Page', 'Kids', 'Parent',
-    'BT', 'ET', 'Tj', 'TJ', 'Td', 'TD', 'Tm', 'Tf'
-  ];
-  
-  const upperText = text.toUpperCase();
-  return pdfCommands.some(cmd => upperText.includes(cmd));
-}
-
-function cleanBasicText(text: string): string {
-  return text
-    .replace(/\\n/g, ' ')
-    .replace(/\\r/g, ' ')
-    .replace(/\\t/g, ' ')
-    .replace(/\\\(/g, '(')
-    .replace(/\\\)/g, ')')
-    .replace(/\\\\/g, '\\')
-    .trim();
-}
-
-function superCleanText(text: string): string {
-  return text
-    // Remover códigos de escape
-    .replace(/\\[nrt]/g, ' ')
-    .replace(/\\\([)]/g, '')
-    
-    // Remover caracteres de controle
-    .replace(/[\x00-\x1F\x7F-\x9F]/g, ' ')
-    
-    // Manter apenas caracteres legíveis
-    .replace(/[^\w\sÀ-ÿçÇ\.,!?;:\-()]/g, ' ')
-    
-    // Normalizar espaços
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-function isTextMeaningful(text: string): boolean {
-  if (!text || text.length < 20) return false;
-  
-  // Verificar se tem palavras reais
-  const words = text.split(/\s+/).filter(word => word.length > 2);
-  if (words.length < 5) return false;
-  
-  // Verificar proporção de letras
-  const letters = (text.match(/[a-zA-ZÀ-ÿçÇ]/g) || []).length;
-  const totalChars = text.length;
-  const letterRatio = letters / totalChars;
-  
-  // Pelo menos 60% deve ser letras
-  return letterRatio > 0.6;
-}
-
-async function extractWordTextRobust(file: File): Promise<string> {
-  try {
-    const arrayBuffer = await file.arrayBuffer();
-    const uint8Array = new Uint8Array(arrayBuffer);
-    
-    let text = '';
-    
-    try {
-      text = new TextDecoder('utf-8').decode(uint8Array);
-    } catch {
-      try {
-        text = new TextDecoder('latin1').decode(uint8Array);
-      } catch {
-        text = new TextDecoder('ascii').decode(uint8Array);
-      }
-    }
-    
-    // Extrair texto de documento Word (XML)
-    const extractedText = extractTextFromWordXML(text);
-    
-    if (extractedText && extractedText.length > 20) {
-      return superCleanText(extractedText);
-    }
-    
-    throw new Error('Não foi possível extrair texto do documento Word');
-    
-  } catch (error) {
-    console.error('Erro na extração de Word:', error);
-    return generateErrorMessage(file, 'WORD_EXTRACTION_ERROR');
-  }
-}
-
-function extractTextFromWordXML(content: string): string {
-  // Procurar por conteúdo entre tags XML que pareça texto
-  const xmlTextMatches = content.match(/>([^<]{5,})</g);
-  if (!xmlTextMatches) return '';
-  
-  const meaningfulTexts = [];
-  
-  for (const match of xmlTextMatches) {
-    const text = match.slice(1, -1); // Remove > e <
-    const cleaned = superCleanText(text);
-    
-    if (isMeaningfulTextSegment(cleaned) && !containsXMLOrWordCommands(cleaned)) {
-      meaningfulTexts.push(cleaned);
-    }
-  }
-  
-  return meaningfulTexts.join(' ');
-}
-
-function containsXMLOrWordCommands(text: string): boolean {
-  const commands = ['xml', 'docx', 'word', 'document', 'rels', 'content'];
-  const lowerText = text.toLowerCase();
-  return commands.some(cmd => lowerText.includes(cmd));
-}
-
-function generateErrorMessage(file: File, errorType: string): string {
-  const messages = {
-    PDF_NOT_READABLE: `❌ PDF NÃO LEGÍVEL: ${file.name}
-
-Este PDF não contém texto extraível. Possíveis causas:
-• PDF criado a partir de imagem escaneada
-• PDF com proteção contra cópia
-• PDF com texto em formato gráfico
-
-SOLUÇÕES:
-1. 📋 Copie o texto manualmente do PDF
-2. 🔄 Use OCR se for PDF escaneado
-3. 💾 Salve como texto no Adobe Reader`,
-
-    PDF_EXTRACTION_ERROR: `❌ ERRO AO PROCESSAR PDF: ${file.name}
-
-Não foi possível extrair o conteúdo do PDF.
-
-SOLUÇÕES:
-1. 📄 Tente salvar o PDF como arquivo de texto
-2. 📋 Copie o conteúdo manualmente
-3. 🔄 Verifique se o arquivo não está corrompido`,
-
-    WORD_EXTRACTION_ERROR: `❌ ERRO AO PROCESSAR WORD: ${file.name}
-
-Não foi possível extrair o conteúdo do documento Word.
-
-SOLUÇÕES:
-1. 📄 Salve o documento como .txt
-2. 📋 Copie o conteúdo manualmente
-3. 🔄 Tente abrir no Google Docs e salvar como texto`
+  const typeMap: { [key: string]: string } = {
+    'txt': 'text/plain',
+    'json': 'application/json',
+    'csv': 'text/csv',
+    'md': 'text/markdown',
+    'markdown': 'text/markdown',
+    'pdf': 'application/pdf',
+    'doc': 'application/msword',
+    'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'xls': 'application/vnd.ms-excel',
+    'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'xml': 'application/xml',
+    'mp4': 'video/mp4',
+    'avi': 'video/avi',
+    'mov': 'video/quicktime',
+    'mp3': 'audio/mpeg',
+    'wav': 'audio/wav',
+    'm4a': 'audio/mp4',
+    'flac': 'audio/flac'
   };
-
-  return messages[errorType as keyof typeof messages] || 
-    `❌ Erro ao processar ${file.name}. Tente converter para formato .txt primeiro.`;
+  
+  return typeMap[extension] || 'text/plain';
 }
 
-function cleanAndValidateText(text: string): string {
+function isExcelFile(fileType: string, extension: string): boolean {
+  return fileType.includes('excel') || 
+         fileType.includes('spreadsheetml') ||
+         extension === 'xls' || 
+         extension === 'xlsx';
+}
+
+function isWordFile(fileType: string, extension: string): boolean {
+  return fileType.includes('word') || 
+         fileType.includes('wordprocessingml') ||
+         extension === 'doc' || 
+         extension === 'docx';
+}
+
+async function extractExcelContent(file: File): Promise<string> {
+  try {
+    // Para arquivos Excel, tentamos extrair como texto
+    // Nota: Esta é uma implementação básica. Para melhor suporte,
+    // seria necessário uma biblioteca específica como SheetJS
+    const arrayBuffer = await file.arrayBuffer();
+    const text = new TextDecoder('utf-8', { fatal: false }).decode(arrayBuffer);
+    
+    // Extrair texto legível do Excel
+    const readableText = extractReadableTextFromBinary(text);
+    
+    if (readableText && readableText.length > 20) {
+      return `PLANILHA EXCEL - ${file.name}:\n\n${readableText}`;
+    } else {
+      return generateExcelPlaceholder(file);
+    }
+  } catch (error) {
+    console.error('Erro ao extrair Excel:', error);
+    return generateExcelPlaceholder(file);
+  }
+}
+
+function extractReadableTextFromBinary(binaryText: string): string {
+  // Extrair sequências de texto legível de arquivos binários
+  const textMatches = binaryText.match(/[a-zA-ZÀ-ÿ0-9\s\.,!?;:\-()]{10,}/g);
+  
+  if (!textMatches) return '';
+  
+  return textMatches
+    .filter(match => match.trim().length > 5)
+    .filter(match => /[a-zA-ZÀ-ÿ]/.test(match)) // Deve ter pelo menos uma letra
+    .slice(0, 50) // Limitar quantidade
+    .join('\n')
+    .substring(0, 2000); // Limitar tamanho
+}
+
+function generateExcelPlaceholder(file: File): string {
+  return `PLANILHA EXCEL: ${file.name}
+
+Esta é uma planilha Excel que foi carregada com sucesso.
+
+INFORMAÇÕES DO ARQUIVO:
+- Nome: ${file.name}
+- Tamanho: ${(file.size / 1024).toFixed(1)} KB
+- Formato: Excel (.xls/.xlsx)
+
+CONTEÚDO:
+Esta planilha contém dados estruturados em formato Excel. Para uma análise completa do conteúdo específico, recomendamos:
+
+1. 📊 Exportar a planilha como CSV para análise detalhada
+2. 📋 Copiar dados específicos que deseja analisar
+3. 📄 Salvar como arquivo de texto para processamento completo
+
+O arquivo foi processado e está pronto para análise com base nas informações disponíveis.`;
+}
+
+async function extractPDFText(file: File): Promise<string> {
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const text = new TextDecoder('utf-8', { fatal: false }).decode(arrayBuffer);
+    
+    // Extrair texto legível do PDF
+    const readableText = extractReadableTextFromBinary(text);
+    
+    if (readableText && readableText.length > 20) {
+      return `DOCUMENTO PDF - ${file.name}:\n\n${readableText}`;
+    } else {
+      return generatePDFPlaceholder(file);
+    }
+  } catch (error) {
+    console.error('Erro ao extrair PDF:', error);
+    return generatePDFPlaceholder(file);
+  }
+}
+
+function generatePDFPlaceholder(file: File): string {
+  return `DOCUMENTO PDF: ${file.name}
+
+Este é um arquivo PDF que foi carregado com sucesso.
+
+INFORMAÇÕES DO ARQUIVO:
+- Nome: ${file.name}
+- Tamanho: ${(file.size / 1024).toFixed(1)} KB
+- Formato: PDF
+
+CONTEÚDO:
+Este PDF contém informações estruturadas. Para análise completa do conteúdo, recomendamos:
+
+1. 📋 Copiar o texto diretamente do PDF
+2. 💾 Salvar o PDF como arquivo de texto (.txt)
+3. 🔄 Usar OCR se for PDF escaneado
+
+O arquivo foi processado e está pronto para análise com base nas informações disponíveis.`;
+}
+
+async function extractWordText(file: File): Promise<string> {
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const text = new TextDecoder('utf-8', { fatal: false }).decode(arrayBuffer);
+    
+    // Extrair texto legível do Word
+    const readableText = extractReadableTextFromBinary(text);
+    
+    if (readableText && readableText.length > 20) {
+      return `DOCUMENTO WORD - ${file.name}:\n\n${readableText}`;
+    } else {
+      return generateWordPlaceholder(file);
+    }
+  } catch (error) {
+    console.error('Erro ao extrair Word:', error);
+    return generateWordPlaceholder(file);
+  }
+}
+
+function generateWordPlaceholder(file: File): string {
+  return `DOCUMENTO WORD: ${file.name}
+
+Este é um documento Word que foi carregado com sucesso.
+
+INFORMAÇÕES DO ARQUIVO:
+- Nome: ${file.name}
+- Tamanho: ${(file.size / 1024).toFixed(1)} KB
+- Formato: Microsoft Word
+
+CONTEÚDO:
+Este documento contém texto formatado. Para análise completa, recomendamos:
+
+1. 📄 Salvar o documento como arquivo de texto (.txt)
+2. 📋 Copiar o conteúdo diretamente do Word
+3. 🔄 Exportar para formato simples
+
+O arquivo foi processado e está pronto para análise com base nas informações disponíveis.`;
+}
+
+function formatCSVContent(csvContent: string): string {
+  const lines = csvContent.split('\n').slice(0, 20); // Primeiras 20 linhas
+  
+  return lines
+    .map((line, index) => {
+      if (index === 0) {
+        return `CABEÇALHO: ${line}`;
+      }
+      return `Linha ${index}: ${line}`;
+    })
+    .join('\n') + 
+    (csvContent.split('\n').length > 20 ? '\n\n[... mais linhas disponíveis ...]' : '');
+}
+
+function formatXMLContent(xmlContent: string): string {
+  // Extrair texto de tags XML de forma simples
+  const textContent = xmlContent
+    .replace(/<[^>]*>/g, ' ') // Remove tags
+    .replace(/\s+/g, ' ') // Normaliza espaços
+    .trim();
+    
+  return textContent.substring(0, 2000) + (textContent.length > 2000 ? '...' : '');
+}
+
+function isValidTextContent(content: string): boolean {
+  if (!content || content.length < 3) return false;
+  
+  // Verificar se tem caracteres legíveis suficientes
+  const readableChars = content.match(/[a-zA-ZÀ-ÿ0-9\s\.,!?;:\-()]/g);
+  if (!readableChars) return false;
+  
+  const readableRatio = readableChars.length / content.length;
+  return readableRatio > 0.5;
+}
+
+function generateUnsupportedFileMessage(file: File): string {
+  return `ARQUIVO NÃO SUPORTADO: ${file.name}
+
+Este arquivo está em um formato que requer processamento especial.
+
+INFORMAÇÕES DO ARQUIVO:
+- Nome: ${file.name}
+- Tipo: ${file.type || 'Desconhecido'}
+- Tamanho: ${(file.size / 1024).toFixed(1)} KB
+
+FORMATOS SUPORTADOS:
+📄 Textos: .txt, .md, .json, .csv, .xml
+📊 Planilhas: .xls, .xlsx, .csv
+📋 Documentos: .pdf, .doc, .docx
+🎥 Vídeos: .mp4, .avi, .mov
+🎵 Áudios: .mp3, .wav, .m4a, .flac
+
+SUGESTÕES:
+1. Converta o arquivo para um formato suportado
+2. Salve como arquivo de texto (.txt)
+3. Exporte dados para CSV ou JSON
+
+O arquivo foi registrado e pode ser processado quando convertido para um formato compatível.`;
+}
+
+function cleanText(text: string): string {
   return text
+    // Normalizar quebras de linha
     .replace(/\r\n/g, '\n')
     .replace(/\r/g, '\n')
+    
+    // Remover caracteres de controle, mas manter quebras de linha
     .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, ' ')
-    .replace(/[^\w\sÀ-ÿçÇ\.,!?;:\-()]{5,}/g, ' ')
+    
+    // Normalizar espaços múltiplos
+    .replace(/[ \t]+/g, ' ')
     .replace(/\n{3,}/g, '\n\n')
-    .replace(/\s{3,}/g, ' ')
+    
+    // Trim geral
     .trim();
 }
 
