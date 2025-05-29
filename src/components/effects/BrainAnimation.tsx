@@ -35,9 +35,9 @@ export function BrainAnimation({ onAnimationComplete, soundEnabled = false }: Br
   const timeRef = useRef(0);
 
   useEffect(() => {
-    // Animação neural por 13 segundos, depois logo por 3 segundos
+    // Animação neural por 3 segundos, depois logo por 2 segundos (total 5s)
     const neuralTimer = setTimeout(() => {
-      console.log('🧠 Animação neural completa (13s), mostrando logo');
+      console.log('🧠 Animação neural completa (3s), mostrando logo');
       setShowNeuralAnimation(false);
       setAnimationPhase('showingLogo');
       
@@ -46,14 +46,14 @@ export function BrainAnimation({ onAnimationComplete, soundEnabled = false }: Br
         setLogoOpacity(1);
       }, 100);
       
-      // Mostrar logo por 3 segundos
+      // Mostrar logo por 2 segundos
       setTimeout(() => {
         setAnimationPhase('complete');
         console.log('✅ Animação completa');
         onAnimationComplete?.();
-      }, 3000);
+      }, 2000);
       
-    }, 13000); // 13 segundos para a animação neural
+    }, 3000); // 3 segundos para a animação neural
 
     return () => clearTimeout(neuralTimer);
   }, [onAnimationComplete]);
@@ -294,14 +294,22 @@ export function BrainAnimation({ onAnimationComplete, soundEnabled = false }: Br
             }}
           />
           
-          {/* Overlay com título central */}
+          {/* Overlay com logo da Yumer */}
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="text-center px-4">
-              <h1 className="text-4xl sm:text-6xl lg:text-8xl font-black text-white mb-4 drop-shadow-2xl animate-pulse">
-                <span className="bg-gradient-to-r from-purple-400 via-blue-400 to-cyan-400 bg-clip-text text-transparent">
-                  Neural
-                </span>
-              </h1>
+              {/* Logo da Yumer */}
+              <div className="mb-6 sm:mb-8 relative">
+                <img 
+                  src="/lovable-uploads/e100949d-480b-4b63-ba68-f400a538f0df.png" 
+                  alt="Yumer Logo" 
+                  className="w-48 h-48 sm:w-64 sm:h-64 lg:w-80 lg:h-80 mx-auto drop-shadow-2xl animate-pulse"
+                />
+                
+                {/* Efeitos de brilho concêntricos */}
+                <div className="absolute inset-0 w-48 h-48 sm:w-64 sm:h-64 lg:w-80 lg:h-80 mx-auto bg-gradient-to-r from-purple-500/40 to-blue-500/40 rounded-full blur-xl sm:blur-2xl animate-pulse" />
+                <div className="absolute inset-0 w-48 h-48 sm:w-64 sm:h-64 lg:w-80 lg:h-80 mx-auto bg-gradient-to-r from-cyan-500/30 to-purple-500/30 rounded-full blur-2xl sm:blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+              </div>
+              
               <p className="text-xl sm:text-2xl lg:text-4xl font-light text-purple-300 drop-shadow-lg">
                 Network Activation
               </p>
@@ -310,13 +318,13 @@ export function BrainAnimation({ onAnimationComplete, soundEnabled = false }: Br
           
           {/* Indicador de progresso */}
           <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 flex space-x-3">
-            {[...Array(5)].map((_, i) => (
+            {[...Array(3)].map((_, i) => (
               <div
                 key={i}
                 className="w-3 h-3 bg-gradient-to-r from-purple-400 to-cyan-400 rounded-full animate-pulse shadow-lg shadow-purple-500/60"
                 style={{
                   animationDelay: `${i * 0.3}s`,
-                  animationDuration: '2s'
+                  animationDuration: '1.5s'
                 }}
               />
             ))}
@@ -324,16 +332,19 @@ export function BrainAnimation({ onAnimationComplete, soundEnabled = false }: Br
         </div>
       )}
 
-      {/* Logo da Yumer com transição */}
+      {/* Logo da Yumer com YumerMind */}
       {animationPhase === 'showingLogo' && (
         <div 
           className="flex flex-col items-center justify-center text-center animate-fade-in px-4"
-          style={{ opacity: logoOpacity, transition: 'opacity 2s ease-in-out' }}
+          style={{ opacity: logoOpacity, transition: 'opacity 1s ease-in-out' }}
         >
           <div className="mb-6 sm:mb-8 relative">
-            <div className="w-32 h-32 sm:w-48 sm:h-48 lg:w-64 lg:h-64 mx-auto mb-6 sm:mb-8 bg-gradient-to-r from-purple-600/50 to-blue-600/50 rounded-full flex items-center justify-center backdrop-blur-sm border-2 border-purple-400/70 shadow-2xl shadow-purple-500/60">
-              <div className="text-4xl sm:text-6xl lg:text-8xl font-black text-white drop-shadow-2xl">Y</div>
-            </div>
+            {/* Logo da Yumer */}
+            <img 
+              src="/lovable-uploads/e100949d-480b-4b63-ba68-f400a538f0df.png" 
+              alt="Yumer Logo" 
+              className="w-32 h-32 sm:w-48 sm:h-48 lg:w-64 lg:h-64 mx-auto mb-6 sm:mb-8 drop-shadow-2xl"
+            />
             
             {/* Efeitos de brilho concêntricos */}
             <div className="absolute inset-0 w-32 h-32 sm:w-48 sm:h-48 lg:w-64 lg:h-64 mx-auto bg-gradient-to-r from-purple-500/40 to-blue-500/40 rounded-full blur-xl sm:blur-2xl animate-pulse" />
@@ -342,7 +353,7 @@ export function BrainAnimation({ onAnimationComplete, soundEnabled = false }: Br
           
           <h1 className="text-4xl sm:text-6xl lg:text-9xl font-black text-white mb-4 sm:mb-6 drop-shadow-2xl">
             <span className="bg-gradient-to-r from-purple-400 via-blue-400 to-cyan-400 bg-clip-text text-transparent glow-text-mega">
-              Yumer
+              YumerMind
             </span>
           </h1>
           

@@ -70,7 +70,7 @@ export function ObservatoryLanding() {
 
   // Controlar sequência da animação
   const handleBrainAnimationComplete = () => {
-    console.log('🧠 Animação do cérebro completa, mostrando conteúdo em 2 segundos');
+    console.log('🧠 Animação do cérebro completa, mostrando conteúdo em 1 segundo');
     setTimeout(() => {
       setShowBrainAnimation(false);
       setTimeout(() => {
@@ -80,12 +80,12 @@ export function ObservatoryLanding() {
         setTimeout(() => setShowSecondPhrase(true), 1200);
         console.log('✅ Conteúdo da página exibido');
       }, 500);
-    }, 2000);
+    }, 1000);
   };
 
   // Inicializar conteúdo após um tempo máximo (fallback)
   useEffect(() => {
-    const maxWaitTime = 20000; // 20 segundos máximo (13s video + 3s logo + margem)
+    const maxWaitTime = 7000; // 7 segundos máximo (5s animação + margem)
     const timer = setTimeout(() => {
       if (!showContent) {
         console.log('⏰ Timeout da animação, forçando exibição do conteúdo');
