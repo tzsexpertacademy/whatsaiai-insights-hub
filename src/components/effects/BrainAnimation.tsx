@@ -108,27 +108,49 @@ export function BrainAnimation({ onAnimationComplete, soundEnabled = false }: Br
         ))}
       </div>
       
-      {/* Vídeo responsivo */}
+      {/* Vídeo responsivo melhorado para mobile */}
       {showVideo && (
         <div className="relative w-full h-full flex items-center justify-center animate-fade-in px-2 sm:px-4">
           <div className="relative w-full h-full max-w-7xl max-h-[90vh] rounded-xl sm:rounded-2xl lg:rounded-3xl overflow-hidden shadow-2xl shadow-purple-500/50 border border-purple-400/30">
-            {/* Container responsivo para o iframe */}
+            {/* Container responsivo para o iframe melhorado */}
             <div className="relative w-full h-full">
-              <iframe 
-                width="100%" 
-                height="100%" 
-                src="https://www.youtube.com/embed/9xvhXm159UM?si=usOoMhipbjpx6Z3l&autoplay=1&mute=0&controls=0&showinfo=0&rel=0&modestbranding=1&start=0" 
-                title="Brain Animation Video" 
-                frameBorder="0" 
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
-                referrerPolicy="strict-origin-when-cross-origin" 
-                allowFullScreen
-                className="rounded-xl sm:rounded-2xl lg:rounded-3xl"
-                style={{
-                  aspectRatio: '16/9',
-                  objectFit: 'cover'
-                }}
-              />
+              {/* Versão mobile - player direto */}
+              <div className="block sm:hidden w-full h-full">
+                <iframe 
+                  width="100%" 
+                  height="100%" 
+                  src="https://www.youtube.com/embed/9xvhXm159UM?si=usOoMhipbjpx6Z3l&autoplay=1&mute=0&controls=0&showinfo=0&rel=0&modestbranding=1&start=0&playsinline=1&enablejsapi=1"
+                  title="Brain Animation Video" 
+                  frameBorder="0" 
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                  referrerPolicy="strict-origin-when-cross-origin" 
+                  allowFullScreen
+                  className="rounded-xl"
+                  style={{
+                    aspectRatio: '16/9',
+                    minHeight: '250px'
+                  }}
+                />
+              </div>
+              
+              {/* Versão desktop */}
+              <div className="hidden sm:block w-full h-full">
+                <iframe 
+                  width="100%" 
+                  height="100%" 
+                  src="https://www.youtube.com/embed/9xvhXm159UM?si=usOoMhipbjpx6Z3l&autoplay=1&mute=0&controls=0&showinfo=0&rel=0&modestbranding=1&start=0" 
+                  title="Brain Animation Video" 
+                  frameBorder="0" 
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                  referrerPolicy="strict-origin-when-cross-origin" 
+                  allowFullScreen
+                  className="rounded-xl sm:rounded-2xl lg:rounded-3xl"
+                  style={{
+                    aspectRatio: '16/9',
+                    objectFit: 'cover'
+                  }}
+                />
+              </div>
               
               {/* Overlay neural muito sutil */}
               <div className="absolute inset-0 bg-gradient-to-t from-purple-900/3 via-transparent to-blue-900/3 pointer-events-none rounded-xl sm:rounded-2xl lg:rounded-3xl" />

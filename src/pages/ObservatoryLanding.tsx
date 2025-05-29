@@ -382,7 +382,8 @@ export function ObservatoryLanding() {
     { icon: Compass, title: "Autoconhecimento em tempo real", description: "Insights instantâneos sobre si mesmo" },
     { icon: Flame, title: "Expansão emocional", description: "Desenvolva sua inteligência emocional" },
     { icon: TrendingUp, title: "Plano de evolução pessoal contínua", description: "Crescimento constante e direcionado" },
-    { icon: Target, title: "Foco, propósito e visão", description: "Clareza sobre seus objetivos de vida" }
+    { icon: Target, title: "Foco, propósito e visão", description: "Clareza sobre seus objetivos de vida" },
+    { icon: Shield, title: "Proteção contra autossabotagem", description: "Identifique e neutralize padrões destrutivos" }
   ];
 
   const testimonials = [
@@ -456,9 +457,13 @@ export function ObservatoryLanding() {
             <div className="text-center max-w-7xl mx-auto w-full">
               <div className="relative z-10">
                 <ScrollReveal id="hero-badge" direction="scale" delay={200}>
-                  <Badge className="mb-6 sm:mb-8 bg-white/10 text-white border border-white/30 px-6 py-3 text-base font-medium backdrop-blur-sm hover:bg-white/20 transition-all">
-                    <CircuitBoard className="w-5 h-5 mr-2" />
-                    YumerMind - O segundo cérebro do ser humano
+                  <Badge className="mb-6 sm:mb-8 bg-gradient-to-r from-purple-600/20 via-blue-600/20 to-cyan-600/20 text-white border border-purple-400/40 px-6 py-3 text-base font-bold backdrop-blur-sm hover:bg-gradient-to-r hover:from-purple-600/30 hover:via-blue-600/30 hover:to-cyan-600/30 transition-all duration-500 relative overflow-hidden group">
+                    <div className="absolute inset-0 bg-gradient-to-r from-purple-500/30 via-blue-500/30 to-cyan-500/30 opacity-0 group-hover:opacity-100 transition-opacity duration-500 animate-pulse"></div>
+                    <CircuitBoard className="w-5 h-5 mr-2 relative z-10 group-hover:rotate-12 transition-transform duration-500" />
+                    <span className="relative z-10 bg-gradient-to-r from-purple-200 via-blue-200 to-cyan-200 bg-clip-text text-transparent font-black glow-text-neural">
+                      YumerMind - O segundo cérebro do ser humano
+                    </span>
+                    <div className="absolute inset-0 border border-gradient-to-r from-purple-400/60 via-blue-400/60 to-cyan-400/60 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                   </Badge>
                 </ScrollReveal>
 
@@ -596,7 +601,7 @@ export function ObservatoryLanding() {
                   <h2 className="text-3xl sm:text-4xl md:text-6xl lg:text-7xl font-light mb-4 sm:mb-6 md:mb-8 text-white leading-tight">
                     Você nunca teve acesso a isso.
                     <br />
-                    <span className="text-purple-400 glow-text-neural font-medium">Até agora.</span>
+                    <span className="text-purple-400 glow-text-neural">Até agora.</span>
                   </h2>
                   
                   <div className="text-lg sm:text-xl md:text-2xl lg:text-3xl text-gray-300 mb-6 sm:mb-8 md:mb-12 max-w-5xl mx-auto leading-relaxed space-y-2 sm:space-y-3 md:space-y-4">
@@ -770,6 +775,16 @@ export function ObservatoryLanding() {
             
             .glow-text-neural {
               text-shadow: 0 0 20px currentColor, 0 0 40px currentColor, 0 0 60px currentColor;
+              animation: glow-neural 3s ease-in-out infinite alternate;
+            }
+            
+            @keyframes glow-neural {
+              0% {
+                filter: drop-shadow(0 0 20px rgba(139, 92, 246, 0.5)) brightness(1);
+              }
+              100% {
+                filter: drop-shadow(0 0 40px rgba(139, 92, 246, 0.8)) brightness(1.2);
+              }
             }
             
             .glow-text-pulsing {
