@@ -27,9 +27,15 @@ export function SidebarSubscriptionStatus() {
 
   const handleManageSubscription = async () => {
     try {
-      await openCustomerPortal();
+      // Se o trial expirou ou não tem assinatura, vai para checkout
+      if (!user?.subscribed || isTrialExpired) {
+        await createCheckout();
+      } else {
+        // Se tem assinatura ativa, vai para portal de gerenciamento
+        await openCustomerPortal();
+      }
     } catch (error) {
-      console.error('Error opening customer portal:', error);
+      console.error('Error managing subscription:', error);
     }
   };
 
@@ -51,6 +57,9 @@ export function SidebarSubscriptionStatus() {
 
   const isTrialActive = user?.subscribed && user?.subscriptionEnd && 
     new Date(user.subscriptionEnd) > new Date();
+  
+  const isTrialExpired = user?.subscribed && user?.subscriptionEnd && 
+    new Date(user.subscriptionEnd) <= new Date();
 
   return (
     <Card className="bg-gradient-to-br from-white via-white to-gray-50 shadow-sm border border-gray-200">
@@ -58,13 +67,13 @@ export function SidebarSubscriptionStatus() {
         {/* Status compacto */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            {user?.subscribed ? (
+            {user?.subscribed && !isTrialExpired ? (
               <CheckCircle2 className="w-4 h-4 text-green-500" />
             ) : (
               <AlertCircle className="w-4 h-4 text-orange-500" />
             )}
             <span className="text-sm font-medium text-gray-700">
-              {user?.subscribed ? 'Ativo' : 'Inativo'}
+              {user?.subscribed && !isTrialExpired ? 'Ativo' : 'Inativo'}
             </span>
           </div>
           
@@ -79,7 +88,7 @@ export function SidebarSubscriptionStatus() {
         </div>
 
         {/* Detalhes da assinatura ativa */}
-        {user?.subscribed ? (
+        {user?.subscribed && !isTrialExpired ? (
           <div className="space-y-2">
             {isTrialActive && (
               <Badge className="w-full justify-center bg-green-100 text-green-800 hover:bg-green-100 text-xs">
@@ -109,30 +118,54 @@ export function SidebarSubscriptionStatus() {
             </Button>
           </div>
         ) : (
-          /* Convite para trial - mais compacto */
+          /* Trial expirado ou sem assinatura */
           <div className="text-center space-y-2">
-            <div className="space-y-1">
-              <div className="text-xs font-medium text-gray-800">
-                Trial Gratuito
+            {isTrialExpired ? (
+              /* Trial expirado - precisa pagar */
+              <div className="space-y-2">
+                <Badge className="w-full justify-center bg-red-100 text-red-800 hover:bg-red-100 text-xs">
+                  <AlertCircle className="w-3 h-3 mr-1" />
+                  Trial Expirado
+                </Badge>
+                
+                <div className="text-xs text-red-600 font-medium">
+                  Sua assinatura expirou
+                </div>
+                
+                <Button 
+                  onClick={handleManageSubscription}
+                  size="sm"
+                  className="w-full bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white text-xs"
+                >
+                  <CreditCard className="w-3 h-3 mr-1" />
+                  Assinar Agora
+                </Button>
               </div>
-              <div className="text-xs text-gray-600">
-                7 dias grátis
+            ) : (
+              /* Sem trial - convite */
+              <div className="space-y-1">
+                <div className="text-xs font-medium text-gray-800">
+                  Trial Gratuito
+                </div>
+                <div className="text-xs text-gray-600">
+                  7 dias grátis
+                </div>
+                
+                <Button 
+                  onClick={handleStartTrial}
+                  size="sm"
+                  className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white text-xs"
+                >
+                  <Gift className="w-3 h-3 mr-1" />
+                  Começar Trial
+                </Button>
+                
+                <div className="flex items-center justify-center gap-1 text-xs text-gray-500">
+                  <CreditCard className="w-3 h-3" />
+                  <span>Depois R$ 47/mês</span>
+                </div>
               </div>
-            </div>
-            
-            <Button 
-              onClick={handleStartTrial}
-              size="sm"
-              className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white text-xs"
-            >
-              <Gift className="w-3 h-3 mr-1" />
-              Começar Trial
-            </Button>
-            
-            <div className="flex items-center justify-center gap-1 text-xs text-gray-500">
-              <CreditCard className="w-3 h-3" />
-              <span>Depois R$ 47/mês</span>
-            </div>
+            )}
           </div>
         )}
       </CardContent>

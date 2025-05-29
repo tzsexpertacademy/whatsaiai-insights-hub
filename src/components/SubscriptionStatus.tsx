@@ -29,9 +29,15 @@ export function SubscriptionStatus() {
 
   const handleManageSubscription = async () => {
     try {
-      await openCustomerPortal();
+      // Se o trial expirou ou não tem assinatura, vai para checkout
+      if (!user?.subscribed || isTrialExpired) {
+        await createCheckout();
+      } else {
+        // Se tem assinatura ativa, vai para portal de gerenciamento
+        await openCustomerPortal();
+      }
     } catch (error) {
-      console.error('Error opening customer portal:', error);
+      console.error('Error managing subscription:', error);
     }
   };
 
@@ -53,6 +59,9 @@ export function SubscriptionStatus() {
 
   const isTrialActive = user?.subscribed && user?.subscriptionEnd && 
     new Date(user.subscriptionEnd) > new Date();
+  
+  const isTrialExpired = user?.subscribed && user?.subscriptionEnd && 
+    new Date(user.subscriptionEnd) <= new Date();
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -73,17 +82,21 @@ export function SubscriptionStatus() {
           <div className="flex items-center justify-between p-4 bg-white rounded-xl shadow-sm border border-gray-100">
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-2">
-                {user?.subscribed ? (
+                {user?.subscribed && !isTrialExpired ? (
                   <CheckCircle2 className="w-5 h-5 text-green-500" />
                 ) : (
                   <AlertCircle className="w-5 h-5 text-orange-500" />
                 )}
                 <span className="font-medium text-gray-700">Status:</span>
               </div>
-              {user?.subscribed ? (
+              {user?.subscribed && !isTrialExpired ? (
                 <Badge className="bg-green-100 text-green-800 hover:bg-green-100 border-green-200">
                   <Zap className="w-3 h-3 mr-1" />
                   {isTrialActive ? 'Trial Ativo' : 'Assinatura Ativa'}
+                </Badge>
+              ) : isTrialExpired ? (
+                <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
+                  Trial Expirado
                 </Badge>
               ) : (
                 <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">
@@ -104,7 +117,7 @@ export function SubscriptionStatus() {
           </div>
 
           {/* Detalhes da assinatura ativa */}
-          {user?.subscribed && (
+          {user?.subscribed && !isTrialExpired && (
             <div className="space-y-4">
               <div className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl border border-blue-100">
                 <div className="flex items-center gap-3">
@@ -151,6 +164,37 @@ export function SubscriptionStatus() {
               >
                 <Settings className="w-4 h-4 mr-2" />
                 Gerenciar Assinatura
+              </Button>
+            </div>
+          )}
+
+          {/* Trial expirado - precisa assinar */}
+          {isTrialExpired && (
+            <div className="text-center space-y-6 p-6 bg-gradient-to-r from-red-50 via-red-50 to-red-50 rounded-xl border border-red-200">
+              <div className="space-y-3">
+                <div className="p-3 bg-red-500 rounded-full w-fit mx-auto">
+                  <AlertCircle className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-gray-800 text-lg mb-2">
+                    Seu Trial Expirou
+                  </h3>
+                  <p className="text-gray-600 mb-4">
+                    Para continuar usando todas as funcionalidades, assine nosso plano premium
+                  </p>
+                  <div className="flex items-center justify-center gap-2 text-sm text-gray-500 mb-4">
+                    <CreditCard className="w-4 h-4" />
+                    <span>Apenas R$ 47/mês • Cancele a qualquer momento</span>
+                  </div>
+                </div>
+              </div>
+              
+              <Button 
+                onClick={handleManageSubscription}
+                className="w-full bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white py-4 rounded-xl font-bold text-lg transition-all duration-300 shadow-lg hover:shadow-xl"
+              >
+                <CreditCard className="w-5 h-5 mr-2" />
+                Assinar Agora - R$ 47/mês
               </Button>
             </div>
           )}

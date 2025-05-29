@@ -51,29 +51,12 @@ serve(async (req) => {
       );
     }
 
-    const { priceId, planType, successUrl, cancelUrl } = await req.json();
+    const { priceId, planType = 'premium', successUrl, cancelUrl } = await req.json();
 
     console.log(`💰 Criando checkout para usuário ${user.id}, plano: ${planType}`);
 
-    // Mapear planos para preços
-    const planPrices = {
-      'basic': 'price_basic_monthly', // Substitua pelos IDs reais do Stripe
-      'premium': 'price_premium_monthly',
-      'enterprise': 'price_enterprise_monthly'
-    };
-
-    const stripePrice = priceId || planPrices[planType];
-    
-    if (!stripePrice) {
-      return new Response(
-        JSON.stringify({ error: 'Plano inválido' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Buscar ou criar customer no Stripe
+    // Verificar se já existe customer no Stripe
     let customerId;
-    
     const { data: profile } = await supabase
       .from('profiles')
       .select('*')
@@ -84,7 +67,15 @@ serve(async (req) => {
     const checkoutData = {
       mode: 'subscription',
       line_items: [{
-        price: stripePrice,
+        price_data: {
+          currency: 'brl',
+          product_data: { 
+            name: 'Observatório da Consciência - Premium',
+            description: 'Acesso completo à plataforma com análise por IA, integração WhatsApp e relatórios detalhados'
+          },
+          unit_amount: 4700, // R$ 47,00
+          recurring: { interval: 'month' },
+        },
         quantity: 1,
       }],
       success_url: successUrl || `${req.headers.get('origin')}/dashboard?checkout=success`,
@@ -96,11 +87,14 @@ serve(async (req) => {
         plan_type: planType
       },
       subscription_data: {
+        trial_period_days: 7, // 7 dias de trial
         metadata: {
           user_id: user.id,
           plan_type: planType
         }
-      }
+      },
+      payment_method_collection: 'always',
+      billing_address_collection: 'required'
     };
 
     console.log('🔄 Criando sessão no Stripe...');
@@ -113,7 +107,11 @@ serve(async (req) => {
       },
       body: new URLSearchParams({
         'mode': checkoutData.mode,
-        'line_items[0][price]': checkoutData.line_items[0].price,
+        'line_items[0][price_data][currency]': checkoutData.line_items[0].price_data.currency,
+        'line_items[0][price_data][product_data][name]': checkoutData.line_items[0].price_data.product_data.name,
+        'line_items[0][price_data][product_data][description]': checkoutData.line_items[0].price_data.product_data.description,
+        'line_items[0][price_data][unit_amount]': checkoutData.line_items[0].price_data.unit_amount.toString(),
+        'line_items[0][price_data][recurring][interval]': checkoutData.line_items[0].price_data.recurring.interval,
         'line_items[0][quantity]': checkoutData.line_items[0].quantity.toString(),
         'success_url': checkoutData.success_url,
         'cancel_url': checkoutData.cancel_url,
@@ -121,8 +119,11 @@ serve(async (req) => {
         'customer_email': checkoutData.customer_email,
         'metadata[user_id]': checkoutData.metadata.user_id,
         'metadata[plan_type]': checkoutData.metadata.plan_type,
+        'subscription_data[trial_period_days]': checkoutData.subscription_data.trial_period_days.toString(),
         'subscription_data[metadata][user_id]': checkoutData.subscription_data.metadata.user_id,
         'subscription_data[metadata][plan_type]': checkoutData.subscription_data.metadata.plan_type,
+        'payment_method_collection': checkoutData.payment_method_collection,
+        'billing_address_collection': checkoutData.billing_address_collection,
       }),
     });
 
