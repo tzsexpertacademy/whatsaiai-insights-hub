@@ -194,7 +194,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         // Se é um novo signup, marcar para mostrar tour de boas vindas
         if (event === 'SIGNED_UP') {
-          console.log('🆕 Novo usuário detectado, marcando para tour de boas vindas');
+          console.log('🆕 Novo usuário detectado via SIGNED_UP, marcando para tour de boas vindas');
+          localStorage.setItem('show_welcome_tour', 'true');
+          localStorage.removeItem('welcome_tour_completed'); // Garantir que não existe
+        }
+        
+        // Verificar se é um usuário muito novo (criado há menos de 5 minutos) e ainda não completou o tour
+        const userCreatedAt = new Date(session.user.created_at);
+        const now = new Date();
+        const minutesSinceCreation = (now.getTime() - userCreatedAt.getTime()) / (1000 * 60);
+        const tourCompleted = localStorage.getItem('welcome_tour_completed') === 'true';
+        
+        if (minutesSinceCreation < 5 && !tourCompleted) {
+          console.log('🆕 Usuário muito recente detectado, marcando para tour:', {
+            minutesSinceCreation,
+            tourCompleted,
+            userCreatedAt: userCreatedAt.toISOString()
+          });
           localStorage.setItem('show_welcome_tour', 'true');
         }
         
@@ -256,6 +272,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signup = async (email: string, password: string, metadata?: { fullName?: string; companyName?: string }): Promise<void> => {
     console.log('📝 Criando conta real para usuário:', email);
     
+    // Marcar que será um novo usuário antes mesmo do signup
+    localStorage.setItem('show_welcome_tour', 'true');
+    localStorage.removeItem('welcome_tour_completed');
+    
     const { error } = await supabase.auth.signUp({
       email,
       password,
@@ -269,6 +289,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     if (error) {
       console.error('❌ Erro ao criar conta:', error);
+      // Limpar flags se houve erro
+      localStorage.removeItem('show_welcome_tour');
       throw error;
     }
     

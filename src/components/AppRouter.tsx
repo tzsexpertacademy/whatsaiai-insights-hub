@@ -14,7 +14,7 @@ import { AdminRoute } from './AdminRoute';
 import { TrialExpirationReminder } from './TrialExpirationReminder';
 
 export function AppRouter() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
 
   console.log('🌐 AppRouter - Estado:', {
     isAuthenticated,
@@ -35,15 +35,28 @@ export function AppRouter() {
 
   // Verificar se deve mostrar o tour de boas vindas
   const shouldShowWelcomeTour = () => {
-    if (!isAuthenticated) return false;
+    if (!isAuthenticated || !user) return false;
     
     // Verificar se é um novo usuário que deve ver o tour
     const showTour = localStorage.getItem('show_welcome_tour') === 'true';
     const tourCompleted = localStorage.getItem('welcome_tour_completed') === 'true';
     
-    console.log('🎯 Verificando tour:', { showTour, tourCompleted });
+    // Verificar se é um usuário muito novo (criado há menos de 10 minutos)
+    const userCreatedAt = new Date(user.createdAt);
+    const now = new Date();
+    const minutesSinceCreation = (now.getTime() - userCreatedAt.getTime()) / (1000 * 60);
+    const isVeryNewUser = minutesSinceCreation < 10;
     
-    return showTour && !tourCompleted;
+    console.log('🎯 Verificando tour:', { 
+      showTour, 
+      tourCompleted, 
+      isVeryNewUser,
+      minutesSinceCreation,
+      userCreatedAt: userCreatedAt.toISOString(),
+      shouldShow: (showTour || isVeryNewUser) && !tourCompleted
+    });
+    
+    return (showTour || isVeryNewUser) && !tourCompleted;
   };
 
   return (
