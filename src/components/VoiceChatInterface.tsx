@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { PageHeader } from '@/components/PageHeader';
+import { ChatWithAssistants } from '@/components/ChatWithAssistants';
 
 export function VoiceChatInterface() {
   return (
@@ -11,9 +12,8 @@ export function VoiceChatInterface() {
       />
       
       <div className="p-4 md:p-6">
-        <div className="max-w-4xl mx-auto">
-          <h2 className="text-2xl font-bold mb-6">Chat por Voz</h2>
-          <p className="text-gray-600">Conteúdo do chat por voz será implementado aqui.</p>
+        <div className="max-w-6xl mx-auto">
+          <ChatWithAssistants />
         </div>
       </div>
     </div>
