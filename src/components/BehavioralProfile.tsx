@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { PageHeader } from '@/components/PageHeader';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -115,12 +114,7 @@ export function BehavioralProfile() {
         title="Perfil Comportamental"
         subtitle="Descubra padrões e características do seu comportamento"
       >
-        <AIAnalysisButton 
-          analysisType="behavioral-profile"
-          buttonText="Analisar Comportamento"
-          data={{ personalityTraits, behaviorPatterns }}
-          className="bg-purple-600 hover:bg-purple-700"
-        />
+        <AIAnalysisButton />
       </PageHeader>
       
       <div className="p-4 md:p-6">

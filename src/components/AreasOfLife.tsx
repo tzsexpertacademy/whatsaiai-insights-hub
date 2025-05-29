@@ -42,12 +42,7 @@ export function AreasOfLife() {
         title="Áreas da Vida"
         subtitle="Avalie e equilibre as diferentes áreas da sua vida"
       >
-        <AIAnalysisButton 
-          analysisType="areas-of-life"
-          buttonText="Analisar Equilibrio"
-          data={{ scores, averageScore }}
-          className="bg-purple-600 hover:bg-purple-700"
-        />
+        <AIAnalysisButton />
       </PageHeader>
       
       <div className="p-4 md:p-6">

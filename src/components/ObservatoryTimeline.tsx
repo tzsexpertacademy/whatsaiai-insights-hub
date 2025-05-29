@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { PageHeader } from '@/components/PageHeader';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -122,12 +121,7 @@ export function ObservatoryTimeline() {
         title="Linha do Tempo"
         subtitle="Acompanhe sua evolução e marcos importantes ao longo do tempo"
       >
-        <AIAnalysisButton 
-          analysisType="timeline"
-          buttonText="Analisar Evolução"
-          data={{ timelineEvents }}
-          className="bg-indigo-600 hover:bg-indigo-700"
-        />
+        <AIAnalysisButton />
       </PageHeader>
       
       <div className="p-4 md:p-6">

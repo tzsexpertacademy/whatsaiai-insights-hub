@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { PageHeader } from '@/components/PageHeader';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -104,12 +103,7 @@ export function Recommendations() {
         title="Recomendações"
         subtitle="Sugestões personalizadas para seu desenvolvimento pessoal"
       >
-        <AIAnalysisButton 
-          analysisType="recommendations"
-          buttonText="Gerar Novas Recomendações"
-          data={{ recommendations }}
-          className="bg-purple-600 hover:bg-purple-700"
-        />
+        <AIAnalysisButton />
       </PageHeader>
       
       <div className="p-4 md:p-6">
