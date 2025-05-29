@@ -113,18 +113,18 @@ export function useAIReportUpdate() {
         assistants: assistantsData.map(a => ({ name: a.name, area: a.area }))
       });
 
-      // Chamar edge function com dados das conversas do WhatsApp
+      // Chamar edge function com configuração otimizada para análises simples
       const { data, error } = await supabase.functions.invoke('analyze-conversation', {
         body: { 
           userId: user.id,
           openaiConfig: {
             apiKey: config.openai.apiKey,
             model: selectedModel,
-            temperature: config.openai.temperature || 0.7,
-            maxTokens: config.openai.maxTokens || 1000
+            temperature: 0.5, // Menos criativo, mais preciso
+            maxTokens: 300 // REDUZIDO para análises mais simples e econômicas
           },
           assistants: assistantsData,
-          analysisType: 'comprehensive',
+          analysisType: 'simple', // Tipo de análise mais simples
           conversationsData: conversations,
           timestamp: new Date().toISOString()
         }
@@ -151,7 +151,7 @@ export function useAIReportUpdate() {
 
       toast({
         title: "✅ Relatório atualizado com sucesso",
-        description: `Análise concluída por ${data.assistantsUsed?.length || 0} assistente(s). ${data.insights?.length || 0} insights gerados pelos assistentes reais.`,
+        description: `Análise SIMPLES concluída por ${data.assistantsUsed?.length || 0} assistente(s). ${data.insights?.length || 0} insights econômicos gerados (300 tokens).`,
         duration: 5000
       });
 

@@ -1,53 +1,19 @@
 
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useAnalysisData } from '@/contexts/AnalysisDataContext';
-import { Loader2, AlertCircle, Brain, Heart, Bot, Lightbulb } from 'lucide-react';
+import { Loader2, Lightbulb, Bot, Clock, TrendingUp } from 'lucide-react';
 
 export function Recommendations() {
   const { data, isLoading } = useAnalysisData();
-
-  const getAssistantIcon = (area: string) => {
-    const iconMap: { [key: string]: string } = {
-      'psicologia': '🔮',
-      'financeiro': '💰',
-      'saude': '⚡',
-      'estrategia': '🎯',
-      'proposito': '🌟',
-      'criatividade': '🎨',
-      'relacionamentos': '👥'
-    };
-    return iconMap[area] || '🤖';
-  };
-
-  const getAssistantColor = (area: string) => {
-    const colorMap: { [key: string]: string } = {
-      'psicologia': 'bg-purple-100 text-purple-800',
-      'financeiro': 'bg-green-100 text-green-800',
-      'saude': 'bg-blue-100 text-blue-800',
-      'estrategia': 'bg-orange-100 text-orange-800',
-      'proposito': 'bg-yellow-100 text-yellow-800',
-      'criatividade': 'bg-pink-100 text-pink-800',
-      'relacionamentos': 'bg-indigo-100 text-indigo-800'
-    };
-    return colorMap[area] || 'bg-gray-100 text-gray-800';
-  };
-
-  console.log('💡 Recommendations Page - Dados dos assistentes:', {
-    hasRealData: data.hasRealData,
-    recommendationsWithAssistant: data.recommendationsWithAssistant?.length || 0,
-    assistantsActive: data.metrics.assistantsActive,
-    assistantsUsed: data.recommendationsWithAssistant?.map(r => r.assistantName).filter(Boolean)
-  });
 
   if (isLoading) {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-slate-800 mb-2">Conselhos e Recomendações</h1>
-          <p className="text-slate-600">Sugestões personalizadas baseadas na análise dos assistentes</p>
+          <h1 className="text-3xl font-bold text-slate-800 mb-2">Recomendações</h1>
+          <p className="text-slate-600">Sugestões de crescimento personalizadas pelos assistentes</p>
         </div>
         <div className="flex items-center justify-center py-20">
           <Loader2 className="h-12 w-12 animate-spin text-gray-500" />
@@ -56,59 +22,26 @@ export function Recommendations() {
     );
   }
 
-  if (!data.hasRealData || data.recommendationsWithAssistant.length === 0) {
+  if (!data.hasRealData) {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-slate-800 mb-2">Conselhos e Recomendações</h1>
-          <p className="text-slate-600">Sugestões personalizadas baseadas na análise dos assistentes</p>
-        </div>
-        
-        <div className="flex items-center gap-2 mb-4">
-          <Badge variant="outline" className="bg-gray-50 text-gray-700">
-            🤖 {data.metrics.assistantsActive} Assistentes Configurados
-          </Badge>
+          <h1 className="text-3xl font-bold text-slate-800 mb-2">Recomendações</h1>
+          <p className="text-slate-600">Sugestões de crescimento personalizadas pelos assistentes</p>
         </div>
         
         <Card className="bg-white/70 backdrop-blur-sm border-white/50">
           <CardContent className="p-12">
             <div className="flex flex-col items-center justify-center text-center space-y-4">
-              <Bot className="h-16 w-16 text-gray-400" />
-              <h3 className="text-xl font-semibold text-gray-600">Assistentes Aguardando Análise</h3>
+              <Lightbulb className="h-16 w-16 text-gray-400" />
+              <h3 className="text-xl font-semibold text-gray-600">Recomendações não geradas</h3>
               <p className="text-gray-500 max-w-md">
-                Seus assistentes estão prontos para gerar recomendações personalizadas baseadas em suas conversas e padrões.
+                Para gerar sugestões personalizadas, os assistentes precisam analisar suas conversas.
               </p>
               <div className="text-left text-sm text-gray-600 space-y-1">
                 <p>• Execute a análise por IA no dashboard</p>
-                <p>• Os assistentes irão processar seus dados</p>
-                <p>• Recomendações personalizadas serão geradas</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-indigo-500 via-blue-500 to-purple-500 text-white border-0">
-          <CardContent className="p-6">
-            <h3 className="text-xl font-bold mb-4">Seus Assistentes Especializados</h3>
-            <p className="mb-6">
-              Cada assistente analisa aspectos específicos do seu comportamento para gerar recomendações únicas:
-            </p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-white/20 backdrop-blur-sm p-4 rounded-lg">
-                <h4 className="font-semibold mb-2">🔮 Oráculo das Sombras</h4>
-                <p className="text-sm">Analisa aspectos psicológicos profundos e sugere práticas de autoconhecimento</p>
-              </div>
-              <div className="bg-white/20 backdrop-blur-sm p-4 rounded-lg">
-                <h4 className="font-semibold mb-2">💰 Guardião dos Recursos</h4>
-                <p className="text-sm">Oferece conselhos sobre gestão financeira e organização pessoal</p>
-              </div>
-              <div className="bg-white/20 backdrop-blur-sm p-4 rounded-lg">
-                <h4 className="font-semibold mb-2">⚡ Engenheiro do Corpo</h4>
-                <p className="text-sm">Sugere melhorias em saúde física e bem-estar</p>
-              </div>
-              <div className="bg-white/20 backdrop-blur-sm p-4 rounded-lg">
-                <h4 className="font-semibold mb-2">👥 Espelho Social</h4>
-                <p className="text-sm">Ajuda a melhorar relacionamentos e habilidades sociais</p>
+                <p>• Os assistentes irão gerar recomendações personalizadas</p>
+                <p>• Dados serão atualizados automaticamente</p>
               </div>
             </div>
           </CardContent>
@@ -117,100 +50,142 @@ export function Recommendations() {
     );
   }
 
+  // Filtrar insights que são recomendações ou sugestões
+  const recommendationInsights = data.insightsWithAssistant.filter(insight => 
+    insight.insight_type === 'recommendation' ||
+    insight.title.toLowerCase().includes('recomend') ||
+    insight.title.toLowerCase().includes('sugest') ||
+    insight.description.toLowerCase().includes('recomend') ||
+    insight.description.toLowerCase().includes('sugest')
+  );
+
+  const lastUpdate = data.metrics.lastAnalysis ? 
+    new Date(data.metrics.lastAnalysis).toLocaleDateString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    }) : null;
+
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-slate-800 mb-2">Conselhos e Recomendações</h1>
-        <p className="text-slate-600">Sugestões personalizadas baseadas na análise dos assistentes especializados</p>
+        <h1 className="text-3xl font-bold text-slate-800 mb-2">Recomendações</h1>
+        <p className="text-slate-600">Sugestões de crescimento personalizadas pelos assistentes</p>
       </div>
 
-      {/* Indicadores dos assistentes ativos */}
+      {/* Indicadores dos assistentes */}
       <div className="flex flex-wrap items-center gap-2 mb-4">
         <Badge variant="outline" className="bg-purple-50 text-purple-700">
-          🔮 Assistentes da Plataforma
+          🔮 Análise dos Assistentes
         </Badge>
         <Badge variant="outline" className="bg-blue-50 text-blue-700">
-          📊 {data.recommendationsWithAssistant.length} Recomendações Geradas
+          💡 {recommendationInsights.length} recomendações
         </Badge>
-        {[...new Set(data.recommendationsWithAssistant?.map(r => r.assistantName).filter(Boolean))]
-          .slice(0, 3).map((assistantName, index) => {
-            const assistantArea = data.recommendationsWithAssistant?.find(r => r.assistantName === assistantName)?.assistantArea;
+        <Badge variant="outline" className="bg-green-50 text-green-700">
+          🤖 {data.metrics.assistantsActive} assistentes ativos
+        </Badge>
+        {lastUpdate && (
+          <Badge variant="outline" className="bg-gray-50 text-gray-700">
+            <Clock className="h-3 w-3 mr-1" />
+            Última análise: {lastUpdate}
+          </Badge>
+        )}
+      </div>
+
+      {recommendationInsights.length === 0 ? (
+        <Card className="bg-blue-50 border-blue-200">
+          <CardContent className="p-8">
+            <div className="text-center">
+              <Lightbulb className="h-12 w-12 text-blue-600 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-blue-800 mb-2">Recomendações em preparação</h3>
+              <p className="text-blue-700">
+                Os assistentes estão analisando seus dados para gerar recomendações personalizadas.
+              </p>
+              <div className="mt-4 flex items-center justify-center">
+                <Bot className="h-4 w-4 text-blue-600 mr-1" />
+                <span className="text-sm text-blue-600">Análise por {data.metrics.assistantsActive} assistentes IA</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {/* Recomendações por categoria */}
+          {['Desenvolvimento Pessoal', 'Relacionamentos', 'Carreira', 'Bem-estar', 'Produtividade'].map((category, index) => {
+            const categoryRecommendations = recommendationInsights.filter(insight => 
+              insight.assistantArea?.toLowerCase().includes(category.toLowerCase()) ||
+              insight.description.toLowerCase().includes(category.toLowerCase())
+            );
+            
             return (
-              <Badge key={index} className={getAssistantColor(assistantArea || 'geral')}>
-                {getAssistantIcon(assistantArea || 'geral')} {assistantName}
-              </Badge>
+              <Card key={category} className="bg-white/70 backdrop-blur-sm border-white/50">
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between">
+                    {category}
+                    <Badge className="bg-blue-100 text-blue-800">
+                      {categoryRecommendations.length} sugestões
+                    </Badge>
+                  </CardTitle>
+                  <CardDescription>Recomendações dos assistentes IA</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {categoryRecommendations.length > 0 ? (
+                    <div className="space-y-3">
+                      {categoryRecommendations.slice(0, 2).map((insight, idx) => (
+                        <div key={idx} className="border rounded-lg p-3 bg-gradient-to-r from-blue-50 to-green-50">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-sm font-medium text-slate-800">{insight.title}</span>
+                            <Badge className="bg-blue-100 text-blue-800 text-xs">
+                              {insight.assistantName}
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-slate-600">{insight.description.substring(0, 80)}...</p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-4">
+                      <Bot className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+                      <p className="text-sm text-gray-500">Aguardando análise dos assistentes</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             );
           })}
-      </div>
+        </div>
+      )}
 
-      <div className="grid grid-cols-1 gap-6">
-        {data.recommendationsWithAssistant.map((recommendation, index) => (
-          <Card key={index} className="bg-white/70 backdrop-blur-sm border-white/50">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="p-2 rounded-lg bg-blue-50">
-                    <Lightbulb className="h-5 w-5 text-blue-600" />
-                  </div>
-                  <div>
-                    <CardTitle>{recommendation.title || `Recomendação ${index + 1}`}</CardTitle>
-                    <CardDescription>
-                      {recommendation.assistantName ? 
-                        `Gerada pelo assistente: ${recommendation.assistantName}` : 
-                        'Baseada na análise dos assistentes'
-                      }
-                    </CardDescription>
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  {recommendation.assistantName && (
-                    <Badge className={getAssistantColor(recommendation.assistantArea || 'geral')}>
-                      {getAssistantIcon(recommendation.assistantArea || 'geral')} {recommendation.assistantName}
+      {/* Recomendações detalhadas */}
+      {recommendationInsights.length > 0 && (
+        <Card className="bg-white/70 backdrop-blur-sm border-white/50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5" />
+              Recomendações Detalhadas
+            </CardTitle>
+            <CardDescription>Sugestões personalizadas geradas pelos assistentes especializados</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {recommendationInsights.map((insight, index) => (
+                <div key={insight.id} className="border rounded-lg p-4 bg-gradient-to-r from-blue-50 to-green-50">
+                  <div className="flex items-start justify-between mb-2">
+                    <h4 className="font-medium text-slate-800">{insight.title}</h4>
+                    <Badge className="bg-blue-100 text-blue-800">
+                      🔮 {insight.assistantName}
                     </Badge>
-                  )}
-                  <Badge variant="outline">Personalizada</Badge>
+                  </div>
+                  <p className="text-sm text-slate-600 mb-3">{insight.description}</p>
+                  <div className="flex items-center justify-between text-xs text-slate-500">
+                    <span>Área: {insight.assistantArea}</span>
+                    <span>{new Date(insight.createdAt).toLocaleDateString('pt-BR')}</span>
+                  </div>
                 </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <p className="text-slate-700 mb-4">{recommendation.text || recommendation.description}</p>
-              
-              {/* Informações do assistente */}
-              <div className="bg-gray-50 rounded-lg p-3 mb-4">
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <Bot className="h-4 w-4" />
-                  <span className="font-medium">Assistente:</span>
-                  <span>{recommendation.assistantName || 'Sistema'}</span>
-                  {recommendation.assistantArea && (
-                    <>
-                      <span className="mx-2">•</span>
-                      <span>Área: {recommendation.assistantArea}</span>
-                    </>
-                  )}
-                </div>
-              </div>
-              
-              <div className="flex justify-end">
-                <Button size="sm" className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700">
-                  Implementar
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {data.recommendationsWithAssistant.length > 0 && (
-        <Card className="bg-gradient-to-br from-indigo-500 via-blue-500 to-purple-500 text-white border-0">
-          <CardContent className="p-6">
-            <h3 className="text-xl font-bold mb-4">Próxima Análise</h3>
-            <p className="mb-6">
-              Continue criando conversas e executando análises para receber novas recomendações personalizadas dos seus assistentes.
-            </p>
-            <Button size="lg" className="w-full bg-white text-blue-700 hover:bg-slate-100">
-              <Heart className="mr-2 h-5 w-5" />
-              Executar Nova Análise por IA
-            </Button>
+              ))}
+            </div>
           </CardContent>
         </Card>
       )}

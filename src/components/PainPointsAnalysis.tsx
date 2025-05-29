@@ -3,105 +3,17 @@ import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useAnalysisData } from '@/contexts/AnalysisDataContext';
-import { Loader2, AlertCircle, AlertTriangle, TrendingUp, TrendingDown, Clock, Target, Brain, Heart } from 'lucide-react';
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from "recharts";
-
-interface PainPoint {
-  id: string;
-  title: string;
-  description: string;
-  severity: 'baixa' | 'média' | 'alta';
-  category: string;
-  firstDetected: string;
-  frequency: number;
-  assistantName?: string;
-  assistantArea?: string;
-}
+import { Loader2, AlertTriangle, Bot, Clock, TrendingDown } from 'lucide-react';
 
 export function PainPointsAnalysis() {
   const { data, isLoading } = useAnalysisData();
-
-  // Processar insights dos assistentes para extrair dores
-  const extractPainPointsFromInsights = () => {
-    if (!data.insightsWithAssistant || data.insightsWithAssistant.length === 0) return [];
-
-    // Buscar por insights que contenham palavras-chave de dor/problema
-    return data.insightsWithAssistant
-      .filter(insight => 
-        insight.description?.toLowerCase().includes('dor') ||
-        insight.description?.toLowerCase().includes('problema') ||
-        insight.description?.toLowerCase().includes('dificuldade') ||
-        insight.description?.toLowerCase().includes('ansiedade') ||
-        insight.description?.toLowerCase().includes('estresse') ||
-        insight.description?.toLowerCase().includes('preocupação') ||
-        insight.description?.toLowerCase().includes('bloqueio') ||
-        insight.description?.toLowerCase().includes('resistência') ||
-        insight.priority === 'high' // Insights de alta prioridade também são considerados pontos de dor
-      )
-      .map((insight) => ({
-        id: insight.id,
-        title: insight.title || 'Dor Identificada',
-        description: insight.description,
-        severity: insight.priority === 'high' ? 'alta' as const : 
-                 insight.priority === 'low' ? 'baixa' as const : 'média' as const,
-        category: insight.assistantArea || 'Emocional',
-        firstDetected: insight.created_at,
-        frequency: Math.floor(Math.random() * 10) + 1,
-        assistantName: insight.assistantName,
-        assistantArea: insight.assistantArea
-      }));
-  };
-
-  const painPoints = extractPainPointsFromInsights();
-
-  const severityColors = {
-    'baixa': '#10B981',
-    'média': '#F59E0B',
-    'alta': '#EF4444'
-  };
-
-  const severityData = [
-    { 
-      name: 'Baixa', 
-      value: painPoints.filter(p => p.severity === 'baixa').length, 
-      color: '#10B981' 
-    },
-    { 
-      name: 'Média', 
-      value: painPoints.filter(p => p.severity === 'média').length, 
-      color: '#F59E0B' 
-    },
-    { 
-      name: 'Alta', 
-      value: painPoints.filter(p => p.severity === 'alta').length, 
-      color: '#EF4444' 
-    }
-  ];
-
-  const categoryData = painPoints.reduce((acc, pain) => {
-    const existing = acc.find(item => item.category === pain.category);
-    if (existing) {
-      existing.count++;
-    } else {
-      acc.push({ category: pain.category, count: 1, trend: 0 });
-    }
-    return acc;
-  }, [] as Array<{ category: string; count: number; trend: number }>);
-
-  const timelineData = painPoints.slice(0, 6).map((pain, index) => ({
-    date: new Date(pain.firstDetected).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
-    total: index + 1,
-    novas: 1,
-    resolvidas: Math.floor(Math.random() * 2)
-  }));
 
   if (isLoading) {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-slate-800 mb-2">Dores do Cliente</h1>
-          <p className="text-slate-600">Identificação e análise das principais dores detectadas pela IA</p>
+          <h1 className="text-3xl font-bold text-slate-800 mb-2">Pontos de Dor</h1>
+          <p className="text-slate-600">Áreas de atenção identificadas pelos assistentes</p>
         </div>
         <div className="flex items-center justify-center py-20">
           <Loader2 className="h-12 w-12 animate-spin text-gray-500" />
@@ -110,26 +22,26 @@ export function PainPointsAnalysis() {
     );
   }
 
-  if (!data.hasRealData || painPoints.length === 0) {
+  if (!data.hasRealData) {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-slate-800 mb-2">Dores do Cliente</h1>
-          <p className="text-slate-600">Identificação e análise das principais dores detectadas pela IA</p>
+          <h1 className="text-3xl font-bold text-slate-800 mb-2">Pontos de Dor</h1>
+          <p className="text-slate-600">Áreas de atenção identificadas pelos assistentes</p>
         </div>
         
         <Card className="bg-white/70 backdrop-blur-sm border-white/50">
           <CardContent className="p-12">
             <div className="flex flex-col items-center justify-center text-center space-y-4">
               <AlertTriangle className="h-16 w-16 text-gray-400" />
-              <h3 className="text-xl font-semibold text-gray-600">Análise de Dores Aguarda IA</h3>
+              <h3 className="text-xl font-semibold text-gray-600">Pontos de dor não identificados</h3>
               <p className="text-gray-500 max-w-md">
-                As dores e pontos críticos serão identificados automaticamente após análises de conversas pela IA.
+                Para identificar áreas de atenção, os assistentes precisam analisar suas conversas.
               </p>
               <div className="text-left text-sm text-gray-600 space-y-1">
-                <p>• Execute análises por IA no dashboard</p>
-                <p>• Os assistentes identificarão padrões problemáticos</p>
-                <p>• Histórico de evolução será mapeado</p>
+                <p>• Execute a análise por IA no dashboard</p>
+                <p>• Os assistentes irão identificar pontos de melhoria</p>
+                <p>• Dados serão atualizados automaticamente</p>
               </div>
             </div>
           </CardContent>
@@ -138,172 +50,163 @@ export function PainPointsAnalysis() {
     );
   }
 
-  // Dados reais processados dos assistentes
+  // Filtrar insights que são pontos de dor ou alta prioridade
+  const painPointInsights = data.insightsWithAssistant.filter(insight => 
+    insight.priority === 'high' || 
+    insight.insight_type === 'warning' ||
+    insight.title.toLowerCase().includes('problema') ||
+    insight.title.toLowerCase().includes('dificuldade') ||
+    insight.description.toLowerCase().includes('atenção')
+  );
+
+  const lastUpdate = data.metrics.lastAnalysis ? 
+    new Date(data.metrics.lastAnalysis).toLocaleDateString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    }) : null;
+
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-slate-800 mb-2">Dores do Cliente</h1>
-        <p className="text-slate-600">Dores identificadas pelos assistentes especializados</p>
+        <h1 className="text-3xl font-bold text-slate-800 mb-2">Pontos de Dor</h1>
+        <p className="text-slate-600">Áreas de atenção identificadas pelos assistentes</p>
       </div>
-      
-      <div className="flex items-center gap-2 mb-4">
+
+      {/* Indicadores dos assistentes */}
+      <div className="flex flex-wrap items-center gap-2 mb-4">
         <Badge variant="outline" className="bg-purple-50 text-purple-700">
-          🔮 Análise dos Assistentes da Plataforma
+          🔮 Análise dos Assistentes
         </Badge>
-        <Badge variant="outline" className="bg-blue-50 text-blue-700">
-          {painPoints.length} dores identificadas
+        <Badge variant="outline" className="bg-red-50 text-red-700">
+          ⚠️ {painPointInsights.length} pontos de atenção
         </Badge>
-      </div>
-      
-      {/* Métricas principais */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="bg-white/70 backdrop-blur-sm border-white/50">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Total de Dores</p>
-                <p className="text-2xl font-bold text-gray-800">{painPoints.length}</p>
-              </div>
-              <AlertTriangle className="h-8 w-8 text-orange-500" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-white/70 backdrop-blur-sm border-white/50">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Dores Críticas</p>
-                <p className="text-2xl font-bold text-red-600">
-                  {painPoints.filter(p => p.severity === 'alta').length}
-                </p>
-              </div>
-              <AlertCircle className="h-8 w-8 text-red-500" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-white/70 backdrop-blur-sm border-white/50">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Mais Frequente</p>
-                <p className="text-lg font-bold text-gray-800">
-                  {categoryData[0]?.category || 'N/A'}
-                </p>
-              </div>
-              <Brain className="h-8 w-8 text-blue-500" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-white/70 backdrop-blur-sm border-white/50">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Categorias</p>
-                <p className="text-2xl font-bold text-gray-800">{categoryData.length}</p>
-              </div>
-              <Target className="h-8 w-8 text-green-500" />
-            </div>
-          </CardContent>
-        </Card>
+        <Badge variant="outline" className="bg-green-50 text-green-700">
+          🤖 {data.metrics.assistantsActive} assistentes ativos
+        </Badge>
+        {lastUpdate && (
+          <Badge variant="outline" className="bg-gray-50 text-gray-700">
+            <Clock className="h-3 w-3 mr-1" />
+            Última análise: {lastUpdate}
+          </Badge>
+        )}
       </div>
 
-      {/* Gráficos */}
-      {severityData.some(d => d.value > 0) && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {painPointInsights.length === 0 ? (
+        <Card className="bg-green-50 border-green-200">
+          <CardContent className="p-8">
+            <div className="text-center">
+              <TrendingDown className="h-12 w-12 text-green-600 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-green-800 mb-2">Nenhum ponto crítico identificado!</h3>
+              <p className="text-green-700">
+                Os assistentes não identificaram áreas de alta prioridade para atenção imediata.
+              </p>
+              <div className="mt-4 flex items-center justify-center">
+                <Bot className="h-4 w-4 text-green-600 mr-1" />
+                <span className="text-sm text-green-600">Análise por {data.metrics.assistantsActive} assistentes IA</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Pontos de dor por prioridade */}
           <Card className="bg-white/70 backdrop-blur-sm border-white/50">
             <CardHeader>
-              <CardTitle>Evolução Temporal</CardTitle>
-              <CardDescription>Histórico de dores identificadas pelos assistentes</CardDescription>
+              <CardTitle className="flex items-center gap-2 text-red-700">
+                <AlertTriangle className="h-5 w-5" />
+                Pontos Críticos
+              </CardTitle>
+              <CardDescription>Áreas que requerem atenção imediata</CardDescription>
             </CardHeader>
             <CardContent>
-              <ChartContainer config={{}} className="h-[200px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={timelineData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="date" />
-                    <YAxis />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <Line type="monotone" dataKey="total" stroke="#EF4444" strokeWidth={2} />
-                    <Line type="monotone" dataKey="novas" stroke="#F59E0B" strokeWidth={2} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </ChartContainer>
+              <div className="space-y-4">
+                {painPointInsights.filter(insight => insight.priority === 'high').slice(0, 3).map((insight, index) => (
+                  <div key={insight.id} className="border border-red-200 rounded-lg p-4 bg-gradient-to-r from-red-50 to-orange-50">
+                    <div className="flex items-start justify-between mb-2">
+                      <h4 className="font-medium text-red-800">{insight.title}</h4>
+                      <Badge className="bg-red-100 text-red-800">
+                        🔮 {insight.assistantName}
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-red-700 mb-3">{insight.description}</p>
+                    <div className="flex items-center justify-between text-xs text-red-600">
+                      <span>Prioridade: {insight.priority}</span>
+                      <span>{new Date(insight.createdAt).toLocaleDateString('pt-BR')}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </CardContent>
           </Card>
 
+          {/* Pontos de atenção */}
           <Card className="bg-white/70 backdrop-blur-sm border-white/50">
             <CardHeader>
-              <CardTitle>Severidade das Dores</CardTitle>
-              <CardDescription>Distribuição por nível de criticidade</CardDescription>
+              <CardTitle className="flex items-center gap-2 text-orange-700">
+                <TrendingDown className="h-5 w-5" />
+                Pontos de Atenção
+              </CardTitle>
+              <CardDescription>Áreas para monitoramento</CardDescription>
             </CardHeader>
             <CardContent>
-              <ChartContainer config={{}} className="h-[200px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={severityData.filter(d => d.value > 0)}
-                      cx="50%"
-                      cy="50%"
-                      outerRadius={80}
-                      dataKey="value"
-                    >
-                      {severityData.filter(d => d.value > 0).map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                  </PieChart>
-                </ResponsiveContainer>
-              </ChartContainer>
+              <div className="space-y-4">
+                {painPointInsights.filter(insight => insight.priority !== 'high').slice(0, 3).map((insight, index) => (
+                  <div key={insight.id} className="border border-orange-200 rounded-lg p-4 bg-gradient-to-r from-orange-50 to-yellow-50">
+                    <div className="flex items-start justify-between mb-2">
+                      <h4 className="font-medium text-orange-800">{insight.title}</h4>
+                      <Badge className="bg-orange-100 text-orange-800">
+                        🔮 {insight.assistantName}
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-orange-700 mb-3">{insight.description}</p>
+                    <div className="flex items-center justify-between text-xs text-orange-600">
+                      <span>Área: {insight.assistantArea}</span>
+                      <span>{new Date(insight.createdAt).toLocaleDateString('pt-BR')}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </CardContent>
           </Card>
         </div>
       )}
 
-      {/* Lista de dores dos assistentes */}
-      <Card className="bg-white/70 backdrop-blur-sm border-white/50">
-        <CardHeader>
-          <CardTitle>Dores Identificadas pelos Assistentes</CardTitle>
-          <CardDescription>Análise detalhada das dores detectadas pelos assistentes da plataforma</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {painPoints.map((pain) => (
-              <div key={pain.id} className="border rounded-lg p-4 space-y-3">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <h4 className="font-medium text-slate-800">{pain.title}</h4>
-                    <p className="text-sm text-slate-600 mt-1">{pain.description}</p>
+      {/* Todos os pontos de dor detalhados */}
+      {painPointInsights.length > 0 && (
+        <Card className="bg-white/70 backdrop-blur-sm border-white/50">
+          <CardHeader>
+            <CardTitle>Análise Detalhada dos Pontos de Dor</CardTitle>
+            <CardDescription>Identificação completa pelos assistentes especializados</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {painPointInsights.map((insight, index) => (
+                <div key={insight.id} className="border rounded-lg p-4 bg-gradient-to-r from-red-50 to-orange-50">
+                  <div className="flex items-start justify-between mb-2">
+                    <h4 className="font-medium text-slate-800">{insight.title}</h4>
+                    <div className="flex gap-2">
+                      <Badge className={`${insight.priority === 'high' ? 'bg-red-100 text-red-800' : 'bg-orange-100 text-orange-800'}`}>
+                        {insight.priority === 'high' ? '🚨 Crítico' : '⚠️ Atenção'}
+                      </Badge>
+                      <Badge className="bg-purple-100 text-purple-800">
+                        🔮 {insight.assistantName}
+                      </Badge>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Badge 
-                      style={{ 
-                        backgroundColor: severityColors[pain.severity],
-                        color: 'white'
-                      }}
-                    >
-                      {pain.severity}
-                    </Badge>
+                  <p className="text-sm text-slate-600 mb-3">{insight.description}</p>
+                  <div className="flex items-center justify-between text-xs text-slate-500">
+                    <span>Área: {insight.assistantArea}</span>
+                    <span>{new Date(insight.createdAt).toLocaleDateString('pt-BR')}</span>
                   </div>
                 </div>
-                
-                <div className="flex items-center gap-4 text-xs text-slate-500">
-                  <span>Categoria: {pain.category}</span>
-                  <span>Identificado em: {new Date(pain.firstDetected).toLocaleDateString('pt-BR')}</span>
-                  {pain.assistantName && (
-                    <Badge variant="outline" className="bg-purple-50 text-purple-700">
-                      🔮 {pain.assistantName}
-                    </Badge>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
