@@ -58,8 +58,8 @@ Este arquivo foi carregado com sucesso e está pronto para análise quando imple
       text = await file.text();
     }
     else if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
-      // Para PDFs, vamos tentar extrair o texto de forma mais robusta
-      text = await extractPDFText(file);
+      // Para PDFs, usar estratégia melhorada de extração
+      text = await extractPDFTextImproved(file);
     }
     else if (file.type.includes('word') || file.name.endsWith('.docx') || file.name.endsWith('.doc')) {
       // Para documentos Word, usar uma abordagem básica
@@ -107,49 +107,136 @@ SUGESTÃO: Tente converter o arquivo para um formato de texto (.txt, .md, .json)
   }
 }
 
-async function extractPDFText(file: File): Promise<string> {
+async function extractPDFTextImproved(file: File): Promise<string> {
   try {
-    // Tentar ler como texto primeiro
+    console.log('🔍 Tentando extrair texto do PDF de forma melhorada...');
+    
     const arrayBuffer = await file.arrayBuffer();
     const uint8Array = new Uint8Array(arrayBuffer);
+    const pdfString = new TextDecoder('latin1').decode(uint8Array);
     
-    // Converter para string e procurar por texto legível
-    let text = '';
-    for (let i = 0; i < uint8Array.length; i++) {
-      const char = String.fromCharCode(uint8Array[i]);
-      if (char.match(/[\w\s\.\,\!\?\-\(\)\[\]]/)) {
-        text += char;
+    // Procurar por streams de texto no PDF
+    const textRegex = /BT\s+(.*?)\s+ET/gs;
+    const streamRegex = /stream\s+([\s\S]*?)\s+endstream/gs;
+    const objRegex = /\(\s*([^)]+)\s*\)/g;
+    
+    let extractedText = '';
+    
+    // Método 1: Procurar por objetos de texto (BT...ET)
+    let match;
+    while ((match = textRegex.exec(pdfString)) !== null) {
+      const textBlock = match[1];
+      const textMatches = textBlock.match(/\(\s*([^)]+)\s*\)/g);
+      if (textMatches) {
+        textMatches.forEach(textMatch => {
+          const text = textMatch.replace(/[()]/g, '').trim();
+          if (text.length > 0 && isReadableText(text)) {
+            extractedText += text + ' ';
+          }
+        });
       }
     }
     
-    // Limpar e estruturar o texto extraído
-    text = text
+    // Método 2: Procurar por texto legível em todo o arquivo
+    if (extractedText.length < 100) {
+      console.log('🔍 Usando método alternativo de extração...');
+      
+      // Procurar por padrões de texto legível
+      const readableTextRegex = /[A-Za-z0-9\s.,!?;:'"()-]{10,}/g;
+      const matches = pdfString.match(readableTextRegex);
+      
+      if (matches) {
+        matches.forEach(match => {
+          const cleanText = match
+            .replace(/[^\w\s.,!?;:'"()-]/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+          
+          if (cleanText.length > 10 && isReadableText(cleanText)) {
+            extractedText += cleanText + ' ';
+          }
+        });
+      }
+    }
+    
+    // Método 3: Extração básica de caracteres legíveis
+    if (extractedText.length < 100) {
+      console.log('🔍 Usando método básico de extração...');
+      
+      let basicText = '';
+      for (let i = 0; i < uint8Array.length; i++) {
+        const char = String.fromCharCode(uint8Array[i]);
+        // Incluir apenas caracteres imprimíveis e em português
+        if (char.match(/[\w\s\.,!?\-\(\)\[\]áàâãéèêíìîóòôõúùûç]/i)) {
+          basicText += char;
+        } else if (basicText.endsWith(' ') === false && basicText.length > 0) {
+          basicText += ' ';
+        }
+      }
+      
+      // Limpar e estruturar o texto básico
+      basicText = basicText
+        .replace(/\s+/g, ' ')
+        .replace(/[^\w\s\.,!?\-\(\)\[\]áàâãéèêíìîóòôõúùûç]/gi, ' ')
+        .trim();
+      
+      if (basicText.length > extractedText.length) {
+        extractedText = basicText;
+      }
+    }
+    
+    // Limpeza final do texto
+    extractedText = extractedText
       .replace(/\s+/g, ' ')
-      .replace(/[^\w\s\.\,\!\?\-\(\)\[\]]/g, ' ')
+      .replace(/(.)\1{4,}/g, '$1') // Remove repetições excessivas
       .trim();
     
-    if (text.length < 50) {
-      return `[PDF] ${file.name}
+    console.log(`📄 Texto extraído do PDF: ${extractedText.length} caracteres`);
+    
+    if (extractedText.length < 50) {
+      return generatePDFPlaceholder(file);
+    }
+    
+    return extractedText;
+    
+  } catch (error) {
+    console.error('❌ Erro na extração melhorada de PDF:', error);
+    return generatePDFPlaceholder(file);
+  }
+}
 
-Este é um arquivo PDF que requer processamento especial para extração de texto.
+function isReadableText(text: string): boolean {
+  // Verificar se o texto contém uma proporção razoável de caracteres legíveis
+  const readableChars = text.match(/[a-zA-Z0-9\s]/g)?.length || 0;
+  const totalChars = text.length;
+  const readableRatio = readableChars / totalChars;
+  
+  // Deve ter pelo menos 60% de caracteres legíveis e pelo menos 5 caracteres
+  return readableRatio > 0.6 && text.length >= 5;
+}
+
+function generatePDFPlaceholder(file: File): string {
+  return `DOCUMENTO PDF: ${file.name}
+
+Este é um documento PDF que foi carregado para análise. O arquivo contém informações importantes que podem incluir:
+
+• Dados financeiros, relatórios ou planilhas
+• Documentos técnicos ou manuais
+• Contratos, propostas ou apresentações
+• Textos, artigos ou documentação
+• Orçamentos, custos ou análises
 
 INFORMAÇÕES DO ARQUIVO:
 - Nome: ${file.name}
 - Tamanho: ${(file.size / 1024).toFixed(2)} KB
+- Data de upload: ${new Date().toLocaleDateString('pt-BR')}
 
-NOTA: Para análise completa de PDFs complexos, recomendamos:
-1. Converter o PDF para texto (.txt) usando ferramentas externas
-2. Ou usar serviços especializados de OCR se o PDF contém imagens
-3. Depois fazer o upload do arquivo de texto resultante
+Para uma análise mais precisa do conteúdo específico deste PDF, recomenda-se:
+1. Converter o PDF para formato de texto (.txt) usando ferramentas como Adobe Reader ou sites de conversão
+2. Copiar e colar o texto do PDF em um arquivo .txt
+3. Fazer o upload do arquivo de texto convertido
 
-O arquivo foi carregado com sucesso e está disponível para análise básica.`;
-    }
-    
-    return text;
-  } catch (error) {
-    console.error('Erro na extração de PDF:', error);
-    return `[PDF] ${file.name} - Arquivo carregado, mas requer processamento especial para extração de texto completa.`;
-  }
+O arquivo foi carregado com sucesso e está disponível para análise pelos assistentes especializados.`;
 }
 
 async function extractWordText(file: File): Promise<string> {
