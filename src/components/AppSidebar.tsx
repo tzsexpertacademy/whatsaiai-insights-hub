@@ -49,7 +49,7 @@ export function AppSidebar() {
             <Brain className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h1 className="font-bold text-lg">Observatório IA</h1>
+            <h1 className="font-bold text-lg">YumerMind</h1>
             <p className="text-xs text-muted-foreground">Análise Comportamental</p>
           </div>
         </div>

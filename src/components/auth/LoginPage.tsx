@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -118,7 +117,7 @@ export function LoginPage() {
               <Brain className="w-8 h-8 text-white" />
             </div>
           </div>
-          <h1 className="text-3xl font-bold mb-2">Observatório da Consciência</h1>
+          <h1 className="text-3xl font-bold mb-2">YumerMind</h1>
           <p className="text-gray-400">Acesse ou crie sua conta para começar</p>
         </div>
 
@@ -286,7 +285,7 @@ export function LoginPage() {
             <div className="mt-6 pt-6 border-t border-gray-700">
               <h3 className="text-sm font-medium text-white mb-3 flex items-center gap-2">
                 <Users className="w-4 h-4" />
-                Por que escolher o Observatório?
+                Por que escolher o YumerMind?
               </h3>
               <div className="space-y-2 text-xs text-gray-400">
                 <div className="flex items-center gap-2">
