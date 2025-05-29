@@ -394,10 +394,10 @@ export function ObservatoryLanding() {
     <div className="min-h-screen bg-black text-white overflow-x-hidden relative">
       <CursorEffect />
       
-      {/* Canvas neural épico em toda a página - sempre visível */}
+      {/* Canvas neural épico em toda a página */}
       <canvas
         ref={canvasRef}
-        className="fixed inset-0 pointer-events-none z-0 w-full h-full opacity-40"
+        className="fixed inset-0 pointer-events-none z-0 w-full h-full opacity-20"
         style={{ 
           transform: `translateY(${scrollY * 0.1}px)`
         }}
@@ -414,7 +414,7 @@ export function ObservatoryLanding() {
           {/* Botão para pular animação */}
           <button
             onClick={skipAnimation}
-            className="fixed bottom-8 right-8 z-50 bg-black/70 backdrop-blur-sm border border-purple-500/40 rounded-full px-6 py-3 hover:bg-purple-500/30 transition-all text-purple-300 text-sm font-medium"
+            className="fixed bottom-8 right-8 z-50 bg-black/80 backdrop-blur-sm border border-white/50 rounded-full px-6 py-3 hover:bg-white/20 transition-all text-white text-sm font-bold"
           >
             Pular animação →
           </button>
@@ -424,7 +424,7 @@ export function ObservatoryLanding() {
       {/* Controle de som */}
       <button
         onClick={handleSoundToggle}
-        className="fixed top-4 right-4 z-50 bg-black/70 backdrop-blur-sm border border-purple-500/40 rounded-full p-3 hover:bg-purple-500/30 transition-all group"
+        className="fixed top-4 right-4 z-50 bg-black/80 backdrop-blur-sm border border-white/50 rounded-full p-3 hover:bg-white/20 transition-all group"
         onMouseEnter={() => {
           if (soundEnabled && soundEffectsRef.current.hover) {
             soundEffectsRef.current.hover();
@@ -432,94 +432,167 @@ export function ObservatoryLanding() {
         }}
       >
         {soundEnabled ? (
-          <Volume2 className="w-5 h-5 text-purple-400 group-hover:scale-110 transition-transform" />
+          <Volume2 className="w-5 h-5 text-white group-hover:scale-110 transition-transform" />
         ) : (
-          <VolumeX className="w-5 h-5 text-gray-400 group-hover:scale-110 transition-transform" />
+          <VolumeX className="w-5 h-5 text-white group-hover:scale-110 transition-transform" />
         )}
       </button>
       
-      {/* Conteúdo principal - só aparece após animação do cérebro */}
+      {/* Conteúdo principal */}
       {showContent && (
         <div className="animate-fade-in relative z-10">
-          {/* Seção 1 - O IMPACTO ÉPICO com texto muito mais visível */}
-          <section ref={heroRef} className="relative min-h-screen flex items-center justify-center px-4 sm:px-6">
-            {/* Overlay escuro para contraste do texto */}
-            <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-black/60"></div>
-            
-            <div className="text-center max-w-7xl mx-auto w-full relative z-10">
-              <ScrollReveal id="hero-badge" direction="scale" delay={200}>
-                <Badge className="mb-6 sm:mb-8 bg-gradient-to-r from-purple-600/50 to-blue-600/50 text-purple-200 border border-purple-400/60 px-4 sm:px-6 py-2 sm:py-3 text-sm sm:text-base backdrop-blur-md hover:bg-purple-500/50 transition-all glow-badge">
-                  <CircuitBoard className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
-                  YumerMind - O segundo cérebro do ser humano
-                </Badge>
-              </ScrollReveal>
+          {/* Seção 1 - Fundo escuro sólido para contraste máximo */}
+          <section ref={heroRef} className="relative min-h-screen flex items-center justify-center px-4 sm:px-6 bg-black">
+            <div className="text-center max-w-7xl mx-auto w-full">
+              <div className="relative z-10">
+                <ScrollReveal id="hero-badge" direction="scale" delay={200}>
+                  <Badge className="mb-6 sm:mb-8 bg-white/90 text-black border-2 border-white px-6 py-3 text-base font-bold backdrop-blur-sm hover:bg-white transition-all">
+                    <CircuitBoard className="w-5 h-5 mr-2" />
+                    YumerMind - O segundo cérebro do ser humano
+                  </Badge>
+                </ScrollReveal>
 
-              <ScrollReveal id="hero-title" direction="up" delay={400}>
-                <div className="mb-8 sm:mb-12">
-                  {/* Texto com contraste máximo baseado na imagem */}
-                  <h1 className="text-4xl sm:text-6xl md:text-8xl lg:text-9xl xl:text-[10rem] font-extralight mb-4 sm:mb-6 leading-[0.85] tracking-tight">
-                    <span className="block text-white mb-2 sm:mb-4 transform hover:scale-105 transition-transform duration-700 drop-shadow-[0_0_30px_rgba(255,255,255,0.8)] font-bold">
-                      O que você 
-                      <span className="italic text-red-400 font-black glow-text-red-mega"> não vê</span>...
-                    </span>
-                    <span className="block text-6xl sm:text-8xl md:text-[10rem] lg:text-[12rem] xl:text-[15rem] font-black mb-6 sm:mb-8 transform hover:scale-110 transition-all duration-500 animate-pulse-slow glow-text-cyan-mega">
-                      te controla.
-                    </span>
-                  </h1>
-                  
-                  <h2 className="text-3xl sm:text-5xl md:text-7xl lg:text-8xl xl:text-9xl font-extralight mb-2 sm:mb-4 leading-[0.85] tracking-tight">
-                    <span className="block text-white mb-2 sm:mb-4 transform hover:scale-105 transition-transform duration-700 drop-shadow-[0_0_30px_rgba(255,255,255,0.8)] font-bold">
-                      O que você 
-                      <span className="italic text-emerald-400 font-black glow-text-green-mega"> vê</span>...
-                    </span>
-                    <span className="block text-5xl sm:text-7xl md:text-9xl lg:text-[11rem] xl:text-[14rem] font-black glow-text-green-mega transform hover:scale-110 transition-all duration-500">
-                      te liberta.
-                    </span>
-                  </h2>
-                </div>
-              </ScrollReveal>
+                <ScrollReveal id="hero-title" direction="up" delay={400}>
+                  <div className="mb-8 sm:mb-12">
+                    {/* TEXTO SUPER VISÍVEL COM FUNDO ESCURO */}
+                    <div className="bg-black/95 rounded-3xl p-8 border-4 border-white/30 backdrop-blur-sm">
+                      <h1 className="text-4xl sm:text-6xl md:text-8xl lg:text-9xl xl:text-[8rem] font-black mb-6 leading-[0.9] tracking-tight">
+                        <div className="mb-4">
+                          <span className="block text-white font-black text-stroke-white">
+                            O que você
+                          </span>
+                          <span 
+                            className="block font-black text-stroke-cyan"
+                            style={{
+                              color: '#00FFFF',
+                              WebkitTextStroke: '3px #000000',
+                              textShadow: `
+                                0 0 20px #00FFFF,
+                                0 0 40px #00FFFF,
+                                0 0 60px #00FFFF,
+                                0 0 80px #00FFFF,
+                                3px 3px 0px #000000,
+                                -3px -3px 0px #000000,
+                                3px -3px 0px #000000,
+                                -3px 3px 0px #000000
+                              `
+                            }}
+                          >
+                            NÃO VÊ...
+                          </span>
+                        </div>
+                        <div 
+                          className="block font-black text-stroke-red mb-8"
+                          style={{
+                            color: '#FF0040',
+                            WebkitTextStroke: '4px #000000',
+                            textShadow: `
+                              0 0 30px #FF0040,
+                              0 0 60px #FF0040,
+                              0 0 90px #FF0040,
+                              0 0 120px #FF0040,
+                              4px 4px 0px #000000,
+                              -4px -4px 0px #000000,
+                              4px -4px 0px #000000,
+                              -4px 4px 0px #000000
+                            `
+                          }}
+                        >
+                          TE CONTROLA.
+                        </div>
+                      </h1>
+                      
+                      <h2 className="text-3xl sm:text-5xl md:text-7xl lg:text-8xl xl:text-[7rem] font-black leading-[0.9] tracking-tight">
+                        <div className="mb-4">
+                          <span className="block text-white font-black text-stroke-white">
+                            O que você
+                          </span>
+                          <span 
+                            className="block font-black text-stroke-green"
+                            style={{
+                              color: '#00FF40',
+                              WebkitTextStroke: '3px #000000',
+                              textShadow: `
+                                0 0 20px #00FF40,
+                                0 0 40px #00FF40,
+                                0 0 60px #00FF40,
+                                0 0 80px #00FF40,
+                                3px 3px 0px #000000,
+                                -3px -3px 0px #000000,
+                                3px -3px 0px #000000,
+                                -3px 3px 0px #000000
+                              `
+                            }}
+                          >
+                            VÊ...
+                          </span>
+                        </div>
+                        <div 
+                          className="block font-black text-stroke-lime"
+                          style={{
+                            color: '#00FF80',
+                            WebkitTextStroke: '4px #000000',
+                            textShadow: `
+                              0 0 30px #00FF80,
+                              0 0 60px #00FF80,
+                              0 0 90px #00FF80,
+                              0 0 120px #00FF80,
+                              4px 4px 0px #000000,
+                              -4px -4px 0px #000000,
+                              4px -4px 0px #000000,
+                              -4px 4px 0px #000000
+                            `
+                          }}
+                        >
+                          TE LIBERTA.
+                        </div>
+                      </h2>
+                    </div>
+                  </div>
+                </ScrollReveal>
 
-              <ScrollReveal id="hero-subtitle" direction="up" delay={600}>
-                <div className="mb-8 sm:mb-12 space-y-3 sm:space-y-4">
-                  <p className="text-xl sm:text-2xl md:text-4xl lg:text-5xl font-light text-white leading-tight">
-                    Ative seu <span className="text-purple-400 font-medium glow-text">segundo cérebro</span>.
-                  </p>
-                  <p className="text-lg sm:text-xl md:text-3xl lg:text-4xl text-blue-300 font-light leading-relaxed">
-                    Veja padrões, emoções, forças e sombras que você nunca percebeu.
-                  </p>
-                  <p className="text-base sm:text-lg md:text-2xl lg:text-3xl text-gray-300 max-w-5xl mx-auto font-light leading-relaxed">
-                    Acesse agora o <span className="text-cyan-400 glow-text">Observatório</span> da sua própria mente.
-                  </p>
-                </div>
-              </ScrollReveal>
+                <ScrollReveal id="hero-subtitle" direction="up" delay={600}>
+                  <div className="mb-8 sm:mb-12 space-y-4 bg-black/90 rounded-2xl p-6 border-2 border-white/20">
+                    <p className="text-xl sm:text-2xl md:text-3xl font-bold text-white">
+                      Ative seu <span className="text-purple-400 font-black">segundo cérebro</span>.
+                    </p>
+                    <p className="text-lg sm:text-xl md:text-2xl text-blue-300 font-bold">
+                      Veja padrões, emoções, forças e sombras que você nunca percebeu.
+                    </p>
+                    <p className="text-base sm:text-lg md:text-xl text-gray-200 max-w-4xl mx-auto font-bold">
+                      Acesse agora o <span className="text-cyan-400 font-black">Observatório</span> da sua própria mente.
+                    </p>
+                  </div>
+                </ScrollReveal>
 
-              <ScrollReveal id="hero-buttons" direction="up" delay={800}>
-                <div className="flex flex-col gap-4 sm:gap-6 justify-center items-center mb-8 sm:mb-12">
-                  <Button 
-                    onClick={handleActivateYumerMind}
-                    onMouseEnter={() => {
-                      if (soundEnabled && soundEffectsRef.current.hover) {
-                        soundEffectsRef.current.hover();
-                      }
-                    }}
-                    className="relative overflow-hidden w-full sm:w-auto bg-gradient-to-r from-purple-600 via-blue-600 to-cyan-600 hover:from-purple-500 hover:via-blue-500 hover:to-cyan-500 text-white px-8 sm:px-16 md:px-20 py-6 sm:py-8 md:py-10 text-xl sm:text-2xl md:text-3xl lg:text-4xl font-black rounded-3xl sm:rounded-4xl shadow-2xl shadow-purple-500/50 border-3 border-purple-400/50 backdrop-blur-sm glow-button-apocalypse group transform hover:scale-110 transition-all duration-700 max-w-4xl before:absolute before:inset-0 before:bg-gradient-to-r before:from-transparent before:via-white/20 before:to-transparent before:translate-x-[-100%] hover:before:translate-x-[100%] before:transition-transform before:duration-1000"
-                  >
-                    <Brain className="w-8 h-8 sm:w-10 h-10 md:w-12 md:h-12 mr-4 sm:mr-6 group-hover:rotate-12 transition-transform duration-500 drop-shadow-lg" />
-                    <div className="text-center leading-tight relative z-10">
-                      <div className="font-black tracking-wide drop-shadow-lg">
+                <ScrollReveal id="hero-buttons" direction="up" delay={800}>
+                  <div className="flex flex-col gap-6 justify-center items-center">
+                    <Button 
+                      onClick={handleActivateYumerMind}
+                      className="relative overflow-hidden w-full sm:w-auto bg-gradient-to-r from-purple-600 via-blue-600 to-cyan-600 hover:from-purple-500 hover:via-blue-500 hover:to-cyan-500 text-white px-12 py-8 text-2xl font-black rounded-2xl shadow-2xl border-4 border-white/50 backdrop-blur-sm group transform hover:scale-105 transition-all duration-500 max-w-4xl"
+                      style={{
+                        boxShadow: `
+                          0 0 40px rgba(147, 51, 234, 0.8),
+                          0 0 80px rgba(79, 70, 229, 0.6),
+                          0 0 120px rgba(147, 51, 234, 0.4)
+                        `
+                      }}
+                    >
+                      <Brain className="w-10 h-10 mr-4 group-hover:rotate-12 transition-transform duration-500" />
+                      <span className="font-black tracking-wide">
                         {isAuthenticated ? 'ACESSAR MEU YUMERMIND' : 'ATIVAR MEU YUMERMIND — 7 DIAS GRÁTIS'}
+                      </span>
+                      <Sparkles className="w-10 h-10 ml-4 group-hover:scale-110 transition-transform duration-500" />
+                    </Button>
+                    
+                    {!isAuthenticated && (
+                      <div className="text-center text-lg text-white font-bold max-w-3xl bg-black/90 rounded-xl px-6 py-4 border-2 border-green-400/50">
+                        Depois, apenas <span className="text-green-400 font-black text-xl">R$ 47/mês</span>. Sem contrato. Sem enrolação. Cancele quando quiser.
                       </div>
-                    </div>
-                    <Sparkles className="w-8 h-8 sm:w-10 h-10 md:w-12 md:h-12 ml-4 sm:ml-6 group-hover:scale-110 transition-transform duration-500 drop-shadow-lg" />
-                  </Button>
-                  
-                  {!isAuthenticated && (
-                    <div className="text-center text-sm sm:text-base md:text-lg lg:text-xl text-gray-300 font-light max-w-3xl leading-relaxed bg-black/30 backdrop-blur-sm rounded-2xl px-6 py-4 border border-gray-600/20">
-                      Depois, apenas <span className="text-green-400 font-medium glow-text">R$ 47/mês</span>. Sem contrato. Sem enrolação. Cancele quando quiser.
-                    </div>
-                  )}
-                </div>
-              </ScrollReveal>
+                    )}
+                  </div>
+                </ScrollReveal>
+              </div>
             </div>
           </section>
 
