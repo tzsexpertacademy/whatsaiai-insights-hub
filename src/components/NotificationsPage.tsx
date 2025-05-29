@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
-import { Bell, BellOff, Plus, Trash2, Edit, Clock, Info, Settings, AlertCircle, CheckCircle, TestTube } from 'lucide-react';
+import { Bell, BellOff, Plus, Trash2, Clock, Info, Settings, AlertCircle, CheckCircle, TestTube, RefreshCw, HelpCircle } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 export function NotificationsPage() {
@@ -22,7 +22,8 @@ export function NotificationsPage() {
     updateNotification, 
     deleteNotification, 
     toggleNotification,
-    testNotification
+    testNotification,
+    checkPermissionStatus
   } = useNotifications();
 
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -35,27 +36,21 @@ export function NotificationsPage() {
   });
 
   const handleRequestPermission = async () => {
+    console.log('🔄 Usuário clicou em solicitar permissão');
     const granted = await requestPermission();
-    if (granted) {
-      toast({
-        title: "Permissão concedida!",
-        description: "Agora você receberá notificações do sistema.",
-      });
-    } else {
-      toast({
-        title: "Permissão negada",
-        description: "Você pode habilitar notificações nas configurações do navegador.",
-        variant: "destructive"
-      });
+    if (!granted && permission !== 'granted') {
+      console.log('⚠️ Permissão não foi concedida, mostrando instruções');
     }
   };
 
   const handleTestNotification = () => {
+    console.log('🧪 Usuário clicou em testar notificação');
     testNotification();
-    toast({
-      title: "Teste enviado!",
-      description: "Verifique se a notificação apareceu.",
-    });
+  };
+
+  const handleCheckPermission = () => {
+    console.log('🔍 Usuário clicou em verificar permissão');
+    checkPermissionStatus();
   };
 
   const handleAddNotification = () => {
@@ -182,6 +177,80 @@ export function NotificationsPage() {
     </Card>
   );
 
+  const renderTroubleshootingSection = () => (
+    <Card className="bg-amber-50 border-amber-200">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-sm flex items-center gap-2 text-amber-800">
+          <HelpCircle className="w-4 h-4" />
+          Problemas com notificações?
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4 text-sm text-amber-700">
+        <div className="space-y-3">
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Button 
+              size="sm" 
+              variant="outline" 
+              onClick={handleCheckPermission}
+              className="flex items-center gap-1 bg-white"
+            >
+              <RefreshCw className="w-3 h-3" />
+              Verificar Status
+            </Button>
+            <Button 
+              size="sm" 
+              variant="outline"
+              onClick={handleTestNotification}
+              className="flex items-center gap-1 bg-white"
+            >
+              <TestTube className="w-3 h-3" />
+              Testar Agora
+            </Button>
+            <Button 
+              size="sm" 
+              variant="outline"
+              onClick={handleRequestPermission}
+              className="flex items-center gap-1 bg-white"
+            >
+              <Bell className="w-3 h-3" />
+              Solicitar Permissão
+            </Button>
+          </div>
+          
+          <div className="bg-white p-3 rounded border border-amber-200">
+            <p className="font-medium mb-2">📱 Para Safari no iPhone/iPad:</p>
+            <ol className="list-decimal list-inside space-y-1 text-xs">
+              <li><strong>Configurações do iPhone</strong> → <strong>Safari</strong></li>
+              <li><strong>Notificações</strong> → Encontre este site</li>
+              <li>Ative <strong>"Permitir Notificações"</strong></li>
+              <li>Volte aqui e teste novamente</li>
+            </ol>
+          </div>
+          
+          <div className="bg-white p-3 rounded border border-amber-200">
+            <p className="font-medium mb-2">🖥️ Para Safari no Mac:</p>
+            <ol className="list-decimal list-inside space-y-1 text-xs">
+              <li><strong>Safari</strong> → <strong>Preferências</strong></li>
+              <li>Aba <strong>"Sites"</strong> → <strong>"Notificações"</strong></li>
+              <li>Encontre este site → <strong>"Permitir"</strong></li>
+              <li>Recarregue a página e teste</li>
+            </ol>
+          </div>
+          
+          <div className="bg-white p-3 rounded border border-amber-200">
+            <p className="font-medium mb-2">🌐 Para Chrome/Edge:</p>
+            <ol className="list-decimal list-inside space-y-1 text-xs">
+              <li>Clique no <strong>ícone do cadeado</strong> na barra de endereço</li>
+              <li>Procure "Notificações" → <strong>"Permitir"</strong></li>
+              <li>Ou vá em <strong>Configurações</strong> → <strong>Privacidade</strong> → <strong>Configurações do site</strong></li>
+              <li>Recarregue e teste novamente</li>
+            </ol>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+
   return (
     <div className="min-h-screen bg-gray-50 p-4 sm:p-6">
       <div className="max-w-4xl mx-auto space-y-6">
@@ -262,17 +331,15 @@ export function NotificationsPage() {
               </div>
               <div className="flex items-center gap-2">
                 {getPermissionBadge()}
-                {permission === 'granted' && (
-                  <Button 
-                    size="sm" 
-                    variant="outline"
-                    onClick={handleTestNotification}
-                    className="flex items-center gap-1"
-                  >
-                    <TestTube className="w-3 h-3" />
-                    Testar
-                  </Button>
-                )}
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  onClick={handleTestNotification}
+                  className="flex items-center gap-1"
+                >
+                  <TestTube className="w-3 h-3" />
+                  Testar
+                </Button>
               </div>
             </div>
           </CardHeader>
@@ -300,62 +367,11 @@ export function NotificationsPage() {
                     <div className="space-y-3">
                       <p className="font-medium">Notificações bloqueadas pelo navegador</p>
                       <p className="text-sm">
-                        Suas notificações foram bloqueadas. Para receber lembretes, você precisa habilitar as notificações manualmente.
+                        As notificações foram bloqueadas. Siga as instruções abaixo para habilitar.
                       </p>
-                      <div className="flex flex-col sm:flex-row gap-2">
-                        <Button size="sm" onClick={handleRequestPermission} variant="outline" className="w-full sm:w-auto">
-                          <Bell className="w-4 h-4 mr-2" />
-                          Tentar Novamente
-                        </Button>
-                        <Button size="sm" onClick={handleTestNotification} variant="outline" className="w-full sm:w-auto">
-                          <TestTube className="w-4 h-4 mr-2" />
-                          Testar Notificação
-                        </Button>
-                      </div>
                     </div>
                   </AlertDescription>
                 </Alert>
-
-                {/* Instruções específicas por navegador */}
-                {getBrowserName() === 'Safari' ? renderSafariInstructions() : (
-                  <Card className="bg-blue-50 border-blue-200">
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-sm flex items-center gap-2 text-blue-800">
-                        <Settings className="w-4 h-4" />
-                        Como habilitar notificações no {getBrowserName()}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3 text-sm text-blue-700">
-                      <div className="space-y-2">
-                        <p className="font-medium">Método 1 - Pelo ícone do cadeado:</p>
-                        <ol className="list-decimal list-inside space-y-1 ml-4">
-                          <li>Clique no ícone do <strong>cadeado</strong> na barra de endereços</li>
-                          <li>Procure por "Notificações" e mude para <strong>"Permitir"</strong></li>
-                          <li>Recarregue a página</li>
-                        </ol>
-                      </div>
-                      
-                      <Separator className="bg-blue-200" />
-                      
-                      <div className="space-y-2">
-                        <p className="font-medium">Método 2 - Pelas configurações do navegador:</p>
-                        <ol className="list-decimal list-inside space-y-1 ml-4">
-                          <li>Abra as <strong>Configurações</strong> do {getBrowserName()}</li>
-                          <li>Vá em <strong>"Privacidade e segurança"</strong></li>
-                          <li>Clique em <strong>"Configurações do site"</strong></li>
-                          <li>Procure por <strong>"Notificações"</strong></li>
-                          <li>Encontre este site e mude para <strong>"Permitir"</strong></li>
-                        </ol>
-                      </div>
-
-                      <div className="bg-white p-3 rounded border border-blue-200 mt-3">
-                        <p className="text-xs text-blue-600">
-                          💡 <strong>Dica:</strong> Após habilitar as notificações, clique no botão "Tentar Novamente" acima para ativar os lembretes.
-                        </p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
               </div>
             )}
             
@@ -364,23 +380,15 @@ export function NotificationsPage() {
                 <CheckCircle className="h-4 w-4" />
                 <AlertDescription className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <span>✅ Notificações ativadas! Você receberá lembretes conforme configurado.</span>
-                  <div className="flex items-center gap-2">
-                    <Badge className="bg-green-100 text-green-800 w-fit">
-                      Sistema Funcionando
-                    </Badge>
-                    <Button 
-                      size="sm" 
-                      variant="outline"
-                      onClick={handleTestNotification}
-                      className="flex items-center gap-1"
-                    >
-                      <TestTube className="w-3 h-3" />
-                      Testar
-                    </Button>
-                  </div>
+                  <Badge className="bg-green-100 text-green-800 w-fit">
+                    Sistema Funcionando
+                  </Badge>
                 </AlertDescription>
               </Alert>
             )}
+
+            {/* Seção de troubleshooting sempre visível */}
+            {renderTroubleshootingSection()}
           </CardContent>
         </Card>
 

@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from '@/hooks/use-toast';
 
@@ -85,44 +84,106 @@ export function useNotifications() {
     setNotifications(newNotifications);
   }, []);
 
-  // Solicitar permissão para notificações
+  // Solicitar permissão para notificações com fallback aprimorado
   const requestPermission = useCallback(async () => {
     console.log('🔔 Solicitando permissão para notificações...');
     
     if (!('Notification' in window)) {
       console.warn('⚠️ Este navegador não suporta notificações');
+      toast({
+        title: "Navegador não suportado",
+        description: "Seu navegador não suporta notificações push. Tente usar Chrome, Firefox ou Safari atualizado.",
+        variant: "destructive"
+      });
       return false;
     }
 
     try {
+      // Primeiro, verificar se já temos permissão
+      if (Notification.permission === 'granted') {
+        console.log('✅ Permissão já concedida');
+        setPermission('granted');
+        return true;
+      }
+
+      // Se for 'denied', informar que precisa ser feito manualmente
+      if (Notification.permission === 'denied') {
+        console.log('❌ Permissão negada - precisa habilitar manualmente');
+        setPermission('denied');
+        toast({
+          title: "Permissão bloqueada",
+          description: "As notificações foram bloqueadas. Você precisa habilitá-las manualmente nas configurações do navegador.",
+          variant: "destructive",
+          duration: 10000
+        });
+        return false;
+      }
+
+      // Solicitar permissão
+      console.log('🙋 Solicitando permissão...');
       const result = await Notification.requestPermission();
-      console.log('✅ Resultado da permissão:', result);
+      console.log('📝 Resultado da solicitação:', result);
       setPermission(result);
       
       if (result === 'granted') {
-        // Testar notificação imediatamente no Safari
-        console.log('🧪 Testando notificação...');
-        const testNotification = new Notification('Notificações Ativadas! 🎉', {
-          body: 'Agora você receberá lembretes personalizados',
-          icon: '/favicon.ico',
-          badge: '/favicon.ico',
-          tag: 'permission-granted-test',
-          requireInteraction: false
+        console.log('🎉 Permissão concedida! Testando notificação...');
+        
+        // Testar notificação imediatamente
+        try {
+          const testNotification = new Notification('🎉 Notificações Ativadas!', {
+            body: 'Agora você receberá lembretes personalizados. Clique aqui para ir ao chat.',
+            icon: '/favicon.ico',
+            badge: '/favicon.ico',
+            tag: 'permission-granted-test',
+            requireInteraction: false,
+            silent: false
+          });
+          
+          testNotification.onclick = () => {
+            console.log('🖱️ Clique na notificação de teste - redirecionando');
+            window.focus();
+            window.location.href = '/dashboard/chat';
+            testNotification.close();
+          };
+          
+          // Auto-fechar após 5 segundos
+          setTimeout(() => {
+            testNotification.close();
+          }, 5000);
+          
+          toast({
+            title: "Notificações ativadas!",
+            description: "Você deveria ter visto uma notificação de teste agora.",
+            duration: 5000
+          });
+          
+        } catch (notificationError) {
+          console.error('❌ Erro ao criar notificação de teste:', notificationError);
+          toast({
+            title: "Permissão concedida",
+            description: "Permissão concedida, mas houve um problema ao testar. Tente o botão 'Testar' na página.",
+            variant: "destructive"
+          });
+        }
+        
+        return true;
+      } else {
+        console.log('❌ Permissão negada pelo usuário');
+        toast({
+          title: "Permissão negada",
+          description: "Você negou a permissão. Para ativar, siga as instruções abaixo para habilitar manualmente.",
+          variant: "destructive",
+          duration: 8000
         });
-        
-        testNotification.onclick = () => {
-          console.log('🖱️ Clique na notificação de teste');
-          window.focus();
-          testNotification.close();
-        };
-        
-        // Auto-fechar após 4 segundos
-        setTimeout(() => testNotification.close(), 4000);
+        return false;
       }
-      
-      return result === 'granted';
     } catch (error) {
       console.error('❌ Erro ao solicitar permissão:', error);
+      toast({
+        title: "Erro ao solicitar permissão",
+        description: "Houve um problema ao solicitar permissão. Tente habilitar manualmente nas configurações.",
+        variant: "destructive"
+      });
       return false;
     }
   }, []);
@@ -138,48 +199,16 @@ export function useNotifications() {
     }
   }, []);
 
-  // Função para mostrar notificação com redirecionamento
+  // Função melhorada para mostrar notificação
   const showNotification = useCallback((notification: NotificationConfig) => {
-    console.log('🔔 Mostrando notificação:', notification);
+    console.log('🔔 Tentando mostrar notificação:', notification);
     
-    if (permission === 'granted' && 'Notification' in window) {
-      try {
-        const browserNotification = new Notification(notification.title, {
-          body: notification.message,
-          icon: '/favicon.ico',
-          badge: '/favicon.ico',
-          tag: notification.id,
-          requireInteraction: false,
-          silent: false
-        });
-
-        console.log('✅ Notificação do navegador criada');
-
-        // Adicionar handler de clique para redirecionar ao chat
-        browserNotification.onclick = () => {
-          console.log('🖱️ Clique na notificação - redirecionando para chat');
-          window.focus();
-          window.location.href = '/dashboard/chat';
-          browserNotification.close();
-        };
-
-        // Auto-fechar após 8 segundos no Safari para evitar acúmulo
-        setTimeout(() => {
-          browserNotification.close();
-        }, 8000);
-      } catch (error) {
-        console.error('❌ Erro ao criar notificação do navegador:', error);
-      }
-    } else {
-      console.log('⚠️ Notificação do navegador não disponível. Permissão:', permission);
-    }
-    
-    // Toast com ação para ir ao chat (sempre mostrar)
-    console.log('🍞 Mostrando toast');
+    // Sempre mostrar toast primeiro
+    console.log('🍞 Mostrando toast de notificação');
     toast({
       title: notification.title,
       description: notification.message,
-      duration: 8000,
+      duration: 12000,
       action: {
         altText: "Ir para o Chat",
         onClick: () => {
@@ -188,6 +217,51 @@ export function useNotifications() {
         }
       }
     });
+    
+    // Tentar notificação do navegador se tivermos permissão
+    if (permission === 'granted' && 'Notification' in window) {
+      try {
+        console.log('📱 Criando notificação do navegador');
+        const browserNotification = new Notification(notification.title, {
+          body: notification.message,
+          icon: '/favicon.ico',
+          badge: '/favicon.ico',
+          tag: notification.id,
+          requireInteraction: false,
+          silent: false,
+          timestamp: Date.now()
+        });
+
+        console.log('✅ Notificação do navegador criada com sucesso');
+
+        // Handler de clique
+        browserNotification.onclick = () => {
+          console.log('🖱️ Clique na notificação do navegador - redirecionando');
+          window.focus();
+          window.location.href = '/dashboard/chat';
+          browserNotification.close();
+        };
+
+        // Auto-fechar após 10 segundos
+        setTimeout(() => {
+          console.log('⏰ Auto-fechando notificação após timeout');
+          browserNotification.close();
+        }, 10000);
+        
+      } catch (error) {
+        console.error('❌ Erro ao criar notificação do navegador:', error);
+        toast({
+          title: "Erro na notificação",
+          description: "Não foi possível mostrar a notificação do navegador, mas o toast foi exibido.",
+          variant: "destructive"
+        });
+      }
+    } else {
+      console.log(`⚠️ Notificação do navegador não disponível. Permissão: ${permission}`);
+      if (permission !== 'granted') {
+        console.log('ℹ️ Apenas toast será exibido pois não há permissão para notificações do navegador');
+      }
+    }
   }, [permission]);
 
   // Verificar e disparar notificações
@@ -255,20 +329,47 @@ export function useNotifications() {
     updateNotification(id, { enabled: newState });
   }, [notifications, updateNotification]);
 
-  // Função para testar notificação imediatamente
+  // Função para testar notificação com mais logs
   const testNotification = useCallback(() => {
-    console.log('🧪 Testando notificação manualmente');
+    console.log('🧪 === INICIANDO TESTE DE NOTIFICAÇÃO ===');
+    console.log('🔍 Estado atual:', {
+      permission,
+      notificationSupported: 'Notification' in window,
+      currentTime: new Date().toLocaleTimeString()
+    });
+    
     const testConfig: NotificationConfig = {
-      id: 'test-notification',
+      id: 'test-notification-' + Date.now(),
       title: '🧪 Teste de Notificação',
-      message: 'Esta é uma notificação de teste para verificar se está funcionando!',
+      message: 'Se você está vendo isso, as notificações estão funcionando! Clique para ir ao chat.',
       time: '00:00',
       enabled: true,
       type: 'custom',
       createdAt: new Date()
     };
+    
+    console.log('📝 Configuração de teste:', testConfig);
     showNotification(testConfig);
-  }, [showNotification]);
+    console.log('🧪 === TESTE DE NOTIFICAÇÃO FINALIZADO ===');
+  }, [showNotification, permission]);
+
+  // Função para forçar verificação de permissão
+  const checkPermissionStatus = useCallback(() => {
+    if ('Notification' in window) {
+      const currentPermission = Notification.permission;
+      console.log('🔍 Verificação manual de permissão:', currentPermission);
+      setPermission(currentPermission);
+      
+      toast({
+        title: "Status da permissão",
+        description: `Permissão atual: ${currentPermission === 'granted' ? 'Concedida' : currentPermission === 'denied' ? 'Negada' : 'Aguardando'}`,
+        duration: 3000
+      });
+      
+      return currentPermission;
+    }
+    return 'default';
+  }, []);
 
   return {
     notifications,
@@ -279,6 +380,7 @@ export function useNotifications() {
     deleteNotification,
     toggleNotification,
     showNotification,
-    testNotification
+    testNotification,
+    checkPermissionStatus
   };
 }
