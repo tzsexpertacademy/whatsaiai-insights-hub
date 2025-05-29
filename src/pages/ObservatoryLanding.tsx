@@ -483,7 +483,7 @@ export function ObservatoryLanding() {
   ];
 
   return (
-    <div className="min-h-screen bg-black text-white relative w-full overflow-x-hidden">
+    <div className="min-h-screen bg-black text-white relative w-full">
       <CursorEffect />
       
       {/* Canvas neural épico em toda a página */}
@@ -535,7 +535,7 @@ export function ObservatoryLanding() {
                     <div className="absolute inset-0 bg-gradient-to-r from-purple-500/30 via-blue-500/30 to-cyan-500/30 opacity-0 group-hover:opacity-100 transition-opacity duration-500 animate-pulse"></div>
                     <CircuitBoard className="w-6 h-6 sm:w-4 sm:h-4 md:w-5 md:h-5 mr-3 sm:mr-2 relative z-10 group-hover:rotate-12 transition-transform duration-500" />
                     <span className="relative z-10 bg-gradient-to-r from-purple-200 via-blue-200 to-cyan-200 bg-clip-text text-transparent font-black glow-text-neural">
-                      YumerMind - O segundo cérebro do ser humano
+                      YumerMind
                     </span>
                   </Badge>
                 </ScrollReveal>
@@ -646,11 +646,11 @@ export function ObservatoryLanding() {
                   <div className="flex flex-col gap-6 sm:gap-6 justify-center items-center px-4">
                     <Button 
                       onClick={handleActivateYumerMind}
-                      className="relative overflow-hidden w-full sm:w-auto bg-gradient-to-r from-purple-600 via-blue-600 to-cyan-600 hover:from-purple-500 hover:via-blue-500 hover:to-cyan-500 text-white px-4 sm:px-6 md:px-8 py-4 sm:py-5 md:py-6 text-sm sm:text-base md:text-lg lg:text-xl font-black rounded-2xl shadow-2xl border-4 border-white/50 backdrop-blur-sm group transform hover:scale-105 transition-all duration-500 max-w-3xl glow-button"
+                      className="relative overflow-hidden w-full sm:w-auto bg-gradient-to-r from-purple-600 via-blue-600 to-cyan-600 hover:from-purple-500 hover:via-blue-500 hover:to-cyan-500 text-white px-6 sm:px-8 md:px-10 lg:px-12 py-4 sm:py-5 md:py-6 text-xs sm:text-sm md:text-base lg:text-lg font-black rounded-2xl shadow-2xl border-4 border-white/50 backdrop-blur-sm group transform hover:scale-105 transition-all duration-500 max-w-4xl glow-button"
                     >
                       <Brain className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 mr-2 sm:mr-3 group-hover:rotate-12 transition-transform duration-500" />
                       <span className="font-black tracking-wide text-center leading-tight">
-                        {isAuthenticated ? 'ACESSAR MEU YUMERMIND' : 'ATIVAR MEU YUMERMIND — 7 DIAS GRÁTIS'}
+                        {isAuthenticated ? 'ACESSAR MEU YUMERMIND' : 'ACESSAR MEU YUMERMIND — 7 DIAS GRÁTIS'}
                       </span>
                       <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 ml-2 sm:ml-3 group-hover:scale-110 transition-transform duration-500" />
                     </Button>
@@ -820,15 +820,20 @@ export function ObservatoryLanding() {
                           soundEffectsRef.current.hover();
                         }
                       }}
-                      className="relative overflow-hidden w-full sm:w-auto bg-gradient-to-r from-purple-600 via-blue-600 to-cyan-600 hover:from-purple-500 hover:via-blue-500 hover:to-cyan-500 text-white px-4 sm:px-6 md:px-8 lg:px-12 py-4 sm:py-5 md:py-6 lg:py-8 text-sm sm:text-base md:text-lg lg:text-xl xl:text-2xl font-black rounded-3xl shadow-2xl shadow-purple-500/60 border-4 border-purple-400/50 backdrop-blur-sm glow-button-apocalypse group transform hover:scale-110 transition-all duration-700 max-w-4xl before:absolute before:inset-0 before:bg-gradient-to-r before:from-transparent before:via-white/30 before:to-transparent before:translate-x-[-100%] hover:before:translate-x-[100%] before:transition-transform before:duration-1000"
+                      className="relative overflow-hidden w-full sm:w-auto bg-gradient-to-r from-purple-600 via-blue-600 to-cyan-600 hover:from-purple-500 hover:via-blue-500 hover:to-cyan-500 text-white px-6 sm:px-8 md:px-10 lg:px-12 xl:px-16 py-6 sm:py-6 md:py-7 lg:py-8 text-xs sm:text-sm md:text-base lg:text-lg xl:text-xl font-black rounded-3xl shadow-2xl shadow-purple-500/60 border-4 border-purple-400/50 backdrop-blur-sm glow-button-apocalypse group transform hover:scale-110 transition-all duration-700 max-w-5xl before:absolute before:inset-0 before:bg-gradient-to-r before:from-transparent before:via-white/30 before:to-transparent before:translate-x-[-100%] hover:before:translate-x-[100%] before:transition-transform before:duration-1000"
                     >
-                      <Brain className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 lg:w-8 lg:h-8 mr-2 sm:mr-3 md:mr-4 lg:mr-5 group-hover:rotate-12 transition-transform duration-500 drop-shadow-lg" />
-                      <div className="text-center leading-tight relative z-10">
+                      <Brain className="w-5 h-5 sm:w-5 sm:h-5 md:w-6 md:h-6 lg:w-7 lg:h-7 xl:w-8 xl:h-8 mr-3 sm:mr-3 md:mr-4 lg:mr-5 group-hover:rotate-12 transition-transform duration-500 drop-shadow-lg" />
+                      <div className="text-center leading-tight relative z-10 flex flex-col sm:flex-row items-center">
                         <div className="font-black tracking-wide drop-shadow-lg">
-                          {isAuthenticated ? 'ACESSAR MEU YUMERMIND AGORA' : 'ACESSAR MEU YUMERMIND — 7 DIAS GRÁTIS'}
+                          {isAuthenticated ? 'ACESSAR MEU YUMERMIND AGORA' : 'ACESSAR MEU YUMERMIND'}
                         </div>
+                        {!isAuthenticated && (
+                          <div className="font-black tracking-wide drop-shadow-lg sm:ml-2">
+                            — 7 DIAS GRÁTIS
+                          </div>
+                        )}
                       </div>
-                      <Network className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 lg:w-8 lg:h-8 ml-2 sm:ml-3 md:ml-4 lg:ml-5 group-hover:scale-110 transition-transform duration-500 drop-shadow-lg" />
+                      <Network className="w-5 h-5 sm:w-5 sm:h-5 md:w-6 md:h-6 lg:w-7 lg:h-7 xl:w-8 xl:h-8 ml-3 sm:ml-3 md:ml-4 lg:ml-5 group-hover:scale-110 transition-transform duration-500 drop-shadow-lg" />
                     </Button>
                     
                     {!isAuthenticated && (
