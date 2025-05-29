@@ -25,7 +25,8 @@ import {
   FileText,
   Calculator,
   MessageSquare,
-  Zap
+  Zap,
+  Settings2
 } from 'lucide-react';
 
 interface Message {
@@ -138,29 +139,31 @@ export function DocumentAIAnalysis({ selectedDocument }: DocumentAIAnalysisProps
 
 CONTEXTO DE ANÁLISE DE DOCUMENTO:
 - Você é o assistente "${assistant.name}" especializado em "${assistant.area}"
-- Sua função é analisar documentos e fornecer insights na sua área de especialização
+- Sua função é analisar o CONTEÚDO do documento e fornecer insights práticos na sua área de especialização
 - Tipo de análise solicitado: ${analysisConfig.label}
+- IMPORTANTE: Analise o CONTEÚDO e SIGNIFICADO do documento, não suas características técnicas
 
 DIRETRIZES DE ANÁLISE:
-- Micro (50-100 tokens): Resumo ultra conciso e direto
-- Simples (100-250 tokens): Resumo básico com pontos principais  
-- Completa (250-500 tokens): Análise equilibrada com insights práticos
-- Detalhada (500-800 tokens): Análise profunda e completa com recomendações
+- Micro (50-100 tokens): Resumo ultra conciso e direto do conteúdo
+- Simples (100-250 tokens): Resumo básico com pontos principais do conteúdo
+- Completa (250-500 tokens): Análise equilibrada do conteúdo com insights práticos
+- Detalhada (500-800 tokens): Análise profunda e completa do conteúdo com recomendações
 
 INSTRUÇÕES ESPECÍFICAS:
-- Analise o documento do ponto de vista da sua especialização
-- Identifique os pontos mais relevantes para sua área
-- Forneça insights práticos e acionáveis
+- Analise o CONTEÚDO do documento do ponto de vista da sua especialização
+- Identifique os pontos mais relevantes do conteúdo para sua área
+- Forneça insights práticos e acionáveis baseados no conteúdo
 - Mantenha o limite de tokens para o tipo de análise selecionado
 - Responda sempre em português brasileiro
 - Seja objetivo e construtivo
+- Foque no SIGNIFICADO e CONTEÚDO, não na estrutura técnica do arquivo
 
 DOCUMENTO PARA ANÁLISE:
 Arquivo: ${selectedDocument.metadata.fileName}
 Tipo: ${selectedDocument.metadata.fileType}
 Tamanho: ${selectedDocument.metadata.fileSize} bytes
 
-Conteúdo:
+Conteúdo a ser analisado:
 ${selectedDocument.text}`;
 
       console.log('🚀 Enviando requisição para OpenAI...');
@@ -175,7 +178,7 @@ ${selectedDocument.text}`;
           model: config.openai?.model || 'gpt-4o-mini',
           messages: [
             { role: 'system', content: systemPrompt },
-            { role: 'user', content: 'Analise este documento conforme as instruções.' }
+            { role: 'user', content: 'Analise o conteúdo deste documento conforme as instruções. Foque no significado e valor do conteúdo, não nas características técnicas do arquivo.' }
           ],
           temperature: 0.7,
           max_tokens: analysisConfig.maxTokens,
@@ -323,12 +326,13 @@ INSTRUÇÕES:
     }
   };
 
+  // Se não há documento selecionado, mostrar mensagem
   if (!selectedDocument) {
     return (
       <Card>
         <CardContent className="p-8 text-center">
           <FileText className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-          <p className="text-gray-500">Selecione um documento para iniciar a análise</p>
+          <p className="text-gray-500">Selecione um documento na aba "Arquivos" para iniciar a análise</p>
         </CardContent>
       </Card>
     );
@@ -339,6 +343,30 @@ INSTRUÇÕES:
 
   return (
     <div className="space-y-6">
+      {/* Informações do Documento Selecionado */}
+      <Card className="border-blue-200 bg-blue-50">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-blue-800">
+            <FileText className="h-5 w-5" />
+            Documento Selecionado
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+              <FileText className="w-5 h-5 text-blue-600" />
+            </div>
+            <div>
+              <h3 className="font-medium text-blue-900">{selectedDocument.metadata.fileName}</h3>
+              <p className="text-sm text-blue-600">
+                {(selectedDocument.metadata.fileSize / 1024).toFixed(1)} KB • 
+                {estimatedTokens.toLocaleString()} tokens estimados
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Seletor de Assistente */}
       <Card>
         <CardHeader>
@@ -348,10 +376,10 @@ INSTRUÇÕES:
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Selecione o assistente especializado:</label>
+          <div className="space-y-3">
+            <label className="text-sm font-medium text-gray-700">Selecione o assistente especializado:</label>
             <Select value={selectedAssistant} onValueChange={setSelectedAssistant}>
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder="Escolha um assistente para fazer a análise" />
               </SelectTrigger>
               <SelectContent className="bg-white">
@@ -383,32 +411,60 @@ INSTRUÇÕES:
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Brain className="h-5 w-5" />
-            Tipo de Análise
+            <Settings2 className="h-5 w-5" />
+            Configuração da Análise
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            <Select value={selectedAnalysisType} onValueChange={setSelectedAnalysisType}>
-              <SelectTrigger>
-                <SelectValue placeholder="Escolha o tipo de análise" />
-              </SelectTrigger>
-              <SelectContent className="bg-white">
-                {Object.entries(ANALYSIS_TYPES).map(([key, config]) => (
-                  <SelectItem key={key} value={key}>
-                    <div className="flex flex-col">
-                      <span className="font-medium">{config.label}</span>
-                      <span className="text-xs text-gray-500">{config.description}</span>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-2 block">Tipo de Análise:</label>
+              <Select value={selectedAnalysisType} onValueChange={setSelectedAnalysisType}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Escolha o tipo de análise" />
+                </SelectTrigger>
+                <SelectContent className="bg-white">
+                  {Object.entries(ANALYSIS_TYPES).map(([key, config]) => (
+                    <SelectItem key={key} value={key}>
+                      <div className="flex flex-col">
+                        <span className="font-medium">{config.label}</span>
+                        <span className="text-xs text-gray-500">{config.description}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Calculadora de Custo */}
+            <div className="border-t pt-4">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-sm font-medium text-gray-700">Calculadora de Custo</h4>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowCostCalculator(!showCostCalculator)}
+                >
+                  <Calculator className="w-4 h-4 mr-2" />
+                  {showCostCalculator ? 'Ocultar' : 'Mostrar'}
+                </Button>
+              </div>
+              
+              {showCostCalculator && (
+                <CostEstimator
+                  estimatedTokens={estimatedTokens}
+                  maxTokens={selectedAnalysisConfig.maxTokens}
+                  model={config.openai?.model || 'gpt-4o-mini'}
+                  fileName={selectedDocument.metadata.fileName}
+                />
+              )}
+            </div>
 
             <Button
               onClick={handleAnalyzeDocument}
               disabled={isAnalyzing || !selectedAssistant || !isOpenAIConfigured}
               className="w-full"
+              size="lg"
             >
               {isAnalyzing ? (
                 <>
@@ -417,7 +473,7 @@ INSTRUÇÕES:
                 </>
               ) : (
                 <>
-                  <Zap className="w-4 h-4 mr-2" />
+                  <Brain className="w-4 h-4 mr-2" />
                   Gerar {selectedAnalysisConfig.label}
                 </>
               )}
@@ -426,33 +482,12 @@ INSTRUÇÕES:
         </CardContent>
       </Card>
 
-      {/* Calculadora de Custo */}
-      <div className="flex items-center gap-2 mb-4">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setShowCostCalculator(!showCostCalculator)}
-        >
-          <Calculator className="w-4 h-4 mr-2" />
-          {showCostCalculator ? 'Ocultar' : 'Mostrar'} Calculadora de Custo
-        </Button>
-      </div>
-
-      {showCostCalculator && (
-        <CostEstimator
-          estimatedTokens={estimatedTokens}
-          maxTokens={selectedAnalysisConfig.maxTokens}
-          model={config.openai?.model || 'gpt-4o-mini'}
-          fileName={selectedDocument.metadata.fileName}
-        />
-      )}
-
       {/* Área de Chat com o Assistente */}
       {analysisResult && selectedAssistant && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Brain className="w-5 h-5" />
+              <Bot className="w-5 h-5" />
               Chat com {activeAssistants.find(a => a.id === selectedAssistant)?.name}
             </CardTitle>
           </CardHeader>
