@@ -133,33 +133,32 @@ export function EmotionalThermometer() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-green-500" />
-              Tendências
+              Tendências Emocionais
             </CardTitle>
             <CardDescription>
-              Padrões emocionais identificados pelos assistentes
+              Padrões emocionais baseados nos dados disponíveis
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {data.emotionalMetrics?.trends?.map((trend, index) => (
-                <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    {trend.direction === 'up' ? (
+              {data.emotionalData && data.emotionalData.length > 0 ? (
+                data.emotionalData.slice(0, 5).map((emotion, index) => (
+                  <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div className="flex items-center gap-3">
                       <TrendingUp className="h-4 w-4 text-green-500" />
-                    ) : trend.direction === 'down' ? (
-                      <TrendingDown className="h-4 w-4 text-red-500" />
-                    ) : (
-                      <Minus className="h-4 w-4 text-gray-500" />
-                    )}
-                    <span className="font-medium">{trend.label}</span>
+                      <span className="font-medium">{emotion.emotion}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-gray-600">{emotion.value}%</span>
+                      <Badge variant="outline" className="text-xs">
+                        {emotion.name}
+                      </Badge>
+                    </div>
                   </div>
-                  <Badge variant="outline">
-                    {trend.period}
-                  </Badge>
-                </div>
-              )) || (
+                ))
+              ) : (
                 <div className="text-center py-4 text-gray-500">
-                  Aguardando mais dados para identificar tendências
+                  Aguardando mais dados para identificar tendências emocionais
                 </div>
               )}
             </div>

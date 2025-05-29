@@ -14,7 +14,7 @@ export function BehavioralProfile() {
   
   console.log('🧠 BehavioralProfile - Dados disponíveis:', {
     hasRealData: data.hasRealData,
-    behavioralProfile: data.behavioralProfile,
+    psychologicalProfile: data.psychologicalProfile,
     insightsWithAssistant: data.insightsWithAssistant?.length || 0
   });
 
@@ -67,7 +67,7 @@ export function BehavioralProfile() {
       showBackButton={true}
       headerActions={headerActions}
     >
-      {data.behavioralProfile ? (
+      {data.psychologicalProfile ? (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -80,22 +80,22 @@ export function BehavioralProfile() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {Object.entries(data.behavioralProfile).map(([trait, value]) => (
-                <div key={trait} className="p-4 bg-blue-50 rounded-lg">
-                  <h4 className="font-medium text-blue-800 capitalize mb-2">
-                    {trait.replace(/([A-Z])/g, ' $1').trim()}
+              {/* Usando os dados dos Big Five que existem na interface */}
+              {data.bigFiveData?.map((trait) => (
+                <div key={trait.name} className="p-4 bg-blue-50 rounded-lg">
+                  <h4 className="font-medium text-blue-800 mb-2">
+                    {trait.name}
                   </h4>
                   <div className="text-2xl font-bold text-blue-600 mb-1">
-                    {typeof value === 'number' ? `${value}%` : String(value)}
+                    {trait.value}%
                   </div>
                   <div className="w-full bg-blue-200 rounded-full h-2">
                     <div 
                       className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                      style={{ 
-                        width: `${typeof value === 'number' ? value : 50}%` 
-                      }}
+                      style={{ width: `${trait.value}%` }}
                     />
                   </div>
+                  <p className="text-xs text-blue-700 mt-2">{trait.description}</p>
                 </div>
               ))}
             </div>
