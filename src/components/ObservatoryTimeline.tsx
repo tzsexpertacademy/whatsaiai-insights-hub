@@ -1,81 +1,132 @@
-import React, { useState } from 'react';
+
+import React from 'react';
 import { PageHeader } from '@/components/PageHeader';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Calendar, TrendingUp, TrendingDown, Target, Award, AlertTriangle, CheckCircle, Clock } from 'lucide-react';
+import { Calendar, TrendingUp, Target, Award, AlertTriangle, CheckCircle, Clock, Bot } from 'lucide-react';
 import { AIAnalysisButton } from '@/components/AIAnalysisButton';
-
-interface TimelineEvent {
-  id: string;
-  date: Date;
-  title: string;
-  description: string;
-  type: 'achievement' | 'milestone' | 'insight' | 'goal' | 'challenge';
-  category: 'saude' | 'carreira' | 'relacionamentos' | 'crescimento-pessoal' | 'financas';
-  impact: 'positive' | 'negative' | 'neutral';
-  metadata?: any;
-}
+import { useAnalysisData } from '@/contexts/AnalysisDataContext';
 
 export function ObservatoryTimeline() {
-  const [timelineEvents] = useState<TimelineEvent[]>([
-    {
-      id: '1',
-      date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
-      title: 'Meta de Exercícios Atingida',
-      description: 'Completou 5 dias consecutivos de exercícios físicos',
-      type: 'achievement',
-      category: 'saude',
-      impact: 'positive'
-    },
-    {
-      id: '2',
-      date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
-      title: 'Insight Comportamental',
-      description: 'Identificado padrão de procrastinação em tarefas complexas',
-      type: 'insight',
-      category: 'crescimento-pessoal',
-      impact: 'neutral'
-    },
-    {
-      id: '3',
-      date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
-      title: 'Melhoria na Comunicação',
-      description: 'Feedback positivo da equipe sobre habilidades de liderança',
-      type: 'milestone',
-      category: 'carreira',
-      impact: 'positive'
-    },
-    {
-      id: '4',
-      date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-      title: 'Desafio Identificado',
-      description: 'Dificuldades em manter o equilíbrio trabalho-vida pessoal',
-      type: 'challenge',
-      category: 'relacionamentos',
-      impact: 'negative'
-    },
-    {
-      id: '5',
-      date: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
-      title: 'Nova Meta Estabelecida',
-      description: 'Definiu objetivo de aprender nova habilidade técnica',
-      type: 'goal',
-      category: 'carreira',
-      impact: 'positive'
-    },
-    {
-      id: '6',
-      date: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000),
-      title: 'Conquista Financeira',
-      description: 'Atingiu meta de economia mensal estabelecida',
-      type: 'achievement',
-      category: 'financas',
-      impact: 'positive'
-    }
-  ]);
+  const { data, isLoading } = useAnalysisData();
 
-  const getEventIcon = (type: string, impact: string) => {
+  // Usar APENAS dados reais dos assistentes
+  const hasRealData = data.hasRealData && data.insightsWithAssistant && data.insightsWithAssistant.length > 0;
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <PageHeader 
+          title="Linha do Tempo"
+          subtitle="Acompanhe sua evolução e marcos importantes ao longo do tempo"
+        >
+          <AIAnalysisButton />
+        </PageHeader>
+        
+        <div className="p-4 md:p-6">
+          <div className="max-w-6xl mx-auto">
+            <Card>
+              <CardContent className="p-6">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto mb-4"></div>
+                  <p>Carregando linha do tempo dos assistentes...</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!hasRealData) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <PageHeader 
+          title="Linha do Tempo"
+          subtitle="Acompanhe sua evolução e marcos importantes ao longo do tempo"
+        >
+          <AIAnalysisButton />
+        </PageHeader>
+        
+        <div className="p-4 md:p-6">
+          <div className="max-w-6xl mx-auto">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar className="h-5 w-5 text-purple-600" />
+                  Linha do Tempo Aguarda Análise
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center py-8">
+                  <Bot className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Aguardando Eventos dos Assistentes</h3>
+                  <p className="text-gray-600 mb-6">
+                    A linha do tempo será construída com base nos insights dos seus assistentes IA
+                  </p>
+                  <div className="text-left max-w-md mx-auto space-y-2 mb-6">
+                    <p className="text-sm text-gray-600">• Execute análises IA das suas conversas</p>
+                    <p className="text-sm text-gray-600">• Os assistentes identificarão marcos importantes</p>
+                    <p className="text-sm text-gray-600">• Eventos serão organizados cronologicamente</p>
+                  </div>
+                  <AIAnalysisButton />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Criar eventos da timeline baseados APENAS nos insights dos assistentes
+  const timelineEvents = data.insightsWithAssistant.map((insight) => ({
+    id: insight.id,
+    date: new Date(insight.created_at || insight.createdAt),
+    title: insight.title,
+    description: insight.description,
+    type: getEventType(insight.insight_type),
+    category: getCategoryFromAssistant(insight.assistantArea),
+    impact: getImpactFromPriority(insight.priority),
+    assistantName: insight.assistantName,
+    assistantArea: insight.assistantArea
+  })).sort((a, b) => b.date.getTime() - a.date.getTime());
+
+  function getEventType(insightType: string) {
+    const typeMap: { [key: string]: string } = {
+      'emotional': 'insight',
+      'behavioral': 'challenge',
+      'growth': 'goal',
+      'achievement': 'achievement',
+      'milestone': 'milestone'
+    };
+    return typeMap[insightType] || 'insight';
+  }
+
+  function getCategoryFromAssistant(assistantArea: string) {
+    const categoryMap: { [key: string]: string } = {
+      'psicologia': 'crescimento-pessoal',
+      'saude': 'saude',
+      'estrategia': 'carreira',
+      'relacionamentos': 'relacionamentos',
+      'financeiro': 'financas',
+      'proposito': 'crescimento-pessoal',
+      'criatividade': 'crescimento-pessoal'
+    };
+    return categoryMap[assistantArea] || 'crescimento-pessoal';
+  }
+
+  function getImpactFromPriority(priority: string) {
+    const impactMap: { [key: string]: string } = {
+      'high': 'negative',
+      'medium': 'neutral',
+      'low': 'positive'
+    };
+    return impactMap[priority] || 'neutral';
+  }
+
+  const getEventIcon = (type: string) => {
     switch (type) {
       case 'achievement':
         return <Award className="h-5 w-5 text-yellow-600" />;
@@ -113,7 +164,7 @@ export function ObservatoryTimeline() {
 
   const positiveEvents = timelineEvents.filter(e => e.impact === 'positive').length;
   const totalEvents = timelineEvents.length;
-  const progressPercentage = Math.round((positiveEvents / totalEvents) * 100);
+  const progressPercentage = totalEvents > 0 ? Math.round((positiveEvents / totalEvents) * 100) : 0;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -121,13 +172,16 @@ export function ObservatoryTimeline() {
         title="Linha do Tempo"
         subtitle="Acompanhe sua evolução e marcos importantes ao longo do tempo"
       >
+        <Badge className="bg-purple-100 text-purple-800">
+          🔮 Eventos dos Assistentes - {timelineEvents.length} marcos
+        </Badge>
         <AIAnalysisButton />
       </PageHeader>
       
       <div className="p-4 md:p-6">
         <div className="max-w-6xl mx-auto space-y-6">
           
-          {/* Estatísticas */}
+          {/* Estatísticas baseadas nos dados dos assistentes */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <Card>
               <CardContent className="p-4">
@@ -164,9 +218,9 @@ export function ObservatoryTimeline() {
                     <Award className="h-5 w-5 text-yellow-600" />
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600">Conquistas</p>
+                    <p className="text-sm text-gray-600">Insights</p>
                     <p className="text-2xl font-bold">
-                      {timelineEvents.filter(e => e.type === 'achievement').length}
+                      {timelineEvents.filter(e => e.type === 'insight').length}
                     </p>
                   </div>
                 </div>
@@ -188,15 +242,18 @@ export function ObservatoryTimeline() {
             </Card>
           </div>
 
-          {/* Linha do Tempo */}
+          {/* Linha do Tempo dos Assistentes */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Clock className="h-5 w-5 text-indigo-600" />
-                Sua Jornada de Evolução
+                Sua Jornada de Evolução (Assistentes IA)
+                <Badge variant="outline" className="text-xs">
+                  Baseado em {timelineEvents.length} insights
+                </Badge>
               </CardTitle>
               <CardDescription>
-                Eventos importantes em ordem cronológica
+                Eventos importantes identificados pelos seus assistentes IA
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -209,7 +266,7 @@ export function ObservatoryTimeline() {
                     <div key={event.id} className="relative flex items-start gap-4">
                       {/* Ícone do evento */}
                       <div className={`relative z-10 w-12 h-12 rounded-full border-4 border-white shadow-sm flex items-center justify-center ${getImpactColor(event.impact)}`}>
-                        {getEventIcon(event.type, event.impact)}
+                        {getEventIcon(event.type)}
                       </div>
                       
                       {/* Conteúdo do evento */}
@@ -222,8 +279,11 @@ export function ObservatoryTimeline() {
                                 <Badge className={getCategoryColor(event.category)}>
                                   {event.category}
                                 </Badge>
+                                <Badge className="bg-purple-100 text-purple-800">
+                                  🤖 {event.assistantName}
+                                </Badge>
                                 <Badge variant="outline">
-                                  {event.type}
+                                  {event.assistantArea}
                                 </Badge>
                               </div>
                               
@@ -234,14 +294,11 @@ export function ObservatoryTimeline() {
                                 {event.date.toLocaleDateString('pt-BR', {
                                   day: '2-digit',
                                   month: '2-digit',
-                                  year: 'numeric'
+                                  year: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit'
                                 })}
                               </div>
-                            </div>
-                            
-                            <div className="flex items-center gap-1">
-                              {event.impact === 'positive' && <TrendingUp className="h-4 w-4 text-green-600" />}
-                              {event.impact === 'negative' && <TrendingDown className="h-4 w-4 text-red-600" />}
                             </div>
                           </div>
                         </CardContent>
@@ -253,10 +310,13 @@ export function ObservatoryTimeline() {
             </CardContent>
           </Card>
 
-          {/* Resumo por Categoria */}
+          {/* Resumo por Categoria - Baseado nos dados dos assistentes */}
           <Card>
             <CardHeader>
-              <CardTitle>Resumo por Área da Vida</CardTitle>
+              <CardTitle>Resumo por Área da Vida (Assistentes)</CardTitle>
+              <CardDescription>
+                Distribuição dos insights por categoria identificada pelos assistentes
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -276,6 +336,11 @@ export function ObservatoryTimeline() {
                         <TrendingUp className="h-4 w-4 text-green-600" />
                         {positiveCount} positivos
                       </div>
+                      {categoryEvents.length > 0 && (
+                        <div className="mt-2 text-xs text-gray-500">
+                          Assistentes: {[...new Set(categoryEvents.map(e => e.assistantName))].join(', ')}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
