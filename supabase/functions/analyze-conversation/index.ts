@@ -138,7 +138,7 @@ serve(async (req) => {
     const conversationText = conversations
       .map(conv => {
         if (conv.messages && Array.isArray(conv.messages)) {
-          return conv.messages.map(msg => `[${conv.contact_name || 'Contato'}]: ${msg.text || msg.message_text || msg}`).join('\n');
+          return conv.messages.map(msg => `[${conv.contact_name || 'Contato'}]: ${msg.text || msg.message_text || msg.message || 'Mensagem'}`).join('\n');
         }
         return `[${conv.contact_name || 'Contato'}]: Conversa registrada em ${new Date(conv.created_at).toLocaleString('pt-BR')}`;
       })
@@ -253,7 +253,9 @@ ${conversationText.substring(0, 3000)}`;
           description: insight.content,
           content: insight.content,
           category: insight.area,
-          insight_type: insight.area,
+          insight_type: insight.area || 'geral',
+          priority: 'medium',
+          status: 'active',
           metadata: {
             assistant_id: insight.assistant_id,
             assistant_name: insight.assistant_name,
