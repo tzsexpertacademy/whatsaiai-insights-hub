@@ -135,7 +135,7 @@ async function extractAdvancedPDFContent(file: File): Promise<string> {
     // Método 2: Extrair texto entre parênteses (formato comum de texto em PDF)
     if (extractedText.length < 100) {
       console.log('🔍 Usando método de extração por parênteses...');
-      const textMatches = pdfContent.match(/\(([^)]{3,})\)/g);
+      const textMatches = pdfContent.match(/\([^)]{3,}\)/g);
       
       if (textMatches) {
         const uniqueTexts = new Set<string>();
@@ -161,7 +161,7 @@ async function extractAdvancedPDFContent(file: File): Promise<string> {
       console.log('🔍 Usando método de extração por comandos Tj/TJ...');
       
       // Padrão para comandos Tj (show text)
-      const tjMatches = pdfContent.match(/\(([^)]*)\)\s*Tj/gi);
+      const tjMatches = pdfContent.match(/\([^)]*\)\s*Tj/gi);
       if (tjMatches) {
         tjMatches.forEach(match => {
           const text = match.match(/\(([^)]*)\)/)?.[1];
@@ -172,12 +172,12 @@ async function extractAdvancedPDFContent(file: File): Promise<string> {
       }
       
       // Padrão para comandos TJ (show text with individual glyph positioning)
-      const tjArrayMatches = pdfContent.match(/\[([^\]]*)\]\s*TJ/gi);
+      const tjArrayMatches = pdfContent.match(/\[[^\]]*\]\s*TJ/gi);
       if (tjArrayMatches) {
         tjArrayMatches.forEach(match => {
           const arrayContent = match.match(/\[([^\]]*)\]/)?.[1];
           if (arrayContent) {
-            const texts = arrayContent.match(/\(([^)]*)\)/g);
+            const texts = arrayContent.match(/\([^)]*\)/g);
             if (texts) {
               texts.forEach(textMatch => {
                 const text = textMatch.slice(1, -1);
@@ -244,7 +244,7 @@ function extractReadableTextFromStream(streamContent: string): string {
   let readable = '';
   
   // Método 1: Procurar por texto entre parênteses no stream
-  const textInParens = streamContent.match(/\(([^)]+)\)/g);
+  const textInParens = streamContent.match(/\([^)]+\)/g);
   if (textInParens) {
     textInParens.forEach(match => {
       const text = match.slice(1, -1);
@@ -255,7 +255,7 @@ function extractReadableTextFromStream(streamContent: string): string {
   }
   
   // Método 2: Procurar por comandos de texto
-  const tjCommands = streamContent.match(/\(([^)]*)\)\s*Tj/gi);
+  const tjCommands = streamContent.match(/\([^)]*\)\s*Tj/gi);
   if (tjCommands) {
     tjCommands.forEach(cmd => {
       const text = cmd.match(/\(([^)]*)\)/)?.[1];
@@ -274,8 +274,8 @@ function decodePDFText(text: string): string {
     .replace(/\\n/g, '\n')
     .replace(/\\r/g, '\r')
     .replace(/\\t/g, '\t')
-    .replace(/\\(/g, '(')
-    .replace(/\\)/g, ')')
+    .replace(/\\\(/g, '(')
+    .replace(/\\\)/g, ')')
     .replace(/\\\\/g, '\\')
     .replace(/\\([0-7]{3})/g, (match, octal) => String.fromCharCode(parseInt(octal, 8)))
     .replace(/\\u([0-9a-fA-F]{4})/g, (match, hex) => String.fromCharCode(parseInt(hex, 16)))
