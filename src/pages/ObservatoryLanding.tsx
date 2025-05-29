@@ -83,9 +83,9 @@ export function ObservatoryLanding() {
     }, 1000);
   };
 
-  // Inicializar conteúdo após um tempo máximo (fallback)
+  // Inicializar conteúdo após um tempo máximo (fallback) - ajustado para 7s + margem
   useEffect(() => {
-    const maxWaitTime = 7000; // 7 segundos máximo (5s animação + margem)
+    const maxWaitTime = 9000; // 9 segundos máximo (7s animação + margem)
     const timer = setTimeout(() => {
       if (!showContent) {
         console.log('⏰ Timeout da animação, forçando exibição do conteúdo');

@@ -25,42 +25,139 @@ interface Pulse {
 }
 
 export function BrainAnimation({ onAnimationComplete, soundEnabled = false }: BrainAnimationProps) {
-  const [animationPhase, setAnimationPhase] = useState<'neural' | 'showingLogo' | 'complete'>('neural');
-  const [showNeuralAnimation, setShowNeuralAnimation] = useState(true);
-  const [logoOpacity, setLogoOpacity] = useState(0);
+  const [animationPhase, setAnimationPhase] = useState<'neural' | 'logo' | 'complete'>('neural');
+  const [showYumerMindText, setShowYumerMindText] = useState(false);
+  const [logoOpacity, setLogoOpacity] = useState(1);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationFrameRef = useRef<number>();
   const neuronsRef = useRef<Neuron[]>([]);
   const pulsesRef = useRef<Pulse[]>([]);
   const timeRef = useRef(0);
+  const audioContextRef = useRef<AudioContext | null>(null);
+
+  // Efeito sonoro épico que quebra padrão
+  const playEpicSound = () => {
+    if (!soundEnabled) return;
+    
+    try {
+      if (!audioContextRef.current) {
+        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      }
+      
+      const ctx = audioContextRef.current;
+      
+      // Som épico de ativação neural - múltiplas camadas
+      const createEpicActivationSound = () => {
+        // Base profunda
+        const bassOsc = ctx.createOscillator();
+        const bassGain = ctx.createGain();
+        bassOsc.frequency.setValueAtTime(60, ctx.currentTime);
+        bassOsc.frequency.exponentialRampToValueAtTime(40, ctx.currentTime + 1.5);
+        bassGain.gain.setValueAtTime(0, ctx.currentTime);
+        bassGain.gain.linearRampToValueAtTime(0.3, ctx.currentTime + 0.1);
+        bassGain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 2);
+        
+        // Sweep ascendente
+        const sweepOsc = ctx.createOscillator();
+        const sweepGain = ctx.createGain();
+        sweepOsc.frequency.setValueAtTime(200, ctx.currentTime + 0.5);
+        sweepOsc.frequency.exponentialRampToValueAtTime(2000, ctx.currentTime + 1.8);
+        sweepGain.gain.setValueAtTime(0, ctx.currentTime + 0.5);
+        sweepGain.gain.linearRampToValueAtTime(0.2, ctx.currentTime + 0.7);
+        sweepGain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 2);
+        
+        // Harmonics de impacto
+        const impactOsc = ctx.createOscillator();
+        const impactGain = ctx.createGain();
+        impactOsc.frequency.setValueAtTime(800, ctx.currentTime + 1);
+        impactOsc.frequency.exponentialRampToValueAtTime(1200, ctx.currentTime + 1.3);
+        impactGain.gain.setValueAtTime(0, ctx.currentTime + 1);
+        impactGain.gain.linearRampToValueAtTime(0.4, ctx.currentTime + 1.05);
+        impactGain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 1.8);
+        
+        // Ruído neural (white noise filtrado)
+        const noiseBuffer = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
+        const noiseData = noiseBuffer.getChannelData(0);
+        for (let i = 0; i < noiseData.length; i++) {
+          noiseData[i] = (Math.random() * 2 - 1) * 0.1;
+        }
+        
+        const noiseSource = ctx.createBufferSource();
+        const noiseGain = ctx.createGain();
+        const noiseFilter = ctx.createBiquadFilter();
+        noiseBuffer && (noiseSource.buffer = noiseBuffer);
+        noiseFilter.type = 'highpass';
+        noiseFilter.frequency.setValueAtTime(1000, ctx.currentTime);
+        noiseGain.gain.setValueAtTime(0, ctx.currentTime);
+        noiseGain.gain.linearRampToValueAtTime(0.1, ctx.currentTime + 0.1);
+        noiseGain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 1.5);
+        
+        // Conectar tudo
+        bassOsc.connect(bassGain);
+        bassGain.connect(ctx.destination);
+        
+        sweepOsc.connect(sweepGain);
+        sweepGain.connect(ctx.destination);
+        
+        impactOsc.connect(impactGain);
+        impactGain.connect(ctx.destination);
+        
+        noiseSource.connect(noiseFilter);
+        noiseFilter.connect(noiseGain);
+        noiseGain.connect(ctx.destination);
+        
+        // Iniciar sons
+        bassOsc.start();
+        bassOsc.stop(ctx.currentTime + 2.5);
+        
+        sweepOsc.start(ctx.currentTime + 0.5);
+        sweepOsc.stop(ctx.currentTime + 2.5);
+        
+        impactOsc.start(ctx.currentTime + 1);
+        impactOsc.stop(ctx.currentTime + 2);
+        
+        noiseSource.start();
+        noiseSource.stop(ctx.currentTime + 2);
+      };
+      
+      createEpicActivationSound();
+    } catch (error) {
+      console.log('Audio não disponível:', error);
+    }
+  };
 
   useEffect(() => {
-    // Animação neural por 3 segundos, depois logo por 2 segundos (total 5s)
-    const neuralTimer = setTimeout(() => {
-      console.log('🧠 Animação neural completa (3s), mostrando logo');
-      setShowNeuralAnimation(false);
-      setAnimationPhase('showingLogo');
-      
-      // Fade in da logo
-      setTimeout(() => {
-        setLogoOpacity(1);
-      }, 100);
-      
-      // Mostrar logo por 2 segundos
-      setTimeout(() => {
-        setAnimationPhase('complete');
-        console.log('✅ Animação completa');
-        onAnimationComplete?.();
-      }, 2000);
-      
-    }, 3000); // 3 segundos para a animação neural
+    // Som épico no início
+    setTimeout(() => {
+      playEpicSound();
+    }, 500);
 
-    return () => clearTimeout(neuralTimer);
-  }, [onAnimationComplete]);
+    // Sequência de animação: 4s logo + 3s texto = 7s total
+    const logoTimer = setTimeout(() => {
+      console.log('🧠 Mostrando logo da Yumer (4s), adicionando YumerMind');
+      setAnimationPhase('logo');
+      
+      // Adicionar texto YumerMind após 4 segundos
+      setTimeout(() => {
+        setShowYumerMindText(true);
+        
+        // Completar animação após mais 3 segundos
+        setTimeout(() => {
+          setAnimationPhase('complete');
+          console.log('✅ Animação completa (7s total)');
+          onAnimationComplete?.();
+        }, 3000);
+        
+      }, 4000);
+      
+    }, 0);
+
+    return () => clearTimeout(logoTimer);
+  }, [onAnimationComplete, soundEnabled]);
 
   // Animação neural customizada
   useEffect(() => {
-    if (!showNeuralAnimation) return;
+    if (animationPhase === 'complete') return;
     
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -275,7 +372,7 @@ export function BrainAnimation({ onAnimationComplete, soundEnabled = false }: Br
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [showNeuralAnimation]);
+  }, [animationPhase]);
 
   return (
     <div className="fixed inset-0 pointer-events-none z-20 w-full h-full flex items-center justify-center"
@@ -284,7 +381,7 @@ export function BrainAnimation({ onAnimationComplete, soundEnabled = false }: Br
          }}>
       
       {/* Animação neural customizada */}
-      {showNeuralAnimation && (
+      {animationPhase !== 'complete' && (
         <div className="relative w-full h-full animate-fade-in">
           <canvas
             ref={canvasRef}
@@ -297,12 +394,13 @@ export function BrainAnimation({ onAnimationComplete, soundEnabled = false }: Br
           {/* Overlay com logo da Yumer */}
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="text-center px-4">
-              {/* Logo da Yumer */}
+              {/* Logo da Yumer - sempre visível */}
               <div className="mb-6 sm:mb-8 relative">
                 <img 
                   src="/lovable-uploads/e100949d-480b-4b63-ba68-f400a538f0df.png" 
                   alt="Yumer Logo" 
                   className="w-48 h-48 sm:w-64 sm:h-64 lg:w-80 lg:h-80 mx-auto drop-shadow-2xl animate-pulse"
+                  style={{ opacity: logoOpacity }}
                 />
                 
                 {/* Efeitos de brilho concêntricos */}
@@ -310,9 +408,20 @@ export function BrainAnimation({ onAnimationComplete, soundEnabled = false }: Br
                 <div className="absolute inset-0 w-48 h-48 sm:w-64 sm:h-64 lg:w-80 lg:h-80 mx-auto bg-gradient-to-r from-cyan-500/30 to-purple-500/30 rounded-full blur-2xl sm:blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
               </div>
               
-              <p className="text-xl sm:text-2xl lg:text-4xl font-light text-purple-300 drop-shadow-lg">
-                Network Activation
-              </p>
+              {/* Texto YumerMind aparece após 4 segundos */}
+              {showYumerMindText && (
+                <div className="animate-fade-in">
+                  <h1 className="text-4xl sm:text-6xl lg:text-8xl font-black text-white mb-4 sm:mb-6 drop-shadow-2xl">
+                    <span className="bg-gradient-to-r from-purple-400 via-blue-400 to-cyan-400 bg-clip-text text-transparent glow-text-mega">
+                      YumerMind
+                    </span>
+                  </h1>
+                  
+                  <p className="text-lg sm:text-xl lg:text-2xl text-purple-300 font-light max-w-3xl leading-relaxed glow-text">
+                    Seu segundo cérebro está ativando...
+                  </p>
+                </div>
+              )}
             </div>
           </div>
           
@@ -329,41 +438,6 @@ export function BrainAnimation({ onAnimationComplete, soundEnabled = false }: Br
               />
             ))}
           </div>
-        </div>
-      )}
-
-      {/* Logo da Yumer com YumerMind */}
-      {animationPhase === 'showingLogo' && (
-        <div 
-          className="flex flex-col items-center justify-center text-center animate-fade-in px-4"
-          style={{ opacity: logoOpacity, transition: 'opacity 1s ease-in-out' }}
-        >
-          <div className="mb-6 sm:mb-8 relative">
-            {/* Logo da Yumer */}
-            <img 
-              src="/lovable-uploads/e100949d-480b-4b63-ba68-f400a538f0df.png" 
-              alt="Yumer Logo" 
-              className="w-32 h-32 sm:w-48 sm:h-48 lg:w-64 lg:h-64 mx-auto mb-6 sm:mb-8 drop-shadow-2xl"
-            />
-            
-            {/* Efeitos de brilho concêntricos */}
-            <div className="absolute inset-0 w-32 h-32 sm:w-48 sm:h-48 lg:w-64 lg:h-64 mx-auto bg-gradient-to-r from-purple-500/40 to-blue-500/40 rounded-full blur-xl sm:blur-2xl animate-pulse" />
-            <div className="absolute inset-0 w-32 h-32 sm:w-48 sm:h-48 lg:w-64 lg:h-64 mx-auto bg-gradient-to-r from-cyan-500/30 to-purple-500/30 rounded-full blur-2xl sm:blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
-          </div>
-          
-          <h1 className="text-4xl sm:text-6xl lg:text-9xl font-black text-white mb-4 sm:mb-6 drop-shadow-2xl">
-            <span className="bg-gradient-to-r from-purple-400 via-blue-400 to-cyan-400 bg-clip-text text-transparent glow-text-mega">
-              YumerMind
-            </span>
-          </h1>
-          
-          <p className="text-2xl sm:text-3xl lg:text-5xl font-light text-gray-300 mb-6 sm:mb-10 drop-shadow-lg glow-text">
-            Mind
-          </p>
-          
-          <p className="text-lg sm:text-xl lg:text-2xl text-purple-300 font-light max-w-3xl leading-relaxed glow-text">
-            Seu segundo cérebro está ativando...
-          </p>
         </div>
       )}
       
