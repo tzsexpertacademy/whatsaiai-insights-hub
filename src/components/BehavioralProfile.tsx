@@ -132,7 +132,7 @@ export function BehavioralProfile() {
               <div className="p-4 bg-blue-50 rounded-lg">
                 <h4 className="font-medium text-blue-800 mb-2">Estilo de Comunicação</h4>
                 <p className="text-sm text-blue-700">
-                  {data.communicationStyle || 'Sendo analisado pelos assistentes...'}
+                  Sendo analisado pelos assistentes com base nas conversas...
                 </p>
                 <div className="mt-2 flex items-center">
                   <Bot className="h-3 w-3 text-blue-500 mr-1" />
@@ -143,7 +143,7 @@ export function BehavioralProfile() {
               <div className="p-4 bg-green-50 rounded-lg">
                 <h4 className="font-medium text-green-800 mb-2">Perfil Emocional</h4>
                 <p className="text-sm text-green-700">
-                  Estado: {data.emotionalState || 'Analisando...'}
+                  Estado: {data.emotionalState}
                 </p>
                 <div className="mt-2 flex items-center">
                   <Bot className="h-3 w-3 text-green-500 mr-1" />
@@ -154,7 +154,7 @@ export function BehavioralProfile() {
               <div className="p-4 bg-purple-50 rounded-lg">
                 <h4 className="font-medium text-purple-800 mb-2">Consciência Relacional</h4>
                 <p className="text-sm text-purple-700">
-                  Nível: {data.relationalAwareness || 75}% - Estável
+                  Nível: {data.relationalAwareness}% - Estável
                 </p>
                 <div className="mt-2 flex items-center">
                   <Bot className="h-3 w-3 text-purple-500 mr-1" />
