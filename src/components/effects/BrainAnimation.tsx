@@ -12,7 +12,7 @@ export function BrainAnimation({ onAnimationComplete, soundEnabled = false }: Br
   const [logoOpacity, setLogoOpacity] = useState(0);
 
   useEffect(() => {
-    // Deixar o vídeo rodar por muito mais tempo para ser assistido completo
+    // Deixar o vídeo rodar por tempo suficiente para ser assistido completo
     const videoTimer = setTimeout(() => {
       console.log('🎬 Vídeo terminado, mostrando logo');
       setShowVideo(false);
@@ -72,14 +72,14 @@ export function BrainAnimation({ onAnimationComplete, soundEnabled = false }: Br
         ))}
       </div>
       
-      {/* Vídeo do YouTube */}
+      {/* Novo vídeo do YouTube */}
       {showVideo && (
         <div className="relative w-full h-full flex items-center justify-center animate-fade-in">
           <div className="relative w-[95vw] h-[95vh] max-w-6xl max-h-[800px] rounded-3xl overflow-hidden shadow-2xl shadow-purple-500/50 border-2 border-purple-400/40">
             <iframe 
               width="100%" 
               height="100%" 
-              src="https://www.youtube.com/embed/p1y4YsZSyaA?si=39ic_TKTdrFaojkY&autoplay=1&mute=0&controls=0&showinfo=0&rel=0&modestbranding=1" 
+              src="https://www.youtube.com/embed/9xvhXm159UM?si=usOoMhipbjpx6Z3l&autoplay=1&mute=0&controls=0&showinfo=0&rel=0&modestbranding=1" 
               title="Brain Animation Video" 
               frameBorder="0" 
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 

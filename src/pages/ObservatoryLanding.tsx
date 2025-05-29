@@ -397,7 +397,7 @@ export function ObservatoryLanding() {
       {/* Canvas neural épico em toda a página */}
       <canvas
         ref={canvasRef}
-        className="fixed inset-0 pointer-events-none z-0 w-full h-full opacity-20"
+        className="fixed inset-0 pointer-events-none z-0 w-full h-full"
         style={{ 
           transform: `translateY(${scrollY * 0.1}px)`
         }}
@@ -414,7 +414,7 @@ export function ObservatoryLanding() {
           {/* Botão para pular animação */}
           <button
             onClick={skipAnimation}
-            className="fixed bottom-8 right-8 z-50 bg-black/80 backdrop-blur-sm border border-white/50 rounded-full px-6 py-3 hover:bg-white/20 transition-all text-white text-sm font-bold"
+            className="fixed bottom-8 right-8 z-50 bg-black/80 backdrop-blur-sm border border-white/20 rounded-full px-6 py-3 hover:bg-white/10 transition-all text-white text-sm font-medium"
           >
             Pular animação →
           </button>
@@ -424,7 +424,7 @@ export function ObservatoryLanding() {
       {/* Controle de som */}
       <button
         onClick={handleSoundToggle}
-        className="fixed top-4 right-4 z-50 bg-black/80 backdrop-blur-sm border border-white/50 rounded-full p-3 hover:bg-white/20 transition-all group"
+        className="fixed top-4 right-4 z-50 bg-black/80 backdrop-blur-sm border border-white/20 rounded-full p-3 hover:bg-white/10 transition-all group"
         onMouseEnter={() => {
           if (soundEnabled && soundEffectsRef.current.hover) {
             soundEffectsRef.current.hover();
@@ -441,12 +441,12 @@ export function ObservatoryLanding() {
       {/* Conteúdo principal */}
       {showContent && (
         <div className="animate-fade-in relative z-10">
-          {/* Seção 1 - Fundo escuro sólido para contraste máximo */}
-          <section ref={heroRef} className="relative min-h-screen flex items-center justify-center px-4 sm:px-6 bg-black">
+          {/* Seção 1 - Hero Section com texto mais harmônico */}
+          <section ref={heroRef} className="relative min-h-screen flex items-center justify-center px-4 sm:px-6">
             <div className="text-center max-w-7xl mx-auto w-full">
               <div className="relative z-10">
                 <ScrollReveal id="hero-badge" direction="scale" delay={200}>
-                  <Badge className="mb-6 sm:mb-8 bg-white/90 text-black border-2 border-white px-6 py-3 text-base font-bold backdrop-blur-sm hover:bg-white transition-all">
+                  <Badge className="mb-6 sm:mb-8 bg-white/10 text-white border border-white/30 px-6 py-3 text-base font-medium backdrop-blur-sm hover:bg-white/20 transition-all">
                     <CircuitBoard className="w-5 h-5 mr-2" />
                     YumerMind - O segundo cérebro do ser humano
                   </Badge>
@@ -454,113 +454,82 @@ export function ObservatoryLanding() {
 
                 <ScrollReveal id="hero-title" direction="up" delay={400}>
                   <div className="mb-8 sm:mb-12">
-                    {/* TEXTO SUPER VISÍVEL COM FUNDO ESCURO */}
-                    <div className="bg-black/95 rounded-3xl p-8 border-4 border-white/30 backdrop-blur-sm">
-                      <h1 className="text-4xl sm:text-6xl md:text-8xl lg:text-9xl xl:text-[8rem] font-black mb-6 leading-[0.9] tracking-tight">
-                        <div className="mb-4">
-                          <span className="block text-white font-black text-stroke-white">
-                            O que você
-                          </span>
-                          <span 
-                            className="block font-black text-stroke-cyan"
-                            style={{
-                              color: '#00FFFF',
-                              WebkitTextStroke: '3px #000000',
-                              textShadow: `
-                                0 0 20px #00FFFF,
-                                0 0 40px #00FFFF,
-                                0 0 60px #00FFFF,
-                                0 0 80px #00FFFF,
-                                3px 3px 0px #000000,
-                                -3px -3px 0px #000000,
-                                3px -3px 0px #000000,
-                                -3px 3px 0px #000000
-                              `
-                            }}
-                          >
-                            NÃO VÊ...
-                          </span>
-                        </div>
-                        <div 
-                          className="block font-black text-stroke-red mb-8"
+                    <h1 className="text-4xl sm:text-6xl md:text-8xl lg:text-9xl xl:text-[8rem] font-black mb-6 leading-[0.9] tracking-tight">
+                      <div className="mb-4">
+                        <span className="block text-white font-black mb-2">
+                          O que você
+                        </span>
+                        <span 
+                          className="block font-black bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent"
                           style={{
-                            color: '#FF0040',
-                            WebkitTextStroke: '4px #000000',
                             textShadow: `
-                              0 0 30px #FF0040,
-                              0 0 60px #FF0040,
-                              0 0 90px #FF0040,
-                              0 0 120px #FF0040,
-                              4px 4px 0px #000000,
-                              -4px -4px 0px #000000,
-                              4px -4px 0px #000000,
-                              -4px 4px 0px #000000
+                              0 0 20px rgba(6, 182, 212, 0.8),
+                              0 0 40px rgba(6, 182, 212, 0.6),
+                              0 0 60px rgba(6, 182, 212, 0.4)
                             `
                           }}
                         >
-                          TE CONTROLA.
-                        </div>
-                      </h1>
-                      
-                      <h2 className="text-3xl sm:text-5xl md:text-7xl lg:text-8xl xl:text-[7rem] font-black leading-[0.9] tracking-tight">
-                        <div className="mb-4">
-                          <span className="block text-white font-black text-stroke-white">
-                            O que você
-                          </span>
-                          <span 
-                            className="block font-black text-stroke-green"
-                            style={{
-                              color: '#00FF40',
-                              WebkitTextStroke: '3px #000000',
-                              textShadow: `
-                                0 0 20px #00FF40,
-                                0 0 40px #00FF40,
-                                0 0 60px #00FF40,
-                                0 0 80px #00FF40,
-                                3px 3px 0px #000000,
-                                -3px -3px 0px #000000,
-                                3px -3px 0px #000000,
-                                -3px 3px 0px #000000
-                              `
-                            }}
-                          >
-                            VÊ...
-                          </span>
-                        </div>
-                        <div 
-                          className="block font-black text-stroke-lime"
+                          NÃO VÊ...
+                        </span>
+                      </div>
+                      <div 
+                        className="block font-black bg-gradient-to-r from-red-400 to-pink-400 bg-clip-text text-transparent mb-8"
+                        style={{
+                          textShadow: `
+                            0 0 30px rgba(248, 113, 113, 0.8),
+                            0 0 60px rgba(248, 113, 113, 0.6),
+                            0 0 90px rgba(248, 113, 113, 0.4)
+                          `
+                        }}
+                      >
+                        TE CONTROLA.
+                      </div>
+                    </h1>
+                    
+                    <h2 className="text-3xl sm:text-5xl md:text-7xl lg:text-8xl xl:text-[7rem] font-black leading-[0.9] tracking-tight">
+                      <div className="mb-4">
+                        <span className="block text-white font-black mb-2">
+                          O que você
+                        </span>
+                        <span 
+                          className="block font-black bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent"
                           style={{
-                            color: '#00FF80',
-                            WebkitTextStroke: '4px #000000',
                             textShadow: `
-                              0 0 30px #00FF80,
-                              0 0 60px #00FF80,
-                              0 0 90px #00FF80,
-                              0 0 120px #00FF80,
-                              4px 4px 0px #000000,
-                              -4px -4px 0px #000000,
-                              4px -4px 0px #000000,
-                              -4px 4px 0px #000000
+                              0 0 20px rgba(34, 197, 94, 0.8),
+                              0 0 40px rgba(34, 197, 94, 0.6),
+                              0 0 60px rgba(34, 197, 94, 0.4)
                             `
                           }}
                         >
-                          TE LIBERTA.
-                        </div>
-                      </h2>
-                    </div>
+                          VÊ...
+                        </span>
+                      </div>
+                      <div 
+                        className="block font-black bg-gradient-to-r from-lime-400 to-green-400 bg-clip-text text-transparent"
+                        style={{
+                          textShadow: `
+                            0 0 30px rgba(163, 230, 53, 0.8),
+                            0 0 60px rgba(163, 230, 53, 0.6),
+                            0 0 90px rgba(163, 230, 53, 0.4)
+                          `
+                        }}
+                      >
+                        TE LIBERTA.
+                      </div>
+                    </h2>
                   </div>
                 </ScrollReveal>
 
                 <ScrollReveal id="hero-subtitle" direction="up" delay={600}>
-                  <div className="mb-8 sm:mb-12 space-y-4 bg-black/90 rounded-2xl p-6 border-2 border-white/20">
-                    <p className="text-xl sm:text-2xl md:text-3xl font-bold text-white">
-                      Ative seu <span className="text-purple-400 font-black">segundo cérebro</span>.
+                  <div className="mb-8 sm:mb-12 space-y-4">
+                    <p className="text-xl sm:text-2xl md:text-3xl font-light text-white">
+                      Ative seu <span className="text-purple-400 font-medium glow-text">segundo cérebro</span>.
                     </p>
-                    <p className="text-lg sm:text-xl md:text-2xl text-blue-300 font-bold">
+                    <p className="text-lg sm:text-xl md:text-2xl text-blue-300 font-light">
                       Veja padrões, emoções, forças e sombras que você nunca percebeu.
                     </p>
-                    <p className="text-base sm:text-lg md:text-xl text-gray-200 max-w-4xl mx-auto font-bold">
-                      Acesse agora o <span className="text-cyan-400 font-black">Observatório</span> da sua própria mente.
+                    <p className="text-base sm:text-lg md:text-xl text-gray-300 max-w-4xl mx-auto font-light">
+                      Acesse agora o <span className="text-cyan-400 font-medium glow-text">Observatório</span> da sua própria mente.
                     </p>
                   </div>
                 </ScrollReveal>
@@ -569,14 +538,7 @@ export function ObservatoryLanding() {
                   <div className="flex flex-col gap-6 justify-center items-center">
                     <Button 
                       onClick={handleActivateYumerMind}
-                      className="relative overflow-hidden w-full sm:w-auto bg-gradient-to-r from-purple-600 via-blue-600 to-cyan-600 hover:from-purple-500 hover:via-blue-500 hover:to-cyan-500 text-white px-12 py-8 text-2xl font-black rounded-2xl shadow-2xl border-4 border-white/50 backdrop-blur-sm group transform hover:scale-105 transition-all duration-500 max-w-4xl"
-                      style={{
-                        boxShadow: `
-                          0 0 40px rgba(147, 51, 234, 0.8),
-                          0 0 80px rgba(79, 70, 229, 0.6),
-                          0 0 120px rgba(147, 51, 234, 0.4)
-                        `
-                      }}
+                      className="relative overflow-hidden w-full sm:w-auto bg-gradient-to-r from-purple-600 via-blue-600 to-cyan-600 hover:from-purple-500 hover:via-blue-500 hover:to-cyan-500 text-white px-12 py-8 text-2xl font-black rounded-2xl shadow-2xl border-4 border-white/50 backdrop-blur-sm group transform hover:scale-105 transition-all duration-500 max-w-4xl glow-button"
                     >
                       <Brain className="w-10 h-10 mr-4 group-hover:rotate-12 transition-transform duration-500" />
                       <span className="font-black tracking-wide">
@@ -586,8 +548,8 @@ export function ObservatoryLanding() {
                     </Button>
                     
                     {!isAuthenticated && (
-                      <div className="text-center text-lg text-white font-bold max-w-3xl bg-black/90 rounded-xl px-6 py-4 border-2 border-green-400/50">
-                        Depois, apenas <span className="text-green-400 font-black text-xl">R$ 47/mês</span>. Sem contrato. Sem enrolação. Cancele quando quiser.
+                      <div className="text-center text-lg text-white font-light max-w-3xl bg-black/50 rounded-xl px-6 py-4 border border-green-400/30">
+                        Depois, apenas <span className="text-green-400 font-medium text-xl">R$ 47/mês</span>. Sem contrato. Sem enrolação. Cancele quando quiser.
                       </div>
                     )}
                   </div>
@@ -653,7 +615,7 @@ export function ObservatoryLanding() {
                 {processSteps.map((step, index) => (
                   <ScrollReveal key={index} id={`step-${index}`} direction="up" delay={index * 300}>
                     <div className="text-center group">
-                      <div className="w-16 h-16 sm:w-24 sm:h-24 md:w-32 md:h-32 mx-auto mb-4 sm:mb-6 md:mb-8 bg-gradient-to-r from-purple-600/30 to-blue-600/30 rounded-full flex items-center justify-center text-xl sm:text-3xl md:text-5xl font-light text-white group-hover:scale-110 transition-transform duration-700 border border-purple-500/40 backdrop-blur-sm">
+                      <div className="w-16 h-16 sm:w-24 sm:h-24 md:w-32 md:h-32 mx-auto mb-4 sm:mb-6 md:mb-8 bg-gradient-to-r from-purple-600/30 to-blue-600/30 rounded-full flex items-center justify-center text-xl sm:text-3xl md:text-5xl font-light text-white group-hover:scale-110 transition-transform duration-700 border border-purple-500/40">
                         {step.number}
                       </div>
                       <div className="w-8 h-8 sm:w-12 sm:h-12 md:w-16 md:h-16 mx-auto mb-3 sm:mb-4 md:mb-6 bg-gradient-to-r from-purple-500/30 to-cyan-500/30 rounded-full flex items-center justify-center group-hover:rotate-12 transition-transform duration-500 border border-purple-400/40">
@@ -770,53 +732,8 @@ export function ObservatoryLanding() {
             </div>
           </section>
 
-          {/* Estilos CSS customizados com efeitos de brilho intensos */}
+          {/* Estilos CSS atualizados para harmonia */}
           <style>{`
-            .glow-text-red-mega {
-              color: #06b6d4;
-              text-shadow: 
-                0 0 5px #06b6d4,
-                0 0 10px #06b6d4,
-                0 0 20px #06b6d4,
-                0 0 40px #06b6d4,
-                0 0 80px #06b6d4,
-                0 0 120px #06b6d4;
-              filter: 
-                drop-shadow(0 0 20px #06b6d4) 
-                drop-shadow(0 0 40px #06b6d4)
-                drop-shadow(0 0 60px #06b6d4);
-            }
-            
-            .glow-text-cyan-mega {
-              color: #06b6d4;
-              text-shadow: 
-                0 0 5px #06b6d4,
-                0 0 10px #06b6d4,
-                0 0 20px #06b6d4,
-                0 0 40px #06b6d4,
-                0 0 80px #06b6d4,
-                0 0 120px #06b6d4;
-              filter: 
-                drop-shadow(0 0 20px #06b6d4) 
-                drop-shadow(0 0 40px #06b6d4)
-                drop-shadow(0 0 60px #06b6d4);
-            }
-            
-            .glow-text-green-mega {
-              color: #10b981;
-              text-shadow: 
-                0 0 5px #10b981,
-                0 0 10px #10b981,
-                0 0 20px #10b981,
-                0 0 40px #10b981,
-                0 0 80px #10b981,
-                0 0 120px #10b981;
-              filter: 
-                drop-shadow(0 0 20px #10b981) 
-                drop-shadow(0 0 40px #10b981)
-                drop-shadow(0 0 60px #10b981);
-            }
-            
             .glow-text {
               text-shadow: 0 0 20px currentColor, 0 0 40px currentColor;
             }
@@ -825,23 +742,18 @@ export function ObservatoryLanding() {
               text-shadow: 0 0 20px currentColor, 0 0 40px currentColor, 0 0 60px currentColor;
             }
             
-            .glow-button-apocalypse {
+            .glow-button {
               box-shadow: 
                 0 0 40px rgba(147, 51, 234, 0.6), 
                 0 0 80px rgba(79, 70, 229, 0.4), 
-                0 0 120px rgba(147, 51, 234, 0.3),
-                0 0 200px rgba(147, 51, 234, 0.2),
-                inset 0 0 40px rgba(255, 255, 255, 0.1);
-              border-width: 3px;
+                0 0 120px rgba(147, 51, 234, 0.3);
             }
             
-            .glow-button-apocalypse:hover {
+            .glow-button:hover {
               box-shadow: 
                 0 0 60px rgba(147, 51, 234, 0.8), 
                 0 0 120px rgba(79, 70, 229, 0.6), 
-                0 0 180px rgba(147, 51, 234, 0.4),
-                0 0 300px rgba(147, 51, 234, 0.3),
-                inset 0 0 60px rgba(255, 255, 255, 0.2);
+                0 0 180px rgba(147, 51, 234, 0.4);
             }
             
             .glow-card-neural {
@@ -855,72 +767,26 @@ export function ObservatoryLanding() {
                 0 0 75px rgba(34, 197, 94, 0.2);
             }
             
-            .glow-badge {
-              box-shadow: 0 0 20px rgba(147, 51, 234, 0.4);
-            }
-            
-            .animate-pulse-slow {
-              animation: pulse-slow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-            }
-            
-            @keyframes pulse-slow {
-              0%, 100% { 
-                opacity: 1;
-                transform: scale(1);
-              }
-              50% { 
-                opacity: 0.8;
-                transform: scale(1.02);
-              }
-            }
-            
             /* Responsividade melhorada */
             @media (max-width: 640px) {
-              .glow-text-apocalypse {
-                text-shadow: 
-                  0 0 15px currentColor, 
-                  0 0 30px currentColor, 
-                  0 0 60px currentColor;
-              }
-              
-              .glow-text-liberation {
-                text-shadow: 
-                  0 0 15px currentColor, 
-                  0 0 30px currentColor, 
-                  0 0 60px currentColor;
-              }
-              
-              .glow-text-mega {
+              .glow-text, .glow-text-neural {
                 text-shadow: 
                   0 0 10px currentColor, 
-                  0 0 20px currentColor, 
-                  0 0 40px currentColor;
+                  0 0 20px currentColor;
               }
               
-              .glow-button-apocalypse {
+              .glow-button {
                 box-shadow: 
                   0 0 20px rgba(147, 51, 234, 0.6), 
                   0 0 40px rgba(79, 70, 229, 0.4);
               }
             }
             
-            /* Animação suave para elementos que entram na tela */
+            /* Animações suaves */
             @media (prefers-reduced-motion: no-preference) {
               * {
                 scroll-behavior: smooth;
               }
-            }
-            
-            /* Efeitos de partículas animadas */
-            @keyframes float {
-              0%, 100% { transform: translateY(0px) rotate(0deg); }
-              50% { transform: translateY(-20px) rotate(180deg); }
-            }
-            
-            /* Respiração da página */
-            @keyframes breathe {
-              0%, 100% { transform: scale(1); }
-              50% { transform: scale(1.02); }
             }
           `}</style>
         </div>
