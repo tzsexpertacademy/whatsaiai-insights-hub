@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,7 +24,9 @@ import {
   Users,
   Award,
   Lightbulb,
-  Monitor
+  Monitor,
+  Plus,
+  Infinity
 } from 'lucide-react';
 
 export function WelcomeTour() {
@@ -131,7 +132,7 @@ export function WelcomeTour() {
     },
     {
       title: "🤖 O Poder da IA YumerMind",
-      subtitle: "8 Assistentes Especializados ao seu serviço",
+      subtitle: "8 Assistentes Especializados + Assistentes Personalizados",
       content: (
         <div className="space-y-8">
           <div className="text-center mb-8">
@@ -162,6 +163,32 @@ export function WelcomeTour() {
                 <p className="font-semibold text-sm">{assistant.name}</p>
               </div>
             ))}
+          </div>
+
+          {/* Destaque para assistentes personalizados */}
+          <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-8 rounded-xl border-2 border-purple-200 mt-8">
+            <div className="flex items-center justify-center gap-4 mb-6">
+              <div className="flex items-center gap-2">
+                <Plus className="w-8 h-8 text-purple-600" />
+                <Infinity className="w-8 h-8 text-purple-600" />
+              </div>
+              <div className="text-center">
+                <h4 className="text-xl font-bold text-purple-800">Assistentes Personalizados</h4>
+                <p className="text-purple-600">Crie quantos assistentes quiser!</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="text-center p-4 bg-white/50 rounded-lg">
+                <Bot className="w-12 h-12 text-purple-600 mx-auto mb-2" />
+                <h5 className="font-semibold text-purple-800 mb-2">Especialização Total</h5>
+                <p className="text-sm text-purple-700">Crie assistentes para nichos específicos do seu negócio ou vida pessoal</p>
+              </div>
+              <div className="text-center p-4 bg-white/50 rounded-lg">
+                <Sparkles className="w-12 h-12 text-purple-600 mx-auto mb-2" />
+                <h5 className="font-semibold text-purple-800 mb-2">Sem Limites</h5>
+                <p className="text-sm text-purple-700">Configure assistentes para qualquer área que desejar analisar</p>
+              </div>
+            </div>
           </div>
           
           <div className="bg-gradient-to-r from-indigo-50 to-purple-50 p-8 rounded-xl border border-indigo-200 mt-8">

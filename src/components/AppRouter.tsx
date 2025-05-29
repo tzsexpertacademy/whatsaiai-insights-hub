@@ -37,6 +37,7 @@ export function AppRouter() {
   const shouldShowWelcomeTour = () => {
     if (!isAuthenticated) return false;
     
+    // Verificar se é um novo usuário que deve ver o tour
     const showTour = localStorage.getItem('show_welcome_tour') === 'true';
     const tourCompleted = localStorage.getItem('welcome_tour_completed') === 'true';
     
