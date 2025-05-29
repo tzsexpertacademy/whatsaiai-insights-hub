@@ -15,9 +15,8 @@ export function PageHeader({ title, subtitle, children }: PageHeaderProps) {
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <div className="md:hidden">
-            <SidebarTrigger className="h-8 w-8 p-0">
+            <SidebarTrigger className="h-8 w-8 p-1 flex items-center justify-center">
               <Menu className="h-5 w-5" />
-              <span className="sr-only">Abrir menu</span>
             </SidebarTrigger>
           </div>
           
