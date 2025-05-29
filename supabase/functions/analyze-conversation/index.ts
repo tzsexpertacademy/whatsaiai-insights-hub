@@ -27,6 +27,7 @@ interface AnalysisRequest {
   assistants: AssistantData[];
   analysisType: string;
   timestamp: string;
+  conversationsData?: any[];
 }
 
 serve(async (req) => {
@@ -47,7 +48,8 @@ serve(async (req) => {
       userId: requestBody.userId,
       assistantsCount: requestBody.assistants?.length,
       hasOpenAIKey: !!requestBody.openaiConfig?.apiKey,
-      analysisType: requestBody.analysisType
+      analysisType: requestBody.analysisType,
+      hasConversationsData: !!requestBody.conversationsData
     });
 
     const {
@@ -55,7 +57,8 @@ serve(async (req) => {
       openaiConfig,
       assistants,
       analysisType,
-      timestamp
+      timestamp,
+      conversationsData
     }: AnalysisRequest = requestBody;
 
     // Validações de segurança
@@ -89,35 +92,90 @@ serve(async (req) => {
     console.log('👤 Processando análise para usuário:', userId);
     console.log('🤖 Assistentes configurados:', assistants.map(a => `${a.name} (${a.model}) - ${a.area}`));
 
-    // Buscar conversações do usuário
-    const { data: conversations, error: convError } = await supabaseClient
-      .from('conversations')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-      .limit(100);
-
-    if (convError) {
-      console.error('❌ Erro ao buscar conversações:', convError);
-      throw new Error(`Erro ao buscar conversações: ${convError.message}`);
-    }
+    // Usar dados de conversas fornecidos ou buscar do banco
+    let conversations = conversationsData;
 
     if (!conversations || conversations.length === 0) {
-      console.log('ℹ️ Nenhuma conversação encontrada para análise');
+      console.log('📋 Buscando conversas do WhatsApp no banco...');
+      
+      // Buscar conversações do WhatsApp
+      const { data: whatsappConversations, error: convError } = await supabaseClient
+        .from('whatsapp_conversations')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (convError) {
+        console.error('❌ Erro ao buscar conversações WhatsApp:', convError);
+      }
+
+      conversations = whatsappConversations || [];
+    }
+
+    console.log(`📊 Total de conversas para análise: ${conversations.length}`);
+
+    if (!conversations || conversations.length === 0) {
+      console.log('ℹ️ Nenhuma conversação encontrada - criando insights demonstrativos');
+      
+      // Criar insights demonstrativos baseados nos assistentes
+      const demoInsights = assistants.slice(0, 3).map((assistant, index) => ({
+        user_id: userId,
+        title: `Análise Demonstrativa - ${assistant.name}`,
+        content: `Este é um insight demonstrativo gerado pelo assistente ${assistant.name}, especializado em ${assistant.area}. Em uma análise real, este assistente analisaria suas conversas para fornecer insights específicos sobre padrões comportamentais e oportunidades de melhoria.`,
+        category: assistant.area,
+        metadata: {
+          assistant_id: assistant.id,
+          assistant_name: assistant.name,
+          model_used: assistant.model,
+          generated_at: new Date().toISOString(),
+          analysis_type: 'demo',
+          demo_mode: true
+        }
+      }));
+
+      // Salvar insights demonstrativos
+      const { error: insertError } = await supabaseClient
+        .from('insights')
+        .insert(demoInsights);
+
+      if (insertError) {
+        console.error('❌ Erro ao salvar insights demo:', insertError);
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: `Erro ao salvar insights: ${insertError.message}` 
+          }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      console.log('✅ Insights demonstrativos criados com sucesso');
+
       return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: 'Nenhuma conversação encontrada para análise. Crie algumas conversas primeiro.' 
+        JSON.stringify({
+          success: true,
+          insights: demoInsights,
+          assistantsUsed: assistants.map(a => a.name),
+          processingTime: 500,
+          conversationsAnalyzed: 0,
+          message: `Insights demonstrativos criados por ${assistants.length} assistentes`,
+          demoMode: true
         }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
       );
     }
 
-    console.log(`📊 Analisando ${conversations.length} conversações...`);
-
     // Preparar texto para análise
     const conversationText = conversations
-      .map(conv => `[${new Date(conv.created_at).toLocaleString('pt-BR')}] ${conv.message}`)
+      .map(conv => {
+        if (conv.messages && Array.isArray(conv.messages)) {
+          return conv.messages.map(msg => `[${conv.contact_name || 'Contato'}]: ${msg.text || msg.message_text || msg}`).join('\n');
+        }
+        return `[${conv.contact_name || 'Contato'}]: Conversa registrada em ${new Date(conv.created_at).toLocaleString('pt-BR')}`;
+      })
       .join('\n');
 
     console.log(`📝 Texto preparado para análise: ${conversationText.length} caracteres`);
@@ -127,7 +185,7 @@ serve(async (req) => {
     const startTime = Date.now();
 
     // Processar com cada assistente configurado
-    for (const assistant of assistants) {
+    for (const assistant of assistants.slice(0, 3)) { // Limitar a 3 assistentes para evitar timeout
       try {
         console.log(`🔄 Processando com ${assistant.name} (${assistant.model}) - Área: ${assistant.area}...`);
 
@@ -142,12 +200,12 @@ INSTRUÇÕES ESPECÍFICAS:
 - Analise as conversações fornecidas
 - Gere insights práticos e acionáveis
 - Seja objetivo e construtivo  
-- Máximo 300 palavras por insight
+- Máximo 200 palavras
 - Responda sempre em português brasileiro
 - Identifique padrões comportamentais relevantes à sua área
 
 DADOS PARA ANÁLISE:
-${conversationText.substring(0, 4000)}`;
+${conversationText.substring(0, 3000)}`;
 
         console.log(`📤 Enviando requisição para OpenAI - Assistente: ${assistant.name}`);
 
@@ -164,7 +222,7 @@ ${conversationText.substring(0, 4000)}`;
               { role: 'user', content: `Analise as conversações e gere insights específicos para a área de ${assistant.area}.` }
             ],
             temperature: openaiConfig.temperature,
-            max_tokens: openaiConfig.maxTokens,
+            max_tokens: Math.min(openaiConfig.maxTokens, 500),
           }),
         });
 
@@ -230,12 +288,16 @@ ${conversationText.substring(0, 4000)}`;
 
       if (insertError) {
         console.error('❌ Erro ao salvar insights:', insertError);
-        throw new Error(`Erro ao salvar insights: ${insertError.message}`);
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: `Erro ao salvar insights: ${insertError.message}` 
+          }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
 
       console.log('✅ Insights salvos com sucesso no banco');
-    } else {
-      console.warn('⚠️ Nenhum insight foi gerado pelos assistentes');
     }
 
     const processingTime = Date.now() - startTime;
