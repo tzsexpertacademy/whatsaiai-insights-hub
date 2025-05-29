@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { User, Session } from '@supabase/supabase-js';
@@ -191,6 +190,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setSession(session);
         const userProfile = createUserProfile(session);
         setUser(userProfile);
+        
+        // Se é um novo signup, marcar como novo usuário
+        if (event === 'SIGNED_UP') {
+          console.log('🆕 Novo usuário detectado, marcando para onboarding');
+          localStorage.setItem('is_new_user', 'true');
+        }
         
         // Check subscription after login
         setTimeout(async () => {
