@@ -25,12 +25,25 @@ interface AnalysisType {
 
 const analysisTypes: AnalysisType[] = [
   {
+    id: 'micro',
+    name: 'Análise Micro',
+    description: 'Análise ultra rápida e econômica',
+    minTokens: 50,
+    maxTokens: 100,
+    price: 'Ultra econômica',
+    features: [
+      'Insights básicos essenciais',
+      'Análise superficial de padrões',
+      'Recomendações mínimas'
+    ]
+  },
+  {
     id: 'simple',
     name: 'Análise Simples',
     description: 'Análise básica e econômica',
     minTokens: 100,
     maxTokens: 250,
-    price: 'Mais econômica',
+    price: 'Muito econômica',
     features: [
       'Insights básicos dos assistentes',
       'Análise rápida de padrões',
@@ -74,7 +87,7 @@ interface AIAnalysisSelectorProps {
 }
 
 export function AIAnalysisSelector({ onAnalyze, isAnalyzing }: AIAnalysisSelectorProps) {
-  const [selectedType, setSelectedType] = useState<string>('simple');
+  const [selectedType, setSelectedType] = useState<string>('micro');
 
   const selectedAnalysis = analysisTypes.find(type => type.id === selectedType) || analysisTypes[0];
 
@@ -82,7 +95,9 @@ export function AIAnalysisSelector({ onAnalyze, isAnalyzing }: AIAnalysisSelecto
     const config = {
       type: selectedAnalysis.id,
       maxTokens: selectedAnalysis.maxTokens,
-      temperature: selectedAnalysis.id === 'simple' ? 0.3 : selectedAnalysis.id === 'complete' ? 0.5 : 0.7
+      temperature: selectedAnalysis.id === 'micro' ? 0.2 : 
+                  selectedAnalysis.id === 'simple' ? 0.3 : 
+                  selectedAnalysis.id === 'complete' ? 0.5 : 0.7
     };
     
     onAnalyze(config);
@@ -153,8 +168,8 @@ export function AIAnalysisSelector({ onAnalyze, isAnalyzing }: AIAnalysisSelecto
         <Alert>
           <Info className="h-4 w-4" />
           <AlertDescription>
-            <strong>Dica:</strong> Comece com análise simples para testes rápidos. 
-            Use análise detalhada quando precisar de insights mais profundos.
+            <strong>Dica:</strong> Use análise micro para testes rápidos. 
+            Análise detalhada quando precisar de insights mais profundos.
           </AlertDescription>
         </Alert>
 
