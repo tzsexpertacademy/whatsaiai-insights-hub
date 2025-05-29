@@ -46,9 +46,11 @@ export function ObservatoryLanding() {
   const heroRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const scrollY = useParallax();
-  const [soundEnabled, setSoundEnabled] = React.useState(true); // Som ativado por padrão
+  const [soundEnabled, setSoundEnabled] = React.useState(true);
   const [showBrainAnimation, setShowBrainAnimation] = React.useState(true);
   const [showContent, setShowContent] = React.useState(false);
+  const [showFirstPhrase, setShowFirstPhrase] = React.useState(false);
+  const [showSecondPhrase, setShowSecondPhrase] = React.useState(false);
   const audioContextRef = useRef<AudioContext | null>(null);
   const soundEffectsRef = useRef<{
     ambient?: OscillatorNode;
@@ -61,6 +63,9 @@ export function ObservatoryLanding() {
     console.log('⏭️ Pulando animação do cérebro');
     setShowBrainAnimation(false);
     setShowContent(true);
+    // Mostrar frases imediatamente
+    setTimeout(() => setShowFirstPhrase(true), 300);
+    setTimeout(() => setShowSecondPhrase(true), 800);
   };
 
   // Controlar sequência da animação
@@ -70,6 +75,9 @@ export function ObservatoryLanding() {
       setShowBrainAnimation(false);
       setTimeout(() => {
         setShowContent(true);
+        // Sequência de entrada das frases
+        setTimeout(() => setShowFirstPhrase(true), 500);
+        setTimeout(() => setShowSecondPhrase(true), 1200);
         console.log('✅ Conteúdo da página exibido');
       }, 500);
     }, 2000);
@@ -83,6 +91,8 @@ export function ObservatoryLanding() {
         console.log('⏰ Timeout da animação, forçando exibição do conteúdo');
         setShowBrainAnimation(false);
         setShowContent(true);
+        setTimeout(() => setShowFirstPhrase(true), 300);
+        setTimeout(() => setShowSecondPhrase(true), 800);
       }
     }, maxWaitTime);
 
@@ -441,7 +451,7 @@ export function ObservatoryLanding() {
       {/* Conteúdo principal */}
       {showContent && (
         <div className="animate-fade-in relative z-10">
-          {/* Seção 1 - Hero Section com texto harmonioso */}
+          {/* Seção 1 - Hero Section com animação sequencial */}
           <section ref={heroRef} className="relative min-h-screen flex items-center justify-center px-4 sm:px-6">
             <div className="text-center max-w-7xl mx-auto w-full">
               <div className="relative z-10">
@@ -452,79 +462,93 @@ export function ObservatoryLanding() {
                   </Badge>
                 </ScrollReveal>
 
-                <ScrollReveal id="hero-title" direction="up" delay={400}>
-                  <div className="mb-8 sm:mb-12">
-                    <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black mb-6 leading-[0.9] tracking-tight">
-                      <div className="mb-4">
-                        <span className="block text-white font-black mb-2">
-                          O que você
-                        </span>
-                        <span 
-                          className="block font-black bg-gradient-to-r from-red-500 via-orange-500 to-yellow-500 bg-clip-text text-transparent animate-pulse"
-                          style={{
-                            textShadow: `
-                              0 0 30px rgba(239, 68, 68, 0.8),
-                              0 0 60px rgba(249, 115, 22, 0.6),
-                              0 0 90px rgba(234, 179, 8, 0.4)
-                            `,
-                            filter: 'drop-shadow(0 0 20px rgba(239, 68, 68, 0.5))'
-                          }}
-                        >
-                          NÃO VÊ...
-                        </span>
-                      </div>
-                      <div 
-                        className="block font-black bg-gradient-to-r from-red-600 via-pink-600 to-purple-600 bg-clip-text text-transparent animate-pulse"
+                {/* Primeira frase com animação de entrada */}
+                <div 
+                  className={`mb-8 sm:mb-12 transition-all duration-1000 ease-out ${
+                    showFirstPhrase 
+                      ? 'opacity-100 transform translate-y-0' 
+                      : 'opacity-0 transform translate-y-8'
+                  }`}
+                >
+                  <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black mb-6 leading-[0.9] tracking-tight">
+                    <div className="mb-4">
+                      <span className="block text-white font-black mb-2">
+                        O que você
+                      </span>
+                      <span 
+                        className="block font-black bg-gradient-to-r from-red-500 via-orange-500 to-yellow-500 bg-clip-text text-transparent glow-text-pulsing"
                         style={{
                           textShadow: `
-                            0 0 30px rgba(220, 38, 127, 0.8),
-                            0 0 60px rgba(147, 51, 234, 0.6),
-                            0 0 90px rgba(168, 85, 247, 0.4)
+                            0 0 30px rgba(239, 68, 68, 0.8),
+                            0 0 60px rgba(249, 115, 22, 0.6),
+                            0 0 90px rgba(234, 179, 8, 0.4)
                           `,
-                          filter: 'drop-shadow(0 0 20px rgba(220, 38, 127, 0.5))',
-                          animationDelay: '0.5s'
+                          filter: 'drop-shadow(0 0 20px rgba(239, 68, 68, 0.5))'
                         }}
                       >
-                        TE CONTROLA.
-                      </div>
-                    </h1>
-                    
-                    <h2 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black leading-[0.9] tracking-tight">
-                      <div className="mb-4">
-                        <span className="block text-white font-black mb-2">
-                          O que você
-                        </span>
-                        <span 
-                          className="block font-black bg-gradient-to-r from-blue-400 via-cyan-400 to-emerald-400 bg-clip-text text-transparent"
-                          style={{
-                            textShadow: `
-                              0 0 30px rgba(59, 130, 246, 0.8),
-                              0 0 60px rgba(6, 182, 212, 0.6),
-                              0 0 90px rgba(16, 185, 129, 0.4)
-                            `,
-                            filter: 'drop-shadow(0 0 20px rgba(59, 130, 246, 0.5))'
-                          }}
-                        >
-                          VÊ...
-                        </span>
-                      </div>
-                      <div 
-                        className="block font-black bg-gradient-to-r from-emerald-400 via-green-400 to-lime-400 bg-clip-text text-transparent animate-pulse"
+                        NÃO VÊ...
+                      </span>
+                    </div>
+                    <div 
+                      className="block font-black bg-gradient-to-r from-red-600 via-pink-600 to-purple-600 bg-clip-text text-transparent glow-text-pulsing"
+                      style={{
+                        textShadow: `
+                          0 0 30px rgba(220, 38, 127, 0.8),
+                          0 0 60px rgba(147, 51, 234, 0.6),
+                          0 0 90px rgba(168, 85, 247, 0.4)
+                        `,
+                        filter: 'drop-shadow(0 0 20px rgba(220, 38, 127, 0.5))',
+                        animationDelay: '0.3s'
+                      }}
+                    >
+                      TE CONTROLA.
+                    </div>
+                  </h1>
+                </div>
+                
+                {/* Segunda frase com animação de entrada atrasada */}
+                <div 
+                  className={`mb-8 sm:mb-12 transition-all duration-1000 ease-out ${
+                    showSecondPhrase 
+                      ? 'opacity-100 transform translate-y-0' 
+                      : 'opacity-0 transform translate-y-8'
+                  }`}
+                >
+                  <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black leading-[0.9] tracking-tight">
+                    <div className="mb-4">
+                      <span className="block text-white font-black mb-2">
+                        O que você
+                      </span>
+                      <span 
+                        className="block font-black bg-gradient-to-r from-blue-400 via-cyan-400 to-emerald-400 bg-clip-text text-transparent glow-text-cold"
                         style={{
                           textShadow: `
-                            0 0 30px rgba(16, 185, 129, 0.8),
-                            0 0 60px rgba(34, 197, 94, 0.6),
-                            0 0 90px rgba(163, 230, 53, 0.4)
+                            0 0 30px rgba(59, 130, 246, 0.8),
+                            0 0 60px rgba(6, 182, 212, 0.6),
+                            0 0 90px rgba(16, 185, 129, 0.4)
                           `,
-                          filter: 'drop-shadow(0 0 20px rgba(16, 185, 129, 0.5))',
-                          animationDelay: '0.3s'
+                          filter: 'drop-shadow(0 0 20px rgba(59, 130, 246, 0.5))'
                         }}
                       >
-                        TE LIBERTA.
-                      </div>
-                    </h2>
-                  </div>
-                </ScrollReveal>
+                        VÊ...
+                      </span>
+                    </div>
+                    <div 
+                      className="block font-black bg-gradient-to-r from-emerald-400 via-green-400 to-lime-400 bg-clip-text text-transparent glow-text-liberation"
+                      style={{
+                        textShadow: `
+                          0 0 30px rgba(16, 185, 129, 0.8),
+                          0 0 60px rgba(34, 197, 94, 0.6),
+                          0 0 90px rgba(163, 230, 53, 0.4)
+                        `,
+                        filter: 'drop-shadow(0 0 20px rgba(16, 185, 129, 0.5))',
+                        animationDelay: '0.3s'
+                      }}
+                    >
+                      TE LIBERTA.
+                    </div>
+                  </h2>
+                </div>
 
                 <ScrollReveal id="hero-subtitle" direction="up" delay={600}>
                   <div className="mb-8 sm:mb-12 space-y-4">
@@ -738,7 +762,7 @@ export function ObservatoryLanding() {
             </div>
           </section>
 
-          {/* Estilos CSS harmonizados */}
+          {/* Estilos CSS harmonizados com novos efeitos */}
           <style>{`
             .glow-text {
               text-shadow: 0 0 20px currentColor, 0 0 40px currentColor;
@@ -746,6 +770,45 @@ export function ObservatoryLanding() {
             
             .glow-text-neural {
               text-shadow: 0 0 20px currentColor, 0 0 40px currentColor, 0 0 60px currentColor;
+            }
+            
+            .glow-text-pulsing {
+              animation: glow-pulse 2s ease-in-out infinite alternate;
+            }
+            
+            .glow-text-cold {
+              animation: glow-cold 3s ease-in-out infinite alternate;
+            }
+            
+            .glow-text-liberation {
+              animation: glow-liberation 2.5s ease-in-out infinite alternate;
+            }
+            
+            @keyframes glow-pulse {
+              0% {
+                filter: drop-shadow(0 0 20px rgba(239, 68, 68, 0.5)) brightness(1);
+              }
+              100% {
+                filter: drop-shadow(0 0 40px rgba(239, 68, 68, 0.8)) brightness(1.2);
+              }
+            }
+            
+            @keyframes glow-cold {
+              0% {
+                filter: drop-shadow(0 0 20px rgba(59, 130, 246, 0.5)) brightness(1);
+              }
+              100% {
+                filter: drop-shadow(0 0 35px rgba(59, 130, 246, 0.8)) brightness(1.1);
+              }
+            }
+            
+            @keyframes glow-liberation {
+              0% {
+                filter: drop-shadow(0 0 20px rgba(16, 185, 129, 0.5)) brightness(1);
+              }
+              100% {
+                filter: drop-shadow(0 0 35px rgba(16, 185, 129, 0.8)) brightness(1.1);
+              }
             }
             
             .glow-button {
@@ -775,7 +838,7 @@ export function ObservatoryLanding() {
             
             /* Responsividade melhorada */
             @media (max-width: 640px) {
-              .glow-text, .glow-text-neural {
+              .glow-text, .glow-text-neural, .glow-text-pulsing, .glow-text-cold, .glow-text-liberation {
                 text-shadow: 
                   0 0 10px currentColor, 
                   0 0 20px currentColor;
