@@ -643,7 +643,7 @@ export function ObservatoryLanding() {
             </ScrollReveal>
 
             <ScrollReveal id="hero-buttons" direction="up" delay={800}>
-              <div className="flex flex-col gap-6 sm:gap-8 justify-center items-center mb-8 sm:mb-12">
+              <div className="flex flex-col gap-4 sm:gap-6 justify-center items-center mb-8 sm:mb-12">
                 <Button 
                   onClick={handleActivateYumerMind}
                   onMouseEnter={() => {
