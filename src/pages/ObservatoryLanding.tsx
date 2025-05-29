@@ -153,10 +153,27 @@ export function ObservatoryLanding() {
       });
       navigate('/dashboard');
     } else {
-      // Usuário não logado - vai para login
+      // Usuário não logado - vai para página de cadastro/login
       toast({
-        title: "Faça login para acessar",
-        description: "Redirecionando para login...",
+        title: "Crie sua conta para começar",
+        description: "Redirecionando para cadastro...",
+        duration: 2000
+      });
+      navigate('/auth');
+    }
+  };
+
+  const handleStartTrial = async () => {
+    console.log('🎯 Começar Trial clicado');
+    
+    if (isAuthenticated) {
+      // Se já está logado, vai para dashboard
+      navigate('/dashboard');
+    } else {
+      // Se não está logado, vai para cadastro
+      toast({
+        title: "Crie sua conta",
+        description: "Cadastre-se para começar seu trial gratuito",
         duration: 2000
       });
       navigate('/auth');
@@ -284,9 +301,11 @@ export function ObservatoryLanding() {
                 >
                   <Shield className="w-6 h-6 sm:w-8 sm:h-8 mr-2 sm:mr-4 group-hover:rotate-12 transition-transform" />
                   <div className="text-center">
-                    <div className="font-black">ACESSAR OBSERVATÓRIO</div>
+                    <div className="font-black">
+                      {isAuthenticated ? 'ACESSAR OBSERVATÓRIO' : 'CRIAR CONTA E COMEÇAR'}
+                    </div>
                     <div className="text-sm sm:text-base font-normal opacity-90">
-                      {isAuthenticated ? 'Entrar no Dashboard' : 'Fazer Login'}
+                      {isAuthenticated ? 'Entrar no Dashboard' : 'Cadastro + Trial Grátis'}
                     </div>
                   </div>
                   <ArrowRight className="w-6 h-6 sm:w-8 sm:h-8 ml-2 sm:ml-4 group-hover:translate-x-2 transition-transform" />
@@ -489,9 +508,11 @@ export function ObservatoryLanding() {
               >
                 <Shield className="w-8 h-8 sm:w-10 sm:h-10 mr-4 sm:mr-6 group-hover:rotate-12 transition-transform duration-500" />
                 <div className="text-center">
-                  <div className="font-black">ACESSAR MEU OBSERVATÓRIO AGORA</div>
+                  <div className="font-black">
+                    {isAuthenticated ? 'ACESSAR MEU OBSERVATÓRIO AGORA' : 'CRIAR CONTA E COMEÇAR AGORA'}
+                  </div>
                   <div className="text-lg sm:text-xl font-normal opacity-90">
-                    {isAuthenticated ? 'ENTRAR NO DASHBOARD' : 'FAZER LOGIN'}
+                    {isAuthenticated ? 'ENTRAR NO DASHBOARD' : 'CADASTRO + TRIAL GRÁTIS'}
                   </div>
                 </div>
                 <Flame className="w-8 h-8 sm:w-10 sm:h-10 ml-4 sm:ml-6 group-hover:scale-110 transition-transform duration-500" />

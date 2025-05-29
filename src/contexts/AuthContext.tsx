@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { User, Session } from '@supabase/supabase-js';
@@ -201,6 +202,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signup = async (email: string, password: string, metadata?: { fullName?: string; companyName?: string }): Promise<void> => {
+    console.log('📝 Criando conta real para usuário:', email);
+    
     const { error } = await supabase.auth.signUp({
       email,
       password,
@@ -212,7 +215,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
-    if (error) throw error;
+    if (error) {
+      console.error('❌ Erro ao criar conta:', error);
+      throw error;
+    }
+    
+    console.log('✅ Conta criada com sucesso para:', email);
   };
 
   const logout = async (): Promise<void> => {

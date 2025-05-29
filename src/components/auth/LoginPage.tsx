@@ -10,11 +10,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Brain, Mail, Lock, User, Building } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useOnboarding } from '@/hooks/useOnboarding';
 
 export function LoginPage() {
   const { login, signup, user, isLoading } = useAuth();
-  const { markAsNewUser } = useOnboarding();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
@@ -40,9 +38,7 @@ export function LoginPage() {
     if (user) {
       console.log('✅ Usuário autenticado, redirecionando para dashboard');
       
-      // Se veio do checkout, marcar como novo usuário para mostrar tutorial
       if (fromCheckout) {
-        markAsNewUser();
         toast({
           title: "Bem-vindo ao Observatório!",
           description: "Vamos começar sua jornada de autoconhecimento",
@@ -60,14 +56,14 @@ export function LoginPage() {
         navigate('/dashboard');
       }, 1000);
     }
-  }, [user, navigate, toast, fromCheckout, markAsNewUser]);
+  }, [user, navigate, toast, fromCheckout]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     console.log('🔐 Tentando fazer login...');
     try {
       await login(loginData.email, loginData.password);
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Erro no login:', error);
       toast({
         title: "Erro no login",
@@ -107,15 +103,28 @@ export function LoginPage() {
       return;
     }
 
-    console.log('📝 Tentando criar conta...');
+    if (!signupData.email.trim()) {
+      toast({
+        title: "Erro",
+        description: "Email é obrigatório",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    console.log('📝 Criando conta real para:', signupData.email);
     try {
       await signup(signupData.email, signupData.password, {
         fullName: signupData.fullName,
         companyName: signupData.companyName
       });
       
-      // Se veio do checkout, será marcado como novo usuário no useEffect acima
-    } catch (error) {
+      toast({
+        title: "Conta criada com sucesso!",
+        description: "Bem-vindo ao Observatório!",
+        duration: 2000
+      });
+    } catch (error: any) {
       console.error('❌ Erro no cadastro:', error);
       toast({
         title: "Erro no cadastro",
@@ -144,17 +153,17 @@ export function LoginPage() {
         <Card className="shadow-xl border-0">
           <CardHeader className="space-y-1">
             <CardTitle className="text-2xl text-center">
-              {fromCheckout ? 'Complete seu cadastro' : 'Acesse seu Observatório'}
+              {fromCheckout ? 'Complete seu cadastro' : 'Crie sua conta'}
             </CardTitle>
             <CardDescription className="text-center">
-              {fromCheckout ? 'Crie sua conta para acessar a plataforma' : 'Entre ou crie sua conta para começar'}
+              {fromCheckout ? 'Finalize seu cadastro para acessar a plataforma' : 'Cadastre-se ou faça login para começar'}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue={fromCheckout ? "signup" : "signup"} className="w-full">
+            <Tabs defaultValue="signup" className="w-full">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="signup">
-                  {fromCheckout ? 'Criar Conta' : 'Criar Conta'}
+                  Criar Conta
                 </TabsTrigger>
                 <TabsTrigger value="login">Já tenho conta</TabsTrigger>
               </TabsList>
@@ -241,7 +250,7 @@ export function LoginPage() {
                   </div>
 
                   <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={isLoading}>
-                    {isLoading ? 'Criando conta...' : 'Criar Conta e Acessar'}
+                    {isLoading ? 'Criando conta...' : 'Criar Conta e Começar Trial'}
                   </Button>
                 </form>
               </TabsContent>
