@@ -56,14 +56,38 @@ export function ObservatoryLanding() {
     click?: () => void;
   }>({});
 
+  // Função para pular a animação (para debug ou usuários que querem ir direto)
+  const skipAnimation = () => {
+    console.log('⏭️ Pulando animação do cérebro');
+    setShowBrainAnimation(false);
+    setShowContent(true);
+  };
+
   // Controlar sequência da animação
   const handleBrainAnimationComplete = () => {
-    console.log('🧠 Animação do cérebro completa, mostrando conteúdo');
+    console.log('🧠 Animação do cérebro completa, mostrando conteúdo em 2 segundos');
     setTimeout(() => {
       setShowBrainAnimation(false);
-      setShowContent(true);
-    }, 1000);
+      setTimeout(() => {
+        setShowContent(true);
+        console.log('✅ Conteúdo da página exibido');
+      }, 500);
+    }, 2000);
   };
+
+  // Inicializar conteúdo após um tempo máximo (fallback)
+  useEffect(() => {
+    const maxWaitTime = 10000; // 10 segundos máximo
+    const timer = setTimeout(() => {
+      if (!showContent) {
+        console.log('⏰ Timeout da animação, forçando exibição do conteúdo');
+        setShowBrainAnimation(false);
+        setShowContent(true);
+      }
+    }, maxWaitTime);
+
+    return () => clearTimeout(timer);
+  }, [showContent]);
 
   // Sistema de áudio épico e imersivo
   useEffect(() => {
@@ -372,10 +396,20 @@ export function ObservatoryLanding() {
       
       {/* Animação do cérebro neural */}
       {showBrainAnimation && (
-        <BrainAnimation 
-          onAnimationComplete={handleBrainAnimationComplete}
-          soundEnabled={soundEnabled}
-        />
+        <div className="relative z-30">
+          <BrainAnimation 
+            onAnimationComplete={handleBrainAnimationComplete}
+            soundEnabled={soundEnabled}
+          />
+          
+          {/* Botão para pular animação */}
+          <button
+            onClick={skipAnimation}
+            className="fixed bottom-8 right-8 z-50 bg-black/50 backdrop-blur-sm border border-purple-500/30 rounded-full px-6 py-3 hover:bg-purple-500/20 transition-all text-purple-400 text-sm"
+          >
+            Pular animação →
+          </button>
+        </div>
       )}
       
       {/* Controle de som */}
@@ -408,7 +442,7 @@ export function ObservatoryLanding() {
 
       {/* Conteúdo principal - só aparece após animação do cérebro */}
       {showContent && (
-        <>
+        <div className="animate-fade-in">
           {/* Seção 1 - O IMPACTO ÉPICO */}
           <section ref={heroRef} className="relative min-h-screen flex items-center justify-center px-4 sm:px-6 z-10">
             <div className="text-center max-w-7xl mx-auto w-full">
@@ -801,7 +835,7 @@ export function ObservatoryLanding() {
               50% { transform: scale(1.02); }
             }
           `}</style>
-        </>
+        </div>
       )}
     </div>
   );
