@@ -31,104 +31,34 @@ serve(async (req) => {
       const senderData = webhookData.senderData;
       
       const chatId = senderData.chatId;
-      const senderName = senderData.chatName || senderData.sender;
-      const messageText = messageData.textMessageData?.textMessage || '[Mídia]';
+      const senderName = senderData.chatName || senderData.sender || chatId;
+      const messageText = messageData.textMessageData?.textMessage || messageData.extendedTextMessageData?.text || '[Mídia]';
       const messageId = messageData.idMessage;
       const timestamp = new Date(messageData.timestamp * 1000).toISOString();
 
       console.log(`💬 Nova mensagem GREEN-API de ${senderName}: ${messageText}`);
 
-      // Salvar no banco de dados
-      try {
-        // Buscar ou criar conversa
-        const { data: existingConversation, error: fetchError } = await supabase
-          .from('whatsapp_conversations')
-          .select('*')
-          .eq('contact_phone', chatId)
-          .single();
+      // Verificar se é conversa monitorada
+      const isMonitored = await checkIfChatIsMonitored(supabase, chatId);
+      
+      if (isMonitored) {
+        console.log('📊 Conversa monitorada, salvando no banco...');
+        await saveConversationToDatabase(supabase, {
+          chatId,
+          senderName,
+          messageText,
+          messageId,
+          timestamp
+        });
+      }
 
-        let conversationId;
-
-        if (fetchError || !existingConversation) {
-          // Criar nova conversa
-          const { data: newConversation, error: createError } = await supabase
-            .from('whatsapp_conversations')
-            .insert({
-              contact_name: senderName,
-              contact_phone: chatId,
-              messages: [{
-                id: messageId,
-                text: messageText,
-                sender: 'customer',
-                timestamp: timestamp,
-                platform: 'greenapi'
-              }]
-            })
-            .select()
-            .single();
-
-          if (createError) {
-            console.error('❌ Erro ao criar conversa:', createError);
-            throw createError;
-          }
-
-          conversationId = newConversation.id;
-          console.log('✅ Nova conversa criada:', conversationId);
-        } else {
-          // Atualizar conversa existente
-          const updatedMessages = [...(existingConversation.messages || []), {
-            id: messageId,
-            text: messageText,
-            sender: 'customer',
-            timestamp: timestamp,
-            platform: 'greenapi'
-          }];
-
-          const { error: updateError } = await supabase
-            .from('whatsapp_conversations')
-            .update({
-              messages: updatedMessages,
-              updated_at: timestamp
-            })
-            .eq('id', existingConversation.id);
-
-          if (updateError) {
-            console.error('❌ Erro ao atualizar conversa:', updateError);
-            throw updateError;
-          }
-
-          conversationId = existingConversation.id;
-          console.log('✅ Conversa atualizada:', conversationId);
-        }
-
-        // Salvar mensagem individual
-        await supabase
-          .from('whatsapp_messages')
-          .insert({
-            conversation_id: conversationId,
-            sender_type: 'customer',
-            message_text: messageText,
-            timestamp: timestamp,
-            metadata: {
-              messageId: messageId,
-              chatId: chatId,
-              platform: 'greenapi'
-            }
-          });
-
-        console.log('✅ Mensagem GREEN-API processada e salva');
-
-        // Opcional: Gerar resposta automática se configurado
-        if (openaiApiKey && messageText.trim() && !messageText.startsWith('[')) {
-          console.log('🤖 Gerando resposta automática...');
-          
-          // Implementar resposta automática aqui se necessário
-          // Similar ao que já existe no whatsapp-autoreply
-        }
-
-      } catch (dbError) {
-        console.error('❌ Erro no banco de dados:', dbError);
-        throw dbError;
+      // Se for auto-conversa (mesmo número), gerar resposta automática
+      if (await isAutoConversation(supabase, chatId)) {
+        console.log('🤖 Auto-conversa detectada, enviando para processamento...');
+        
+        // Aqui você pode implementar a lógica de resposta automática
+        // Por enquanto, apenas registramos que é uma auto-conversa
+        await markAsAutoConversation(supabase, chatId, messageText);
       }
     }
 
@@ -138,6 +68,7 @@ serve(async (req) => {
       console.log('📊 Status da mensagem:', statusData);
       
       // Atualizar status da mensagem no banco se necessário
+      await updateMessageStatus(supabase, statusData);
     }
 
     return new Response(
@@ -161,3 +92,123 @@ serve(async (req) => {
     );
   }
 });
+
+async function checkIfChatIsMonitored(supabase: any, chatId: string): Promise<boolean> {
+  try {
+    // Verificar se a conversa está sendo monitorada
+    const { data, error } = await supabase
+      .from('whatsapp_conversations')
+      .select('id')
+      .eq('contact_phone', chatId)
+      .maybeSingle();
+
+    return !error && data !== null;
+  } catch (error) {
+    console.error('Erro ao verificar monitoramento:', error);
+    return false;
+  }
+}
+
+async function isAutoConversation(supabase: any, chatId: string): Promise<boolean> {
+  // Aqui você pode implementar a lógica para detectar auto-conversas
+  // Por exemplo, verificar se o chatId corresponde ao número do usuário
+  return chatId.includes('auto') || chatId.includes('self'); // Placeholder
+}
+
+async function saveConversationToDatabase(supabase: any, messageInfo: any) {
+  try {
+    const { chatId, senderName, messageText, messageId, timestamp } = messageInfo;
+    
+    // Buscar ou criar conversa
+    const { data: existingConversation, error: fetchError } = await supabase
+      .from('whatsapp_conversations')
+      .select('*')
+      .eq('contact_phone', chatId)
+      .maybeSingle();
+
+    let conversationId;
+
+    if (fetchError || !existingConversation) {
+      // Criar nova conversa
+      const { data: newConversation, error: createError } = await supabase
+        .from('whatsapp_conversations')
+        .insert({
+          contact_name: senderName,
+          contact_phone: chatId,
+          messages: [{
+            id: messageId,
+            text: messageText,
+            sender: 'customer',
+            timestamp: timestamp,
+            platform: 'greenapi'
+          }]
+        })
+        .select()
+        .single();
+
+      if (createError) {
+        console.error('❌ Erro ao criar conversa:', createError);
+        throw createError;
+      }
+
+      conversationId = newConversation.id;
+      console.log('✅ Nova conversa criada:', conversationId);
+    } else {
+      // Atualizar conversa existente
+      const updatedMessages = [...(existingConversation.messages || []), {
+        id: messageId,
+        text: messageText,
+        sender: 'customer',
+        timestamp: timestamp,
+        platform: 'greenapi'
+      }];
+
+      const { error: updateError } = await supabase
+        .from('whatsapp_conversations')
+        .update({
+          messages: updatedMessages,
+          updated_at: timestamp
+        })
+        .eq('id', existingConversation.id);
+
+      if (updateError) {
+        console.error('❌ Erro ao atualizar conversa:', updateError);
+        throw updateError;
+      }
+
+      conversationId = existingConversation.id;
+      console.log('✅ Conversa atualizada:', conversationId);
+    }
+
+    // Salvar mensagem individual
+    await supabase
+      .from('whatsapp_messages')
+      .insert({
+        conversation_id: conversationId,
+        sender_type: 'customer',
+        message_text: messageText,
+        timestamp: timestamp,
+        metadata: {
+          messageId: messageId,
+          chatId: chatId,
+          platform: 'greenapi'
+        }
+      });
+
+    console.log('✅ Mensagem GREEN-API processada e salva');
+
+  } catch (dbError) {
+    console.error('❌ Erro no banco de dados:', dbError);
+    throw dbError;
+  }
+}
+
+async function markAsAutoConversation(supabase: any, chatId: string, messageText: string) {
+  // Implementar lógica para marcar como auto-conversa
+  console.log('🔄 Processando auto-conversa:', chatId, messageText);
+}
+
+async function updateMessageStatus(supabase: any, statusData: any) {
+  // Implementar atualização de status de mensagem
+  console.log('📋 Atualizando status:', statusData);
+}

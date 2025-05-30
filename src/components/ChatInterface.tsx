@@ -12,6 +12,7 @@ import { useAdmin } from "@/contexts/AdminContext";
 import { PageLayout } from '@/components/layout/PageLayout';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AIAnalysisButton } from "@/components/AIAnalysisButton";
+import { AssistantSelector } from "@/components/AssistantSelector";
 
 export function ChatInterface() {
   const {
@@ -20,11 +21,13 @@ export function ChatInterface() {
     messages,
     pinnedChats,
     monitoredChats,
+    selectedAssistant,
     loadChats,
     loadChatHistory,
     sendMessage,
     togglePinChat,
-    toggleMonitorChat
+    toggleMonitorChat,
+    setSelectedAssistant
   } = useGreenAPI();
   
   const { isAdmin } = useAdmin();
@@ -186,6 +189,10 @@ export function ChatInterface() {
           {greenAPIState.isConnected ? 'Conectado' : 'Desconectado'}
         </span>
       </div>
+      <AssistantSelector 
+        selectedAssistant={selectedAssistant}
+        onAssistantChange={setSelectedAssistant}
+      />
       <AIAnalysisButton variant="outline" size="sm" />
     </div>
   );

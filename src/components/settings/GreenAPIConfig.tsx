@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CheckCircle, ExternalLink, Copy, Smartphone, Zap, Globe, QrCode, Loader2, MessageSquare, Phone, AlertCircle, RefreshCw } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { useGreenAPI } from '@/hooks/useGreenAPI';
+import { GreenAPIWebhookConfig } from './GreenAPIWebhookConfig';
 
 export function GreenAPIConfig() {
   const { toast } = useToast();
@@ -446,6 +446,9 @@ export function GreenAPIConfig() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Adicionar configuração do webhook após as outras configurações */}
+      <GreenAPIWebhookConfig />
     </div>
   );
 }

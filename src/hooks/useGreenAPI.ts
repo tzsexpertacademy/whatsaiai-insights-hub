@@ -58,7 +58,8 @@ export function useGreenAPI() {
   const [isLoading, setIsLoading] = useState(false);
   const [pinnedChats, setPinnedChats] = useState<string[]>([]);
   const [monitoredChats, setMonitoredChats] = useState<string[]>([]);
-  
+  const [selectedAssistant, setSelectedAssistant] = useState<string>('autoconhecimento');
+
   const { toast } = useToast();
   const { config, updateConfig, saveConfig } = useClientConfig();
 
@@ -361,16 +362,25 @@ export function useGreenAPI() {
     }
   };
 
-  // Nova função para auto-resposta com IA
+  // Nova função para auto-resposta com IA usando assistente selecionado
   const generateAIResponse = async (userMessage: string): Promise<string> => {
     if (!config.openai?.apiKey) {
       return "🤖 Para receber respostas inteligentes, configure sua API key da OpenAI nas configurações.";
     }
 
     try {
-      console.log('🤖 Gerando resposta IA para auto-conversa...');
+      console.log(`🤖 Gerando resposta IA com assistente: ${selectedAssistant}...`);
 
-      const systemPrompt = `Você é um assistente pessoal especializado em autoconhecimento e desenvolvimento pessoal. 
+      // Buscar configuração do assistente selecionado
+      const { data: assistants } = await supabase
+        .from('assistants_config')
+        .select('*')
+        .eq('user_id', config.whatsapp?.authorizedNumber || 'default')
+        .eq('assistant_name', selectedAssistant)
+        .eq('is_active', true)
+        .maybeSingle();
+
+      let systemPrompt = `Você é um assistente pessoal especializado em autoconhecimento e desenvolvimento pessoal. 
       
       Características:
       - Responda de forma empática e reflexiva
@@ -381,6 +391,12 @@ export function useGreenAPI() {
       - Foque em ajudar a pessoa a se entender melhor
       
       Contexto: Esta é uma conversa de autoconhecimento onde a pessoa está refletindo consigo mesma.`;
+
+      // Se encontrou configuração personalizada do assistente, usar ela
+      if (assistants && assistants.prompt) {
+        systemPrompt = assistants.prompt;
+        console.log(`✅ Usando prompt personalizado do assistente: ${assistants.assistant_name}`);
+      }
 
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -674,7 +690,7 @@ export function useGreenAPI() {
       const targetPhoneNumber = chatId.replace('@c.us', '').replace('@g.us', '');
       
       if (currentPhoneNumber && targetPhoneNumber === currentPhoneNumber) {
-        console.log('🤖 Auto-conversa detectada, gerando resposta IA...');
+        console.log(`🤖 Auto-conversa detectada, gerando resposta com assistente: ${selectedAssistant}...`);
         
         setTimeout(async () => {
           const aiResponse = await generateAIResponse(message);
@@ -682,7 +698,7 @@ export function useGreenAPI() {
           // Simular resposta do assistente
           const assistantMessage: GreenAPIMessage = {
             id: `ai_${Date.now()}`,
-            text: aiResponse,
+            text: `[${selectedAssistant.toUpperCase()}] ${aiResponse}`,
             sender: 'contact',
             timestamp: new Date().toISOString(),
             chatId: chatId,
@@ -702,7 +718,8 @@ export function useGreenAPI() {
               text: assistantMessage.text,
               sender: 'assistant',
               timestamp: assistantMessage.timestamp,
-              platform: 'greenapi'
+              platform: 'greenapi',
+              assistant_used: selectedAssistant
             });
           }
         }, 2000); // Delay de 2 segundos para simular resposta
@@ -774,6 +791,7 @@ export function useGreenAPI() {
     isLoading,
     pinnedChats,
     monitoredChats,
+    selectedAssistant,
     updateAPIConfig,
     getQRCode,
     loadChats,
@@ -782,6 +800,7 @@ export function useGreenAPI() {
     disconnect,
     checkConnectionStatus,
     togglePinChat,
-    toggleMonitorChat
+    toggleMonitorChat,
+    setSelectedAssistant
   };
 }
