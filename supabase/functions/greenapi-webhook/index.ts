@@ -55,7 +55,7 @@ serve(async (req) => {
         return new Response('OK', { headers: corsHeaders })
       }
 
-      // Encontrar o usuário baseado nas configurações GREEN-API
+      // Encontrar TODOS os usuários com GREEN-API configurado
       const { data: configs, error: configError } = await supabase
         .from('client_configs')
         .select('user_id, whatsapp_config')
@@ -66,92 +66,84 @@ serve(async (req) => {
         return new Response('OK', { headers: corsHeaders })
       }
 
-      let targetUserId = null
-      
-      // Encontrar qual usuário possui essas credenciais
-      for (const config of configs) {
+      console.log(`📋 Encontradas ${configs?.length || 0} configurações`)
+
+      // Processar para TODOS os usuários com GREEN-API
+      for (const config of configs || []) {
         const whatsappConfig = config.whatsapp_config as any
         if (whatsappConfig?.greenapi?.instanceId && whatsappConfig?.greenapi?.apiToken) {
-          // Aqui você pode verificar se a mensagem veio da instância correta
-          // Por simplicidade, vamos usar o primeiro usuário com GREEN-API configurado
-          targetUserId = config.user_id
-          break
+          console.log(`👤 Processando para usuário: ${config.user_id}`)
+          
+          // Buscar ou criar conversa para este usuário
+          let { data: conversation, error: convError } = await supabase
+            .from('whatsapp_conversations')
+            .select('*')
+            .eq('user_id', config.user_id)
+            .eq('contact_phone', chatId)
+            .maybeSingle()
+
+          if (convError) {
+            console.error('❌ Erro ao buscar conversa:', convError)
+            continue
+          }
+
+          // Criar conversa se não existir
+          if (!conversation) {
+            const contactName = senderData?.chatName || senderData?.sender || chatId.split('@')[0]
+            
+            const { data: newConv, error: createError } = await supabase
+              .from('whatsapp_conversations')
+              .insert({
+                user_id: config.user_id,
+                contact_phone: chatId,
+                contact_name: contactName,
+                messages: []
+              })
+              .select()
+              .single()
+
+            if (createError) {
+              console.error('❌ Erro ao criar conversa:', createError)
+              continue
+            }
+
+            conversation = newConv
+            console.log(`✅ Nova conversa criada para usuário ${config.user_id}:`, conversation.id)
+          }
+
+          // Salvar mensagem na tabela de mensagens
+          const { error: msgError } = await supabase
+            .from('whatsapp_messages')
+            .insert({
+              user_id: config.user_id,
+              conversation_id: conversation.id,
+              message_text: messageText,
+              sender_type: 'customer',
+              timestamp: timestamp,
+              ai_generated: false
+            })
+
+          if (msgError) {
+            console.error(`❌ Erro ao salvar mensagem para usuário ${config.user_id}:`, msgError)
+          } else {
+            console.log(`✅ Mensagem salva para usuário ${config.user_id}`)
+          }
+
+          // Atualizar a conversa com a última mensagem
+          const { error: updateError } = await supabase
+            .from('whatsapp_conversations')
+            .update({
+              updated_at: timestamp
+            })
+            .eq('id', conversation.id)
+
+          if (updateError) {
+            console.error(`❌ Erro ao atualizar conversa para usuário ${config.user_id}:`, updateError)
+          }
         }
       }
 
-      if (!targetUserId) {
-        console.log('⚠️ Usuário não encontrado para esta instância')
-        return new Response('OK', { headers: corsHeaders })
-      }
-
-      // Buscar ou criar conversa
-      let { data: conversation, error: convError } = await supabase
-        .from('whatsapp_conversations')
-        .select('*')
-        .eq('user_id', targetUserId)
-        .eq('contact_phone', chatId)
-        .single()
-
-      if (convError && convError.code !== 'PGRST116') {
-        console.error('❌ Erro ao buscar conversa:', convError)
-        return new Response('OK', { headers: corsHeaders })
-      }
-
-      // Criar conversa se não existir
-      if (!conversation) {
-        const contactName = senderData?.chatName || senderData?.sender || chatId
-        
-        const { data: newConv, error: createError } = await supabase
-          .from('whatsapp_conversations')
-          .insert({
-            user_id: targetUserId,
-            contact_phone: chatId,
-            contact_name: contactName,
-            messages: []
-          })
-          .select()
-          .single()
-
-        if (createError) {
-          console.error('❌ Erro ao criar conversa:', createError)
-          return new Response('OK', { headers: corsHeaders })
-        }
-
-        conversation = newConv
-        console.log('✅ Nova conversa criada:', conversation.id)
-      }
-
-      // Salvar mensagem na tabela de mensagens
-      const { error: msgError } = await supabase
-        .from('whatsapp_messages')
-        .insert({
-          user_id: targetUserId,
-          conversation_id: conversation.id,
-          message_text: messageText,
-          sender_type: 'customer',
-          timestamp: timestamp,
-          ai_generated: false
-        })
-
-      if (msgError) {
-        console.error('❌ Erro ao salvar mensagem:', msgError)
-      } else {
-        console.log('✅ Mensagem salva com sucesso')
-      }
-
-      // Atualizar a conversa com a última mensagem
-      const { error: updateError } = await supabase
-        .from('whatsapp_conversations')
-        .update({
-          updated_at: timestamp
-        })
-        .eq('id', conversation.id)
-
-      if (updateError) {
-        console.error('❌ Erro ao atualizar conversa:', updateError)
-      }
-
-      console.log('✅ Webhook processado com sucesso')
+      console.log('✅ Webhook processado com sucesso para todos os usuários')
     } else {
       console.log(`ℹ️ Tipo de webhook ignorado: ${body.typeWebhook}`)
     }
