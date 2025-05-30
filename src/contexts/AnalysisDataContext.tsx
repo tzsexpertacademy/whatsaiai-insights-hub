@@ -147,14 +147,22 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
       // 5. BUSCAR ANÁLISES DE DOCUMENTOS
       // Baseado nos insights que podem ter vindo de documentos
       const documentAnalyses = (insightsData || [])
-        .filter(insight => insight.metadata?.source === 'document' || insight.category === 'document')
-        .map(insight => ({
-          id: `doc_${insight.id}`,
-          document_name: insight.metadata?.document_name || 'Documento',
-          analysis_summary: insight.description,
-          created_at: insight.created_at,
-          insights_count: 1
-        }));
+        .filter(insight => {
+          // Verificar se metadata existe e tem a propriedade source
+          const metadata = insight.metadata as any;
+          return (metadata && typeof metadata === 'object' && metadata.source === 'document') || 
+                 insight.category === 'document';
+        })
+        .map(insight => {
+          const metadata = insight.metadata as any;
+          return {
+            id: `doc_${insight.id}`,
+            document_name: (metadata && typeof metadata === 'object' && metadata.document_name) || 'Documento',
+            analysis_summary: insight.description,
+            created_at: insight.created_at,
+            insights_count: 1
+          };
+        });
 
       console.log('📊 FONTES DE DADOS CARREGADAS:', {
         insights: insightsData?.length || 0,
