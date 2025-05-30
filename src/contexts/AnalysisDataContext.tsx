@@ -77,6 +77,7 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
 
   const refreshData = async () => {
     if (!user?.id) {
+      console.log('❌ Usuário não autenticado');
       setData(prev => ({ ...prev, hasRealData: false }));
       setIsLoading(false);
       return;
@@ -85,6 +86,9 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
     try {
       setIsLoading(true);
       
+      console.log('🔍 DIAGNÓSTICO: Iniciando verificação completa dos dados...');
+      console.log('👤 User ID:', user.id);
+
       // ✅ VALIDAÇÃO CRÍTICA DO SISTEMA BLINDADO
       const systemIntegrity = validateAssistantMapping();
       if (!systemIntegrity) {
@@ -92,21 +96,31 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
         throw new Error('Sistema de análise comprometido');
       }
 
-      console.log('🔒 Carregando dados de TODAS as fontes com sistema blindado ativo...');
-
-      // 1. BUSCAR INSIGHTS DOS ASSISTENTES
+      // 1. VERIFICAR INSIGHTS DOS ASSISTENTES
+      console.log('🔍 Buscando insights...');
       const { data: insightsData, error: insightsError } = await supabase
         .from('insights')
         .select('*')
         .eq('user_id', user.id)
-        .eq('status', 'active')
         .order('created_at', { ascending: false });
+
+      console.log('📊 INSIGHTS encontrados:', {
+        total: insightsData?.length || 0,
+        error: insightsError,
+        samples: insightsData?.slice(0, 3).map(i => ({
+          id: i.id,
+          type: i.insight_type,
+          title: i.title,
+          created: i.created_at
+        }))
+      });
 
       if (insightsError) {
         console.error('❌ Erro ao buscar insights:', insightsError);
       }
 
-      // 2. BUSCAR CONVERSAS DO WHATSAPP
+      // 2. VERIFICAR CONVERSAS DO WHATSAPP
+      console.log('🔍 Buscando conversas WhatsApp...');
       const { data: whatsappConversations, error: whatsappError } = await supabase
         .from('whatsapp_conversations')
         .select(`
@@ -116,11 +130,23 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
+      console.log('📱 WHATSAPP encontrado:', {
+        conversations: whatsappConversations?.length || 0,
+        totalMessages: whatsappConversations?.reduce((sum, conv) => sum + (conv.whatsapp_messages?.length || 0), 0) || 0,
+        error: whatsappError,
+        samples: whatsappConversations?.slice(0, 2).map(c => ({
+          id: c.id,
+          contact: c.contact_name,
+          messages: c.whatsapp_messages?.length || 0
+        }))
+      });
+
       if (whatsappError) {
         console.error('❌ Erro ao buscar conversas WhatsApp:', whatsappError);
       }
 
-      // 3. BUSCAR CONVERSAS COMERCIAIS (se existirem)
+      // 3. VERIFICAR CONVERSAS COMERCIAIS
+      console.log('🔍 Buscando conversas comerciais...');
       const { data: commercialConversations, error: commercialError } = await supabase
         .from('commercial_conversations')
         .select(`
@@ -130,12 +156,45 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
+      console.log('💼 COMERCIAIS encontradas:', {
+        conversations: commercialConversations?.length || 0,
+        totalMessages: commercialConversations?.reduce((sum, conv) => sum + (conv.commercial_messages?.length || 0), 0) || 0,
+        error: commercialError
+      });
+
       if (commercialError) {
         console.error('❌ Erro ao buscar conversas comerciais:', commercialError);
       }
 
-      // 4. BUSCAR MENSAGENS DE CHAT COM ASSISTENTES
-      // Nota: Como não temos uma tabela específica para isso, vamos simular baseado nos insights
+      // 4. VERIFICAR CONFIGURAÇÃO DOS ASSISTENTES
+      console.log('🔍 Verificando configuração dos assistentes...');
+      const { data: assistantsConfig, error: assistantsError } = await supabase
+        .from('client_configs')
+        .select('openai_config')
+        .eq('user_id', user.id)
+        .single();
+
+      let assistants: any[] = [];
+      let assistantsActive = 0;
+      
+      if (assistantsConfig?.openai_config && typeof assistantsConfig.openai_config === 'object') {
+        const config = assistantsConfig.openai_config as any;
+        assistants = config.assistants || [];
+        assistantsActive = assistants.filter(a => a.isActive).length;
+      }
+
+      console.log('🤖 ASSISTENTES configurados:', {
+        total: assistants.length,
+        active: assistantsActive,
+        error: assistantsError,
+        hasOpenAI: !!assistantsConfig?.openai_config
+      });
+
+      if (assistantsError) {
+        console.error('❌ Erro ao buscar configuração dos assistentes:', assistantsError);
+      }
+
+      // 5. SIMULAR MENSAGENS DE CHAT COM ASSISTENTES (baseado nos insights)
       const chatMessages = (insightsData || []).map(insight => ({
         id: `chat_${insight.id}`,
         user_message: `Conversa com ${insight.insight_type}`,
@@ -144,14 +203,13 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
         assistant_type: insight.insight_type
       }));
 
-      // 5. BUSCAR ANÁLISES DE DOCUMENTOS
-      // Baseado nos insights que podem ter vindo de documentos
+      // 6. PROCESSAR ANÁLISES DE DOCUMENTOS
       const documentAnalyses = (insightsData || [])
         .filter(insight => {
-          // Verificar se metadata existe e tem a propriedade source
           const metadata = insight.metadata as any;
-          return (metadata && typeof metadata === 'object' && metadata.source === 'document') || 
-                 insight.category === 'document';
+          const isDocumentSource = metadata && typeof metadata === 'object' && metadata.source === 'document';
+          const isDocumentCategory = insight.category === 'document';
+          return isDocumentSource || isDocumentCategory;
         })
         .map(insight => {
           const metadata = insight.metadata as any;
@@ -163,31 +221,6 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
             insights_count: 1
           };
         });
-
-      console.log('📊 FONTES DE DADOS CARREGADAS:', {
-        insights: insightsData?.length || 0,
-        whatsappConversations: whatsappConversations?.length || 0,
-        commercialConversations: commercialConversations?.length || 0,
-        chatMessages: chatMessages.length,
-        documentAnalyses: documentAnalyses.length
-      });
-
-      // Buscar configuração dos assistentes
-      const { data: assistantsConfig, error: assistantsError } = await supabase
-        .from('client_configs')
-        .select('openai_config')
-        .eq('user_id', user.id)
-        .single();
-
-      if (assistantsError) {
-        console.error('❌ Erro ao buscar configuração dos assistentes:', assistantsError);
-      }
-
-      let assistants: any[] = [];
-      if (assistantsConfig?.openai_config && typeof assistantsConfig.openai_config === 'object') {
-        const config = assistantsConfig.openai_config as any;
-        assistants = config.assistants || [];
-      }
 
       // ✅ PROCESSAMENTO BLINDADO DOS INSIGHTS
       const processedInsights = (insightsData || []).map(insight => {
@@ -222,12 +255,25 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
       // ✅ MÉTRICAS CONSOLIDADAS
       const totalMessages = allConversations.reduce((sum, conv) => sum + (conv.message_count || 0), 0);
 
+      // ✅ DETERMINAR SE HÁ DADOS REAIS
       const hasRealData = (
         (insightsData && insightsData.length > 0) || 
         (allConversations.length > 0) ||
         (chatMessages.length > 0) ||
         (documentAnalyses.length > 0)
       );
+
+      console.log('📈 RESUMO FINAL DOS DADOS:', {
+        hasRealData,
+        insights: insightsData?.length || 0,
+        whatsappConversations: whatsappConversations?.length || 0,
+        commercialConversations: commercialConversations?.length || 0,
+        chatMessages: chatMessages.length,
+        documentAnalyses: documentAnalyses.length,
+        totalMessages,
+        assistantsActive,
+        assistantsConfigured: assistants.length
+      });
 
       // ✅ DADOS EMOCIONAIS BASEADOS EM TODAS AS FONTES
       const emotionalData = hasRealData ? [
@@ -323,24 +369,40 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
           totalDocuments: documentAnalyses.length,
           totalInsights: insightsData?.length || 0,
           lastAnalysis: insightsData?.[0]?.created_at || null,
-          assistantsActive: assistants.filter(a => a.isActive).length
+          assistantsActive: assistantsActive
         }
       };
 
       setData(newData);
-      console.log('✅ Sistema blindado - TODOS OS DADOS carregados:', {
-        whatsappConversations: allConversations.filter(c => c.source === 'whatsapp').length,
-        commercialConversations: allConversations.filter(c => c.source === 'commercial').length,
-        chatMessages: newData.chatMessages.length,
-        documentAnalyses: newData.documentAnalyses.length,
-        totalMessages: totalMessages,
-        insights: newData.insights.length,
-        hasRealData: newData.hasRealData,
-        systemIntegrity: true
+
+      if (!hasRealData) {
+        console.log('⚠️ DIAGNÓSTICO: Nenhum dado encontrado para análise!');
+        console.log('💡 Para gerar análises, você precisa de:');
+        console.log('   1. Configurar assistentes OpenAI ativa');
+        console.log('   2. Ter conversas no WhatsApp ou chat');
+        console.log('   3. Fazer upload de documentos para análise');
+        console.log('   4. Executar análise por IA no dashboard');
+      } else {
+        console.log('✅ DIAGNÓSTICO: Dados encontrados com sucesso!');
+      }
+
+      console.log('🎯 FONTES DE DADOS ATIVAS:', {
+        insights: `${newData.insights.length} insights`,
+        whatsappConversations: `${allConversations.filter(c => c.source === 'whatsapp').length} conversas WhatsApp`,
+        commercialConversations: `${allConversations.filter(c => c.source === 'commercial').length} conversas comerciais`,
+        chatMessages: `${newData.chatMessages.length} mensagens de chat`,
+        documentAnalyses: `${newData.documentAnalyses.length} documentos analisados`,
+        totalMessages: `${totalMessages} mensagens totais`,
+        systemIntegrity: '✅ Sistema blindado ativo'
       });
 
     } catch (error) {
-      console.error('❌ Erro no sistema blindado:', error);
+      console.error('❌ ERRO CRÍTICO no sistema de análise:', error);
+      console.error('📋 Detalhes do erro:', {
+        message: error instanceof Error ? error.message : 'Erro desconhecido',
+        userId: user?.id,
+        timestamp: new Date().toISOString()
+      });
       setData(prev => ({ ...prev, hasRealData: false }));
     } finally {
       setIsLoading(false);
