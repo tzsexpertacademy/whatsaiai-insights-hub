@@ -20,9 +20,8 @@ export function useAIReportUpdate() {
   const { assistants } = useAssistantsConfig();
 
   const updateReport = async (analysisConfig?: AnalysisConfig) => {
-    console.log('🤖 Iniciando atualização do relatório por IA...');
+    console.log('🤖 Iniciando análise de DADOS REAIS por IA...');
     
-    // Configuração padrão se não for fornecida
     const defaultConfig: AnalysisConfig = {
       type: 'simple',
       maxTokens: 250,
@@ -35,46 +34,30 @@ export function useAIReportUpdate() {
       console.error('❌ Usuário não autenticado');
       toast({
         title: "Erro de autenticação",
-        description: "Você precisa estar logado para atualizar o relatório",
+        description: "Você precisa estar logado para executar análises",
         variant: "destructive"
       });
       return;
     }
 
-    // Verificação rigorosa da configuração OpenAI
+    // Verificação da configuração OpenAI
     if (!config.openai?.apiKey || !config.openai.apiKey.startsWith('sk-')) {
-      console.error('❌ OpenAI não configurada:', config.openai);
+      console.error('❌ OpenAI não configurada');
       toast({
         title: "OpenAI não configurada",
-        description: "Configure uma chave OpenAI válida antes de gerar relatórios",
+        description: "Configure uma chave OpenAI válida antes de executar análises",
         variant: "destructive"
       });
       return;
     }
 
-    // Verificação se existem assistentes ativos
+    // Verificação de assistentes ativos
     const activeAssistants = assistants.filter(a => a.isActive);
-    console.log('📋 Assistentes disponíveis:', assistants.length);
-    console.log('📋 Assistentes ativos:', activeAssistants.length, activeAssistants.map(a => a.name));
-    
     if (activeAssistants.length === 0) {
-      console.error('❌ Nenhum assistente ativo encontrado');
+      console.error('❌ Nenhum assistente ativo');
       toast({
         title: "Nenhum assistente ativo",
-        description: "Configure pelo menos um assistente ativo para gerar relatórios",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    // Verificação de modelo válido
-    const validModels = ['gpt-4o', 'gpt-4o-mini'];
-    const selectedModel = config.openai.model || 'gpt-4o-mini';
-    if (!validModels.includes(selectedModel)) {
-      console.error('❌ Modelo inválido:', selectedModel);
-      toast({
-        title: "Modelo inválido",
-        description: "Configure um modelo OpenAI válido (gpt-4o ou gpt-4o-mini)",
+        description: "Configure pelo menos um assistente ativo para executar análises",
         variant: "destructive"
       });
       return;
@@ -82,89 +65,102 @@ export function useAIReportUpdate() {
 
     try {
       setIsUpdating(true);
-      console.log('🤖 Iniciando análise por IA com configuração:', finalConfig);
-      console.log('📋 Assistentes ativos:', activeAssistants.map(a => a.name));
+      console.log('🔍 Verificando DADOS REAIS disponíveis para análise...');
 
-      // Verificar se existem conversas do WhatsApp para analisar
-      const { data: conversations, error: conversationsError } = await supabase
+      // ✅ VERIFICAR CONVERSAS WHATSAPP REAIS
+      const { data: whatsappConversations, error: whatsappError } = await supabase
         .from('whatsapp_conversations')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(10);
+        .select(`
+          *,
+          whatsapp_messages (*)
+        `)
+        .eq('user_id', user.id);
 
-      if (conversationsError) {
-        console.error('❌ Erro ao buscar conversas do WhatsApp:', conversationsError);
-        throw new Error(`Erro ao buscar conversas: ${conversationsError.message}`);
+      if (whatsappError) {
+        throw new Error(`Erro ao buscar conversas WhatsApp: ${whatsappError.message}`);
       }
 
-      const conversationsCount = conversations?.length || 0;
-      console.log('💬 Conversas encontradas:', conversationsCount);
+      // ✅ VERIFICAR CONVERSAS COMERCIAIS REAIS
+      const { data: commercialConversations, error: commercialError } = await supabase
+        .from('commercial_conversations')
+        .select(`
+          *,
+          commercial_messages (*)
+        `)
+        .eq('user_id', user.id);
 
-      // SEMPRE EXIGIR CONVERSAS REAIS
-      if (conversationsCount === 0) {
+      if (commercialError) {
+        throw new Error(`Erro ao buscar conversas comerciais: ${commercialError.message}`);
+      }
+
+      // ✅ COMBINAR TODAS AS CONVERSAS REAIS
+      const allRealConversations = [
+        ...(whatsappConversations || []),
+        ...(commercialConversations || [])
+      ];
+
+      const totalRealConversations = allRealConversations.length;
+      console.log('📊 DADOS REAIS encontrados:', {
+        whatsappConversations: whatsappConversations?.length || 0,
+        commercialConversations: commercialConversations?.length || 0,
+        totalConversations: totalRealConversations
+      });
+
+      // ✅ EXIGIR DADOS REAIS PARA ANÁLISE
+      if (totalRealConversations === 0) {
         toast({
-          title: "Nenhuma conversa para analisar",
-          description: "Importe conversas do WhatsApp primeiro antes de executar a análise por IA.",
+          title: "Nenhum dado real para analisar",
+          description: "Importe conversas do WhatsApp ou registre conversas comerciais antes de executar a análise por IA.",
           variant: "destructive"
         });
         return;
       }
 
-      // Preparar dados dos assistentes para a edge function
+      // ✅ PREPARAR ASSISTENTES PARA ANÁLISE
       const assistantsData = activeAssistants.map(assistant => ({
         id: assistant.id,
         name: assistant.name,
         prompt: assistant.prompt,
-        model: assistant.model || selectedModel,
+        model: assistant.model || config.openai.model || 'gpt-4o-mini',
         area: assistant.area || 'geral'
       }));
 
-      console.log('📊 Enviando dados para análise:', {
+      console.log('📤 Enviando DADOS REAIS para análise:', {
         userId: user.id,
         assistantsCount: assistantsData.length,
-        model: selectedModel,
-        conversationsCount,
-        analysisConfig: finalConfig,
-        assistants: assistantsData.map(a => ({ name: a.name, area: a.area }))
+        realConversationsCount: totalRealConversations,
+        analysisConfig: finalConfig
       });
 
-      // Chamar edge function com configuração personalizada
+      // ✅ CHAMAR EDGE FUNCTION COM DADOS REAIS
       const { data, error } = await supabase.functions.invoke('analyze-conversation', {
         body: { 
           userId: user.id,
           openaiConfig: {
             apiKey: config.openai.apiKey,
-            model: selectedModel,
+            model: config.openai.model || 'gpt-4o-mini',
             temperature: finalConfig.temperature,
             maxTokens: finalConfig.maxTokens
           },
           assistants: assistantsData,
           analysisType: finalConfig.type,
-          conversationsData: conversations,
+          conversationsData: allRealConversations,
           timestamp: new Date().toISOString()
         }
       });
 
-      console.log('📊 Resposta da edge function:', { data, error });
-
       if (error) {
-        console.error('❌ Erro na edge function:', error);
         throw new Error(`Erro na análise: ${error.message}`);
       }
 
       if (!data?.success) {
-        console.error('❌ Análise falhou:', data);
         throw new Error(data?.error || 'Erro desconhecido na análise');
       }
 
-      console.log('✅ Análise concluída:', {
+      console.log('✅ ANÁLISE DE DADOS REAIS concluída:', {
         insightsGenerated: data.insights?.length || 0,
         assistantsUsed: data.assistantsUsed || [],
-        processingTime: data.processingTime,
-        conversationsAnalyzed: data.conversationsAnalyzed,
-        analysisType: finalConfig.type,
-        tokensUsed: finalConfig.maxTokens
+        conversationsAnalyzed: data.conversationsAnalyzed || totalRealConversations
       });
 
       const analysisTypeNames = {
@@ -174,44 +170,22 @@ export function useAIReportUpdate() {
       };
 
       toast({
-        title: "✅ Relatório atualizado com sucesso",
-        description: `Análise ${analysisTypeNames[finalConfig.type]} concluída por ${data.assistantsUsed?.length || 0} assistente(s). ${data.insights?.length || 0} insights gerados (${finalConfig.maxTokens} tokens).`,
+        title: "✅ Análise de dados reais concluída",
+        description: `Análise ${analysisTypeNames[finalConfig.type]} realizada com ${totalRealConversations} conversas reais. ${data.insights?.length || 0} insights gerados.`,
         duration: 5000
       });
 
-      // Recarregar após delay para mostrar o toast
+      // Recarregar após análise
       setTimeout(() => {
-        console.log('🔄 Recarregando página para exibir novos dados...');
         window.location.reload();
       }, 3000);
       
     } catch (error) {
-      console.error('❌ Erro ao atualizar relatório:', error);
+      console.error('❌ Erro na análise de dados reais:', error);
       
-      // Erro específico para chave OpenAI inválida
-      if (error.message.includes('401') || error.message.includes('API key')) {
-        toast({
-          title: "Chave OpenAI inválida",
-          description: "Verifique sua chave OpenAI nas configurações",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      // Erro específico para cota excedida
-      if (error.message.includes('quota') || error.message.includes('billing')) {
-        toast({
-          title: "Cota OpenAI excedida",
-          description: "Verifique sua conta OpenAI e billing",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      // Erro geral
       toast({
         title: "Erro na análise",
-        description: error.message || "Não foi possível gerar o relatório. Verifique as configurações e tente novamente.",
+        description: error.message || "Não foi possível analisar os dados reais. Verifique as configurações.",
         variant: "destructive"
       });
     } finally {

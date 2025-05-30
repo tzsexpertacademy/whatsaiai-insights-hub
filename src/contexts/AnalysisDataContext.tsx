@@ -61,9 +61,9 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
     bigFiveData: [],
     discProfile: null,
     mbtiProfile: null,
-    emotionalState: "Equilibrado",
-    mainFocus: "Desenvolvimento pessoal",
-    relationalAwareness: 75,
+    emotionalState: "Aguardando análise",
+    mainFocus: "Configure assistentes para começar",
+    relationalAwareness: 0,
     metrics: {
       totalConversations: 0,
       totalChatMessages: 0,
@@ -86,41 +86,34 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
     try {
       setIsLoading(true);
       
-      console.log('🔍 DIAGNÓSTICO: Iniciando verificação completa dos dados...');
+      console.log('🔍 CARREGANDO DADOS REAIS DO BANCO DE DADOS...');
       console.log('👤 User ID:', user.id);
 
-      // ✅ VALIDAÇÃO CRÍTICA DO SISTEMA BLINDADO
+      // ✅ VALIDAÇÃO DO SISTEMA
       const systemIntegrity = validateAssistantMapping();
       if (!systemIntegrity) {
-        console.error('❌ SISTEMA COMPROMETIDO - Mapeamento de assistentes falhou');
+        console.error('❌ SISTEMA COMPROMETIDO');
         throw new Error('Sistema de análise comprometido');
       }
 
-      // 1. VERIFICAR INSIGHTS DOS ASSISTENTES
-      console.log('🔍 Buscando insights...');
+      // 1. BUSCAR INSIGHTS REAIS
+      console.log('🔍 Buscando insights reais...');
       const { data: insightsData, error: insightsError } = await supabase
         .from('insights')
         .select('*')
         .eq('user_id', user.id)
+        .eq('status', 'active')
         .order('created_at', { ascending: false });
-
-      console.log('📊 INSIGHTS encontrados:', {
-        total: insightsData?.length || 0,
-        error: insightsError,
-        samples: insightsData?.slice(0, 3).map(i => ({
-          id: i.id,
-          type: i.insight_type,
-          title: i.title,
-          created: i.created_at
-        }))
-      });
 
       if (insightsError) {
         console.error('❌ Erro ao buscar insights:', insightsError);
+        throw insightsError;
       }
 
-      // 2. VERIFICAR CONVERSAS DO WHATSAPP
-      console.log('🔍 Buscando conversas WhatsApp...');
+      console.log('📊 INSIGHTS REAIS encontrados:', insightsData?.length || 0);
+
+      // 2. BUSCAR CONVERSAS WHATSAPP REAIS
+      console.log('🔍 Buscando conversas WhatsApp reais...');
       const { data: whatsappConversations, error: whatsappError } = await supabase
         .from('whatsapp_conversations')
         .select(`
@@ -130,23 +123,15 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
-      console.log('📱 WHATSAPP encontrado:', {
-        conversations: whatsappConversations?.length || 0,
-        totalMessages: whatsappConversations?.reduce((sum, conv) => sum + (conv.whatsapp_messages?.length || 0), 0) || 0,
-        error: whatsappError,
-        samples: whatsappConversations?.slice(0, 2).map(c => ({
-          id: c.id,
-          contact: c.contact_name,
-          messages: c.whatsapp_messages?.length || 0
-        }))
-      });
-
       if (whatsappError) {
         console.error('❌ Erro ao buscar conversas WhatsApp:', whatsappError);
+        throw whatsappError;
       }
 
-      // 3. VERIFICAR CONVERSAS COMERCIAIS
-      console.log('🔍 Buscando conversas comerciais...');
+      console.log('📱 CONVERSAS WHATSAPP REAIS:', whatsappConversations?.length || 0);
+
+      // 3. BUSCAR CONVERSAS COMERCIAIS REAIS
+      console.log('🔍 Buscando conversas comerciais reais...');
       const { data: commercialConversations, error: commercialError } = await supabase
         .from('commercial_conversations')
         .select(`
@@ -156,18 +141,15 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
-      console.log('💼 COMERCIAIS encontradas:', {
-        conversations: commercialConversations?.length || 0,
-        totalMessages: commercialConversations?.reduce((sum, conv) => sum + (conv.commercial_messages?.length || 0), 0) || 0,
-        error: commercialError
-      });
-
       if (commercialError) {
         console.error('❌ Erro ao buscar conversas comerciais:', commercialError);
+        throw commercialError;
       }
 
-      // 4. VERIFICAR CONFIGURAÇÃO DOS ASSISTENTES
-      console.log('🔍 Verificando configuração dos assistentes...');
+      console.log('💼 CONVERSAS COMERCIAIS REAIS:', commercialConversations?.length || 0);
+
+      // 4. BUSCAR CONFIGURAÇÃO DOS ASSISTENTES REAIS
+      console.log('🔍 Verificando assistentes reais...');
       const { data: assistantsConfig, error: assistantsError } = await supabase
         .from('client_configs')
         .select('openai_config')
@@ -183,46 +165,12 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
         assistantsActive = assistants.filter(a => a.isActive).length;
       }
 
-      console.log('🤖 ASSISTENTES configurados:', {
+      console.log('🤖 ASSISTENTES REAIS:', {
         total: assistants.length,
-        active: assistantsActive,
-        error: assistantsError,
-        hasOpenAI: !!assistantsConfig?.openai_config
+        active: assistantsActive
       });
 
-      if (assistantsError) {
-        console.error('❌ Erro ao buscar configuração dos assistentes:', assistantsError);
-      }
-
-      // 5. SIMULAR MENSAGENS DE CHAT COM ASSISTENTES (baseado nos insights)
-      const chatMessages = (insightsData || []).map(insight => ({
-        id: `chat_${insight.id}`,
-        user_message: `Conversa com ${insight.insight_type}`,
-        assistant_response: insight.description,
-        timestamp: insight.created_at,
-        assistant_type: insight.insight_type
-      }));
-
-      // 6. PROCESSAR ANÁLISES DE DOCUMENTOS
-      const documentAnalyses = (insightsData || [])
-        .filter(insight => {
-          const metadata = insight.metadata as any;
-          const isDocumentSource = metadata && typeof metadata === 'object' && metadata.source === 'document';
-          const isDocumentCategory = insight.category === 'document';
-          return isDocumentSource || isDocumentCategory;
-        })
-        .map(insight => {
-          const metadata = insight.metadata as any;
-          return {
-            id: `doc_${insight.id}`,
-            document_name: (metadata && typeof metadata === 'object' && metadata.document_name) || 'Documento',
-            analysis_summary: insight.description,
-            created_at: insight.created_at,
-            insights_count: 1
-          };
-        });
-
-      // ✅ PROCESSAMENTO BLINDADO DOS INSIGHTS
+      // ✅ PROCESSAR APENAS DADOS REAIS
       const processedInsights = (insightsData || []).map(insight => {
         const assistantInfo = getAssistantByInsightType(insight.insight_type);
         
@@ -238,7 +186,7 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
         };
       });
 
-      // ✅ COMBINAR TODAS AS CONVERSAS
+      // ✅ COMBINAR CONVERSAS REAIS
       const allConversations = [
         ...(whatsappConversations || []).map(conv => ({
           ...conv,
@@ -252,18 +200,44 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
         }))
       ];
 
-      // ✅ MÉTRICAS CONSOLIDADAS
-      const totalMessages = allConversations.reduce((sum, conv) => sum + (conv.message_count || 0), 0);
+      // ✅ MENSAGENS DE CHAT BASEADAS EM INSIGHTS REAIS
+      const chatMessages = processedInsights.map(insight => ({
+        id: `chat_${insight.id}`,
+        user_message: `Análise: ${insight.title}`,
+        assistant_response: insight.description,
+        timestamp: insight.created_at,
+        assistant_type: insight.insight_type
+      }));
+
+      // ✅ ANÁLISES DE DOCUMENTOS BASEADAS EM INSIGHTS REAIS
+      const documentAnalyses = processedInsights
+        .filter(insight => {
+          const metadata = insight.metadata as any;
+          return metadata && typeof metadata === 'object' && 
+                 (metadata.source === 'document' || insight.category === 'document');
+        })
+        .map(insight => {
+          const metadata = insight.metadata as any;
+          return {
+            id: `doc_${insight.id}`,
+            document_name: (metadata && metadata.document_name) || 'Documento Analisado',
+            analysis_summary: insight.description,
+            created_at: insight.created_at,
+            insights_count: 1
+          };
+        });
 
       // ✅ DETERMINAR SE HÁ DADOS REAIS
       const hasRealData = (
         (insightsData && insightsData.length > 0) || 
         (allConversations.length > 0) ||
-        (chatMessages.length > 0) ||
-        (documentAnalyses.length > 0)
+        (assistantsActive > 0)
       );
 
-      console.log('📈 RESUMO FINAL DOS DADOS:', {
+      // ✅ MÉTRICAS BASEADAS APENAS EM DADOS REAIS
+      const totalMessages = allConversations.reduce((sum, conv) => sum + (conv.message_count || 0), 0);
+
+      console.log('📈 RESUMO DOS DADOS REAIS:', {
         hasRealData,
         insights: insightsData?.length || 0,
         whatsappConversations: whatsappConversations?.length || 0,
@@ -271,98 +245,30 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
         chatMessages: chatMessages.length,
         documentAnalyses: documentAnalyses.length,
         totalMessages,
-        assistantsActive,
-        assistantsConfigured: assistants.length
+        assistantsActive
       });
 
-      // ✅ DADOS EMOCIONAIS BASEADOS EM TODAS AS FONTES
-      const emotionalData = hasRealData ? [
-        { name: 'Seg', emotion: 'Motivado', value: 78 },
-        { name: 'Ter', emotion: 'Confiante', value: 85 },
-        { name: 'Qua', emotion: 'Focado', value: 72 },
-        { name: 'Qui', emotion: 'Equilibrado', value: 80 },
-        { name: 'Sex', emotion: 'Energético', value: 88 },
-        { name: 'Sáb', emotion: 'Relaxado', value: 75 },
-        { name: 'Dom', emotion: 'Inspirado', value: 82 }
-      ] : [];
-
-      // ✅ ÁREAS DA VIDA BASEADAS EM TODOS OS DADOS
-      const lifeAreas = [
-        { 
-          name: 'Carreira', 
-          score: Math.min(90, 50 + (processedInsights.filter(i => i.category === 'estrategia').length * 5) + (documentAnalyses.length * 5)),
-          insights: processedInsights.filter(i => i.category === 'estrategia').length + documentAnalyses.length
-        },
-        { 
-          name: 'Relacionamentos', 
-          score: Math.min(90, 50 + (processedInsights.filter(i => i.category === 'relacionamentos').length * 5) + (allConversations.length * 2)),
-          insights: processedInsights.filter(i => i.category === 'relacionamentos').length + Math.floor(allConversations.length / 2)
-        },
-        { 
-          name: 'Saúde', 
-          score: Math.min(90, 50 + (processedInsights.filter(i => i.category === 'saude').length * 10)),
-          insights: processedInsights.filter(i => i.category === 'saude').length 
-        },
-        { 
-          name: 'Finanças', 
-          score: Math.min(90, 50 + (processedInsights.filter(i => i.category === 'financeiro').length * 10)),
-          insights: processedInsights.filter(i => i.category === 'financeiro').length 
-        },
-        { 
-          name: 'Desenvolvimento', 
-          score: Math.min(90, 50 + (processedInsights.filter(i => i.category === 'proposito').length * 5) + (chatMessages.length * 2)),
-          insights: processedInsights.filter(i => i.category === 'proposito').length + Math.floor(chatMessages.length / 3)
-        }
-      ];
-
-      const lifeAreasData = lifeAreas.map(area => ({
-        subject: area.name,
-        A: area.score,
-        fullMark: 100
-      }));
-
+      // ✅ DADOS FINAIS - APENAS REAIS, SEM SIMULAÇÃO
       const newData: AnalysisData = {
         hasRealData,
         insights: insightsData || [],
         insightsWithAssistant: processedInsights,
-        recommendations: processedInsights.slice(0, 5),
+        recommendations: processedInsights.slice(0, 5), // Apenas top 5 insights reais
         recommendationsWithAssistant: processedInsights.slice(0, 5),
-        emotionalData: hasRealData ? emotionalData : [],
+        emotionalData: [], // Vazio se não há dados reais
         conversations: allConversations,
         chatMessages: chatMessages,
         documentAnalyses: documentAnalyses,
-        psychologicalProfile: hasRealData ? 'Analítico-Criativo' : null,
-        skillsData: hasRealData ? [
-          { title: 'Comunicação', value: '85%', trend: '+5%' },
-          { title: 'Liderança', value: '78%', trend: '+3%' },
-          { title: 'Criatividade', value: '92%', trend: '+7%' }
-        ] : [],
-        lifeAreas: hasRealData ? lifeAreas : [],
-        lifeAreasData: hasRealData ? lifeAreasData : [],
-        bigFiveData: hasRealData ? [
-          { name: 'Abertura', value: 85, description: 'Criatividade e curiosidade' },
-          { name: 'Conscienciosidade', value: 78, description: 'Organização e disciplina' },
-          { name: 'Extroversão', value: 72, description: 'Sociabilidade e energia' },
-          { name: 'Amabilidade', value: 88, description: 'Cooperação e confiança' },
-          { name: 'Neuroticismo', value: 35, description: 'Estabilidade emocional' }
-        ] : [],
-        discProfile: hasRealData ? {
-          dominance: 65,
-          influence: 78,
-          steadiness: 72,
-          compliance: 55,
-          primaryType: 'Influente (I)'
-        } : null,
-        mbtiProfile: hasRealData ? {
-          extroversion: 72,
-          sensing: 45,
-          thinking: 68,
-          judging: 75,
-          approximateType: 'ESTJ'
-        } : null,
-        emotionalState: hasRealData ? "Equilibrado" : "Aguardando análise",
-        mainFocus: hasRealData ? "Desenvolvimento pessoal" : "Configure assistentes",
-        relationalAwareness: hasRealData ? 75 : 0,
+        psychologicalProfile: hasRealData ? 'Baseado em análises reais' : null,
+        skillsData: [], // Vazio se não há dados reais
+        lifeAreas: [], // Vazio se não há dados reais
+        lifeAreasData: [], // Vazio se não há dados reais
+        bigFiveData: [], // Vazio se não há dados reais
+        discProfile: null, // Null se não há dados reais
+        mbtiProfile: null, // Null se não há dados reais
+        emotionalState: hasRealData ? "Baseado em análises" : "Aguardando dados",
+        mainFocus: hasRealData ? "Análise comportamental" : "Configure assistentes",
+        relationalAwareness: 0, // Zero se não há dados reais de consciência
         metrics: {
           totalConversations: allConversations.length,
           totalChatMessages: chatMessages.length,
@@ -376,33 +282,17 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
       setData(newData);
 
       if (!hasRealData) {
-        console.log('⚠️ DIAGNÓSTICO: Nenhum dado encontrado para análise!');
-        console.log('💡 Para gerar análises, você precisa de:');
-        console.log('   1. Configurar assistentes OpenAI ativa');
-        console.log('   2. Ter conversas no WhatsApp ou chat');
-        console.log('   3. Fazer upload de documentos para análise');
-        console.log('   4. Executar análise por IA no dashboard');
+        console.log('⚠️ NENHUM DADO REAL ENCONTRADO');
+        console.log('💡 Para gerar relatórios, você precisa de:');
+        console.log('   1. Insights gerados por IA');
+        console.log('   2. Conversas do WhatsApp ou comerciais');
+        console.log('   3. Assistentes configurados e ativos');
       } else {
-        console.log('✅ DIAGNÓSTICO: Dados encontrados com sucesso!');
+        console.log('✅ DADOS REAIS CARREGADOS COM SUCESSO');
       }
 
-      console.log('🎯 FONTES DE DADOS ATIVAS:', {
-        insights: `${newData.insights.length} insights`,
-        whatsappConversations: `${allConversations.filter(c => c.source === 'whatsapp').length} conversas WhatsApp`,
-        commercialConversations: `${allConversations.filter(c => c.source === 'commercial').length} conversas comerciais`,
-        chatMessages: `${newData.chatMessages.length} mensagens de chat`,
-        documentAnalyses: `${newData.documentAnalyses.length} documentos analisados`,
-        totalMessages: `${totalMessages} mensagens totais`,
-        systemIntegrity: '✅ Sistema blindado ativo'
-      });
-
     } catch (error) {
-      console.error('❌ ERRO CRÍTICO no sistema de análise:', error);
-      console.error('📋 Detalhes do erro:', {
-        message: error instanceof Error ? error.message : 'Erro desconhecido',
-        userId: user?.id,
-        timestamp: new Date().toISOString()
-      });
+      console.error('❌ ERRO AO CARREGAR DADOS REAIS:', error);
       setData(prev => ({ ...prev, hasRealData: false }));
     } finally {
       setIsLoading(false);
