@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -54,9 +55,14 @@ export function GreenAPIWebhookConfig() {
         } else {
           setWebhookStatus('inactive');
           console.log('❌ Webhook não configurado ou incorreto');
+          console.log('❌ URL esperada:', webhookUrl);
+          console.log('❌ URL atual:', data.webhookUrl);
+          console.log('❌ incomingWebhook:', data.incomingWebhook);
         }
       } else {
         console.error('❌ Erro ao verificar configurações:', response.status);
+        const errorText = await response.text();
+        console.error('❌ Erro detalhes:', errorText);
         setWebhookStatus('unknown');
       }
     } catch (error) {
@@ -79,6 +85,8 @@ export function GreenAPIWebhookConfig() {
 
     try {
       console.log('🔗 Configurando webhook GREEN-API...');
+      console.log('🔗 Instance ID:', apiConfig.instanceId);
+      console.log('🔗 Webhook URL:', webhookUrl);
       
       const response = await fetch(
         `https://api.green-api.com/waInstance${apiConfig.instanceId}/setSettings/${apiConfig.apiToken}`,
@@ -103,6 +111,7 @@ export function GreenAPIWebhookConfig() {
 
       if (!response.ok) {
         const errorText = await response.text();
+        console.error('❌ Erro ao configurar webhook:', response.status, errorText);
         throw new Error(`Erro ${response.status}: ${errorText}`);
       }
 
@@ -290,6 +299,17 @@ export function GreenAPIWebhookConfig() {
             </AlertDescription>
           </Alert>
         )}
+
+        <div className="space-y-2">
+          <div className="text-sm text-gray-600">
+            <strong>Configurações atuais:</strong>
+          </div>
+          <div className="text-xs text-gray-500 space-y-1">
+            <div>Instance ID: {apiConfig.instanceId || 'Não configurado'}</div>
+            <div>API Token: {apiConfig.apiToken ? 'Configurado' : 'Não configurado'}</div>
+            <div>Webhook URL: {apiConfig.webhookUrl || 'Não configurado'}</div>
+          </div>
+        </div>
 
         <div className="flex gap-2">
           <Button 
