@@ -35,6 +35,7 @@ interface GreenAPIChat {
   unreadCount: number;
   isGroup: boolean;
   isPinned?: boolean;
+  isMonitored?: boolean; // Nova propriedade para análise
 }
 
 export function useGreenAPI() {
@@ -56,6 +57,7 @@ export function useGreenAPI() {
   const [messages, setMessages] = useState<Record<string, GreenAPIMessage[]>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [pinnedChats, setPinnedChats] = useState<string[]>([]);
+  const [monitoredChats, setMonitoredChats] = useState<string[]>([]);
   
   const { toast } = useToast();
   const { config, updateConfig, saveConfig } = useClientConfig();
@@ -65,6 +67,7 @@ export function useGreenAPI() {
     const savedConfig = localStorage.getItem('greenapi_config');
     const savedState = localStorage.getItem('greenapi_state');
     const savedPinnedChats = localStorage.getItem('greenapi_pinned_chats');
+    const savedMonitoredChats = localStorage.getItem('greenapi_monitored_chats');
     
     if (savedConfig) {
       const parsed = JSON.parse(savedConfig);
@@ -88,6 +91,11 @@ export function useGreenAPI() {
       const parsed = JSON.parse(savedPinnedChats);
       setPinnedChats(parsed);
     }
+
+    if (savedMonitoredChats) {
+      const parsed = JSON.parse(savedMonitoredChats);
+      setMonitoredChats(parsed);
+    }
   }, []);
 
   // Salvar estado no localStorage
@@ -106,6 +114,10 @@ export function useGreenAPI() {
   useEffect(() => {
     localStorage.setItem('greenapi_pinned_chats', JSON.stringify(pinnedChats));
   }, [pinnedChats]);
+
+  useEffect(() => {
+    localStorage.setItem('greenapi_monitored_chats', JSON.stringify(monitoredChats));
+  }, [monitoredChats]);
 
   const getAPIUrl = (method: string) => {
     return `https://api.green-api.com/waInstance${apiConfig.instanceId}/${method}/${apiConfig.apiToken}`;
@@ -296,10 +308,15 @@ export function useGreenAPI() {
   };
 
   const saveConversationToDatabase = async (chat: GreenAPIChat, messageData?: any) => {
+    // Só salvar no banco se a conversa estiver sendo monitorada
+    if (!monitoredChats.includes(chat.chatId)) {
+      console.log('💾 Conversa não está sendo monitorada, não salvando no banco:', chat.chatId);
+      return;
+    }
+
     try {
-      console.log('💾 Salvando conversa no banco:', chat.chatId);
+      console.log('💾 Salvando conversa monitorada no banco:', chat.chatId);
       
-      // Salvar/atualizar conversa na tabela whatsapp_conversations
       const conversationData = {
         contact_phone: chat.chatId,
         contact_name: chat.name,
@@ -308,7 +325,6 @@ export function useGreenAPI() {
         updated_at: new Date().toISOString()
       };
 
-      // Verificar se já existe
       const { data: existingConversation } = await supabase
         .from('whatsapp_conversations')
         .select('*')
@@ -316,7 +332,6 @@ export function useGreenAPI() {
         .maybeSingle();
 
       if (existingConversation) {
-        // Atualizar conversa existente
         const existingMessages = Array.isArray(existingConversation.messages) ? existingConversation.messages : [];
         const updatedMessages = [...existingMessages];
         if (messageData) {
@@ -332,18 +347,68 @@ export function useGreenAPI() {
           })
           .eq('id', existingConversation.id);
 
-        console.log('✅ Conversa atualizada no banco');
+        console.log('✅ Conversa monitorada atualizada no banco');
       } else {
-        // Criar nova conversa
         await supabase
           .from('whatsapp_conversations')
           .insert([conversationData]);
 
-        console.log('✅ Nova conversa salva no banco');
+        console.log('✅ Nova conversa monitorada salva no banco');
       }
 
     } catch (error) {
-      console.error('❌ Erro ao salvar conversa no banco:', error);
+      console.error('❌ Erro ao salvar conversa monitorada no banco:', error);
+    }
+  };
+
+  // Nova função para auto-resposta com IA
+  const generateAIResponse = async (userMessage: string): Promise<string> => {
+    if (!config.openai?.apiKey) {
+      return "🤖 Para receber respostas inteligentes, configure sua API key da OpenAI nas configurações.";
+    }
+
+    try {
+      console.log('🤖 Gerando resposta IA para auto-conversa...');
+
+      const systemPrompt = `Você é um assistente pessoal especializado em autoconhecimento e desenvolvimento pessoal. 
+      
+      Características:
+      - Responda de forma empática e reflexiva
+      - Faça perguntas que promovam autoconhecimento
+      - Ofereça insights sobre padrões de comportamento
+      - Seja conciso mas profundo (máximo 2 parágrafos)
+      - Use tom caloroso e encorajador
+      - Foque em ajudar a pessoa a se entender melhor
+      
+      Contexto: Esta é uma conversa de autoconhecimento onde a pessoa está refletindo consigo mesma.`;
+
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${config.openai.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userMessage }
+          ],
+          temperature: 0.8,
+          max_tokens: 300,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Erro OpenAI: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data.choices[0].message.content;
+
+    } catch (error) {
+      console.error('❌ Erro ao gerar resposta IA:', error);
+      return "🤖 Desculpe, não consegui processar sua mensagem no momento. Que tal reformular sua reflexão?";
     }
   };
 
@@ -418,7 +483,8 @@ export function useGreenAPI() {
           lastMessageTime: chat.lastMessage?.timestamp ? new Date(chat.lastMessage.timestamp * 1000).toISOString() : new Date().toISOString(),
           unreadCount: chat.unreadCount || 0,
           isGroup: chat.id.includes('@g.us'),
-          isPinned: pinnedChats.includes(chat.id)
+          isPinned: pinnedChats.includes(chat.id),
+          isMonitored: monitoredChats.includes(chat.id)
         };
       });
 
@@ -436,9 +502,11 @@ export function useGreenAPI() {
 
       setChats(sortedChats);
 
-      // Salvar cada conversa no banco de dados para análise futura
+      // Salvar apenas conversas monitoradas
       for (const chat of sortedChats) {
-        await saveConversationToDatabase(chat);
+        if (chat.isMonitored) {
+          await saveConversationToDatabase(chat);
+        }
       }
       
     } catch (error) {
@@ -457,17 +525,14 @@ export function useGreenAPI() {
         ? prev.filter(id => id !== chatId)
         : [...prev, chatId];
       
-      // Atualizar o estado dos chats também
       setChats(prevChats => 
         prevChats.map(chat => ({
           ...chat,
           isPinned: newPinnedChats.includes(chat.chatId)
         })).sort((a, b) => {
-          // Primeiro critério: chats fixados vêm primeiro
           if (a.isPinned && !b.isPinned) return -1;
           if (!a.isPinned && b.isPinned) return 1;
           
-          // Segundo critério: ordenar por timestamp da última mensagem (mais recente primeiro)
           const timeA = a.lastMessageTime ? new Date(a.lastMessageTime).getTime() : 0;
           const timeB = b.lastMessageTime ? new Date(b.lastMessageTime).getTime() : 0;
           return timeB - timeA;
@@ -480,6 +545,32 @@ export function useGreenAPI() {
     toast({
       title: pinnedChats.includes(chatId) ? "Chat desfixado" : "Chat fixado",
       description: pinnedChats.includes(chatId) ? "Chat removido dos fixos" : "Chat adicionado aos fixos"
+    });
+  };
+
+  // Nova função para monitorar conversas
+  const toggleMonitorChat = (chatId: string) => {
+    setMonitoredChats(prev => {
+      const newMonitoredChats = prev.includes(chatId) 
+        ? prev.filter(id => id !== chatId)
+        : [...prev, chatId];
+      
+      setChats(prevChats => 
+        prevChats.map(chat => ({
+          ...chat,
+          isMonitored: newMonitoredChats.includes(chat.chatId)
+        }))
+      );
+      
+      return newMonitoredChats;
+    });
+
+    const isCurrentlyMonitored = monitoredChats.includes(chatId);
+    toast({
+      title: isCurrentlyMonitored ? "Monitoramento desativado" : "Monitoramento ativado",
+      description: isCurrentlyMonitored 
+        ? "Esta conversa não será mais analisada para personalidade" 
+        : "Esta conversa será analisada para insights de personalidade"
     });
   };
 
@@ -578,9 +669,47 @@ export function useGreenAPI() {
         [chatId]: [...(prev[chatId] || []), newMessage]
       }));
 
-      // Salvar mensagem no banco de dados
+      // Verificar se é auto-conversa (mesmo número)
+      const currentPhoneNumber = greenAPIState.phoneNumber.replace(/\D/g, '');
+      const targetPhoneNumber = chatId.replace('@c.us', '').replace('@g.us', '');
+      
+      if (currentPhoneNumber && targetPhoneNumber === currentPhoneNumber) {
+        console.log('🤖 Auto-conversa detectada, gerando resposta IA...');
+        
+        setTimeout(async () => {
+          const aiResponse = await generateAIResponse(message);
+          
+          // Simular resposta do assistente
+          const assistantMessage: GreenAPIMessage = {
+            id: `ai_${Date.now()}`,
+            text: aiResponse,
+            sender: 'contact',
+            timestamp: new Date().toISOString(),
+            chatId: chatId,
+            messageId: `ai_${Date.now()}`,
+            status: 'read'
+          };
+
+          setMessages(prev => ({
+            ...prev,
+            [chatId]: [...(prev[chatId] || []), assistantMessage]
+          }));
+
+          const chat = chats.find(c => c.chatId === chatId);
+          if (chat && chat.isMonitored) {
+            await saveConversationToDatabase(chat, {
+              id: assistantMessage.id,
+              text: assistantMessage.text,
+              sender: 'assistant',
+              timestamp: assistantMessage.timestamp,
+              platform: 'greenapi'
+            });
+          }
+        }, 2000); // Delay de 2 segundos para simular resposta
+      }
+
       const chat = chats.find(c => c.chatId === chatId);
-      if (chat) {
+      if (chat && chat.isMonitored) {
         await saveConversationToDatabase(chat, {
           id: newMessage.id,
           text: newMessage.text,
@@ -644,6 +773,7 @@ export function useGreenAPI() {
     messages,
     isLoading,
     pinnedChats,
+    monitoredChats,
     updateAPIConfig,
     getQRCode,
     loadChats,
@@ -651,6 +781,7 @@ export function useGreenAPI() {
     sendMessage,
     disconnect,
     checkConnectionStatus,
-    togglePinChat
+    togglePinChat,
+    toggleMonitorChat
   };
 }

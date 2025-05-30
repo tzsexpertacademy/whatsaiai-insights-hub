@@ -5,12 +5,13 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Send, Bot, User, Phone, Wifi, WifiOff, AlertCircle, Shield, RefreshCw, Search, MoreVertical, Calendar, Filter, Pin, PinOff } from 'lucide-react';
+import { Send, Bot, User, Phone, Wifi, WifiOff, AlertCircle, Shield, RefreshCw, Search, MoreVertical, Calendar, Filter, Pin, PinOff, Eye, EyeOff, Brain } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { useGreenAPI } from "@/hooks/useGreenAPI";
 import { useAdmin } from "@/contexts/AdminContext";
 import { PageLayout } from '@/components/layout/PageLayout';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { AIAnalysisButton } from "@/components/AIAnalysisButton";
 
 export function ChatInterface() {
   const {
@@ -18,10 +19,12 @@ export function ChatInterface() {
     chats,
     messages,
     pinnedChats,
+    monitoredChats,
     loadChats,
     loadChatHistory,
     sendMessage,
-    togglePinChat
+    togglePinChat,
+    toggleMonitorChat
   } = useGreenAPI();
   
   const { isAdmin } = useAdmin();
@@ -30,7 +33,7 @@ export function ChatInterface() {
   const [activeChat, setActiveChat] = useState<string>('');
   const [isTyping, setIsTyping] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [periodFilter, setPeriodFilter] = useState('7'); // dias
+  const [periodFilter, setPeriodFilter] = useState('7');
   const [showFilters, setShowFilters] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
@@ -136,6 +139,10 @@ export function ChatInterface() {
     togglePinChat(chatId);
   };
 
+  const handleToggleMonitor = (chatId: string, chatName: string) => {
+    toggleMonitorChat(chatId);
+  };
+
   const formatTime = (timestamp: string) => {
     const date = new Date(timestamp);
     const now = new Date();
@@ -179,6 +186,7 @@ export function ChatInterface() {
           {greenAPIState.isConnected ? 'Conectado' : 'Desconectado'}
         </span>
       </div>
+      <AIAnalysisButton variant="outline" size="sm" />
     </div>
   );
 
@@ -282,6 +290,7 @@ export function ChatInterface() {
             <span className="text-xs">
               {filteredChats.filter(c => c.unreadCount > 0).length} não lidas
               {pinnedChats.length > 0 && ` • ${pinnedChats.length} fixadas`}
+              {monitoredChats.length > 0 && ` • ${monitoredChats.length} monitoradas`}
             </span>
           </div>
 
@@ -295,7 +304,7 @@ export function ChatInterface() {
                     activeChat === chat.chatId ? 'bg-green-50 border-r-4 border-green-500' : ''
                   } ${chat.unreadCount > 0 ? 'bg-blue-50' : ''} ${
                     chat.isPinned ? 'bg-yellow-50 border-l-4 border-yellow-400' : ''
-                  }`}
+                  } ${chat.isMonitored ? 'bg-purple-50 border-l-2 border-purple-400' : ''}`}
                 >
                   <div 
                     className="flex items-start gap-3"
@@ -314,6 +323,11 @@ export function ChatInterface() {
                       {chat.isPinned && (
                         <div className="absolute -top-1 -left-1 bg-yellow-500 rounded-full w-4 h-4 flex items-center justify-center">
                           <Pin className="w-2 h-2 text-white" />
+                        </div>
+                      )}
+                      {chat.isMonitored && (
+                        <div className="absolute -bottom-1 -right-1 bg-purple-500 rounded-full w-4 h-4 flex items-center justify-center">
+                          <Brain className="w-2 h-2 text-white" />
                         </div>
                       )}
                     </div>
@@ -341,7 +355,7 @@ export function ChatInterface() {
                         }`}>
                           {chat.lastMessage || 'Nenhuma mensagem'}
                         </p>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1">
                           {chat.isGroup && (
                             <Badge variant="outline" className="text-xs">
                               Grupo
@@ -349,8 +363,12 @@ export function ChatInterface() {
                           )}
                           {chat.isPinned && (
                             <Badge className="text-xs bg-yellow-100 text-yellow-800">
-                              <Pin className="w-3 h-3 mr-1" />
-                              Fixado
+                              <Pin className="w-3 h-3" />
+                            </Badge>
+                          )}
+                          {chat.isMonitored && (
+                            <Badge className="text-xs bg-purple-100 text-purple-800">
+                              <Brain className="w-3 h-3" />
                             </Badge>
                           )}
                         </div>
@@ -382,6 +400,24 @@ export function ChatInterface() {
                             <>
                               <Pin className="mr-2 h-4 w-4" />
                               Fixar conversa
+                            </>
+                          )}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleToggleMonitor(chat.chatId, chat.name);
+                          }}
+                        >
+                          {chat.isMonitored ? (
+                            <>
+                              <EyeOff className="mr-2 h-4 w-4" />
+                              Parar monitoramento
+                            </>
+                          ) : (
+                            <>
+                              <Eye className="mr-2 h-4 w-4" />
+                              Monitorar para análise
                             </>
                           )}
                         </DropdownMenuItem>
@@ -428,6 +464,11 @@ export function ChatInterface() {
                         <Pin className="w-2 h-2 text-white" />
                       </div>
                     )}
+                    {activeChatInfo.isMonitored && (
+                      <div className="absolute -bottom-1 -right-1 bg-purple-500 rounded-full w-4 h-4 flex items-center justify-center">
+                        <Brain className="w-2 h-2 text-white" />
+                      </div>
+                    )}
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
@@ -436,6 +477,12 @@ export function ChatInterface() {
                         <Badge className="text-xs bg-yellow-100 text-yellow-800">
                           <Pin className="w-3 h-3 mr-1" />
                           Fixado
+                        </Badge>
+                      )}
+                      {activeChatInfo.isMonitored && (
+                        <Badge className="text-xs bg-purple-100 text-purple-800">
+                          <Brain className="w-3 h-3 mr-1" />
+                          Monitorado
                         </Badge>
                       )}
                     </div>
@@ -447,6 +494,11 @@ export function ChatInterface() {
                       {activeChatInfo.unreadCount > 0 && (
                         <span className="ml-2 text-red-600 font-medium">
                           • {activeChatInfo.unreadCount} não lidas
+                        </span>
+                      )}
+                      {activeChatInfo.isMonitored && (
+                        <span className="ml-2 text-purple-600 font-medium">
+                          • Análise ativada
                         </span>
                       )}
                     </p>
@@ -480,13 +532,23 @@ export function ChatInterface() {
                           className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg shadow-sm ${
                             message.sender === 'user'
                               ? 'bg-green-500 text-white rounded-br-none'
-                              : 'bg-white text-gray-800 rounded-bl-none border'
+                              : message.sender === 'contact'
+                                ? 'bg-white text-gray-800 rounded-bl-none border'
+                                : 'bg-purple-500 text-white rounded-bl-none'
                           }`}
                         >
+                          {message.sender === 'contact' && message.id.startsWith('ai_') && (
+                            <div className="flex items-center gap-1 mb-1">
+                              <Bot className="w-3 h-3 text-purple-500" />
+                              <span className="text-xs text-purple-500 font-medium">Assistente IA</span>
+                            </div>
+                          )}
                           <p className="text-sm whitespace-pre-wrap">{message.text}</p>
                           <div className="flex items-center justify-between mt-1">
                             <p className={`text-xs ${
-                              message.sender === 'user' ? 'text-green-100' : 'text-gray-500'
+                              message.sender === 'user' ? 'text-green-100' : 
+                              message.sender === 'contact' && message.id.startsWith('ai_') ? 'text-purple-100' :
+                              'text-gray-500'
                             }`}>
                               {new Date(message.timestamp).toLocaleTimeString('pt-BR', {
                                 hour: '2-digit',
@@ -543,6 +605,9 @@ export function ChatInterface() {
                 </div>
                 <p className="text-xs text-gray-500 mt-2 text-center">
                   Mensagens enviadas via GREEN-API • {greenAPIState.phoneNumber}
+                  {activeChatInfo.isMonitored && (
+                    <span className="ml-2 text-purple-600">• Esta conversa está sendo analisada</span>
+                  )}
                 </p>
               </div>
             </>
@@ -561,6 +626,9 @@ export function ChatInterface() {
                   }
                   {pinnedChats.length > 0 && (
                     <span className="ml-2">• {pinnedChats.length} fixadas</span>
+                  )}
+                  {monitoredChats.length > 0 && (
+                    <span className="ml-2">• {monitoredChats.length} monitoradas</span>
                   )}
                 </p>
               </div>
