@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -37,7 +38,8 @@ import {
   Scan,
   Network,
   Volume2,
-  VolumeX
+  VolumeX,
+  Thermometer
 } from 'lucide-react';
 
 export function ObservatoryLanding() {
@@ -70,7 +72,6 @@ export function ObservatoryLanding() {
         audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
       }
       
-      // Para mobile, precisamos "destravar" o áudio com uma interação
       if (audioContextRef.current.state === 'suspended') {
         await audioContextRef.current.resume();
       }
@@ -82,22 +83,11 @@ export function ObservatoryLanding() {
     }
   }, [audioInitialized]);
 
-  // Tocar primeiro som para destravar áudio no mobile
   const unlockMobileAudio = React.useCallback(async () => {
     if (isMobile && !audioInitialized) {
       await initMobileAudio();
     }
   }, [isMobile, audioInitialized, initMobileAudio]);
-
-  // Função para pular a animação (para debug ou usuários que querem ir direto)
-  const skipAnimation = () => {
-    console.log('⏭️ Pulando animação do cérebro');
-    setShowBrainAnimation(false);
-    setShowContent(true);
-    // Mostrar frases imediatamente
-    setTimeout(() => setShowFirstPhrase(true), 300);
-    setTimeout(() => setShowSecondPhrase(true), 800);
-  };
 
   // Controlar sequência da animação
   const handleBrainAnimationComplete = () => {
@@ -106,7 +96,6 @@ export function ObservatoryLanding() {
       setShowBrainAnimation(false);
       setTimeout(() => {
         setShowContent(true);
-        // Sequência de entrada das frases
         setTimeout(() => setShowFirstPhrase(true), 500);
         setTimeout(() => setShowSecondPhrase(true), 1200);
         console.log('✅ Conteúdo da página exibido');
@@ -114,9 +103,9 @@ export function ObservatoryLanding() {
     }, 1000);
   };
 
-  // Inicializar conteúdo após um tempo máximo (fallback) - ajustado para 7s + margem
+  // Inicializar conteúdo após um tempo máximo (fallback)
   useEffect(() => {
-    const maxWaitTime = 9000; // 9 segundos máximo (7s animação + margem)
+    const maxWaitTime = 9000;
     const timer = setTimeout(() => {
       if (!showContent) {
         console.log('⏰ Timeout da animação, forçando exibição do conteúdo');
@@ -130,7 +119,7 @@ export function ObservatoryLanding() {
     return () => clearTimeout(timer);
   }, [showContent]);
 
-  // Sistema de áudio épico e imersivo (otimizado para mobile)
+  // Sistema de áudio neural otimizado
   useEffect(() => {
     const initAudio = async () => {
       try {
@@ -140,13 +129,11 @@ export function ObservatoryLanding() {
 
         const ctx = audioContextRef.current;
         
-        // Para mobile, aguardar interação do usuário
         if (isMobile && ctx.state === 'suspended') {
           console.log('🔇 Áudio suspenso - aguardando interação do usuário');
           return;
         }
 
-        // Som ambiente neural (frequências binaurais) - reduzido para mobile
         const createAmbientSound = () => {
           const oscillator1 = ctx.createOscillator();
           const oscillator2 = ctx.createOscillator();
@@ -155,7 +142,6 @@ export function ObservatoryLanding() {
           oscillator1.frequency.setValueAtTime(40, ctx.currentTime);
           oscillator2.frequency.setValueAtTime(40.5, ctx.currentTime);
           
-          // Volume mais baixo para mobile
           gainNode.gain.setValueAtTime(isMobile ? 0.02 : 0.05, ctx.currentTime);
           
           oscillator1.connect(gainNode);
@@ -168,7 +154,6 @@ export function ObservatoryLanding() {
           return { oscillator1, oscillator2, gainNode };
         };
 
-        // Efeito sonoro de hover (otimizado para mobile)
         const createHoverSound = () => {
           if (!soundEnabled) return;
           
@@ -189,7 +174,6 @@ export function ObservatoryLanding() {
           oscillator.stop(ctx.currentTime + 0.2);
         };
 
-        // Efeito sonoro de click (otimizado para mobile)
         const createClickSound = () => {
           if (!soundEnabled) return;
           
@@ -239,7 +223,7 @@ export function ObservatoryLanding() {
     };
   }, [soundEnabled, audioInitialized, isMobile]);
 
-  // Animação neural de fundo (otimizada para mobile)
+  // Animação neural de fundo refinada
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -262,7 +246,7 @@ export function ObservatoryLanding() {
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
 
-    // Pontos neurais (reduzidos para mobile)
+    // Pontos neurais com cores refinadas
     const neurons: Array<{
       x: number;
       y: number;
@@ -270,26 +254,27 @@ export function ObservatoryLanding() {
       vy: number;
       intensity: number;
       connections: number[];
+      pulsePhase: number;
     }> = [];
 
-    // Criar neurônios (menos para mobile)
-    const neuronCount = isMobile ? 30 : isTablet ? 50 : 80;
+    const neuronCount = isMobile ? 25 : isTablet ? 40 : 60;
     for (let i = 0; i < neuronCount; i++) {
       neurons.push({
         x: Math.random() * window.innerWidth,
         y: Math.random() * window.innerHeight,
-        vx: (Math.random() - 0.5) * (isMobile ? 0.3 : 0.5),
-        vy: (Math.random() - 0.5) * (isMobile ? 0.3 : 0.5),
+        vx: (Math.random() - 0.5) * (isMobile ? 0.2 : 0.3),
+        vy: (Math.random() - 0.5) * (isMobile ? 0.2 : 0.3),
         intensity: Math.random(),
-        connections: []
+        connections: [],
+        pulsePhase: Math.random() * Math.PI * 2
       });
     }
 
-    // Conectar neurônios próximos (menos conexões para mobile)
+    // Conectar neurônios com lógica refinada
     neurons.forEach((neuron, index) => {
       const connections: number[] = [];
       const maxConnections = isMobile ? 1 : isTablet ? 2 : 3;
-      const connectionDistance = isMobile ? 80 : isTablet ? 120 : 150;
+      const connectionDistance = isMobile ? 100 : isTablet ? 140 : 180;
       
       neurons.forEach((otherNeuron, otherIndex) => {
         if (index !== otherIndex && connections.length < maxConnections) {
@@ -307,36 +292,49 @@ export function ObservatoryLanding() {
     let animationTime = 0;
 
     const animate = () => {
-      animationTime += 0.016;
+      animationTime += 0.008; // Movimento mais lento e fluido
       
-      // Fundo escuro (simplificado para mobile)
-      if (isMobile) {
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.98)';
-      } else {
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.95)';
-      }
+      // Fundo azul petróleo escuro
+      ctx.fillStyle = '#0B0F2A';
       ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
 
-      // Atualizar neurônios
-      neurons.forEach(neuron => {
+      // Atualizar neurônios com movimento suave
+      neurons.forEach((neuron, index) => {
         neuron.x += neuron.vx;
         neuron.y += neuron.vy;
-        neuron.intensity += (Math.random() - 0.5) * 0.02;
-        neuron.intensity = Math.max(0, Math.min(1, neuron.intensity));
+        neuron.pulsePhase += 0.02;
+        neuron.intensity = 0.3 + Math.sin(neuron.pulsePhase) * 0.4;
 
-        // Manter dentro da tela
-        if (neuron.x < 0 || neuron.x > window.innerWidth) neuron.vx *= -1;
-        if (neuron.y < 0 || neuron.y > window.innerHeight) neuron.vy *= -1;
+        // Manter dentro da tela com rebote suave
+        if (neuron.x < 0 || neuron.x > window.innerWidth) neuron.vx *= -0.8;
+        if (neuron.y < 0 || neuron.y > window.innerHeight) neuron.vy *= -0.8;
+        
+        // Limites
+        neuron.x = Math.max(0, Math.min(window.innerWidth, neuron.x));
+        neuron.y = Math.max(0, Math.min(window.innerHeight, neuron.y));
       });
 
-      // Renderizar conexões (simplificadas para mobile)
-      neurons.forEach(neuron => {
+      // Renderizar conexões com cores ciano e roxo
+      neurons.forEach((neuron) => {
         neuron.connections.forEach(connectionIndex => {
           const otherNeuron = neurons[connectionIndex];
           if (!otherNeuron) return;
 
-          const alpha = (neuron.intensity + otherNeuron.intensity) * (isMobile ? 0.2 : 0.3);
-          ctx.strokeStyle = `rgba(139, 92, 246, ${alpha})`;
+          const distance = Math.sqrt(
+            Math.pow(neuron.x - otherNeuron.x, 2) + 
+            Math.pow(neuron.y - otherNeuron.y, 2)
+          );
+          
+          const alpha = Math.max(0, 1 - distance / 180) * 0.4;
+          const gradient = ctx.createLinearGradient(
+            neuron.x, neuron.y, 
+            otherNeuron.x, otherNeuron.y
+          );
+          
+          gradient.addColorStop(0, `rgba(0, 240, 255, ${alpha})`); // Ciano
+          gradient.addColorStop(1, `rgba(168, 130, 255, ${alpha})`); // Roxo
+          
+          ctx.strokeStyle = gradient;
           ctx.lineWidth = isMobile ? 0.5 : 1;
           ctx.beginPath();
           ctx.moveTo(neuron.x, neuron.y);
@@ -345,24 +343,32 @@ export function ObservatoryLanding() {
         });
       });
 
-      // Renderizar neurônios (otimizados para mobile)
-      neurons.forEach(neuron => {
-        const pulseIntensity = (Math.sin(animationTime * 2 + neuron.x * 0.01) + 1) * 0.5;
-        const totalIntensity = (neuron.intensity + pulseIntensity) * 0.5;
-        const size = (isMobile ? 2 : 3) + totalIntensity * (isMobile ? 1 : 2);
-
-        // Efeito glow reduzido para mobile
-        if (!isMobile) {
-          ctx.shadowBlur = 20;
-          ctx.shadowColor = 'rgba(139, 92, 246, 0.8)';
+      // Renderizar neurônios com pulso refinado
+      neurons.forEach((neuron) => {
+        const baseSize = isMobile ? 1.5 : 2;
+        const pulseSize = baseSize + Math.sin(neuron.pulsePhase) * (isMobile ? 0.5 : 1);
+        
+        // Glow suave
+        ctx.shadowBlur = isMobile ? 8 : 15;
+        ctx.shadowColor = neuron.intensity > 0.6 ? '#00F0FF' : '#A882FF';
+        
+        // Gradiente radial para o neurônio
+        const gradient = ctx.createRadialGradient(
+          neuron.x, neuron.y, 0,
+          neuron.x, neuron.y, pulseSize * 3
+        );
+        
+        if (neuron.intensity > 0.6) {
+          gradient.addColorStop(0, `rgba(0, 240, 255, ${neuron.intensity})`);
+          gradient.addColorStop(1, `rgba(0, 240, 255, 0)`);
         } else {
-          ctx.shadowBlur = 10;
-          ctx.shadowColor = 'rgba(139, 92, 246, 0.6)';
+          gradient.addColorStop(0, `rgba(168, 130, 255, ${neuron.intensity})`);
+          gradient.addColorStop(1, `rgba(168, 130, 255, 0)`);
         }
         
-        ctx.fillStyle = `rgba(139, 92, 246, ${totalIntensity * 0.8})`;
+        ctx.fillStyle = gradient;
         ctx.beginPath();
-        ctx.arc(neuron.x, neuron.y, size, 0, Math.PI * 2);
+        ctx.arc(neuron.x, neuron.y, pulseSize, 0, Math.PI * 2);
         ctx.fill();
         ctx.shadowBlur = 0;
       });
@@ -380,7 +386,6 @@ export function ObservatoryLanding() {
   const handleActivateYumerMind = async () => {
     console.log('🧠 Ativando YumerMind', { isAuthenticated });
     
-    // Destravar áudio no mobile se necessário
     await unlockMobileAudio();
     
     if (soundEnabled && soundEffectsRef.current.click) {
@@ -401,7 +406,6 @@ export function ObservatoryLanding() {
   };
 
   const handleSoundToggle = async () => {
-    // Destravar áudio no mobile se necessário
     if (!audioInitialized) {
       await unlockMobileAudio();
     }
@@ -414,26 +418,26 @@ export function ObservatoryLanding() {
     }
   };
 
-  const features = [
+  const neuralFeatures = [
     {
-      icon: Activity,
+      icon: Thermometer,
       title: "Termômetro Emocional",
-      description: "Seus estados emocionais mapeados em tempo real"
+      description: "Estados emocionais mapeados em tempo real"
     },
     {
       icon: Compass,
       title: "Radar de Áreas da Vida", 
-      description: "Visualize onde você está forte e onde precisa evoluir"
+      description: "Onde você está forte e onde precisa evoluir"
     },
     {
-      icon: Brain,
-      title: "Mapeador de Padrões Cognitivos",
-      description: "Descubra seus loops mentais e crenças limitantes"
+      icon: Scan,
+      title: "Detector de Padrões Inconscientes",
+      description: "Loops mentais e crenças limitantes revelados"
     },
     {
       icon: Calendar,
-      title: "Linha do Tempo de Consciência",
-      description: "Acompanhe sua jornada de autoconhecimento"
+      title: "Histórico de Evolução Psicoemocional",
+      description: "Sua jornada de consciência mapeada"
     }
   ];
 
@@ -441,57 +445,57 @@ export function ObservatoryLanding() {
     {
       number: "1",
       title: "Você se expressa.",
-      description: "Fala, escreve, pergunta, desabafa.",
+      description: "Escreve, fala, pergunta, desabafa.",
       icon: Users
     },
     {
       number: "2", 
-      title: "Ele observa.",
-      description: "Lê seus padrões, detecta ciclos invisíveis, cruza áreas da vida.",
+      title: "O YumerMind observa.",
+      description: "Lê padrões, cruza áreas da vida, reconhece loops invisíveis.",
       icon: Search
     },
     {
       number: "3",
       title: "Você vê.", 
-      description: "A verdade. Suas forças. Suas fugas. Seus caminhos. Em tempo real.",
+      description: "Recebe insights, alertas, mapas — e sabe exatamente onde está.",
       icon: Eye
     }
   ];
 
   const benefits = [
-    { icon: Brain, title: "Clareza mental", description: "Veja seus pensamentos com nitidez" },
-    { icon: Compass, title: "Autoconhecimento em tempo real", description: "Insights instantâneos sobre si mesmo" },
-    { icon: Flame, title: "Expansão emocional", description: "Desenvolva sua inteligência emocional" },
-    { icon: TrendingUp, title: "Plano de evolução pessoal contínua", description: "Crescimento constante e direcionado" },
-    { icon: Target, title: "Foco, propósito e visão", description: "Clareza sobre seus objetivos de vida" },
-    { icon: Shield, title: "Proteção contra autossabotagem", description: "Identifique e neutralize padrões destrutivos" }
+    { title: "Veja onde está bloqueando sua própria evolução", icon: Brain },
+    { title: "Identifique padrões emocionais repetitivos", icon: Activity },
+    { title: "Enxergue as áreas da vida que você está negligenciando", icon: Compass },
+    { title: "Descubra sua força oculta", icon: Flame },
+    { title: "Acompanhe sua expansão em tempo real", icon: TrendingUp },
+    { title: "Receba provocações e reflexões sob medida", icon: Target }
   ];
 
   const testimonials = [
     {
-      text: "Nunca imaginei que ver minha mente assim seria tão brutal. E tão libertador.",
+      text: "Achei que fosse só mais uma IA. Era um espelho da minha alma.",
       author: "Ana, 34 anos"
     },
     {
-      text: "Parece que alguém me escutou de verdade — e me mostrou o que eu não via.",
+      text: "Em 3 minutos percebi algo que anos de terapia não mostraram.",
       author: "Carlos, 28 anos"
     },
     {
-      text: "É como ter um espelho da alma. Assustador e necessário ao mesmo tempo.",
+      text: "É incômodo. E libertador. Exatamente como precisa ser.",
       author: "Marina, 41 anos"
     }
   ];
 
   return (
-    <div className="min-h-screen bg-black text-white relative w-full">
+    <div className="min-h-screen bg-[#0B0F2A] text-white relative w-full overflow-hidden">
       <CursorEffect />
       
-      {/* Canvas neural épico em toda a página */}
+      {/* Canvas neural refinado */}
       <canvas
         ref={canvasRef}
         className="fixed inset-0 pointer-events-none z-0 w-full h-full"
         style={{ 
-          transform: `translateY(${scrollY * 0.1}px)`
+          transform: `translateY(${scrollY * 0.05}px)` // Paralaxe mais sutil
         }}
       />
       
@@ -505,10 +509,10 @@ export function ObservatoryLanding() {
         </div>
       )}
       
-      {/* Controle de som (otimizado para mobile) */}
+      {/* Controle de som refinado */}
       <button
         onClick={handleSoundToggle}
-        className="fixed top-4 right-4 z-50 bg-black/80 backdrop-blur-sm border border-white/20 rounded-full p-3 sm:p-3 hover:bg-white/10 transition-all group"
+        className="fixed top-6 right-6 z-50 bg-[#0B0F2A]/90 backdrop-blur-sm border border-[#00F0FF]/30 rounded-full p-3 hover:bg-[#00F0FF]/10 transition-all group neural-glow"
         onMouseEnter={async () => {
           await unlockMobileAudio();
           if (soundEnabled && soundEffectsRef.current.hover) {
@@ -517,147 +521,102 @@ export function ObservatoryLanding() {
         }}
       >
         {soundEnabled ? (
-          <Volume2 className="w-6 h-6 sm:w-5 sm:h-5 text-white group-hover:scale-110 transition-transform" />
+          <Volume2 className="w-5 h-5 text-[#00F0FF] group-hover:scale-110 transition-transform" />
         ) : (
-          <VolumeX className="w-6 h-6 sm:w-5 sm:h-5 text-white group-hover:scale-110 transition-transform" />
+          <VolumeX className="w-5 h-5 text-[#A882FF] group-hover:scale-110 transition-transform" />
         )}
       </button>
       
       {/* Conteúdo principal */}
       {showContent && (
         <div className="animate-fade-in relative z-10 w-full">
-          {/* Seção 1 - Hero Section com animação sequencial */}
-          <section ref={heroRef} className="relative min-h-screen flex items-center justify-center px-4 sm:px-4 md:px-6">
-            <div className="text-center max-w-7xl mx-auto w-full">
+          {/* Seção 1 - Hero Section Refinada */}
+          <section ref={heroRef} className="relative min-h-screen flex items-center justify-center px-6">
+            <div className="text-center max-w-6xl mx-auto w-full">
               <div className="relative z-10">
                 <ScrollReveal id="hero-badge" direction="scale" delay={200}>
-                  <Badge className="mb-8 sm:mb-6 md:mb-8 bg-gradient-to-r from-purple-600/20 via-blue-600/20 to-cyan-600/20 text-white border border-purple-400/40 px-6 sm:px-4 md:px-6 py-4 sm:py-3 text-lg sm:text-sm md:text-base font-bold backdrop-blur-sm hover:bg-gradient-to-r hover:from-purple-600/30 hover:via-blue-600/30 hover:to-cyan-600/30 transition-all duration-500 relative overflow-hidden group">
-                    <div className="absolute inset-0 bg-gradient-to-r from-purple-500/30 via-blue-500/30 to-cyan-500/30 opacity-0 group-hover:opacity-100 transition-opacity duration-500 animate-pulse"></div>
-                    <CircuitBoard className="w-6 h-6 sm:w-4 sm:h-4 md:w-5 md:h-5 mr-3 sm:mr-2 relative z-10 group-hover:rotate-12 transition-transform duration-500" />
-                    <span className="relative z-10 bg-gradient-to-r from-purple-200 via-blue-200 to-cyan-200 bg-clip-text text-transparent font-black glow-text-neural">
+                  <Badge className="mb-8 bg-gradient-to-r from-[#00F0FF]/20 via-[#A882FF]/20 to-[#F5C97A]/20 text-[#F2F2F2] border border-[#00F0FF]/40 px-8 py-3 text-base font-medium backdrop-blur-sm hover:bg-[#00F0FF]/30 transition-all duration-500 neural-glow">
+                    <CircuitBoard className="w-5 h-5 mr-3" />
+                    <span className="bg-gradient-to-r from-[#00F0FF] via-[#A882FF] to-[#F5C97A] bg-clip-text text-transparent font-semibold">
                       YumerMind
                     </span>
                   </Badge>
                 </ScrollReveal>
 
-                {/* Primeira frase com animação de entrada */}
+                {/* Headline Principal Refinada */}
                 <div 
-                  className={`mb-12 sm:mb-8 md:mb-12 transition-all duration-1000 ease-out ${
+                  className={`mb-12 transition-all duration-1500 ease-out ${
                     showFirstPhrase 
                       ? 'opacity-100 transform translate-y-0' 
                       : 'opacity-0 transform translate-y-8'
                   }`}
                 >
-                  <h1 className="text-4xl sm:text-2xl md:text-4xl lg:text-5xl xl:text-6xl font-black mb-8 sm:mb-6 leading-[0.9] tracking-tight px-4">
-                    <div className="mb-6 sm:mb-4">
-                      <span className="block text-white font-black mb-3 sm:mb-2">
+                  <h1 className="text-4xl md:text-6xl lg:text-7xl font-light mb-8 leading-[0.9] tracking-tight">
+                    <div className="mb-6">
+                      <span className="block text-[#F2F2F2] font-light mb-3">
                         O que você
                       </span>
                       <span 
-                        className="block font-black bg-gradient-to-r from-red-500 via-orange-500 to-yellow-500 bg-clip-text text-transparent glow-text-pulsing"
-                        style={{
-                          textShadow: `
-                            0 0 ${isMobile ? '20px' : '30px'} rgba(239, 68, 68, 0.8),
-                            0 0 ${isMobile ? '40px' : '60px'} rgba(249, 115, 22, 0.6),
-                            0 0 ${isMobile ? '60px' : '90px'} rgba(234, 179, 8, 0.4)
-                          `,
-                          filter: `drop-shadow(0 0 ${isMobile ? '15px' : '20px'} rgba(239, 68, 68, 0.5))`
-                        }}
+                        className="block font-medium bg-gradient-to-r from-[#00F0FF] via-[#A882FF] to-[#F5C97A] bg-clip-text text-transparent neural-text-glow"
                       >
-                        NÃO VÊ...
+                        não vê… te controla.
                       </span>
-                    </div>
-                    <div 
-                      className="block font-black bg-gradient-to-r from-red-600 via-pink-600 to-purple-600 bg-clip-text text-transparent glow-text-pulsing"
-                      style={{
-                        textShadow: `
-                          0 0 ${isMobile ? '20px' : '30px'} rgba(220, 38, 127, 0.8),
-                          0 0 ${isMobile ? '40px' : '60px'} rgba(147, 51, 234, 0.6),
-                          0 0 ${isMobile ? '60px' : '90px'} rgba(168, 85, 247, 0.4)
-                        `,
-                        filter: `drop-shadow(0 0 ${isMobile ? '15px' : '20px'} rgba(220, 38, 127, 0.5))`,
-                        animationDelay: '0.3s'
-                      }}
-                    >
-                      TE CONTROLA.
                     </div>
                   </h1>
                 </div>
                 
-                {/* Segunda frase com animação de entrada atrasada */}
+                {/* Segunda frase refinada */}
                 <div 
-                  className={`mb-12 sm:mb-8 md:mb-12 transition-all duration-1000 ease-out ${
+                  className={`mb-12 transition-all duration-1500 ease-out ${
                     showSecondPhrase 
                       ? 'opacity-100 transform translate-y-0' 
                       : 'opacity-0 transform translate-y-8'
                   }`}
                 >
-                  <h2 className="text-4xl sm:text-2xl md:text-4xl lg:text-5xl xl:text-6xl font-black leading-[0.9] tracking-tight px-4">
-                    <div className="mb-6 sm:mb-4">
-                      <span className="block text-white font-black mb-3 sm:mb-2">
+                  <h1 className="text-4xl md:text-6xl lg:text-7xl font-light leading-[0.9] tracking-tight">
+                    <div className="mb-6">
+                      <span className="block text-[#F2F2F2] font-light mb-3">
                         O que você
                       </span>
                       <span 
-                        className="block font-black bg-gradient-to-r from-blue-400 via-cyan-400 to-emerald-400 bg-clip-text text-transparent glow-text-cold"
-                        style={{
-                          textShadow: `
-                            0 0 ${isMobile ? '20px' : '30px'} rgba(59, 130, 246, 0.8),
-                            0 0 ${isMobile ? '40px' : '60px'} rgba(6, 182, 212, 0.6),
-                            0 0 ${isMobile ? '60px' : '90px'} rgba(16, 185, 129, 0.4)
-                          `,
-                          filter: `drop-shadow(0 0 ${isMobile ? '15px' : '20px'} rgba(59, 130, 246, 0.5))`
-                        }}
+                        className="block font-medium bg-gradient-to-r from-[#00F0FF] via-[#A882FF] to-[#F5C97A] bg-clip-text text-transparent neural-text-glow"
                       >
-                        VÊ...
+                        vê… te liberta.
                       </span>
                     </div>
-                    <div 
-                      className="block font-black bg-gradient-to-r from-emerald-400 via-green-400 to-lime-400 bg-clip-text text-transparent glow-text-liberation"
-                      style={{
-                        textShadow: `
-                          0 0 ${isMobile ? '20px' : '30px'} rgba(16, 185, 129, 0.8),
-                          0 0 ${isMobile ? '40px' : '60px'} rgba(34, 197, 94, 0.6),
-                          0 0 ${isMobile ? '60px' : '90px'} rgba(163, 230, 53, 0.4)
-                        `,
-                        filter: `drop-shadow(0 0 ${isMobile ? '15px' : '20px'} rgba(16, 185, 129, 0.5))`,
-                        animationDelay: '0.3s'
-                      }}
-                    >
-                      TE LIBERTA.
-                    </div>
-                  </h2>
+                  </h1>
                 </div>
 
                 <ScrollReveal id="hero-subtitle" direction="up" delay={600}>
-                  <div className="mb-12 sm:mb-8 md:mb-12 space-y-6 sm:space-y-4 px-4">
-                    <p className="text-2xl sm:text-lg md:text-2xl lg:text-3xl font-light text-white">
-                      Ative seu <span className="text-purple-400 font-medium glow-text">segundo cérebro</span>.
+                  <div className="mb-12 space-y-6">
+                    <p className="text-2xl md:text-3xl font-light text-[#F2F2F2]">
+                      Chegou o <span className="text-[#00F0FF] font-medium neural-text-glow">YumerMind</span>.
                     </p>
-                    <p className="text-xl sm:text-base md:text-xl lg:text-2xl text-blue-300 font-light">
-                      Veja padrões, emoções, forças e sombras que você nunca percebeu.
+                    <p className="text-xl md:text-2xl text-[#A882FF] font-light">
+                      Seu segundo cérebro.
                     </p>
-                    <p className="text-lg sm:text-sm md:text-lg lg:text-xl text-gray-300 max-w-4xl mx-auto font-light">
-                      Acesse agora o <span className="text-cyan-400 font-medium glow-text">Observatório</span> da sua própria mente.
+                    <p className="text-lg md:text-xl text-[#F5C97A] font-light max-w-4xl mx-auto">
+                      Um observatório vivo da sua consciência. Onde você vê seus padrões, emoções, forças e sombras — em tempo real.
                     </p>
                   </div>
                 </ScrollReveal>
 
                 <ScrollReveal id="hero-buttons" direction="up" delay={800}>
-                  <div className="flex flex-col gap-6 sm:gap-6 justify-center items-center px-4">
+                  <div className="flex flex-col gap-6 justify-center items-center">
                     <Button 
                       onClick={handleActivateYumerMind}
-                      className="relative overflow-hidden w-full sm:w-auto bg-gradient-to-r from-purple-600 via-blue-600 to-cyan-600 hover:from-purple-500 hover:via-blue-500 hover:to-cyan-500 text-white px-6 sm:px-8 md:px-10 lg:px-12 py-4 sm:py-5 md:py-6 text-xs sm:text-sm md:text-base lg:text-lg font-black rounded-2xl shadow-2xl border-4 border-white/50 backdrop-blur-sm group transform hover:scale-105 transition-all duration-500 max-w-4xl glow-button"
+                      className="relative overflow-hidden bg-gradient-to-r from-[#00F0FF] via-[#A882FF] to-[#F5C97A] hover:from-[#00F0FF]/80 hover:via-[#A882FF]/80 hover:to-[#F5C97A]/80 text-[#0B0F2A] px-12 py-6 text-lg font-semibold rounded-2xl shadow-2xl border-2 border-[#00F0FF]/50 backdrop-blur-sm group transform hover:scale-105 transition-all duration-500 max-w-4xl neural-button-glow"
                     >
-                      <Brain className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 mr-2 sm:mr-3 group-hover:rotate-12 transition-transform duration-500" />
-                      <span className="font-black tracking-wide text-center leading-tight">
-                        {isAuthenticated ? 'ACESSAR MEU YUMERMIND' : 'ACESSAR MEU YUMERMIND — 7 DIAS GRÁTIS'}
+                      <Brain className="w-6 h-6 mr-3 group-hover:rotate-12 transition-transform duration-500" />
+                      <span className="font-semibold tracking-wide text-center leading-tight">
+                        {isAuthenticated ? 'ATIVAR MEU SEGUNDO CÉREBRO' : 'ATIVAR MEU SEGUNDO CÉREBRO — 7 DIAS GRÁTIS'}
                       </span>
-                      <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 ml-2 sm:ml-3 group-hover:scale-110 transition-transform duration-500" />
+                      <Sparkles className="w-6 h-6 ml-3 group-hover:scale-110 transition-transform duration-500" />
                     </Button>
                     
                     {!isAuthenticated && (
-                      <div className="text-center text-sm sm:text-base md:text-lg text-white font-light max-w-3xl bg-black/50 rounded-xl px-3 sm:px-4 md:px-6 py-2 sm:py-3 md:py-4 border border-green-400/30">
-                        Depois, apenas <span className="text-green-400 font-medium text-base sm:text-lg md:text-xl">R$ 47/mês</span>. Sem contrato. Sem enrolação. Cancele quando quiser.
+                      <div className="text-center text-lg text-[#F2F2F2] font-light max-w-3xl bg-[#0B0F2A]/50 rounded-xl px-6 py-4 border border-[#F5C97A]/30">
+                        Depois, apenas <span className="text-[#F5C97A] font-medium text-xl neural-text-glow">R$ 47/mês</span>. Cancele quando quiser.
                       </div>
                     )}
                   </div>
@@ -666,30 +625,31 @@ export function ObservatoryLanding() {
             </div>
           </section>
 
-          {/* Seção 2 - O QUE É O YUMERMIND */}
-          <section className="relative py-16 sm:py-12 md:py-20 lg:py-32 px-4 sm:px-4 md:px-6 z-10">
-            <div className="max-w-7xl mx-auto w-full">
+          {/* Seção 2 - O que é o YumerMind */}
+          <section className="relative py-32 px-6 z-10">
+            <div className="max-w-6xl mx-auto w-full">
               <ScrollReveal id="features-title" direction="up">
-                <div className="text-center mb-16 sm:mb-12 md:mb-16 lg:mb-20">
-                  <h2 className="text-3xl sm:text-2xl md:text-4xl lg:text-6xl xl:text-7xl font-light mb-8 sm:mb-4 md:mb-6 lg:mb-8 text-white leading-tight px-4">
+                <div className="text-center mb-20">
+                  <h2 className="text-4xl md:text-6xl lg:text-7xl font-light mb-8 text-[#F2F2F2] leading-tight">
                     Você nunca teve acesso a isso.
                     <br />
-                    <span className="text-purple-400 glow-text-neural">Até agora.</span>
+                    <span className="text-[#A882FF] neural-text-glow">Até agora.</span>
                   </h2>
                   
-                  <div className="text-xl sm:text-base md:text-lg lg:text-2xl xl:text-3xl text-gray-300 mb-12 sm:mb-6 md:mb-8 lg:mb-12 max-w-5xl mx-auto leading-relaxed space-y-4 sm:space-y-2 md:space-y-3 lg:space-y-4 px-4">
-                    <p>O YumerMind lê o que você escreve, sente, pergunta.</p>
-                    <p>Ele analisa seus padrões emocionais, mentais e comportamentais.</p>
-                    <p className="text-cyan-400 font-light glow-text">E transforma isso em um painel vivo da sua mente.</p>
+                  <div className="text-xl md:text-2xl lg:text-3xl text-[#F2F2F2]/80 mb-12 max-w-5xl mx-auto leading-relaxed space-y-4">
+                    <p>O YumerMind é mais que uma ferramenta.</p>
+                    <p>É um espelho psíquico. Um radar emocional.</p>
+                    <p className="text-[#00F0FF] font-light neural-text-glow">Ele lê o que você escreve, pergunta, sente.</p>
+                    <p className="text-[#F5C97A] font-light neural-text-glow">E transforma em um painel que mostra quem você está sendo agora.</p>
                   </div>
                 </div>
               </ScrollReveal>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-4 md:gap-6 lg:gap-8">
-                {features.map((feature, index) => (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                {neuralFeatures.map((feature, index) => (
                   <ScrollReveal key={index} id={`feature-${index}`} direction="up" delay={index * 200}>
                     <Card 
-                      className="bg-gradient-to-br from-white/10 to-white/[0.05] border border-white/20 backdrop-blur-md hover:bg-white/15 transition-all duration-700 hover:scale-105 group glow-card-neural cursor-pointer"
+                      className="bg-gradient-to-br from-[#0B0F2A]/90 to-[#0B0F2A]/60 border border-[#00F0FF]/30 backdrop-blur-md hover:bg-[#00F0FF]/10 transition-all duration-700 hover:scale-105 group neural-card cursor-pointer"
                       onMouseEnter={async () => {
                         await unlockMobileAudio();
                         if (soundEnabled && soundEffectsRef.current.hover) {
@@ -697,41 +657,55 @@ export function ObservatoryLanding() {
                         }
                       }}
                     >
-                      <CardContent className="p-8 sm:p-4 md:p-6 lg:p-8 text-center">
-                        <div className="w-16 h-16 sm:w-12 sm:h-12 md:w-16 md:h-16 lg:w-20 lg:h-20 mx-auto mb-6 sm:mb-3 md:mb-4 lg:mb-6 bg-gradient-to-r from-purple-500/30 to-blue-500/30 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform duration-500 border border-purple-500/40">
-                          <feature.icon className="w-8 h-8 sm:w-6 sm:h-6 md:w-8 md:h-8 lg:w-10 lg:h-10 text-purple-300" />
+                      <CardContent className="p-8 text-center">
+                        <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-r from-[#00F0FF]/30 to-[#A882FF]/30 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform duration-500 border border-[#00F0FF]/40">
+                          <feature.icon className="w-10 h-10 text-[#00F0FF]" />
                         </div>
-                        <h3 className="text-xl sm:text-base md:text-lg lg:text-xl font-medium text-white mb-4 sm:mb-2 md:mb-3 lg:mb-4">{feature.title}</h3>
-                        <p className="text-gray-300 text-lg sm:text-sm md:text-base font-light leading-relaxed">{feature.description}</p>
+                        <h3 className="text-xl font-medium text-[#F2F2F2] mb-4">{feature.title}</h3>
+                        <p className="text-[#F2F2F2]/70 text-base font-light leading-relaxed">{feature.description}</p>
                       </CardContent>
                     </Card>
                   </ScrollReveal>
                 ))}
               </div>
+
+              <ScrollReveal id="features-conclusion" direction="up" delay={800}>
+                <div className="text-center mt-16">
+                  <p className="text-2xl md:text-3xl text-[#F2F2F2] font-light">
+                    Você não adivinha mais.
+                  </p>
+                  <p className="text-2xl md:text-3xl text-[#00F0FF] font-light mt-4 neural-text-glow">
+                    Você vê.
+                  </p>
+                  <p className="text-xl md:text-2xl text-[#F5C97A] font-light mt-4 neural-text-glow">
+                    E o que você vê, muda tudo.
+                  </p>
+                </div>
+              </ScrollReveal>
             </div>
           </section>
 
-          {/* Seção 3 - COMO FUNCIONA - MAIOR NO MOBILE */}
-          <section className="relative py-16 sm:py-12 md:py-20 lg:py-32 px-4 sm:px-4 md:px-6 z-10">
-            <div className="max-w-6xl mx-auto w-full overflow-x-hidden">
+          {/* Seção 3 - Como Funciona */}
+          <section className="relative py-32 px-6 z-10">
+            <div className="max-w-6xl mx-auto w-full">
               <ScrollReveal id="process-title" direction="scale">
-                <h2 className="text-3xl sm:text-2xl md:text-4xl lg:text-6xl xl:text-7xl font-light text-center mb-16 sm:mb-12 md:mb-16 lg:mb-20 text-white px-4">
-                  Como funciona seu <span className="bg-gradient-to-r from-purple-400 to-cyan-500 bg-clip-text text-transparent glow-text-neural">segundo cérebro?</span>
+                <h2 className="text-4xl md:text-6xl lg:text-7xl font-light text-center mb-20 text-[#F2F2F2]">
+                  Três passos. <span className="bg-gradient-to-r from-[#00F0FF] to-[#A882FF] bg-clip-text text-transparent neural-text-glow">Um abismo de consciência.</span>
                 </h2>
               </ScrollReveal>
               
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-12 sm:gap-8 md:gap-12 lg:gap-16">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-16">
                 {processSteps.map((step, index) => (
                   <ScrollReveal key={index} id={`step-${index}`} direction="up" delay={index * 300}>
                     <div className="text-center group">
-                      <div className="w-20 h-20 sm:w-16 sm:h-16 md:w-24 md:h-24 lg:w-32 lg:h-32 mx-auto mb-8 sm:mb-4 md:mb-6 lg:mb-8 bg-gradient-to-r from-purple-600/30 to-blue-600/30 rounded-full flex items-center justify-center text-2xl sm:text-xl md:text-3xl lg:text-5xl font-light text-white group-hover:scale-110 transition-transform duration-700 border border-purple-500/40">
+                      <div className="w-32 h-32 mx-auto mb-8 bg-gradient-to-r from-[#00F0FF]/30 to-[#A882FF]/30 rounded-full flex items-center justify-center text-5xl font-light text-[#F2F2F2] group-hover:scale-110 transition-transform duration-700 border border-[#00F0FF]/40 neural-glow">
                         {step.number}
                       </div>
-                      <div className="w-12 h-12 sm:w-8 sm:h-8 md:w-12 md:h-12 lg:w-16 lg:h-16 mx-auto mb-6 sm:mb-3 md:mb-4 lg:mb-6 bg-gradient-to-r from-purple-500/30 to-cyan-500/30 rounded-full flex items-center justify-center group-hover:rotate-12 transition-transform duration-500 border border-purple-400/40">
-                        <step.icon className="w-6 h-6 sm:w-4 sm:h-4 md:w-6 md:h-6 text-purple-300" />
+                      <div className="w-16 h-16 mx-auto mb-6 bg-gradient-to-r from-[#A882FF]/30 to-[#F5C97A]/30 rounded-full flex items-center justify-center group-hover:rotate-12 transition-transform duration-500 border border-[#A882FF]/40">
+                        <step.icon className="w-8 h-8 text-[#A882FF]" />
                       </div>
-                      <h3 className="text-2xl sm:text-lg md:text-2xl lg:text-3xl font-medium text-white mb-6 sm:mb-3 md:mb-4 lg:mb-6">{step.title}</h3>
-                      <p className="text-gray-300 text-lg sm:text-sm md:text-base lg:text-lg leading-relaxed font-light px-4">{step.description}</p>
+                      <h3 className="text-2xl md:text-3xl font-medium text-[#F2F2F2] mb-6">{step.title}</h3>
+                      <p className="text-[#F2F2F2]/70 text-lg leading-relaxed font-light">{step.description}</p>
                     </div>
                   </ScrollReveal>
                 ))}
@@ -739,56 +713,71 @@ export function ObservatoryLanding() {
             </div>
           </section>
 
-          {/* Seção 4 - BENEFÍCIOS REAIS - MAIOR NO MOBILE */}
-          <section className="relative py-16 sm:py-12 md:py-20 lg:py-32 px-4 sm:px-4 md:px-6 z-10">
-            <div className="max-w-7xl mx-auto w-full overflow-x-hidden">
+          {/* Seção 4 - Benefícios */}
+          <section className="relative py-32 px-6 z-10">
+            <div className="max-w-6xl mx-auto w-full">
               <ScrollReveal id="benefits-title" direction="up">
-                <h2 className="text-3xl sm:text-2xl md:text-4xl lg:text-6xl xl:text-7xl font-light text-center mb-16 sm:mb-12 md:mb-16 lg:mb-20 text-white leading-tight px-4">
-                  Por que ativar seu <span className="text-cyan-400 glow-text-neural">YumerMind?</span>
+                <h2 className="text-4xl md:text-6xl lg:text-7xl font-light text-center mb-20 text-[#F2F2F2] leading-tight">
+                  <span className="text-[#00F0FF] neural-text-glow">Clareza é poder.</span>
+                  <br />
+                  E você está prestes a ter mais do que imagina.
                 </h2>
               </ScrollReveal>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-4 md:gap-6 lg:gap-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 {benefits.map((benefit, index) => (
                   <ScrollReveal key={index} id={`benefit-${index}`} direction="up" delay={index * 150}>
-                    <Card className="bg-gradient-to-br from-white/10 to-white/[0.05] border border-white/20 backdrop-blur-md hover:bg-white/15 transition-all duration-500 hover:scale-105 group glow-card-neural cursor-pointer">
-                      <CardContent className="p-8 sm:p-4 md:p-6 lg:p-8">
-                        <div className="flex items-center mb-6 sm:mb-3 lg:mb-4">
-                          <div className="w-12 h-12 sm:w-8 sm:h-8 md:w-12 md:h-12 bg-gradient-to-r from-purple-500/30 to-cyan-500/30 rounded-full flex items-center justify-center mr-4 sm:mr-3 lg:mr-4 group-hover:scale-110 transition-transform border border-purple-400/40">
-                            <benefit.icon className="w-6 h-6 sm:w-4 sm:h-4 md:w-6 md:h-6 text-purple-300" />
+                    <Card className="bg-gradient-to-br from-[#0B0F2A]/90 to-[#0B0F2A]/60 border border-[#A882FF]/30 backdrop-blur-md hover:bg-[#A882FF]/10 transition-all duration-500 hover:scale-105 group neural-card cursor-pointer">
+                      <CardContent className="p-8">
+                        <div className="flex items-start mb-4">
+                          <div className="w-12 h-12 bg-gradient-to-r from-[#A882FF]/30 to-[#F5C97A]/30 rounded-full flex items-center justify-center mr-4 group-hover:scale-110 transition-transform border border-[#A882FF]/40">
+                            <benefit.icon className="w-6 h-6 text-[#A882FF]" />
                           </div>
-                          <h3 className="text-xl sm:text-base md:text-lg lg:text-xl font-medium text-white">{benefit.title}</h3>
                         </div>
-                        <p className="text-gray-300 text-lg sm:text-sm md:text-base font-light leading-relaxed">{benefit.description}</p>
+                        <p className="text-[#F2F2F2] text-lg font-light leading-relaxed">{benefit.title}</p>
                       </CardContent>
                     </Card>
                   </ScrollReveal>
                 ))}
               </div>
+
+              <ScrollReveal id="benefits-conclusion" direction="up" delay={900}>
+                <div className="text-center mt-16 space-y-4">
+                  <p className="text-2xl md:text-3xl text-[#F2F2F2] font-light">
+                    Você não será mais refém da dúvida.
+                  </p>
+                  <p className="text-2xl md:text-3xl text-[#00F0FF] font-light neural-text-glow">
+                    Nem da cegueira emocional.
+                  </p>
+                  <p className="text-2xl md:text-3xl text-[#F5C97A] font-light neural-text-glow">
+                    Nem da falta de rumo.
+                  </p>
+                </div>
+              </ScrollReveal>
             </div>
           </section>
 
-          {/* Seção 5 - DEPOIMENTOS - MAIOR NO MOBILE */}
-          <section className="relative py-16 sm:py-12 md:py-20 lg:py-32 px-4 sm:px-4 md:px-6 z-10">
-            <div className="max-w-6xl mx-auto w-full overflow-x-hidden">
+          {/* Seção 5 - Depoimentos */}
+          <section className="relative py-32 px-6 z-10">
+            <div className="max-w-6xl mx-auto w-full">
               <ScrollReveal id="testimonials-title" direction="up">
-                <h2 className="text-3xl sm:text-2xl md:text-4xl lg:text-6xl xl:text-7xl font-light text-center mb-16 sm:mb-12 md:mb-16 lg:mb-20 text-white leading-tight px-4">
+                <h2 className="text-4xl md:text-6xl lg:text-7xl font-light text-center mb-20 text-[#F2F2F2] leading-tight">
                   O que dizem as mentes que já
                   <br />
-                  <span className="text-emerald-400 glow-text-neural">se viram por dentro?</span>
+                  <span className="text-[#F5C97A] neural-text-glow">se viram por dentro:</span>
                 </h2>
               </ScrollReveal>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-8 sm:gap-6 md:gap-8">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                 {testimonials.map((testimonial, index) => (
                   <ScrollReveal key={index} id={`testimonial-${index}`} direction="up" delay={index * 200}>
-                    <Card className="bg-gradient-to-br from-white/10 to-white/[0.05] border border-white/20 backdrop-blur-md hover:bg-white/15 transition-all duration-500 hover:scale-105 group glow-card-neural">
-                      <CardContent className="p-8 sm:p-4 md:p-6 lg:p-8 text-center">
-                        <Quote className="w-8 h-8 sm:w-6 sm:h-6 md:w-8 md:h-8 text-purple-400 mx-auto mb-6 sm:mb-3 lg:mb-4 opacity-60" />
-                        <p className="text-xl sm:text-base md:text-lg lg:text-xl text-gray-200 mb-6 sm:mb-4 lg:mb-6 font-light italic leading-relaxed">
+                    <Card className="bg-gradient-to-br from-[#0B0F2A]/90 to-[#0B0F2A]/60 border border-[#F5C97A]/30 backdrop-blur-md hover:bg-[#F5C97A]/10 transition-all duration-500 hover:scale-105 group neural-card">
+                      <CardContent className="p-8 text-center">
+                        <Quote className="w-8 h-8 text-[#F5C97A] mx-auto mb-4 opacity-60" />
+                        <p className="text-xl text-[#F2F2F2] mb-6 font-light italic leading-relaxed">
                           "{testimonial.text}"
                         </p>
-                        <p className="text-purple-400 font-medium text-lg sm:text-sm md:text-base">{testimonial.author}</p>
+                        <p className="text-[#F5C97A] font-medium text-base">{testimonial.author}</p>
                       </CardContent>
                     </Card>
                   </ScrollReveal>
@@ -797,21 +786,22 @@ export function ObservatoryLanding() {
             </div>
           </section>
 
-          {/* Seção 6 - CTA FINAL */}
-          <section className="relative py-20 sm:py-16 md:py-32 lg:py-40 px-4 sm:px-4 md:px-6 z-10 bg-black">
+          {/* Seção 6 - CTA Final */}
+          <section className="relative py-40 px-6 z-10">
             <div className="max-w-6xl mx-auto text-center w-full">
               <div className="relative z-10">
                 <ScrollReveal id="final-cta-title" direction="scale" delay={200}>
-                  <h2 className="text-2xl sm:text-xl md:text-3xl lg:text-5xl xl:text-6xl 2xl:text-7xl font-light mb-12 sm:mb-6 md:mb-8 lg:mb-12 leading-tight px-4">
-                    <span className="block text-white mb-6 sm:mb-3 md:mb-4 lg:mb-6">Você olha pra todo mundo.</span>
-                    <span className="block text-white mb-6 sm:mb-3 md:mb-4 lg:mb-6">Mas nunca olhou pra si assim.</span>
-                    <span className="block text-purple-400 glow-text-neural mt-8 sm:mt-4 md:mt-6 lg:mt-8 font-medium">O YumerMind é o espelho mais honesto que você já viu.</span>
-                    <span className="block text-cyan-400 glow-text-neural mt-6 sm:mt-3 md:mt-4 lg:mt-6 font-medium">E ele está pronto. Agora.</span>
+                  <h2 className="text-3xl md:text-5xl lg:text-6xl xl:text-7xl font-light mb-12 leading-tight">
+                    <span className="block text-[#F2F2F2] mb-6">Você já olhou para tudo.</span>
+                    <span className="block text-[#F2F2F2] mb-6">Agora é hora de olhar para si.</span>
+                    <span className="block text-[#00F0FF] neural-text-glow mt-8 font-medium">Por inteiro.</span>
+                    <span className="block text-[#A882FF] neural-text-glow mt-6 font-medium">Com coragem.</span>
+                    <span className="block text-[#F5C97A] neural-text-glow mt-6 font-medium">Com verdade.</span>
                   </h2>
                 </ScrollReveal>
 
                 <ScrollReveal id="final-cta-button" direction="up" delay={600}>
-                  <div className="flex flex-col gap-8 sm:gap-4 md:gap-6 justify-center items-center px-4">
+                  <div className="flex flex-col gap-8 justify-center items-center">
                     <Button 
                       onClick={handleActivateYumerMind}
                       onMouseEnter={async () => {
@@ -820,25 +810,25 @@ export function ObservatoryLanding() {
                           soundEffectsRef.current.hover();
                         }
                       }}
-                      className="relative overflow-hidden w-full sm:w-auto bg-gradient-to-r from-purple-600 via-blue-600 to-cyan-600 hover:from-purple-500 hover:via-blue-500 hover:to-cyan-500 text-white px-6 sm:px-8 md:px-10 lg:px-12 xl:px-16 py-6 sm:py-6 md:py-7 lg:py-8 text-xs sm:text-sm md:text-base lg:text-lg xl:text-xl font-black rounded-3xl shadow-2xl shadow-purple-500/60 border-4 border-purple-400/50 backdrop-blur-sm glow-button-apocalypse group transform hover:scale-110 transition-all duration-700 max-w-5xl before:absolute before:inset-0 before:bg-gradient-to-r before:from-transparent before:via-white/30 before:to-transparent before:translate-x-[-100%] hover:before:translate-x-[100%] before:transition-transform before:duration-1000"
+                      className="relative overflow-hidden bg-gradient-to-r from-[#00F0FF] via-[#A882FF] to-[#F5C97A] hover:from-[#00F0FF]/90 hover:via-[#A882FF]/90 hover:to-[#F5C97A]/90 text-[#0B0F2A] px-16 py-8 text-xl font-bold rounded-3xl shadow-2xl border-4 border-[#00F0FF]/50 backdrop-blur-sm neural-final-button group transform hover:scale-110 transition-all duration-700 max-w-5xl"
                     >
-                      <Brain className="w-5 h-5 sm:w-5 sm:h-5 md:w-6 md:h-6 lg:w-7 lg:h-7 xl:w-8 xl:h-8 mr-3 sm:mr-3 md:mr-4 lg:mr-5 group-hover:rotate-12 transition-transform duration-500 drop-shadow-lg" />
+                      <Brain className="w-8 h-8 mr-5 group-hover:rotate-12 transition-transform duration-500" />
                       <div className="text-center leading-tight relative z-10 flex flex-col sm:flex-row items-center">
-                        <div className="font-black tracking-wide drop-shadow-lg">
-                          {isAuthenticated ? 'ACESSAR MEU YUMERMIND AGORA' : 'ACESSAR MEU YUMERMIND'}
+                        <div className="font-bold tracking-wide">
+                          {isAuthenticated ? 'ATIVAR MEU YUMERMIND AGORA' : 'ATIVAR MEU YUMERMIND'}
                         </div>
                         {!isAuthenticated && (
-                          <div className="font-black tracking-wide drop-shadow-lg sm:ml-2">
+                          <div className="font-bold tracking-wide sm:ml-2">
                             — 7 DIAS GRÁTIS
                           </div>
                         )}
                       </div>
-                      <Network className="w-5 h-5 sm:w-5 sm:h-5 md:w-6 md:h-6 lg:w-7 lg:h-7 xl:w-8 xl:h-8 ml-3 sm:ml-3 md:ml-4 lg:ml-5 group-hover:scale-110 transition-transform duration-500 drop-shadow-lg" />
+                      <Network className="w-8 h-8 ml-5 group-hover:scale-110 transition-transform duration-500" />
                     </Button>
                     
                     {!isAuthenticated && (
-                      <div className="text-center text-sm sm:text-sm md:text-base lg:text-lg xl:text-xl text-gray-300 font-light max-w-4xl leading-relaxed bg-black/30 backdrop-blur-sm rounded-2xl px-4 sm:px-5 md:px-6 py-3 sm:py-3 md:py-4 border border-gray-600/20">
-                        Depois, apenas <span className="text-green-400 font-medium glow-text">R$ 47/mês</span>. Sem enrolação. Sem obrigações.
+                      <div className="text-center text-lg text-[#F2F2F2]/80 font-light max-w-4xl leading-relaxed bg-[#0B0F2A]/30 backdrop-blur-sm rounded-2xl px-6 py-4 border border-[#F2F2F2]/20">
+                        Depois, R$ <span className="text-[#F5C97A] font-medium neural-text-glow">47/mês</span>. Cancelamento livre. <span className="text-[#00F0FF] neural-text-glow">Consciência irreversível.</span>
                       </div>
                     )}
                   </div>
@@ -847,128 +837,72 @@ export function ObservatoryLanding() {
             </div>
           </section>
 
-          {/* Estilos CSS harmonizados com otimizações para mobile */}
+          {/* Estilos CSS refinados */}
           <style>{`
-            .glow-text {
-              text-shadow: 0 0 ${isMobile ? '15px' : '20px'} currentColor, 0 0 ${isMobile ? '30px' : '40px'} currentColor;
-            }
-            
-            .glow-text-neural {
-              text-shadow: 0 0 ${isMobile ? '15px' : '20px'} currentColor, 0 0 ${isMobile ? '30px' : '40px'} currentColor, 0 0 ${isMobile ? '45px' : '60px'} currentColor;
-              animation: glow-neural 3s ease-in-out infinite alternate;
-            }
-            
-            @keyframes glow-neural {
-              0% {
-                filter: drop-shadow(0 0 ${isMobile ? '15px' : '20px'} rgba(139, 92, 246, 0.5)) brightness(1);
-              }
-              100% {
-                filter: drop-shadow(0 0 ${isMobile ? '30px' : '40px'} rgba(139, 92, 246, 0.8)) brightness(1.2);
-              }
-            }
-            
-            .glow-text-pulsing {
-              animation: glow-pulse 2s ease-in-out infinite alternate;
-            }
-            
-            .glow-text-cold {
-              animation: glow-cold 3s ease-in-out infinite alternate;
-            }
-            
-            .glow-text-liberation {
-              animation: glow-liberation 2.5s ease-in-out infinite alternate;
-            }
-            
-            @keyframes glow-pulse {
-              0% {
-                filter: drop-shadow(0 0 ${isMobile ? '15px' : '20px'} rgba(239, 68, 68, 0.5)) brightness(1);
-              }
-              100% {
-                filter: drop-shadow(0 0 ${isMobile ? '30px' : '40px'} rgba(239, 68, 68, 0.8)) brightness(1.2);
-              }
-            }
-            
-            @keyframes glow-cold {
-              0% {
-                filter: drop-shadow(0 0 ${isMobile ? '15px' : '20px'} rgba(59, 130, 246, 0.5)) brightness(1);
-              }
-              100% {
-                filter: drop-shadow(0 0 ${isMobile ? '25px' : '35px'} rgba(59, 130, 246, 0.8)) brightness(1.1);
-              }
-            }
-            
-            @keyframes glow-liberation {
-              0% {
-                filter: drop-shadow(0 0 ${isMobile ? '15px' : '20px'} rgba(16, 185, 129, 0.5)) brightness(1);
-              }
-              100% {
-                filter: drop-shadow(0 0 ${isMobile ? '25px' : '35px'} rgba(16, 185, 129, 0.8)) brightness(1.1);
-              }
-            }
-            
-            .glow-button {
+            .neural-glow {
               box-shadow: 
-                0 0 ${isMobile ? '30px' : '40px'} rgba(147, 51, 234, 0.6), 
-                0 0 ${isMobile ? '60px' : '80px'} rgba(79, 70, 229, 0.4), 
-                0 0 ${isMobile ? '90px' : '120px'} rgba(147, 51, 234, 0.3);
+                0 0 ${isMobile ? '10px' : '20px'} rgba(0, 240, 255, 0.3), 
+                0 0 ${isMobile ? '20px' : '40px'} rgba(168, 130, 255, 0.2);
             }
             
-            .glow-button:hover {
+            .neural-text-glow {
+              text-shadow: 
+                0 0 ${isMobile ? '10px' : '20px'} currentColor, 
+                0 0 ${isMobile ? '20px' : '40px'} currentColor;
+              filter: brightness(1.1);
+            }
+            
+            .neural-button-glow {
               box-shadow: 
-                0 0 ${isMobile ? '40px' : '60px'} rgba(147, 51, 234, 0.8), 
-                0 0 ${isMobile ? '80px' : '120px'} rgba(79, 70, 229, 0.6), 
-                0 0 ${isMobile ? '120px' : '180px'} rgba(147, 51, 234, 0.4);
+                0 0 ${isMobile ? '20px' : '40px'} rgba(0, 240, 255, 0.6), 
+                0 0 ${isMobile ? '40px' : '80px'} rgba(168, 130, 255, 0.4), 
+                0 0 ${isMobile ? '60px' : '120px'} rgba(245, 201, 122, 0.3);
             }
             
-            .glow-card-neural {
-              box-shadow: 0 0 ${isMobile ? '10px' : '15px'} rgba(147, 51, 234, 0.2), 0 0 ${isMobile ? '20px' : '30px'} rgba(79, 70, 229, 0.1);
-            }
-            
-            .glow-card-neural:hover {
+            .neural-button-glow:hover {
               box-shadow: 
-                0 0 ${isMobile ? '15px' : '25px'} rgba(147, 51, 234, 0.4), 
-                0 0 ${isMobile ? '30px' : '50px'} rgba(79, 70, 229, 0.3),
-                0 0 ${isMobile ? '45px' : '75px'} rgba(34, 197, 94, 0.2);
+                0 0 ${isMobile ? '30px' : '60px'} rgba(0, 240, 255, 0.8), 
+                0 0 ${isMobile ? '60px' : '120px'} rgba(168, 130, 255, 0.6), 
+                0 0 ${isMobile ? '90px' : '180px'} rgba(245, 201, 122, 0.4);
             }
             
-            .glow-button-apocalypse {
+            .neural-card {
+              box-shadow: 0 0 ${isMobile ? '8px' : '15px'} rgba(0, 240, 255, 0.2), 0 0 ${isMobile ? '16px' : '30px'} rgba(168, 130, 255, 0.1);
+            }
+            
+            .neural-card:hover {
               box-shadow: 
-                0 0 ${isMobile ? '40px' : '60px'} rgba(147, 51, 234, 0.8), 
-                0 0 ${isMobile ? '80px' : '120px'} rgba(79, 70, 229, 0.6), 
-                0 0 ${isMobile ? '120px' : '180px'} rgba(147, 51, 234, 0.4),
-                inset 0 0 ${isMobile ? '20px' : '30px'} rgba(255, 255, 255, 0.1);
+                0 0 ${isMobile ? '15px' : '25px'} rgba(0, 240, 255, 0.4), 
+                0 0 ${isMobile ? '30px' : '50px'} rgba(168, 130, 255, 0.3),
+                0 0 ${isMobile ? '45px' : '75px'} rgba(245, 201, 122, 0.2);
             }
             
-            .glow-button-apocalypse:hover {
+            .neural-final-button {
               box-shadow: 
-                0 0 ${isMobile ? '50px' : '80px'} rgba(147, 51, 234, 1), 
-                0 0 ${isMobile ? '100px' : '160px'} rgba(79, 70, 229, 0.8), 
-                0 0 ${isMobile ? '150px' : '240px'} rgba(147, 51, 234, 0.6),
-                inset 0 0 ${isMobile ? '25px' : '40px'} rgba(255, 255, 255, 0.2);
+                0 0 ${isMobile ? '40px' : '80px'} rgba(0, 240, 255, 0.8), 
+                0 0 ${isMobile ? '80px' : '160px'} rgba(168, 130, 255, 0.6), 
+                0 0 ${isMobile ? '120px' : '240px'} rgba(245, 201, 122, 0.4),
+                inset 0 0 ${isMobile ? '20px' : '40px'} rgba(255, 255, 255, 0.1);
             }
             
-            /* Otimizações específicas para mobile */
+            .neural-final-button:hover {
+              box-shadow: 
+                0 0 ${isMobile ? '60px' : '120px'} rgba(0, 240, 255, 1), 
+                0 0 ${isMobile ? '120px' : '240px'} rgba(168, 130, 255, 0.8), 
+                0 0 ${isMobile ? '180px' : '360px'} rgba(245, 201, 122, 0.6),
+                inset 0 0 ${isMobile ? '30px' : '60px'} rgba(255, 255, 255, 0.2);
+            }
+            
+            /* Otimizações para mobile */
             @media (max-width: 640px) {
-              .glow-text, .glow-text-neural, .glow-text-pulsing, .glow-text-cold, .glow-text-liberation {
-                text-shadow: 
-                  0 0 5px currentColor, 
-                  0 0 10px currentColor;
+              .neural-glow, .neural-text-glow {
+                filter: brightness(1.05);
               }
               
-              .glow-button {
+              .neural-button-glow {
                 box-shadow: 
-                  0 0 10px rgba(147, 51, 234, 0.6), 
-                  0 0 20px rgba(79, 70, 229, 0.4);
-              }
-              
-              /* Reduzir animações complexas em mobile */
-              @keyframes glow-neural {
-                0% {
-                  filter: drop-shadow(0 0 5px rgba(139, 92, 246, 0.5)) brightness(1);
-                }
-                100% {
-                  filter: drop-shadow(0 0 15px rgba(139, 92, 246, 0.7)) brightness(1.1);
-                }
+                  0 0 15px rgba(0, 240, 255, 0.5), 
+                  0 0 30px rgba(168, 130, 255, 0.3);
               }
             }
             
@@ -979,13 +913,6 @@ export function ObservatoryLanding() {
                 animation-iteration-count: 1 !important;
                 transition-duration: 0.01ms !important;
                 scroll-behavior: auto !important;
-              }
-            }
-            
-            /* Animações suaves */
-            @media (prefers-reduced-motion: no-preference) {
-              * {
-                scroll-behavior: smooth;
               }
             }
           `}</style>
