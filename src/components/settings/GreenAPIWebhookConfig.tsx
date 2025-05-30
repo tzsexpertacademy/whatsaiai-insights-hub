@@ -152,34 +152,38 @@ export function GreenAPIWebhookConfig() {
     setIsTesting(true);
 
     try {
-      console.log('🧪 Testando webhook...');
+      console.log('🧪 Testando webhook... URL:', webhookUrl);
       
-      // Fazer teste simples de conectividade primeiro
+      // Teste simples enviando dados mockados
+      const testPayload = {
+        typeWebhook: 'test',
+        instanceData: { 
+          idInstance: apiConfig.instanceId,
+          wid: 'test@webhook.test',
+          typeInstance: 'whatsapp'
+        },
+        timestamp: Date.now(),
+        messageData: {
+          typeMessage: 'textMessage',
+          textMessageData: {
+            textMessage: 'Teste do webhook GREEN-API'
+          }
+        },
+        senderData: {
+          chatId: 'test@c.us',
+          chatName: 'Teste Webhook',
+          sender: 'test@c.us'
+        }
+      };
+
+      console.log('📤 Enviando payload de teste:', testPayload);
+
       const testResponse = await fetch(webhookUrl, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          typeWebhook: 'test',
-          instanceData: { 
-            idInstance: apiConfig.instanceId,
-            wid: 'test@webhook.test',
-            typeInstance: 'whatsapp'
-          },
-          timestamp: Date.now(),
-          messageData: {
-            typeMessage: 'textMessage',
-            textMessageData: {
-              textMessage: 'Teste do webhook GREEN-API'
-            }
-          },
-          senderData: {
-            chatId: 'test@c.us',
-            chatName: 'Teste Webhook',
-            sender: 'test@c.us'
-          }
-        })
+        body: JSON.stringify(testPayload)
       });
 
       console.log('📊 Status da resposta do teste:', testResponse.status);

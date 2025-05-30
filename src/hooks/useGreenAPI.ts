@@ -147,35 +147,37 @@ export function useGreenAPI() {
       let phoneNumber = '';
 
       if (isConnected) {
-        // Buscar informações da conta para pegar o número
-        try {
-          const accountResponse = await fetch(
-            `https://api.green-api.com/waInstance${apiConfig.instanceId}/getWaSettings/${apiConfig.apiToken}`,
-            { method: 'GET' }
-          );
-          
-          if (accountResponse.ok) {
-            const accountData = await accountResponse.json();
-            console.log('📱 Dados da conta:', accountData);
-            phoneNumber = accountData.wid || data.wid || '';
+        // Tentar pegar o número do próprio response primeiro
+        if (data.wid) {
+          phoneNumber = data.wid;
+          console.log('📱 Número encontrado no stateInstance:', phoneNumber);
+        }
+
+        // Se não conseguiu, tentar buscar via getWaSettings
+        if (!phoneNumber) {
+          try {
+            console.log('🔍 Buscando número via getWaSettings...');
+            const accountResponse = await fetch(
+              `https://api.green-api.com/waInstance${apiConfig.instanceId}/getWaSettings/${apiConfig.apiToken}`,
+              { method: 'GET' }
+            );
             
-            // Se não conseguiu pegar pelo getWaSettings, tenta pelo getStateInstance
-            if (!phoneNumber && data.wid) {
-              phoneNumber = data.wid;
+            if (accountResponse.ok) {
+              const accountData = await accountResponse.json();
+              console.log('📱 Dados da conta:', accountData);
+              phoneNumber = accountData.wid || '';
             }
-            
-            // Formatar o número para exibição (remover @c.us se existir)
-            if (phoneNumber && phoneNumber.includes('@')) {
-              phoneNumber = phoneNumber.split('@')[0];
-            }
-          }
-        } catch (error) {
-          console.error('⚠️ Erro ao buscar dados da conta:', error);
-          phoneNumber = data.wid || '';
-          if (phoneNumber && phoneNumber.includes('@')) {
-            phoneNumber = phoneNumber.split('@')[0];
+          } catch (error) {
+            console.error('⚠️ Erro ao buscar dados da conta:', error);
           }
         }
+        
+        // Formatar o número para exibição (remover @c.us se existir)
+        if (phoneNumber && phoneNumber.includes('@')) {
+          phoneNumber = phoneNumber.split('@')[0];
+        }
+        
+        console.log('📱 Número final formatado:', phoneNumber);
       }
       
       const now = new Date().toISOString();
@@ -188,8 +190,9 @@ export function useGreenAPI() {
         lastConnected: isConnected ? now : prev.lastConnected
       }));
 
-      // Atualizar configuração
-      if (phoneNumber) {
+      // Atualizar configuração com o número
+      if (phoneNumber && phoneNumber !== apiConfig.phoneNumber) {
+        console.log('💾 Salvando número na configuração:', phoneNumber);
         await updateAPIConfig({
           phoneNumber: phoneNumber
         });
@@ -227,7 +230,7 @@ export function useGreenAPI() {
       
       return { isConnected: false };
     }
-  }, [apiConfig.instanceId, apiConfig.apiToken, config, updateConfig, updateAPIConfig]);
+  }, [apiConfig.instanceId, apiConfig.apiToken, apiConfig.phoneNumber, config, updateConfig, updateAPIConfig]);
 
   const loadChats = useCallback(async () => {
     if (!user?.id) {
@@ -236,8 +239,7 @@ export function useGreenAPI() {
     }
 
     if (!greenAPIState.isConnected) {
-      console.log('❌ GREEN-API não conectado');
-      return;
+      console.log('❌ GREEN-API não conectado, carregando do banco mesmo assim...');
     }
 
     try {
@@ -495,10 +497,8 @@ export function useGreenAPI() {
   const refreshChats = useCallback(async () => {
     console.log('🔄 Atualizando lista de conversas...');
     await checkConnectionStatus();
-    if (greenAPIState.isConnected) {
-      await loadChats();
-    }
-  }, [loadChats, checkConnectionStatus, greenAPIState.isConnected]);
+    await loadChats();
+  }, [loadChats, checkConnectionStatus]);
 
   const getQRCode = useCallback(async (): Promise<string> => {
     if (!apiConfig.instanceId || !apiConfig.apiToken) {
