@@ -1,4 +1,3 @@
-
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useClientConfig } from '@/contexts/ClientConfigContext';
@@ -159,10 +158,23 @@ export function useGreenAPI() {
             const accountData = await accountResponse.json();
             console.log('📱 Dados da conta:', accountData);
             phoneNumber = accountData.wid || data.wid || '';
+            
+            // Se não conseguiu pegar pelo getWaSettings, tenta pelo getStateInstance
+            if (!phoneNumber && data.wid) {
+              phoneNumber = data.wid;
+            }
+            
+            // Formatar o número para exibição (remover @c.us se existir)
+            if (phoneNumber && phoneNumber.includes('@')) {
+              phoneNumber = phoneNumber.split('@')[0];
+            }
           }
         } catch (error) {
           console.error('⚠️ Erro ao buscar dados da conta:', error);
           phoneNumber = data.wid || '';
+          if (phoneNumber && phoneNumber.includes('@')) {
+            phoneNumber = phoneNumber.split('@')[0];
+          }
         }
       }
       
@@ -177,9 +189,11 @@ export function useGreenAPI() {
       }));
 
       // Atualizar configuração
-      await updateAPIConfig({
-        phoneNumber: phoneNumber
-      });
+      if (phoneNumber) {
+        await updateAPIConfig({
+          phoneNumber: phoneNumber
+        });
+      }
 
       const updatedWhatsAppConfig = {
         ...config?.whatsapp,
@@ -191,10 +205,6 @@ export function useGreenAPI() {
 
       if (isConnected) {
         console.log('✅ WhatsApp conectado:', phoneNumber);
-        toast({
-          title: "WhatsApp conectado!",
-          description: `Conectado ao número: ${phoneNumber}`,
-        });
         
         // Carregar chats após confirmar conexão
         setTimeout(() => {
@@ -202,11 +212,6 @@ export function useGreenAPI() {
         }, 1000);
       } else {
         console.log('❌ WhatsApp não conectado. Estado:', data.stateInstance);
-        toast({
-          title: "WhatsApp não conectado",
-          description: `Estado atual: ${data.stateInstance}`,
-          variant: "destructive"
-        });
       }
 
       return { isConnected, phoneNumber };
@@ -220,15 +225,9 @@ export function useGreenAPI() {
         phoneNumber: ''
       }));
       
-      toast({
-        title: "Erro de conexão",
-        description: `Verifique suas credenciais GREEN-API: ${error.message}`,
-        variant: "destructive"
-      });
-      
       return { isConnected: false };
     }
-  }, [apiConfig.instanceId, apiConfig.apiToken, config, updateConfig, updateAPIConfig, toast]);
+  }, [apiConfig.instanceId, apiConfig.apiToken, config, updateConfig, updateAPIConfig]);
 
   const loadChats = useCallback(async () => {
     if (!user?.id) {

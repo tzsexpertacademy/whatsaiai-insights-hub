@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -155,12 +154,11 @@ export function GreenAPIWebhookConfig() {
     try {
       console.log('🧪 Testando webhook...');
       
-      // Teste direto na URL do webhook
-      const response = await fetch(webhookUrl, {
+      // Fazer teste simples de conectividade primeiro
+      const testResponse = await fetch(webhookUrl, {
         method: 'POST',
         headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiConfig.apiToken}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           typeWebhook: 'test',
@@ -184,10 +182,10 @@ export function GreenAPIWebhookConfig() {
         })
       });
 
-      console.log('📊 Status da resposta do teste:', response.status);
+      console.log('📊 Status da resposta do teste:', testResponse.status);
 
-      if (response.ok) {
-        const result = await response.json();
+      if (testResponse.ok) {
+        const result = await testResponse.json();
         console.log('✅ Resultado do teste:', result);
         
         toast({
@@ -195,12 +193,12 @@ export function GreenAPIWebhookConfig() {
           description: "O webhook está respondendo corretamente aos testes"
         });
       } else {
-        const errorText = await response.text();
-        console.error('❌ Erro no teste:', response.status, errorText);
+        const errorText = await testResponse.text();
+        console.error('❌ Erro no teste:', testResponse.status, errorText);
         
         toast({
           title: "Erro no teste",
-          description: `Webhook retornou erro ${response.status}: ${errorText}`,
+          description: `Webhook retornou erro ${testResponse.status}. Verifique os logs do Supabase.`,
           variant: "destructive"
         });
       }
