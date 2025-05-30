@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -127,115 +128,6 @@ export function RoutinePage() {
     frequency: 'daily' as const
   });
 
-  const headerActions = (
-    <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-      <DialogTrigger asChild>
-        <Button className="flex items-center gap-2 w-full sm:w-auto">
-          <Plus className="w-4 h-4" />
-          Nova Atividade
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-md mx-4">
-        <DialogHeader>
-          <DialogTitle>Adicionar Nova Atividade</DialogTitle>
-          <DialogDescription>
-            Configure uma nova atividade para sua rotina
-          </DialogDescription>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div>
-            <Label htmlFor="title">Título *</Label>
-            <Input
-              id="title"
-              value={newActivity.title}
-              onChange={(e) => setNewActivity(prev => ({ ...prev, title: e.target.value }))}
-              placeholder="Ex: Exercício matinal"
-            />
-          </div>
-          <div>
-            <Label htmlFor="description">Descrição</Label>
-            <Textarea
-              id="description"
-              value={newActivity.description}
-              onChange={(e) => setNewActivity(prev => ({ ...prev, description: e.target.value }))}
-              placeholder="Descreva a atividade..."
-              rows={2}
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label htmlFor="startTime">Início *</Label>
-              <Input
-                id="startTime"
-                type="time"
-                value={newActivity.startTime}
-                onChange={(e) => setNewActivity(prev => ({ ...prev, startTime: e.target.value }))}
-              />
-            </div>
-            <div>
-              <Label htmlFor="endTime">Fim *</Label>
-              <Input
-                id="endTime"
-                type="time"
-                value={newActivity.endTime}
-                onChange={(e) => setNewActivity(prev => ({ ...prev, endTime: e.target.value }))}
-              />
-            </div>
-          </div>
-          <div>
-            <Label htmlFor="category">Categoria</Label>
-            <Select value={newActivity.category} onValueChange={(value: any) => setNewActivity(prev => ({ ...prev, category: value }))}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {Object.entries(categoryLabels).map(([key, label]) => (
-                  <SelectItem key={key} value={key}>{label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label htmlFor="priority">Prioridade</Label>
-              <Select value={newActivity.priority} onValueChange={(value: any) => setNewActivity(prev => ({ ...prev, priority: value }))}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(priorityLabels).map(([key, label]) => (
-                    <SelectItem key={key} value={key}>{label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="frequency">Frequência</Label>
-              <Select value={newActivity.frequency} onValueChange={(value: any) => setNewActivity(prev => ({ ...prev, frequency: value }))}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(frequencyLabels).map(([key, label]) => (
-                    <SelectItem key={key} value={key}>{label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </div>
-        <DialogFooter className="flex-col sm:flex-row gap-2">
-          <Button variant="outline" onClick={() => setIsAddDialogOpen(false)} className="w-full sm:w-auto">
-            Cancelar
-          </Button>
-          <Button onClick={handleAddActivity} className="w-full sm:w-auto">
-            Adicionar Atividade
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-
   // Carregar dados do localStorage
   useEffect(() => {
     const savedActivities = localStorage.getItem('user-routine-activities');
@@ -346,6 +238,115 @@ export function RoutinePage() {
   const sortedActivities = [...activities].sort((a, b) => {
     return a.startTime.localeCompare(b.startTime);
   });
+
+  const headerActions = (
+    <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+      <DialogTrigger asChild>
+        <Button className="flex items-center gap-2 w-full sm:w-auto">
+          <Plus className="w-4 h-4" />
+          Nova Atividade
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md mx-4">
+        <DialogHeader>
+          <DialogTitle>Adicionar Nova Atividade</DialogTitle>
+          <DialogDescription>
+            Configure uma nova atividade para sua rotina
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="title">Título *</Label>
+            <Input
+              id="title"
+              value={newActivity.title}
+              onChange={(e) => setNewActivity(prev => ({ ...prev, title: e.target.value }))}
+              placeholder="Ex: Exercício matinal"
+            />
+          </div>
+          <div>
+            <Label htmlFor="description">Descrição</Label>
+            <Textarea
+              id="description"
+              value={newActivity.description}
+              onChange={(e) => setNewActivity(prev => ({ ...prev, description: e.target.value }))}
+              placeholder="Descreva a atividade..."
+              rows={2}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label htmlFor="startTime">Início *</Label>
+              <Input
+                id="startTime"
+                type="time"
+                value={newActivity.startTime}
+                onChange={(e) => setNewActivity(prev => ({ ...prev, startTime: e.target.value }))}
+              />
+            </div>
+            <div>
+              <Label htmlFor="endTime">Fim *</Label>
+              <Input
+                id="endTime"
+                type="time"
+                value={newActivity.endTime}
+                onChange={(e) => setNewActivity(prev => ({ ...prev, endTime: e.target.value }))}
+              />
+            </div>
+          </div>
+          <div>
+            <Label htmlFor="category">Categoria</Label>
+            <Select value={newActivity.category} onValueChange={(value: any) => setNewActivity(prev => ({ ...prev, category: value }))}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(categoryLabels).map(([key, label]) => (
+                  <SelectItem key={key} value={key}>{label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label htmlFor="priority">Prioridade</Label>
+              <Select value={newActivity.priority} onValueChange={(value: any) => setNewActivity(prev => ({ ...prev, priority: value }))}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(priorityLabels).map(([key, label]) => (
+                    <SelectItem key={key} value={key}>{label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="frequency">Frequência</Label>
+              <Select value={newActivity.frequency} onValueChange={(value: any) => setNewActivity(prev => ({ ...prev, frequency: value }))}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(frequencyLabels).map(([key, label]) => (
+                    <SelectItem key={key} value={key}>{label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
+        <DialogFooter className="flex-col sm:flex-row gap-2">
+          <Button variant="outline" onClick={() => setIsAddDialogOpen(false)} className="w-full sm:w-auto">
+            Cancelar
+          </Button>
+          <Button onClick={handleAddActivity} className="w-full sm:w-auto">
+            Adicionar Atividade
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
 
   return (
     <PageLayout
