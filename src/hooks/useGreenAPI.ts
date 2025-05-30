@@ -1,4 +1,3 @@
-
 import { useState, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useClientConfig } from '@/contexts/ClientConfigContext';
@@ -32,6 +31,8 @@ interface Message {
   chatId: string;
 }
 
+export type MessagePeriod = 'today' | '7days' | '1month' | '3months' | 'all';
+
 export function useGreenAPI() {
   const { config, updateConfig } = useClientConfig();
   const { toast } = useToast();
@@ -45,6 +46,8 @@ export function useGreenAPI() {
 
   const [chats, setChats] = useState<Chat[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [currentPeriod, setCurrentPeriod] = useState<MessagePeriod>('today');
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
 
   // Obter configuração atual da GREEN-API
   const getAPIConfig = useCallback((): GreenAPIConfig => {
@@ -53,11 +56,13 @@ export function useGreenAPI() {
     }
     
     const whatsappConfig = config.whatsapp;
-    const greenapi = whatsappConfig.greenapi || { instanceId: '', apiToken: '' };
+    if (!whatsappConfig.greenapi) {
+      return { instanceId: '', apiToken: '' };
+    }
     
     return {
-      instanceId: greenapi.instanceId || '',
-      apiToken: greenapi.apiToken || ''
+      instanceId: whatsappConfig.greenapi.instanceId || '',
+      apiToken: whatsappConfig.greenapi.apiToken || ''
     };
   }, [config]);
 
@@ -76,6 +81,27 @@ export function useGreenAPI() {
       }
     });
   }, [config, updateConfig]);
+
+  // Calcular data de início baseada no período
+  const getStartDate = useCallback((period: MessagePeriod): Date => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    switch (period) {
+      case 'today':
+        return today;
+      case '7days':
+        return new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+      case '1month':
+        return new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+      case '3months':
+        return new Date(today.getTime() - 90 * 24 * 60 * 60 * 1000);
+      case 'all':
+        return new Date(0); // Data muito antiga para pegar todas
+      default:
+        return today;
+    }
+  }, []);
 
   // Verificar status da instância
   const checkInstanceStatus = useCallback(async () => {
@@ -259,15 +285,20 @@ export function useGreenAPI() {
     }
   }, [getAPIConfig, connectionState.isConnected, toast]);
 
-  // Carregar mensagens de uma conversa
-  const loadChatMessages = useCallback(async (chatId: string) => {
+  // Carregar mensagens com filtro de período
+  const loadChatMessages = useCallback(async (chatId: string, period: MessagePeriod = currentPeriod) => {
     const { instanceId, apiToken } = getAPIConfig();
     
     if (!instanceId || !apiToken || !chatId) {
       return;
     }
 
+    setIsLoadingMessages(true);
+    
     try {
+      const startDate = getStartDate(period);
+      const startTimestamp = Math.floor(startDate.getTime() / 1000);
+      
       const response = await fetch(
         `https://api.green-api.com/waInstance${instanceId}/getChatHistory/${apiToken}`,
         {
@@ -275,7 +306,7 @@ export function useGreenAPI() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             chatId: chatId,
-            count: 50
+            count: period === 'today' ? 50 : period === '7days' ? 100 : 200
           })
         }
       );
@@ -287,7 +318,17 @@ export function useGreenAPI() {
       const data = await response.json();
       
       if (Array.isArray(data)) {
-        const formattedMessages: Message[] = data.map((msg: any) => ({
+        let filteredData = data;
+        
+        // Filtrar por período se não for 'all'
+        if (period !== 'all') {
+          filteredData = data.filter((msg: any) => {
+            const msgTimestamp = msg.timestamp || 0;
+            return msgTimestamp >= startTimestamp;
+          });
+        }
+        
+        const formattedMessages: Message[] = filteredData.map((msg: any) => ({
           id: msg.idMessage || Math.random().toString(),
           text: msg.textMessage || '[Mídia]',
           sender: msg.type === 'outgoing' ? 'user' : 'contact',
@@ -295,13 +336,27 @@ export function useGreenAPI() {
           chatId: chatId
         }));
 
-        setMessages(formattedMessages);
-        console.log(`✅ Carregadas ${formattedMessages.length} mensagens para ${chatId}`);
+        // Atualizar apenas as mensagens do chat atual
+        setMessages(prev => [
+          ...prev.filter(m => m.chatId !== chatId),
+          ...formattedMessages
+        ]);
+        
+        setCurrentPeriod(period);
+        
+        console.log(`✅ Carregadas ${formattedMessages.length} mensagens (${period}) para ${chatId}`);
       }
     } catch (error) {
       console.error('Erro ao carregar mensagens:', error);
+      toast({
+        title: "Erro ao carregar mensagens",
+        description: "Não foi possível carregar as mensagens",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoadingMessages(false);
     }
-  }, [getAPIConfig]);
+  }, [getAPIConfig, currentPeriod, getStartDate, toast]);
 
   // Enviar mensagem
   const sendMessage = useCallback(async (chatId: string, text: string) => {
@@ -363,6 +418,8 @@ export function useGreenAPI() {
     connectionState,
     chats,
     messages,
+    currentPeriod,
+    isLoadingMessages,
     
     // Configuração
     getAPIConfig,

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { useGreenAPI } from '@/hooks/useGreenAPI';
+import { useGreenAPI, MessagePeriod } from '@/hooks/useGreenAPI';
 import { 
   Send, 
   MessageSquare,
@@ -17,7 +16,9 @@ import {
   Phone,
   Smartphone,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  Calendar,
+  History
 } from 'lucide-react';
 
 export function WhatsAppMirror() {
@@ -28,6 +29,8 @@ export function WhatsAppMirror() {
     connectionState,
     chats,
     messages,
+    currentPeriod,
+    isLoadingMessages,
     checkInstanceStatus,
     loadChats,
     loadChatMessages,
@@ -84,7 +87,7 @@ export function WhatsAppMirror() {
     setSelectedChat(chat);
     
     try {
-      await loadChatMessages(chat.chatId);
+      await loadChatMessages(chat.chatId, 'today'); // Carregar apenas mensagens de hoje por padrão
       console.log('✅ Mensagens carregadas para:', chat.name);
     } catch (error) {
       console.error('❌ Erro ao carregar mensagens:', error);
@@ -94,6 +97,13 @@ export function WhatsAppMirror() {
         variant: "destructive"
       });
     }
+  };
+
+  const handleLoadMessagesByPeriod = async (period: MessagePeriod) => {
+    if (!selectedChat) return;
+    
+    console.log(`📅 Carregando mensagens do período: ${period}`);
+    await loadChatMessages(selectedChat.chatId, period);
   };
 
   const handleSendMessage = async () => {
@@ -144,6 +154,17 @@ export function WhatsAppMirror() {
       hour: '2-digit',
       minute: '2-digit'
     });
+  };
+
+  const getPeriodLabel = (period: MessagePeriod) => {
+    switch (period) {
+      case 'today': return 'Hoje';
+      case '7days': return '7 dias';
+      case '1month': return '1 mês';
+      case '3months': return '3 meses';
+      case 'all': return 'Todas';
+      default: return 'Hoje';
+    }
   };
 
   // Loading inicial
@@ -274,27 +295,54 @@ export function WhatsAppMirror() {
         {selectedChat ? (
           <>
             <CardHeader className="pb-3">
-              <div className="flex items-center gap-2">
-                {selectedChat.isGroup ? (
-                  <Users className="h-5 w-5" />
-                ) : (
-                  <MessageSquare className="h-5 w-5" />
-                )}
-                <div>
-                  <CardTitle>{selectedChat.name}</CardTitle>
-                  <p className="text-sm text-gray-500">
-                    {selectedChat.isGroup ? 'Grupo' : 'Conversa individual'}
-                  </p>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  {selectedChat.isGroup ? (
+                    <Users className="h-5 w-5" />
+                  ) : (
+                    <MessageSquare className="h-5 w-5" />
+                  )}
+                  <div>
+                    <CardTitle>{selectedChat.name}</CardTitle>
+                    <p className="text-sm text-gray-500">
+                      {selectedChat.isGroup ? 'Grupo' : 'Conversa individual'}
+                    </p>
+                  </div>
+                </div>
+                
+                {/* Filtros de Período */}
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-gray-500" />
+                  <div className="flex gap-1">
+                    {(['today', '7days', '1month', '3months', 'all'] as MessagePeriod[]).map((period) => (
+                      <Button
+                        key={period}
+                        variant={currentPeriod === period ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => handleLoadMessagesByPeriod(period)}
+                        disabled={isLoadingMessages}
+                        className="text-xs"
+                      >
+                        {getPeriodLabel(period)}
+                      </Button>
+                    ))}
+                  </div>
                 </div>
               </div>
             </CardHeader>
             
             <CardContent className="flex-1 flex flex-col p-0">
               <ScrollArea className="flex-1 p-4 min-h-[400px]">
-                {messages.length === 0 ? (
+                {isLoadingMessages ? (
                   <div className="text-center text-gray-500 py-8">
-                    <MessageSquare className="h-8 w-8 mx-auto mb-2" />
+                    <Loader2 className="h-8 w-8 mx-auto mb-2 animate-spin" />
                     <p>Carregando mensagens...</p>
+                  </div>
+                ) : messages.length === 0 ? (
+                  <div className="text-center text-gray-500 py-8">
+                    <History className="h-8 w-8 mx-auto mb-2" />
+                    <p>Nenhuma mensagem encontrada para este período</p>
+                    <p className="text-xs mt-1">Experimente carregar um período maior</p>
                   </div>
                 ) : (
                   messages
