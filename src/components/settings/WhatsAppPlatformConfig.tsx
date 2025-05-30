@@ -1,171 +1,79 @@
-import React, { useState } from 'react';
-import { PlatformSelector } from './whatsapp/PlatformSelector';
-import { WatiConfig } from './whatsapp/WatiConfig';
-import { SleekFlowConfig } from './whatsapp/SleekFlowConfig';
-import { MakeConfig } from './MakeConfig';
-import { WAWebJSConfig } from './whatsapp/WAWebJSConfig';
+
+import React from 'react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Smartphone, Globe, Building2, Zap } from 'lucide-react';
 import { WhatsAppWebConfig } from './whatsapp/WhatsAppWebConfig';
-import { AtendechatConfig } from './whatsapp/AtendechatConfig';
-import { ChatwootConfig } from './whatsapp/ChatwootConfig';
+import { RealQRCodeGenerator } from './RealQRCodeGenerator';
+import { AtendechatIntegration } from './AtendechatIntegration';
+import { WhatsAppWebMakeSetup } from './make/WhatsAppWebMakeSetup';
 
 export function WhatsAppPlatformConfig() {
-  const [selectedPlatform, setSelectedPlatform] = useState('chatwoot');
-  
-  // Configurações para cada plataforma
-  const [watiConfig, setWatiConfig] = useState({
-    apiKey: localStorage.getItem('wati_api_key') || '',
-    webhookUrl: localStorage.getItem('wati_webhook_url') || '',
-    sendEndpoint: localStorage.getItem('wati_send_endpoint') || ''
-  });
-
-  const [sleekflowConfig, setSleekflowConfig] = useState({
-    apiToken: localStorage.getItem('sleekflow_api_token') || '',
-    channelId: localStorage.getItem('sleekflow_channel_id') || '',
-    webhookUrl: localStorage.getItem('sleekflow_webhook_url') || ''
-  });
-  
-  const [wawebjsConfig, setWAWebJSConfig] = useState({
-    serverUrl: localStorage.getItem('wawebjs_server_url') || '',
-    clientId: localStorage.getItem('wawebjs_client_id') || '',
-    autoRestart: localStorage.getItem('wawebjs_auto_restart') === 'true'
-  });
-
-  const [webConfig, setWebConfig] = useState({
-    sessionName: localStorage.getItem('whatsappweb_session_name') || '',
-    autoReply: localStorage.getItem('whatsappweb_auto_reply') === 'true',
-    welcomeMessage: localStorage.getItem('whatsappweb_welcome_message') || ''
-  });
-
-  const [atendechatConfig, setAtendechatConfig] = useState({
-    apiUrl: localStorage.getItem('atendechat_api_url') || 'https://api.enigmafranquias.tzsacademy.com',
-    authToken: localStorage.getItem('atendechat_auth_token') || '',
-    username: localStorage.getItem('atendechat_username') || '',
-    password: localStorage.getItem('atendechat_password') || '',
-    sessionId: localStorage.getItem('atendechat_session_id') || '',
-    isConnected: localStorage.getItem('atendechat_is_connected') === 'true'
-  });
-
-  const [chatwootConfig, setChatwootConfig] = useState({
-    serverUrl: localStorage.getItem('chatwoot_server_url') || '',
-    apiKey: localStorage.getItem('chatwoot_api_key') || '',
-    accountId: localStorage.getItem('chatwoot_account_id') || '',
-    inboxId: localStorage.getItem('chatwoot_inbox_id') || '',
-    isConnected: localStorage.getItem('chatwoot_is_connected') === 'true'
-  });
-
-  const updateWatiConfig = (config: Partial<typeof watiConfig>) => {
-    const newConfig = { ...watiConfig, ...config };
-    setWatiConfig(newConfig);
-    
-    // Salvar no localStorage
-    Object.entries(newConfig).forEach(([key, value]) => {
-      localStorage.setItem(`wati_${key}`, value);
-    });
-  };
-
-  const updateSleekFlowConfig = (config: Partial<typeof sleekflowConfig>) => {
-    const newConfig = { ...sleekflowConfig, ...config };
-    setSleekflowConfig(newConfig);
-    
-    // Salvar no localStorage
-    Object.entries(newConfig).forEach(([key, value]) => {
-      localStorage.setItem(`sleekflow_${key}`, value);
-    });
-  };
-  
-  const updateWAWebJSConfig = (config: Partial<typeof wawebjsConfig>) => {
-    const newConfig = { ...wawebjsConfig, ...config };
-    setWAWebJSConfig(newConfig);
-    
-    // Salvar no localStorage
-    Object.entries(newConfig).forEach(([key, value]) => {
-      localStorage.setItem(`wawebjs_${key}`, typeof value === 'boolean' ? String(value) : value);
-    });
-  };
-
-  const updateWebConfig = (config: Partial<typeof webConfig>) => {
-    const newConfig = { ...webConfig, ...config };
-    setWebConfig(newConfig);
-    
-    // Salvar no localStorage
-    Object.entries(newConfig).forEach(([key, value]) => {
-      localStorage.setItem(`whatsappweb_${key}`, typeof value === 'boolean' ? String(value) : value);
-    });
-  };
-
-  const updateAtendechatConfig = (config: Partial<typeof atendechatConfig>) => {
-    const newConfig = { ...atendechatConfig, ...config };
-    setAtendechatConfig(newConfig);
-    
-    // Salvar no localStorage
-    Object.entries(newConfig).forEach(([key, value]) => {
-      localStorage.setItem(`atendechat_${key}`, typeof value === 'boolean' ? String(value) : value);
-    });
-  };
-
-  const updateChatwootConfig = (config: Partial<typeof chatwootConfig>) => {
-    const newConfig = { ...chatwootConfig, ...config };
-    setChatwootConfig(newConfig);
-    
-    // Salvar no localStorage
-    Object.entries(newConfig).forEach(([key, value]) => {
-      localStorage.setItem(`chatwoot_${key}`, typeof value === 'boolean' ? String(value) : value);
-    });
-  };
-
-  const renderPlatformConfig = () => {
-    switch (selectedPlatform) {
-      case 'chatwoot':
-        return <ChatwootConfig />;
-      case 'atendechat':
-        return (
-          <AtendechatConfig 
-            atendechatConfig={atendechatConfig}
-            updateAtendechatConfig={updateAtendechatConfig}
-          />
-        );
-      case 'whatsappweb':
-        return (
-          <WhatsAppWebConfig 
-            webConfig={webConfig}
-            updateWebConfig={updateWebConfig}
-          />
-        );
-      case 'wati':
-        return (
-          <WatiConfig 
-            watiConfig={watiConfig}
-            updateWatiConfig={updateWatiConfig}
-          />
-        );
-      case 'sleekflow':
-        return (
-          <SleekFlowConfig 
-            sleekflowConfig={sleekflowConfig}
-            updateSleekFlowConfig={updateSleekFlowConfig}
-          />
-        );
-      case 'wawebjs':
-        return (
-          <WAWebJSConfig 
-            wawebjsConfig={wawebjsConfig}
-            updateWAWebJSConfig={updateWAWebJSConfig}
-          />
-        );
-      case 'make':
-      default:
-        return <MakeConfig />;
-    }
-  };
-
   return (
     <div className="space-y-6">
-      <PlatformSelector 
-        selectedPlatform={selectedPlatform}
-        onPlatformChange={setSelectedPlatform}
-      />
-      
-      {renderPlatformConfig()}
+      <div>
+        <h3 className="text-xl font-semibold text-slate-800 mb-2">Escolha sua Plataforma WhatsApp</h3>
+        <p className="text-slate-600">
+          Selecione a melhor opção para conectar seu WhatsApp Business
+        </p>
+      </div>
+
+      <Tabs defaultValue="make-simple" className="w-full">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="make-simple" className="flex items-center gap-2">
+            <Zap className="h-4 w-4" />
+            <span className="hidden sm:inline">Make.com Simples</span>
+            <span className="sm:hidden">Make</span>
+          </TabsTrigger>
+          <TabsTrigger value="web" className="flex items-center gap-2">
+            <Globe className="h-4 w-4" />
+            <span className="hidden sm:inline">WhatsApp Web</span>
+            <span className="sm:hidden">Web</span>
+          </TabsTrigger>
+          <TabsTrigger value="real" className="flex items-center gap-2">
+            <Smartphone className="h-4 w-4" />
+            <span className="hidden sm:inline">Make.com Real</span>
+            <span className="sm:hidden">Real</span>
+          </TabsTrigger>
+          <TabsTrigger value="atendechat" className="flex items-center gap-2">
+            <Building2 className="h-4 w-4" />
+            <span className="hidden sm:inline">Atendechat</span>
+            <span className="sm:hidden">API</span>
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="make-simple">
+          <WhatsAppWebMakeSetup />
+        </TabsContent>
+
+        <TabsContent value="web">
+          <WhatsAppWebConfig 
+            webConfig={{
+              sessionName: localStorage.getItem('whatsapp_session_name') || '',
+              autoReply: localStorage.getItem('whatsapp_auto_reply') === 'true',
+              welcomeMessage: localStorage.getItem('whatsapp_welcome_message') || 'Olá! Como posso te ajudar?'
+            }}
+            updateWebConfig={(config) => {
+              if (config.sessionName !== undefined) {
+                localStorage.setItem('whatsapp_session_name', config.sessionName);
+              }
+              if (config.autoReply !== undefined) {
+                localStorage.setItem('whatsapp_auto_reply', String(config.autoReply));
+              }
+              if (config.welcomeMessage !== undefined) {
+                localStorage.setItem('whatsapp_welcome_message', config.welcomeMessage);
+              }
+            }}
+          />
+        </TabsContent>
+
+        <TabsContent value="real">
+          <RealQRCodeGenerator />
+        </TabsContent>
+
+        <TabsContent value="atendechat">
+          <AtendechatIntegration />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
