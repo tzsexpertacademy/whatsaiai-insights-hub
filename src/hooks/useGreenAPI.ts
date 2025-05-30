@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useClientConfig } from '@/contexts/ClientConfigContext';
 import { useToast } from '@/hooks/use-toast';
@@ -41,7 +41,7 @@ interface GreenAPIConfig {
 
 export function useGreenAPI() {
   const { user } = useAuth();
-  const { config, updateConfig } = useClientConfig();
+  const { config, updateConfig, saveConfig } = useClientConfig();
   const { toast } = useToast();
 
   const [greenAPIState, setGreenAPIState] = useState<GreenAPIState>({
@@ -65,28 +65,55 @@ export function useGreenAPI() {
     webhookUrl: config?.whatsapp?.greenapi?.webhookUrl || ''
   };
 
-  const updateAPIConfig = useCallback((newConfig: Partial<GreenAPIConfig>) => {
-    console.log('🔧 Atualizando configuração GREEN-API:', newConfig);
-    
-    // Atualizar configuração no contexto
-    updateConfig('whatsapp', {
-      ...config.whatsapp,
-      greenapi: {
-        ...config.whatsapp.greenapi,
-        ...newConfig
-      }
-    });
-
-    // Atualizar estado local se conectado
-    if (newConfig.instanceId && newConfig.apiToken) {
+  // Carregar estado inicial do GREEN-API
+  useEffect(() => {
+    if (apiConfig.instanceId && apiConfig.apiToken) {
       setGreenAPIState(prev => ({
         ...prev,
-        isConnected: true,
-        instanceId: newConfig.instanceId || prev.instanceId,
-        phoneNumber: newConfig.phoneNumber || prev.phoneNumber
+        instanceId: apiConfig.instanceId,
+        phoneNumber: apiConfig.phoneNumber || prev.phoneNumber
       }));
+      
+      // Verificar status da conexão automaticamente
+      checkConnectionStatus();
     }
-  }, [config, updateConfig]);
+  }, [apiConfig.instanceId, apiConfig.apiToken]);
+
+  const updateAPIConfig = useCallback(async (newConfig: Partial<GreenAPIConfig>) => {
+    console.log('🔧 Atualizando configuração GREEN-API:', newConfig);
+    
+    try {
+      // Atualizar configuração no contexto
+      updateConfig('whatsapp', {
+        ...config.whatsapp,
+        greenapi: {
+          ...config.whatsapp.greenapi,
+          ...newConfig
+        }
+      });
+
+      // Salvar no banco de dados
+      await saveConfig();
+
+      // Atualizar estado local se conectado
+      if (newConfig.instanceId && newConfig.apiToken) {
+        setGreenAPIState(prev => ({
+          ...prev,
+          instanceId: newConfig.instanceId || prev.instanceId,
+          phoneNumber: newConfig.phoneNumber || prev.phoneNumber
+        }));
+      }
+
+      console.log('✅ Configuração GREEN-API salva com sucesso');
+    } catch (error) {
+      console.error('❌ Erro ao salvar configuração:', error);
+      toast({
+        title: "Erro ao salvar",
+        description: "Não foi possível salvar as configurações",
+        variant: "destructive"
+      });
+    }
+  }, [config, updateConfig, saveConfig, toast]);
 
   const checkConnectionStatus = useCallback(async (): Promise<{ isConnected: boolean; phoneNumber?: string }> => {
     if (!apiConfig.instanceId || !apiConfig.apiToken) {
@@ -130,6 +157,13 @@ export function useGreenAPI() {
               lastConnected: new Date().toISOString()
             }));
 
+            // Atualizar WhatsApp config para manter conexão
+            updateConfig('whatsapp', {
+              ...config.whatsapp,
+              isConnected: true,
+              authorizedNumber: phoneNumber
+            });
+
             return { isConnected: true, phoneNumber };
           }
         } catch (error) {
@@ -142,12 +176,24 @@ export function useGreenAPI() {
           lastConnected: new Date().toISOString()
         }));
 
+        // Atualizar WhatsApp config
+        updateConfig('whatsapp', {
+          ...config.whatsapp,
+          isConnected: true
+        });
+
         return { isConnected: true };
       } else {
         setGreenAPIState(prev => ({
           ...prev,
           isConnected: false
         }));
+
+        // Atualizar WhatsApp config
+        updateConfig('whatsapp', {
+          ...config.whatsapp,
+          isConnected: false
+        });
 
         return { isConnected: false };
       }
@@ -158,9 +204,15 @@ export function useGreenAPI() {
         ...prev,
         isConnected: false
       }));
+      
+      updateConfig('whatsapp', {
+        ...config.whatsapp,
+        isConnected: false
+      });
+      
       return { isConnected: false };
     }
-  }, [apiConfig]);
+  }, [apiConfig, config, updateConfig]);
 
   const loadChats = useCallback(async () => {
     if (!apiConfig.instanceId || !apiConfig.apiToken) {
@@ -465,21 +517,35 @@ export function useGreenAPI() {
     }
   }, [apiConfig, toast]);
 
-  const disconnect = useCallback(() => {
-    setGreenAPIState({
-      isConnected: false,
-      instanceId: '',
-      phoneNumber: '',
-      qrCode: '',
-      isGenerating: false,
-      lastConnected: ''
-    });
-    
-    toast({
-      title: "Desconectado",
-      description: "GREEN-API desconectado"
-    });
-  }, [toast]);
+  const disconnect = useCallback(async () => {
+    try {
+      setGreenAPIState({
+        isConnected: false,
+        instanceId: '',
+        phoneNumber: '',
+        qrCode: '',
+        isGenerating: false,
+        lastConnected: ''
+      });
+
+      // Atualizar configuração
+      updateConfig('whatsapp', {
+        ...config.whatsapp,
+        isConnected: false,
+        authorizedNumber: ''
+      });
+
+      // Salvar mudanças
+      await saveConfig();
+      
+      toast({
+        title: "Desconectado",
+        description: "GREEN-API desconectado"
+      });
+    } catch (error) {
+      console.error('❌ Erro ao desconectar:', error);
+    }
+  }, [config, updateConfig, saveConfig, toast]);
 
   return {
     greenAPIState,

@@ -1,21 +1,55 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { useGreenAPI } from "@/hooks/useGreenAPI";
-import { Webhook, CheckCircle, AlertCircle, Copy, ExternalLink } from 'lucide-react';
+import { Webhook, CheckCircle, AlertCircle, Copy, ExternalLink, RefreshCw } from 'lucide-react';
 
 export function GreenAPIWebhookConfig() {
   const { apiConfig, updateAPIConfig } = useGreenAPI();
   const { toast } = useToast();
   const [isConfiguring, setIsConfiguring] = useState(false);
+  const [webhookStatus, setWebhookStatus] = useState<'unknown' | 'active' | 'inactive'>('unknown');
 
   // URL do webhook para este projeto
   const webhookUrl = 'https://duyxbtfknilgrvgsvlyy.supabase.co/functions/v1/greenapi-webhook';
+
+  // Verificar status do webhook ao carregar
+  useEffect(() => {
+    if (apiConfig.instanceId && apiConfig.apiToken) {
+      checkWebhookStatus();
+    }
+  }, [apiConfig.instanceId, apiConfig.apiToken]);
+
+  const checkWebhookStatus = async () => {
+    if (!apiConfig.instanceId || !apiConfig.apiToken) return;
+
+    try {
+      const response = await fetch(
+        `https://api.green-api.com/waInstance${apiConfig.instanceId}/getSettings/${apiConfig.apiToken}`,
+        { method: 'GET' }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('📊 Configurações atuais:', data);
+        
+        if (data.webhookUrl === webhookUrl) {
+          setWebhookStatus('active');
+        } else {
+          setWebhookStatus('inactive');
+        }
+      }
+    } catch (error) {
+      console.error('❌ Erro ao verificar status do webhook:', error);
+      setWebhookStatus('unknown');
+    }
+  };
 
   const configureWebhook = async () => {
     if (!apiConfig.instanceId || !apiConfig.apiToken) {
@@ -45,7 +79,10 @@ export function GreenAPIWebhookConfig() {
             outgoingMessageWebhook: true,
             outgoingAPIMessageWebhook: true,
             stateWebhook: true,
-            statusInstanceWebhook: true
+            statusInstanceWebhook: true,
+            delaySendMessagesMilliseconds: 1000,
+            markIncomingMessagesReaded: false,
+            proxy: null
           })
         }
       );
@@ -57,7 +94,10 @@ export function GreenAPIWebhookConfig() {
       const data = await response.json();
       console.log('✅ Webhook configurado:', data);
 
-      updateAPIConfig({ webhookUrl });
+      // Salvar URL do webhook na configuração
+      await updateAPIConfig({ webhookUrl });
+      
+      setWebhookStatus('active');
 
       toast({
         title: "Webhook configurado!",
@@ -121,6 +161,32 @@ export function GreenAPIWebhookConfig() {
     }
   };
 
+  const getStatusBadge = () => {
+    switch (webhookStatus) {
+      case 'active':
+        return (
+          <Badge className="bg-green-100 text-green-800">
+            <CheckCircle className="h-3 w-3 mr-1" />
+            Webhook Ativo
+          </Badge>
+        );
+      case 'inactive':
+        return (
+          <Badge variant="outline" className="bg-yellow-100 text-yellow-800">
+            <AlertCircle className="h-3 w-3 mr-1" />
+            Webhook Inativo
+          </Badge>
+        );
+      default:
+        return (
+          <Badge variant="outline" className="bg-gray-100 text-gray-600">
+            <AlertCircle className="h-3 w-3 mr-1" />
+            Status Desconhecido
+          </Badge>
+        );
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -147,19 +213,26 @@ export function GreenAPIWebhookConfig() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          {apiConfig.webhookUrl ? (
-            <Badge className="bg-green-100 text-green-800">
-              <CheckCircle className="h-3 w-3 mr-1" />
-              Webhook Configurado
-            </Badge>
-          ) : (
-            <Badge variant="outline" className="bg-yellow-100 text-yellow-800">
-              <AlertCircle className="h-3 w-3 mr-1" />
-              Webhook Não Configurado
-            </Badge>
-          )}
+        <div className="flex items-center justify-between">
+          {getStatusBadge()}
+          <Button
+            onClick={checkWebhookStatus}
+            variant="outline"
+            size="sm"
+            disabled={!apiConfig.instanceId || !apiConfig.apiToken}
+          >
+            <RefreshCw className="h-4 w-4" />
+          </Button>
         </div>
+
+        {webhookStatus === 'inactive' && (
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              O webhook não está configurado corretamente. Configure-o para receber mensagens automaticamente.
+            </AlertDescription>
+          </Alert>
+        )}
 
         <div className="flex gap-2">
           <Button 
@@ -180,7 +253,7 @@ export function GreenAPIWebhookConfig() {
           <ul className="text-sm text-blue-800 space-y-1">
             <li>• O webhook recebe mensagens do WhatsApp em tempo real</li>
             <li>• Mensagens de conversas monitoradas são salvas no banco</li>
-            <li>• Auto-conversas geram respostas automáticas do assistente</li>
+            <li>• Assistentes geram respostas automáticas quando configurados</li>
             <li>• Status de mensagens são atualizados automaticamente</li>
           </ul>
         </div>

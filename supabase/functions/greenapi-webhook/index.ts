@@ -20,6 +20,11 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
     
+    if (!supabaseUrl || !supabaseKey) {
+      console.error('❌ Variáveis de ambiente do Supabase não configuradas');
+      throw new Error('Configuração do Supabase incompleta');
+    }
+    
     const supabase = createClient(supabaseUrl, supabaseKey);
     
     const webhookData = await req.json();
@@ -30,56 +35,103 @@ serve(async (req) => {
       const messageData = webhookData.messageData;
       const senderData = webhookData.senderData;
       
+      if (!messageData || !senderData) {
+        console.log('❌ Dados de mensagem ou remetente ausentes');
+        return new Response(
+          JSON.stringify({ success: false, message: 'Dados incompletos' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
       const chatId = senderData.chatId;
       const senderName = senderData.chatName || senderData.sender || chatId;
-      const messageText = messageData.textMessageData?.textMessage || messageData.extendedTextMessageData?.text || '[Mídia]';
+      const messageText = messageData.textMessageData?.textMessage || 
+                         messageData.extendedTextMessageData?.text || 
+                         messageData.imageMessageData?.caption ||
+                         '[Mídia]';
       const messageId = messageData.idMessage;
       const timestamp = new Date(messageData.timestamp * 1000).toISOString();
 
-      console.log(`💬 Nova mensagem GREEN-API de ${senderName}: ${messageText}`);
+      console.log(`💬 Nova mensagem GREEN-API de ${senderName} (${chatId}): ${messageText}`);
+
+      // Buscar ou criar conversa
+      let conversationId = await getOrCreateConversationId(supabase, chatId, senderName);
+      
+      if (!conversationId) {
+        console.error('❌ Erro ao obter/criar conversa');
+        throw new Error('Não foi possível criar conversa');
+      }
+
+      // Salvar mensagem no banco
+      const { error: messageError } = await supabase
+        .from('whatsapp_messages')
+        .insert({
+          conversation_id: conversationId,
+          sender_type: 'customer',
+          message_text: messageText,
+          timestamp: timestamp,
+          metadata: {
+            messageId: messageId,
+            chatId: chatId,
+            platform: 'greenapi',
+            senderName: senderName
+          }
+        });
+
+      if (messageError) {
+        console.error('❌ Erro ao salvar mensagem:', messageError);
+        throw messageError;
+      }
+
+      console.log('✅ Mensagem salva no banco de dados');
 
       // Verificar se há assistente configurado para este chat
       const assignedAssistant = await getAssignedAssistant(supabase, chatId);
       
-      // Verificar se é conversa monitorada
-      const isMonitored = await checkIfChatIsMonitored(supabase, chatId);
-      
-      if (isMonitored) {
-        console.log('📊 Conversa monitorada, salvando no banco...');
-        await saveConversationToDatabase(supabase, {
-          chatId,
-          senderName,
-          messageText,
-          messageId,
-          timestamp
-        });
-      }
-
-      // Gerar resposta automática se houver assistente configurado
-      if (assignedAssistant && openaiApiKey && messageText.trim()) {
+      // Gerar resposta automática se houver assistente configurado e OpenAI disponível
+      if (assignedAssistant && openaiApiKey && messageText.trim() && messageText !== '[Mídia]') {
         console.log(`🤖 Gerando resposta automática com assistente: ${assignedAssistant.assistant_name}`);
-        await generateAutoReply(supabase, {
-          chatId,
-          messageText,
-          assistantConfig: assignedAssistant,
-          openaiApiKey,
-          timestamp
-        });
+        
+        try {
+          await generateAutoReply(supabase, {
+            chatId,
+            messageText,
+            assistantConfig: assignedAssistant,
+            openaiApiKey,
+            timestamp,
+            conversationId
+          });
+        } catch (replyError) {
+          console.error('❌ Erro ao gerar resposta automática:', replyError);
+          // Não falhar o webhook por erro na resposta automática
+        }
+      } else if (!assignedAssistant) {
+        console.log('ℹ️ Nenhum assistente configurado para este chat');
+      } else if (!openaiApiKey) {
+        console.log('ℹ️ OpenAI não configurada - resposta automática desabilitada');
       }
 
       console.log('✅ Mensagem processada com sucesso');
     }
 
     // Processar status de mensagem (entregue, lida, etc.)
-    if (webhookData.typeWebhook === 'outgoingMessageStatus') {
+    else if (webhookData.typeWebhook === 'outgoingMessageStatus') {
       const statusData = webhookData.statusData;
       console.log('📊 Status da mensagem:', statusData);
       
-      await updateMessageStatus(supabase, statusData);
+      if (statusData && statusData.idMessage) {
+        await updateMessageStatus(supabase, statusData);
+      }
+    }
+
+    // Processar mudança de estado da instância
+    else if (webhookData.typeWebhook === 'stateInstanceChanged') {
+      const instanceData = webhookData.instanceData;
+      console.log('🔄 Estado da instância alterado:', instanceData);
     }
 
     // Resposta de teste para webhook
-    if (webhookData.typeWebhook === 'test') {
+    else if (webhookData.typeWebhook === 'test') {
       console.log('🧪 Teste do webhook recebido');
       return new Response(
         JSON.stringify({ success: true, message: 'Webhook GREEN-API funcionando corretamente' }),
@@ -113,9 +165,9 @@ serve(async (req) => {
 
 async function getAssignedAssistant(supabase: any, chatId: string) {
   try {
-    // Buscar assistente configurado para este chat
-    // Por enquanto, vamos buscar o primeiro assistente ativo do usuário
-    // Em uma implementação completa, você salvaria a configuração chat -> assistente
+    // Buscar assistente configurado para este chat específico
+    // Por enquanto, retorna o primeiro assistente ativo
+    // TODO: Implementar mapeamento chat -> assistente
     const { data, error } = await supabase
       .from('assistants_config')
       .select('*')
@@ -123,20 +175,20 @@ async function getAssignedAssistant(supabase: any, chatId: string) {
       .limit(1)
       .single();
 
-    if (error) {
-      console.log('Nenhum assistente configurado:', error);
+    if (error && error.code !== 'PGRST116') {
+      console.error('❌ Erro ao buscar assistente:', error);
       return null;
     }
 
     return data;
   } catch (error) {
-    console.error('Erro ao buscar assistente:', error);
+    console.error('❌ Erro ao buscar assistente:', error);
     return null;
   }
 }
 
 async function generateAutoReply(supabase: any, params: any) {
-  const { chatId, messageText, assistantConfig, openaiApiKey, timestamp } = params;
+  const { chatId, messageText, assistantConfig, openaiApiKey, timestamp, conversationId } = params;
   
   try {
     console.log('🤖 Gerando resposta automática...');
@@ -148,7 +200,8 @@ INSTRUÇÕES ESPECÍFICAS:
 - Responda como se fosse uma conversa de WhatsApp
 - Seja natural, cordial e profissional
 - Mantenha respostas concisas (máximo 2 parágrafos)
-- Responda sempre em português brasileiro`;
+- Responda sempre em português brasileiro
+- Use emojis quando apropriado, mas com moderação`;
 
     const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -167,184 +220,133 @@ INSTRUÇÕES ESPECÍFICAS:
       }),
     });
 
-    if (aiResponse.ok) {
-      const aiData = await aiResponse.json();
-      const replyText = aiData.choices[0].message.content;
-
-      console.log('💬 Resposta gerada:', replyText);
-
-      // Salvar resposta no banco
-      const conversationId = await getOrCreateConversationId(supabase, chatId);
-      
-      if (conversationId) {
-        await supabase
-          .from('whatsapp_messages')
-          .insert({
-            conversation_id: conversationId,
-            sender_type: 'assistant',
-            message_text: replyText,
-            ai_generated: true,
-            timestamp: new Date().toISOString(),
-            metadata: {
-              assistant_id: assistantConfig.id,
-              assistant_name: assistantConfig.assistant_name
-            }
-          });
-
-        console.log('✅ Resposta automática salva no banco');
-      }
-
-      // Aqui você enviaria a resposta via GREEN-API
-      // await sendMessageViaGreenAPI(chatId, replyText);
+    if (!aiResponse.ok) {
+      throw new Error(`OpenAI API error: ${aiResponse.status}`);
     }
+
+    const aiData = await aiResponse.json();
+    const replyText = aiData.choices[0].message.content;
+
+    console.log('💬 Resposta gerada:', replyText);
+
+    // Salvar resposta no banco
+    const { error: saveError } = await supabase
+      .from('whatsapp_messages')
+      .insert({
+        conversation_id: conversationId,
+        sender_type: 'assistant',
+        message_text: replyText,
+        ai_generated: true,
+        timestamp: new Date().toISOString(),
+        metadata: {
+          assistant_id: assistantConfig.id,
+          assistant_name: assistantConfig.assistant_name,
+          original_message: messageText,
+          chatId: chatId
+        }
+      });
+
+    if (saveError) {
+      console.error('❌ Erro ao salvar resposta no banco:', saveError);
+      throw saveError;
+    }
+
+    console.log('✅ Resposta automática salva no banco');
+
+    // TODO: Enviar resposta via GREEN-API
+    // await sendMessageViaGreenAPI(chatId, replyText);
+
   } catch (error) {
     console.error('❌ Erro ao gerar resposta automática:', error);
+    throw error;
   }
 }
 
-async function getOrCreateConversationId(supabase: any, chatId: string) {
+async function getOrCreateConversationId(supabase: any, chatId: string, senderName: string) {
   try {
-    const { data: existing } = await supabase
+    // Buscar conversa existente
+    const { data: existing, error: fetchError } = await supabase
       .from('whatsapp_conversations')
       .select('id')
       .eq('contact_phone', chatId)
-      .single();
+      .maybeSingle();
+
+    if (fetchError) {
+      console.error('❌ Erro ao buscar conversa:', fetchError);
+      throw fetchError;
+    }
 
     if (existing) {
+      console.log('✅ Conversa existente encontrada:', existing.id);
       return existing.id;
     }
 
-    const { data: newConv } = await supabase
+    // Criar nova conversa
+    const { data: newConv, error: createError } = await supabase
       .from('whatsapp_conversations')
       .insert({
         contact_phone: chatId,
-        contact_name: chatId,
+        contact_name: senderName || chatId,
         messages: []
       })
       .select('id')
       .single();
 
-    return newConv?.id;
+    if (createError) {
+      console.error('❌ Erro ao criar conversa:', createError);
+      throw createError;
+    }
+
+    console.log('✅ Nova conversa criada:', newConv.id);
+    return newConv.id;
+
   } catch (error) {
-    console.error('Erro ao obter/criar conversa:', error);
+    console.error('❌ Erro ao obter/criar conversa:', error);
     return null;
   }
 }
 
-async function checkIfChatIsMonitored(supabase: any, chatId: string): Promise<boolean> {
-  try {
-    // Verificar se a conversa está sendo monitorada
-    const { data, error } = await supabase
-      .from('whatsapp_conversations')
-      .select('id')
-      .eq('contact_phone', chatId)
-      .maybeSingle();
-
-    if (error) {
-      console.error('Erro ao verificar monitoramento:', error);
-      return false;
-    }
-
-    return data !== null;
-  } catch (error) {
-    console.error('Erro ao verificar monitoramento:', error);
-    return false;
-  }
-}
-
-async function saveConversationToDatabase(supabase: any, messageInfo: any) {
-  try {
-    const { chatId, senderName, messageText, messageId, timestamp } = messageInfo;
-    
-    // Buscar ou criar conversa
-    const { data: existingConversation, error: fetchError } = await supabase
-      .from('whatsapp_conversations')
-      .select('*')
-      .eq('contact_phone', chatId)
-      .maybeSingle();
-
-    let conversationId;
-
-    if (fetchError || !existingConversation) {
-      // Criar nova conversa
-      const { data: newConversation, error: createError } = await supabase
-        .from('whatsapp_conversations')
-        .insert({
-          contact_name: senderName,
-          contact_phone: chatId,
-          messages: [{
-            id: messageId,
-            text: messageText,
-            sender: 'customer',
-            timestamp: timestamp,
-            platform: 'greenapi'
-          }]
-        })
-        .select()
-        .single();
-
-      if (createError) {
-        console.error('❌ Erro ao criar conversa:', createError);
-        throw createError;
-      }
-
-      conversationId = newConversation.id;
-      console.log('✅ Nova conversa criada:', conversationId);
-    } else {
-      // Atualizar conversa existente
-      const updatedMessages = [...(existingConversation.messages || []), {
-        id: messageId,
-        text: messageText,
-        sender: 'customer',
-        timestamp: timestamp,
-        platform: 'greenapi'
-      }];
-
-      const { error: updateError } = await supabase
-        .from('whatsapp_conversations')
-        .update({
-          messages: updatedMessages,
-          updated_at: timestamp
-        })
-        .eq('id', existingConversation.id);
-
-      if (updateError) {
-        console.error('❌ Erro ao atualizar conversa:', updateError);
-        throw updateError;
-      }
-
-      conversationId = existingConversation.id;
-      console.log('✅ Conversa atualizada:', conversationId);
-    }
-
-    // Salvar mensagem individual também
-    const { error: messageError } = await supabase
-      .from('whatsapp_messages')
-      .insert({
-        conversation_id: conversationId,
-        sender_type: 'customer',
-        message_text: messageText,
-        timestamp: timestamp,
-        metadata: {
-          messageId: messageId,
-          chatId: chatId,
-          platform: 'greenapi'
-        }
-      });
-
-    if (messageError) {
-      console.error('❌ Erro ao salvar mensagem individual:', messageError);
-    }
-
-    console.log('✅ Mensagem GREEN-API processada e salva');
-
-  } catch (dbError) {
-    console.error('❌ Erro no banco de dados:', dbError);
-    throw dbError;
-  }
-}
-
 async function updateMessageStatus(supabase: any, statusData: any) {
-  console.log('📋 Atualizando status:', statusData);
-  // Implementar atualização de status de mensagem se necessário
+  try {
+    console.log('📋 Atualizando status da mensagem:', statusData);
+    
+    // Buscar mensagem pelo ID
+    const { data: message, error: findError } = await supabase
+      .from('whatsapp_messages')
+      .select('*')
+      .eq('metadata->>messageId', statusData.idMessage)
+      .maybeSingle();
+
+    if (findError) {
+      console.error('❌ Erro ao buscar mensagem para atualizar status:', findError);
+      return;
+    }
+
+    if (!message) {
+      console.log('ℹ️ Mensagem não encontrada para atualizar status');
+      return;
+    }
+
+    // Atualizar metadata com status
+    const updatedMetadata = {
+      ...message.metadata,
+      status: statusData.status,
+      statusTimestamp: new Date().toISOString()
+    };
+
+    const { error: updateError } = await supabase
+      .from('whatsapp_messages')
+      .update({ metadata: updatedMetadata })
+      .eq('id', message.id);
+
+    if (updateError) {
+      console.error('❌ Erro ao atualizar status da mensagem:', updateError);
+      return;
+    }
+
+    console.log('✅ Status da mensagem atualizado');
+
+  } catch (error) {
+    console.error('❌ Erro ao processar atualização de status:', error);
+  }
 }
