@@ -20,7 +20,7 @@ export function useAIReportUpdate() {
   const { assistants } = useAssistantsConfig();
 
   const updateReport = async (analysisConfig?: AnalysisConfig) => {
-    console.log('🤖 Iniciando análise de DADOS REAIS por IA...');
+    console.log('🤖 Iniciando análise EXCLUSIVAMENTE de DADOS REAIS por IA...');
     
     const defaultConfig: AnalysisConfig = {
       type: 'simple',
@@ -65,7 +65,7 @@ export function useAIReportUpdate() {
 
     try {
       setIsUpdating(true);
-      console.log('🔍 Verificando DADOS REAIS disponíveis para análise...');
+      console.log('🔍 Verificando EXCLUSIVAMENTE DADOS REAIS para análise...');
 
       // ✅ VERIFICAR CONVERSAS WHATSAPP REAIS
       const { data: whatsappConversations, error: whatsappError } = await supabase
@@ -93,6 +93,16 @@ export function useAIReportUpdate() {
         throw new Error(`Erro ao buscar conversas comerciais: ${commercialError.message}`);
       }
 
+      // ✅ VERIFICAR HISTÓRICO DE CHAT REAL COM ASSISTENTES
+      const { data: chatHistory, error: chatHistoryError } = await supabase
+        .from('chat_history')
+        .select('*')
+        .eq('user_id', user.id);
+
+      if (chatHistoryError) {
+        throw new Error(`Erro ao buscar histórico de chat: ${chatHistoryError.message}`);
+      }
+
       // ✅ COMBINAR TODAS AS CONVERSAS REAIS
       const allRealConversations = [
         ...(whatsappConversations || []),
@@ -100,17 +110,22 @@ export function useAIReportUpdate() {
       ];
 
       const totalRealConversations = allRealConversations.length;
-      console.log('📊 DADOS REAIS encontrados:', {
+      const totalChatHistory = chatHistory?.length || 0;
+      const totalRealData = totalRealConversations + totalChatHistory;
+      
+      console.log('📊 DADOS REAIS ENCONTRADOS:', {
         whatsappConversations: whatsappConversations?.length || 0,
         commercialConversations: commercialConversations?.length || 0,
-        totalConversations: totalRealConversations
+        chatHistory: totalChatHistory,
+        totalConversations: totalRealConversations,
+        totalDataSources: totalRealData
       });
 
       // ✅ EXIGIR DADOS REAIS PARA ANÁLISE
-      if (totalRealConversations === 0) {
+      if (totalRealData === 0) {
         toast({
           title: "Nenhum dado real para analisar",
-          description: "Importe conversas do WhatsApp ou registre conversas comerciais antes de executar a análise por IA.",
+          description: "É necessário ter conversas do WhatsApp, comerciais ou histórico de chat com assistentes antes de executar a análise por IA.",
           variant: "destructive"
         });
         return;
@@ -125,14 +140,16 @@ export function useAIReportUpdate() {
         area: assistant.area || 'geral'
       }));
 
-      console.log('📤 Enviando DADOS REAIS para análise:', {
+      console.log('📤 Enviando EXCLUSIVAMENTE DADOS REAIS para análise pelos assistentes IA:', {
         userId: user.id,
         assistantsCount: assistantsData.length,
         realConversationsCount: totalRealConversations,
+        chatHistoryCount: totalChatHistory,
+        totalRealDataSources: totalRealData,
         analysisConfig: finalConfig
       });
 
-      // ✅ CHAMAR EDGE FUNCTION COM DADOS REAIS
+      // ✅ CHAMAR EDGE FUNCTION COM APENAS DADOS REAIS
       const { data, error } = await supabase.functions.invoke('analyze-conversation', {
         body: { 
           userId: user.id,
@@ -145,7 +162,9 @@ export function useAIReportUpdate() {
           assistants: assistantsData,
           analysisType: finalConfig.type,
           conversationsData: allRealConversations,
-          timestamp: new Date().toISOString()
+          chatHistoryData: chatHistory || [],
+          timestamp: new Date().toISOString(),
+          onlyRealData: true // Flag para garantir que apenas dados reais sejam processados
         }
       });
 
@@ -157,10 +176,12 @@ export function useAIReportUpdate() {
         throw new Error(data?.error || 'Erro desconhecido na análise');
       }
 
-      console.log('✅ ANÁLISE DE DADOS REAIS concluída:', {
+      console.log('✅ ANÁLISE DE DADOS REAIS concluída pelos assistentes IA:', {
         insightsGenerated: data.insights?.length || 0,
         assistantsUsed: data.assistantsUsed || [],
-        conversationsAnalyzed: data.conversationsAnalyzed || totalRealConversations
+        conversationsAnalyzed: data.conversationsAnalyzed || totalRealConversations,
+        chatHistoryAnalyzed: data.chatHistoryAnalyzed || totalChatHistory,
+        onlyRealDataProcessed: true
       });
 
       const analysisTypeNames = {
@@ -171,7 +192,7 @@ export function useAIReportUpdate() {
 
       toast({
         title: "✅ Análise de dados reais concluída",
-        description: `Análise ${analysisTypeNames[finalConfig.type]} realizada com ${totalRealConversations} conversas reais. ${data.insights?.length || 0} insights gerados.`,
+        description: `Análise ${analysisTypeNames[finalConfig.type]} realizada EXCLUSIVAMENTE com dados reais: ${totalRealData} fontes de dados. ${data.insights?.length || 0} insights gerados pelos assistentes IA.`,
         duration: 5000
       });
 
