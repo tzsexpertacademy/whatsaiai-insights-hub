@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,8 +24,8 @@ export function GreenAPIConfig() {
     checkConnectionStatus
   } = useGreenAPI();
 
-  const [instanceId, setInstanceId] = useState(apiConfig.instanceId);
-  const [apiToken, setApiToken] = useState(apiConfig.apiToken);
+  const [instanceId, setInstanceId] = useState(apiConfig.instanceId || '');
+  const [apiToken, setApiToken] = useState(apiConfig.apiToken || '');
   const [isTestingConnection, setIsTestingConnection] = useState(false);
 
   const copyToClipboard = (text: string) => {
@@ -270,9 +271,11 @@ export function GreenAPIConfig() {
                   <p className="text-sm text-gray-600 mb-4">
                     Número: {greenAPIState.phoneNumber}
                   </p>
-                  <p className="text-sm text-gray-600 mb-4">
-                    Conectado em: {new Date(greenAPIState.lastConnected).toLocaleString('pt-BR')}
-                  </p>
+                  {greenAPIState.lastConnected && (
+                    <p className="text-sm text-gray-600 mb-4">
+                      Conectado em: {new Date(greenAPIState.lastConnected).toLocaleString('pt-BR')}
+                    </p>
+                  )}
                   <div className="flex gap-2 justify-center">
                     <Button onClick={disconnect} variant="outline" size="sm">
                       Desconectar
@@ -447,7 +450,6 @@ export function GreenAPIConfig() {
         </TabsContent>
       </Tabs>
 
-      {/* Adicionar configuração do webhook após as outras configurações */}
       <GreenAPIWebhookConfig />
     </div>
   );

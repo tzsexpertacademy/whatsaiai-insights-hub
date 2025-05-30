@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useClientConfig } from '@/contexts/ClientConfigContext';
@@ -7,6 +6,9 @@ interface GreenAPIState {
   isConnected: boolean;
   phoneNumber: string;
   webhookUrl: string;
+  qrCode: string;
+  isGenerating: boolean;
+  lastConnected: string;
 }
 
 interface Chat {
@@ -33,14 +35,19 @@ export function useGreenAPI() {
   const [greenAPIState, setGreenAPIState] = useState<GreenAPIState>({
     isConnected: false,
     phoneNumber: '',
-    webhookUrl: ''
+    webhookUrl: '',
+    qrCode: '',
+    isGenerating: false,
+    lastConnected: ''
   });
   
   const [chats, setChats] = useState<Chat[]>([]);
   const [messages, setMessages] = useState<Record<string, Message[]>>({});
   const [selectedAssistant, setSelectedAssistant] = useState('Analista Geral');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const apiConfig = config?.whatsapp?.greenapi || {};
+  // Configuração da GREEN-API
+  const apiConfig = config?.whatsapp?.greenapi || { instanceId: '', apiToken: '', webhookUrl: '' };
 
   const updateAPIConfig = useCallback((newConfig: any) => {
     updateConfig({
@@ -77,7 +84,6 @@ export function useGreenAPI() {
       const isConnected = data.stateInstance === 'authorized';
       
       if (isConnected) {
-        // Buscar informações da conta
         try {
           const accountResponse = await fetch(
             `https://api.green-api.com/waInstance${instanceId}/getWaSettings/${apiToken}`
@@ -87,11 +93,12 @@ export function useGreenAPI() {
             const accountData = await accountResponse.json();
             const phoneNumber = accountData.wid || `+${instanceId}`;
             
-            setGreenAPIState({
+            setGreenAPIState(prev => ({
+              ...prev,
               isConnected: true,
               phoneNumber,
-              webhookUrl: apiConfig.webhookUrl || ''
-            });
+              lastConnected: new Date().toISOString()
+            }));
             
             return { isConnected: true, phoneNumber };
           }
@@ -99,33 +106,131 @@ export function useGreenAPI() {
           console.error('Erro ao buscar dados da conta:', error);
         }
         
-        setGreenAPIState({
+        setGreenAPIState(prev => ({
+          ...prev,
           isConnected: true,
           phoneNumber: `Instance ${instanceId}`,
-          webhookUrl: apiConfig.webhookUrl || ''
-        });
+          lastConnected: new Date().toISOString()
+        }));
         
         return { isConnected: true, phoneNumber: `Instance ${instanceId}` };
       } else {
-        setGreenAPIState({
+        setGreenAPIState(prev => ({
+          ...prev,
           isConnected: false,
           phoneNumber: '',
-          webhookUrl: ''
-        });
+          lastConnected: ''
+        }));
         
         return { isConnected: false, phoneNumber: '' };
       }
     } catch (error) {
       console.error('❌ Erro ao verificar conexão:', error);
-      setGreenAPIState({
+      setGreenAPIState(prev => ({
+        ...prev,
         isConnected: false,
         phoneNumber: '',
-        webhookUrl: ''
-      });
+        lastConnected: ''
+      }));
       
       return { isConnected: false, phoneNumber: '' };
     }
-  }, [apiConfig.webhookUrl]);
+  }, []);
+
+  const getQRCode = useCallback(async () => {
+    if (!apiConfig.instanceId || !apiConfig.apiToken) {
+      toast({
+        title: "Configuração incompleta",
+        description: "Configure instanceId e apiToken primeiro",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    setGreenAPIState(prev => ({ ...prev, isGenerating: true }));
+
+    try {
+      console.log('📱 Gerando QR Code GREEN-API...');
+      
+      const response = await fetch(
+        `https://api.green-api.com/waInstance${apiConfig.instanceId}/qr/${apiConfig.apiToken}`,
+        { method: 'GET' }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Erro ao gerar QR Code: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('✅ QR Code recebido:', data);
+
+      if (data.type === 'qrCode' && data.message) {
+        setGreenAPIState(prev => ({
+          ...prev,
+          qrCode: data.message,
+          isGenerating: false
+        }));
+
+        toast({
+          title: "QR Code gerado!",
+          description: "Escaneie com seu WhatsApp Business"
+        });
+      } else {
+        throw new Error('QR Code não disponível ou WhatsApp já conectado');
+      }
+
+    } catch (error) {
+      console.error('❌ Erro ao gerar QR Code:', error);
+      setGreenAPIState(prev => ({ ...prev, isGenerating: false }));
+      toast({
+        title: "Erro ao gerar QR Code",
+        description: `${error.message}`,
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [apiConfig.instanceId, apiConfig.apiToken, toast]);
+
+  const disconnect = useCallback(async () => {
+    if (!apiConfig.instanceId || !apiConfig.apiToken) return;
+
+    try {
+      console.log('🔌 Desconectando GREEN-API...');
+      
+      const response = await fetch(
+        `https://api.green-api.com/waInstance${apiConfig.instanceId}/logout/${apiConfig.apiToken}`,
+        { method: 'GET' }
+      );
+
+      if (response.ok) {
+        setGreenAPIState({
+          isConnected: false,
+          phoneNumber: '',
+          webhookUrl: '',
+          qrCode: '',
+          isGenerating: false,
+          lastConnected: ''
+        });
+
+        toast({
+          title: "Desconectado",
+          description: "WhatsApp Business desconectado com sucesso"
+        });
+      }
+    } catch (error) {
+      console.error('❌ Erro ao desconectar:', error);
+    }
+  }, [apiConfig.instanceId, apiConfig.apiToken, toast]);
+
+  const checkConnectionStatus = useCallback(async () => {
+    if (!apiConfig.instanceId || !apiConfig.apiToken) {
+      return { isConnected: false, phoneNumber: '' };
+    }
+
+    return await checkConnection(apiConfig.instanceId, apiConfig.apiToken);
+  }, [apiConfig.instanceId, apiConfig.apiToken, checkConnection]);
 
   const loadChats = useCallback(async () => {
     if (!apiConfig.instanceId || !apiConfig.apiToken) {
@@ -246,7 +351,6 @@ export function useGreenAPI() {
       const data = await response.json();
       console.log('✅ Mensagem enviada:', data);
 
-      // Adicionar mensagem ao estado local
       const newMessage: Message = {
         id: data.idMessage || Math.random().toString(),
         text: text,
@@ -313,6 +417,10 @@ export function useGreenAPI() {
     sendMessage,
     togglePinChat,
     toggleMonitorChat,
-    refreshChats
+    refreshChats,
+    isLoading,
+    getQRCode,
+    disconnect,
+    checkConnectionStatus
   };
 }
