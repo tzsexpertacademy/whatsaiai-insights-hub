@@ -85,7 +85,7 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
     try {
       setIsLoading(true);
       
-      console.log('🔍 CARREGANDO APENAS DADOS REAIS DO BANCO DE DADOS...');
+      console.log('🔍 CARREGANDO DADOS REAIS COM MAPEAMENTO CORRIGIDO...');
       console.log('👤 User ID:', user.id);
 
       // ✅ VALIDAÇÃO DO SISTEMA
@@ -235,22 +235,28 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
         return;
       }
 
-      // ✅ PROCESSAR APENAS INSIGHTS REAIS GERADOS PELOS ASSISTENTES COM MAPEAMENTO CORRETO
-      const processedInsights = (insightsData || []).map(insight => {
-        console.log('🔄 Processando insight:', { 
+      // ✅ PROCESSAR INSIGHTS COM MAPEAMENTO CORRIGIDO
+      console.log('🔄 PROCESSANDO INSIGHTS COM MAPEAMENTO CORRIGIDO...');
+      const processedInsights = (insightsData || []).map((insight, index) => {
+        console.log(`🔄 Processando insight ${index + 1}/${insightsData?.length}:`, { 
           id: insight.id, 
           type: insight.insight_type, 
           title: insight.title?.substring(0, 50) 
         });
         
-        // USAR MAPEAMENTO MELHORADO COM ANÁLISE DE CONTEÚDO
+        // USAR MAPEAMENTO CORRIGIDO COM ANÁLISE DETALHADA
         const assistantInfo = getAssistantByInsightType(
           insight.insight_type, 
           insight.title, 
           insight.description
         );
         
-        console.log('✅ Assistente mapeado:', assistantInfo.name, 'para tipo:', insight.insight_type);
+        console.log(`✅ Insight ${index + 1} mapeado:`, {
+          assistantName: assistantInfo.name,
+          assistantArea: assistantInfo.area,
+          insightType: insight.insight_type,
+          title: insight.title?.substring(0, 30)
+        });
         
         return {
           ...insight,
@@ -263,6 +269,14 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
           source: 'assistant_analysis'
         };
       });
+
+      console.log('🎯 RESUMO DO MAPEAMENTO DE ASSISTENTES:');
+      const mappingSummary = processedInsights.reduce((acc, insight) => {
+        const key = insight.assistantName;
+        acc[key] = (acc[key] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+      console.table(mappingSummary);
 
       console.log('🎯 INSIGHTS PROCESSADOS COM ASSISTENTES CORRETOS:', 
         processedInsights.map(i => ({ 
@@ -405,7 +419,7 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
       };
 
       setData(finalData);
-      console.log('✅ DADOS REAIS CARREGADOS COM ASSISTENTES CORRETOS');
+      console.log('✅ DADOS REAIS CARREGADOS COM MAPEAMENTO CORRIGIDO');
 
     } catch (error) {
       console.error('❌ ERRO AO CARREGAR DADOS REAIS:', error);

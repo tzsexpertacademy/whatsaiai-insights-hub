@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useAnalysisData } from '@/contexts/AnalysisDataContext';
@@ -221,8 +220,17 @@ export function DashboardMain() {
   }
 
   // Dashboard com dados reais - análises completas
-  // Preparar dados para gráficos (corrigindo atribuição de assistentes)
+  // Preparar dados para gráficos COM ASSISTENTES CORRETOS
   const insightsWithCorrectAssistants = data.insightsWithAssistant || [];
+
+  console.log('🔍 DASHBOARD - Verificando assistentes nos insights:', 
+    insightsWithCorrectAssistants.map(i => ({ 
+      id: i.id, 
+      assistantName: i.assistantName, 
+      assistantArea: i.assistantArea,
+      type: i.insight_type 
+    }))
+  );
 
   // Distribuição por prioridade
   const priorityData = [
@@ -243,23 +251,26 @@ export function DashboardMain() {
     }
   ].filter(item => item.quantidade > 0);
 
-  // Distribuição por assistente (usando assistentName correto)
+  // Distribuição por assistente CORRIGIDA
   const assistantData = insightsWithCorrectAssistants.reduce((acc, insight) => {
-    const assistantName = insight.assistantName || 'Assistente';
+    const assistantName = insight.assistantName || 'Assistente Desconhecido';
     const existing = acc.find(item => item.assistente === assistantName);
     if (existing) {
       existing.insights++;
     } else {
       acc.push({
-        assistente: assistantName.split(' ')[0], // Apenas primeira palavra
+        assistente: assistantName.length > 15 ? assistantName.split(' ')[0] + '...' : assistantName, // Abreviar nomes longos
         insights: 1,
-        area: insight.assistantArea || 'Geral'
+        area: insight.assistantArea || 'Geral',
+        fullName: assistantName
       });
     }
     return acc;
-  }, [] as Array<{ assistente: string; insights: number; area: string }>);
+  }, [] as Array<{ assistente: string; insights: number; area: string; fullName: string }>);
 
-  // Evolução temporal
+  console.log('📊 DASHBOARD - Dados dos assistentes para gráfico:', assistantData);
+
+  // Evolução temporal COM ASSISTENTES CORRETOS
   const timelineData = insightsWithCorrectAssistants
     .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
     .slice(-7)
@@ -268,7 +279,8 @@ export function DashboardMain() {
       return {
         data: date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
         total: index + 1,
-        assistente: insight.assistantName?.split(' ')[0] || 'Assistente'
+        assistente: insight.assistantName?.split(' ')[0] || 'Assistente',
+        fullAssistantName: insight.assistantName || 'Assistente Desconhecido'
       };
     });
 
@@ -277,7 +289,7 @@ export function DashboardMain() {
       <DashboardHeader />
       <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="space-y-6">
-          {/* Header com dados e status */}
+          {/* Header com dados e status CORRIGIDO */}
           <div className="text-center space-y-4 mb-8">
             <h1 className="text-3xl font-bold text-gray-900">YumerMind da Consciência</h1>
             <p className="text-gray-600">Análises comportamentais baseadas em suas conversas</p>
@@ -305,7 +317,7 @@ export function DashboardMain() {
             )}
           </div>
 
-          {/* Gráficos de Análise */}
+          {/* Gráficos de Análise COM ASSISTENTES CORRETOS */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
             {/* Distribuição por Prioridade */}
             {priorityData.length > 0 && (
@@ -366,7 +378,7 @@ export function DashboardMain() {
               </Card>
             )}
 
-            {/* Distribuição por Assistente */}
+            {/* Distribuição por Assistente CORRIGIDA */}
             {assistantData.length > 0 && (
               <Card className="bg-white/70 backdrop-blur-sm border-white/50">
                 <CardHeader>
@@ -382,14 +394,14 @@ export function DashboardMain() {
                       <BarChart data={assistantData} layout="horizontal">
                         <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                         <XAxis type="number" fontSize={10} />
-                        <YAxis type="category" dataKey="assistente" fontSize={10} width={60} />
+                        <YAxis type="category" dataKey="assistente" fontSize={9} width={80} />
                         <ChartTooltip 
                           content={({ active, payload }) => {
                             if (active && payload && payload.length) {
                               const data = payload[0].payload;
                               return (
                                 <div className="bg-white p-3 border rounded shadow-lg">
-                                  <p className="font-medium">{data.assistente}</p>
+                                  <p className="font-medium">{data.fullName}</p>
                                   <p className="text-sm">Área: {data.area}</p>
                                   <p className="text-sm">{data.insights} insights</p>
                                 </div>
@@ -406,7 +418,7 @@ export function DashboardMain() {
               </Card>
             )}
 
-            {/* Evolução Temporal */}
+            {/* Evolução Temporal COM ASSISTENTES CORRETOS */}
             {timelineData.length > 0 && (
               <Card className="bg-white/70 backdrop-blur-sm border-white/50">
                 <CardHeader>
@@ -431,7 +443,7 @@ export function DashboardMain() {
                                 <div className="bg-white p-3 border rounded shadow-lg">
                                   <p className="font-medium">Data: {data.data}</p>
                                   <p className="text-sm">Total: {data.total} insights</p>
-                                  <p className="text-sm">Último: {data.assistente}</p>
+                                  <p className="text-sm">Último por: {data.fullAssistantName}</p>
                                 </div>
                               );
                             }
@@ -471,7 +483,7 @@ export function DashboardMain() {
           {/* Insights e alertas */}
           <InsightsAlerts />
 
-          {/* Insights Recentes pelos Assistentes */}
+          {/* Insights Recentes COM ASSISTENTES CORRETOS */}
           {insightsWithCorrectAssistants.length > 0 && (
             <Card className="bg-white/70 backdrop-blur-sm border-white/50">
               <CardHeader>
@@ -504,6 +516,12 @@ export function DashboardMain() {
                         default: return 'border-gray-200 bg-gray-50';
                       }
                     };
+
+                    console.log('📋 RENDERIZANDO INSIGHT:', {
+                      id: insight.id,
+                      assistantName: insight.assistantName,
+                      title: insight.title?.substring(0, 30)
+                    });
 
                     return (
                       <div key={insight.id} className={`border rounded-lg p-4 ${getPriorityColor(insight.priority)}`}>
