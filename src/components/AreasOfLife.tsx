@@ -3,7 +3,7 @@ import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useAnalysisData } from '@/contexts/AnalysisDataContext';
-import { Loader2, AlertCircle, Bot, Clock, Brain, Heart, Target, Users, Briefcase, GraduationCap } from 'lucide-react';
+import { Loader2, AlertCircle, Bot, Clock, Brain, Heart, Target, Users, Briefcase, GraduationCap, TrendingUp } from 'lucide-react';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { responsiveContainerClasses, responsiveCardClasses, combineResponsiveClasses } from '@/utils/responsiveUtils';
 import { AIAnalysisButton } from '@/components/AIAnalysisButton';
@@ -11,8 +11,9 @@ import { AIAnalysisButton } from '@/components/AIAnalysisButton';
 export function AreasOfLife() {
   const { data, isLoading } = useAnalysisData();
 
-  console.log('🏡 AreasOfLife - Dados REAIS dos assistentes:', {
+  console.log('🏡 AreasOfLife - Análise de dados:', {
     hasRealData: data.hasRealData,
+    totalInsights: data.insights?.length || 0,
     insightsWithAssistant: data.insightsWithAssistant?.length || 0,
     assistantsActive: data.metrics.assistantsActive,
     lastAnalysis: data.metrics.lastAnalysis
@@ -32,6 +33,7 @@ export function AreasOfLife() {
     );
   }
 
+  // Formatação da data da última análise
   const lastUpdate = data.metrics.lastAnalysis ? 
     new Date(data.metrics.lastAnalysis).toLocaleDateString('pt-BR', {
       day: '2-digit',
@@ -41,6 +43,65 @@ export function AreasOfLife() {
       minute: '2-digit'
     }) : null;
 
+  // Configuração das áreas da vida com palavras-chave para melhor detecção
+  const lifeAreasConfig = [
+    { 
+      name: 'Relacionamentos', 
+      icon: Heart, 
+      color: 'text-red-600', 
+      bgColor: 'bg-red-50',
+      keywords: ['relacionamento', 'amor', 'parceiro', 'namoro', 'casamento', 'social', 'amizade']
+    },
+    { 
+      name: 'Carreira', 
+      icon: Briefcase, 
+      color: 'text-blue-600', 
+      bgColor: 'bg-blue-50',
+      keywords: ['carreira', 'trabalho', 'profissional', 'emprego', 'cargo', 'profissão']
+    },
+    { 
+      name: 'Saúde', 
+      icon: Target, 
+      color: 'text-green-600', 
+      bgColor: 'bg-green-50',
+      keywords: ['saude', 'saúde', 'exercicio', 'exercício', 'alimentação', 'bem-estar', 'fitness']
+    },
+    { 
+      name: 'Família', 
+      icon: Users, 
+      color: 'text-purple-600', 
+      bgColor: 'bg-purple-50',
+      keywords: ['familia', 'família', 'pais', 'filhos', 'irmãos', 'parentes', 'familiar']
+    },
+    { 
+      name: 'Finanças', 
+      icon: TrendingUp, 
+      color: 'text-yellow-600', 
+      bgColor: 'bg-yellow-50',
+      keywords: ['financas', 'finanças', 'dinheiro', 'investimento', 'economia', 'renda', 'orçamento']
+    },
+    { 
+      name: 'Desenvolvimento', 
+      icon: GraduationCap, 
+      color: 'text-indigo-600', 
+      bgColor: 'bg-indigo-50',
+      keywords: ['desenvolvimento', 'crescimento', 'aprendizado', 'estudo', 'educação', 'habilidade']
+    }
+  ];
+
+  // Função para verificar se um insight pertence a uma área específica
+  const belongsToArea = (insight: any, area: any) => {
+    const textToSearch = `${insight.title} ${insight.description} ${insight.assistantArea || ''}`.toLowerCase();
+    
+    return area.keywords.some(keyword => textToSearch.includes(keyword)) ||
+           insight.assistantArea?.toLowerCase().includes(area.name.toLowerCase()) ||
+           insight.category?.toLowerCase().includes(area.name.toLowerCase());
+  };
+
+  // Filtrar insights reais por área de vida
+  const realInsights = data.insightsWithAssistant || [];
+
+  // Header actions com informações dos assistentes
   const headerActions = (
     <div className="flex flex-wrap items-center gap-2">
       <Badge variant="outline" className="bg-purple-50 text-purple-700 text-xs">
@@ -49,7 +110,7 @@ export function AreasOfLife() {
       {data.hasRealData && (
         <>
           <Badge variant="outline" className="bg-blue-50 text-blue-700 text-xs">
-            📊 {data.insightsWithAssistant?.length || 0} insights reais
+            📊 {realInsights.length} insights reais
           </Badge>
           <Badge variant="outline" className="bg-green-50 text-green-700 text-xs">
             🤖 {data.metrics.assistantsActive} assistentes ativos
@@ -66,7 +127,8 @@ export function AreasOfLife() {
     </div>
   );
 
-  if (!data.hasRealData) {
+  // Se não há dados reais, exibir estado vazio
+  if (!data.hasRealData || realInsights.length === 0) {
     return (
       <PageLayout
         title="Áreas da Vida"
@@ -106,26 +168,6 @@ export function AreasOfLife() {
     );
   }
 
-  // Definir áreas da vida com ícones
-  const lifeAreasConfig = [
-    { name: 'Relacionamentos', icon: Heart, color: 'text-red-600', bgColor: 'bg-red-50' },
-    { name: 'Carreira', icon: Briefcase, color: 'text-blue-600', bgColor: 'bg-blue-50' },
-    { name: 'Saúde', icon: Target, color: 'text-green-600', bgColor: 'bg-green-50' },
-    { name: 'Família', icon: Users, color: 'text-purple-600', bgColor: 'bg-purple-50' },
-    { name: 'Finanças', icon: Brain, color: 'text-yellow-600', bgColor: 'bg-yellow-50' },
-    { name: 'Desenvolvimento', icon: GraduationCap, color: 'text-indigo-600', bgColor: 'bg-indigo-50' }
-  ];
-
-  // Filtrar insights por área de vida dos assistentes REAIS
-  const lifeAreasInsights = data.insightsWithAssistant?.filter(insight => 
-    insight.assistantArea && 
-    ['relacionamentos', 'carreira', 'saude', 'familia', 'financas', 'desenvolvimento', 'criatividade', 'proposito'].some(area => 
-      insight.assistantArea.toLowerCase().includes(area) ||
-      insight.description?.toLowerCase().includes(area) ||
-      insight.title?.toLowerCase().includes(area)
-    )
-  ) || [];
-
   return (
     <PageLayout
       title="Áreas da Vida"
@@ -136,16 +178,12 @@ export function AreasOfLife() {
       {/* Grid das áreas da vida */}
       <div className={responsiveContainerClasses.grid.threeColumns}>
         {lifeAreasConfig.map((areaConfig) => {
-          const areaInsights = lifeAreasInsights.filter(insight => 
-            insight.assistantArea?.toLowerCase().includes(areaConfig.name.toLowerCase()) ||
-            insight.description?.toLowerCase().includes(areaConfig.name.toLowerCase()) ||
-            insight.title?.toLowerCase().includes(areaConfig.name.toLowerCase())
-          );
+          // Filtrar insights para esta área específica
+          const areaInsights = realInsights.filter(insight => belongsToArea(insight, areaConfig));
           
-          // Encontrar o insight mais recente para mostrar a data
-          const latestInsight = areaInsights.sort((a, b) => 
-            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-          )[0];
+          // Encontrar o insight mais recente para mostrar informações do assistente
+          const latestInsight = areaInsights.length > 0 ? 
+            areaInsights.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0] : null;
 
           const Icon = areaConfig.icon;
           
@@ -213,7 +251,7 @@ export function AreasOfLife() {
                       );
                     })}
 
-                    {/* Informações da última análise */}
+                    {/* Informações do último assistente que analisou */}
                     {latestInsight && (
                       <div className="mt-3 p-2 bg-white/50 rounded-lg">
                         <div className="text-xs text-slate-600 space-y-1">
@@ -246,8 +284,8 @@ export function AreasOfLife() {
         })}
       </div>
 
-      {/* Insights detalhados das áreas REAIS */}
-      {lifeAreasInsights.length > 0 && (
+      {/* Insights detalhados das áreas - apenas com dados reais */}
+      {realInsights.length > 0 && (
         <Card className="mt-6 bg-white/70 backdrop-blur-sm border-white/50">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
@@ -255,12 +293,12 @@ export function AreasOfLife() {
               Insights Detalhados das Áreas da Vida
             </CardTitle>
             <CardDescription className="text-sm">
-              Análise completa pelos assistentes especializados - {lifeAreasInsights.length} insights gerados
+              Análise completa pelos assistentes especializados - {realInsights.length} insights gerados
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {lifeAreasInsights.slice(0, 8).map((insight) => {
+              {realInsights.slice(0, 8).map((insight) => {
                 const createdAt = new Date(insight.createdAt);
                 const formattedDate = createdAt.toLocaleDateString('pt-BR', {
                   day: '2-digit',
@@ -322,12 +360,9 @@ export function AreasOfLife() {
               </h4>
               <div className="text-xs text-blue-600 space-y-1">
                 <p>🤖 {data.metrics.assistantsActive} assistentes especializados ativos</p>
-                <p>🏡 {lifeAreasInsights.length} insights sobre áreas da vida gerados</p>
+                <p>🏡 {realInsights.length} insights sobre áreas da vida gerados</p>
                 <p>📊 {lifeAreasConfig.filter(area => 
-                  lifeAreasInsights.some(insight => 
-                    insight.assistantArea?.toLowerCase().includes(area.name.toLowerCase()) ||
-                    insight.description?.toLowerCase().includes(area.name.toLowerCase())
-                  )
+                  realInsights.some(insight => belongsToArea(insight, area))
                 ).length} de {lifeAreasConfig.length} áreas mapeadas</p>
                 {lastUpdate && (
                   <p>⏰ Última atualização: {lastUpdate}</p>
