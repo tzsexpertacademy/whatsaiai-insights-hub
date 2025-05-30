@@ -3,7 +3,9 @@ import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useAnalysisData } from '@/contexts/AnalysisDataContext';
-import { AlertTriangle, CheckCircle, Info, Zap, Brain, Clock, Bot } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Info, Zap, Brain, Clock, Bot, TrendingUp, Target, Award, BarChart3 } from 'lucide-react';
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from "recharts";
 
 export function InsightsAlerts() {
   const { data, isLoading } = useAnalysisData();
@@ -11,8 +13,19 @@ export function InsightsAlerts() {
   console.log('🚨 InsightsAlerts - Dados REAIS:', {
     hasRealData: data.hasRealData,
     insightsWithAssistant: data.insightsWithAssistant?.length || 0,
-    assistantsActive: data.metrics.assistantsActive
+    assistantsActive: data.metrics.assistantsActive,
+    lastAnalysis: data.metrics.lastAnalysis
   });
+
+  // Formatação da data da última análise
+  const lastUpdate = data.metrics.lastAnalysis ? 
+    new Date(data.metrics.lastAnalysis).toLocaleDateString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    }) : null;
 
   if (isLoading) {
     return (
@@ -72,10 +85,45 @@ export function InsightsAlerts() {
   // Insights mais recentes
   const recentInsights = data.insightsWithAssistant
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, 3);
+    .slice(0, 5);
+
+  // Dados para gráficos
+  const priorityData = [
+    { prioridade: 'Alta', quantidade: highPriorityInsights.length, cor: '#EF4444' },
+    { prioridade: 'Média', quantidade: mediumPriorityInsights.length, cor: '#F59E0B' },
+    { prioridade: 'Baixa', quantidade: lowPriorityInsights.length, cor: '#10B981' }
+  ].filter(item => item.quantidade > 0);
+
+  // Distribuição por assistente
+  const assistantData = data.insightsWithAssistant.reduce((acc, insight) => {
+    const assistant = insight.assistantName || 'Assistente';
+    const existing = acc.find(item => item.assistente === assistant);
+    if (existing) {
+      existing.insights++;
+    } else {
+      acc.push({
+        assistente: assistant.split(' ')[0], // Apenas primeiro nome
+        insights: 1
+      });
+    }
+    return acc;
+  }, [] as Array<{ assistente: string; insights: number }>);
+
+  // Evolução temporal dos insights
+  const timelineData = data.insightsWithAssistant
+    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+    .slice(-7)
+    .map((insight, index) => {
+      const date = new Date(insight.createdAt);
+      return {
+        data: date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+        total: index + 1
+      };
+    });
 
   return (
     <div className="space-y-6">
+      {/* Header com métricas */}
       <Card className="bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -84,10 +132,23 @@ export function InsightsAlerts() {
           </CardTitle>
           <CardDescription>
             Análises REAIS geradas por {data.metrics.assistantsActive} assistentes especializados
+            {lastUpdate && ` • Última análise: ${lastUpdate}`}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {/* Total de Insights */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Brain className="h-5 w-5 text-blue-600" />
+                <span className="font-medium text-blue-800">Total</span>
+                <Badge className="bg-blue-100 text-blue-800 text-xs">
+                  {data.insightsWithAssistant.length}
+                </Badge>
+              </div>
+              <p className="text-sm text-blue-600">Insights gerados pelos assistentes</p>
+            </div>
+
             {/* Alta Prioridade */}
             <div className="bg-red-50 border border-red-200 rounded-lg p-4">
               <div className="flex items-center gap-2 mb-2">
@@ -97,9 +158,7 @@ export function InsightsAlerts() {
                   {highPriorityInsights.length}
                 </Badge>
               </div>
-              <p className="text-sm text-red-600">
-                Insights que requerem atenção imediata dos assistentes
-              </p>
+              <p className="text-sm text-red-600">Requerem atenção imediata</p>
             </div>
 
             {/* Média Prioridade */}
@@ -111,12 +170,10 @@ export function InsightsAlerts() {
                   {mediumPriorityInsights.length}
                 </Badge>
               </div>
-              <p className="text-sm text-yellow-600">
-                Descobertas importantes para desenvolvimento
-              </p>
+              <p className="text-sm text-yellow-600">Importantes para desenvolvimento</p>
             </div>
 
-            {/* Baixa Prioridade */}
+            {/* Observações */}
             <div className="bg-green-50 border border-green-200 rounded-lg p-4">
               <div className="flex items-center gap-2 mb-2">
                 <CheckCircle className="h-5 w-5 text-green-600" />
@@ -125,13 +182,102 @@ export function InsightsAlerts() {
                   {lowPriorityInsights.length}
                 </Badge>
               </div>
-              <p className="text-sm text-green-600">
-                Insights informativos dos assistentes
-              </p>
+              <p className="text-sm text-green-600">Insights informativos</p>
             </div>
           </div>
         </CardContent>
       </Card>
+
+      {/* Gráficos de Análise */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Distribuição por Prioridade */}
+        {priorityData.length > 0 && (
+          <Card className="bg-white border-gray-200">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-gray-700">
+                <Target className="h-5 w-5" />
+                Por Prioridade
+              </CardTitle>
+              <CardDescription>Distribuição dos insights por nível de importância</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ChartContainer config={{}} className="h-[200px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={priorityData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={40}
+                      outerRadius={80}
+                      dataKey="quantidade"
+                      label={({ prioridade, quantidade }) => `${prioridade}: ${quantidade}`}
+                      fontSize={10}
+                    >
+                      {priorityData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.cor} />
+                      ))}
+                    </Pie>
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </ChartContainer>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Insights por Assistente */}
+        {assistantData.length > 0 && (
+          <Card className="bg-white border-gray-200">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-gray-700">
+                <Bot className="h-5 w-5" />
+                Por Assistente
+              </CardTitle>
+              <CardDescription>Contribuições de cada assistente especializado</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ChartContainer config={{}} className="h-[200px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={assistantData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis dataKey="assistente" fontSize={10} />
+                    <YAxis fontSize={10} />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Bar dataKey="insights" fill="#3B82F6" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </ChartContainer>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Evolução Temporal */}
+        {timelineData.length > 0 && (
+          <Card className="bg-white border-gray-200">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-gray-700">
+                <TrendingUp className="h-5 w-5" />
+                Evolução
+              </CardTitle>
+              <CardDescription>Crescimento acumulado de insights</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ChartContainer config={{}} className="h-[200px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={timelineData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis dataKey="data" fontSize={10} />
+                    <YAxis fontSize={10} />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Line type="monotone" dataKey="total" stroke="#10B981" strokeWidth={3} dot={{ fill: '#10B981', strokeWidth: 2, r: 4 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </ChartContainer>
+            </CardContent>
+          </Card>
+        )}
+      </div>
 
       {/* Insights Recentes REAIS */}
       <Card className="bg-white/70 backdrop-blur-sm border-white/50">
@@ -142,6 +288,7 @@ export function InsightsAlerts() {
           </CardTitle>
           <CardDescription>
             Últimas análises geradas pelos assistentes especializados
+            {lastUpdate && ` • Atualizado em ${lastUpdate}`}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -216,6 +363,27 @@ export function InsightsAlerts() {
                 </div>
               );
             })}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Resumo dos Insights */}
+      <Card className="bg-blue-50 border-blue-200">
+        <CardHeader>
+          <CardTitle className="text-sm font-medium text-blue-800 flex items-center gap-2">
+            <Award className="w-4 h-4" />
+            Resumo dos Insights
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-xs text-blue-600 space-y-1">
+            <p>🔮 {data.metrics.assistantsActive} assistentes especializados gerando insights ativamente</p>
+            <p>📊 {data.insightsWithAssistant.length} insights totais • {highPriorityInsights.length} alta prioridade • {mediumPriorityInsights.length} média • {lowPriorityInsights.length} baixa</p>
+            <p>🎯 {assistantData.length} assistentes contribuindo com análises especializadas</p>
+            {lastUpdate && (
+              <p>⏰ Última análise: {lastUpdate}</p>
+            )}
+            <p>🧠 Sistema baseado em dados reais dos assistentes IA</p>
           </div>
         </CardContent>
       </Card>
