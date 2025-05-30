@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -55,6 +54,7 @@ export function ObservatoryLanding() {
   const [showContent, setShowContent] = React.useState(false);
   const [showFirstPhrase, setShowFirstPhrase] = React.useState(false);
   const [showSecondPhrase, setShowSecondPhrase] = React.useState(false);
+  const [showLogo, setShowLogo] = React.useState(false);
   const audioContextRef = useRef<AudioContext | null>(null);
   const [audioInitialized, setAudioInitialized] = React.useState(false);
   const soundEffectsRef = useRef<{
@@ -89,18 +89,26 @@ export function ObservatoryLanding() {
     }
   }, [isMobile, audioInitialized, initMobileAudio]);
 
-  // Controlar sequência da animação
+  // Controlar sequência da animação refinada
   const handleBrainAnimationComplete = () => {
-    console.log('🧠 Animação do cérebro completa, mostrando conteúdo em 1 segundo');
+    console.log('🧠 Animação do cérebro completa, iniciando sequência refinada');
+    
+    // Primeiro mostra o logo com fade elegante
+    setTimeout(() => {
+      setShowLogo(true);
+      console.log('✨ Logo YumerMind emergindo');
+    }, 500);
+    
+    // Depois remove a animação do cérebro e mostra conteúdo
     setTimeout(() => {
       setShowBrainAnimation(false);
       setTimeout(() => {
         setShowContent(true);
-        setTimeout(() => setShowFirstPhrase(true), 500);
-        setTimeout(() => setShowSecondPhrase(true), 1200);
-        console.log('✅ Conteúdo da página exibido');
-      }, 500);
-    }, 1000);
+        setTimeout(() => setShowFirstPhrase(true), 700);
+        setTimeout(() => setShowSecondPhrase(true), 1400);
+        console.log('✅ Conteúdo da página exibido com nova sequência');
+      }, 600);
+    }, 1500);
   };
 
   // Inicializar conteúdo após um tempo máximo (fallback)
@@ -495,7 +503,7 @@ export function ObservatoryLanding() {
         ref={canvasRef}
         className="fixed inset-0 pointer-events-none z-0 w-full h-full"
         style={{ 
-          transform: `translateY(${scrollY * 0.05}px)` // Paralaxe mais sutil
+          transform: `translateY(${scrollY * 0.05}px)` 
         }}
       />
       
@@ -506,6 +514,76 @@ export function ObservatoryLanding() {
             onAnimationComplete={handleBrainAnimationComplete}
             soundEnabled={soundEnabled}
           />
+        </div>
+      )}
+      
+      {/* Logo YumerMind emergindo após cérebro */}
+      {showLogo && !showContent && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-[#0B0F2A]/95 backdrop-blur-md">
+          <div className="text-center animate-fade-in">
+            {/* Logo com emergência neural */}
+            <div className="relative mb-8">
+              <div className="w-32 h-32 md:w-40 md:h-40 mx-auto mb-6 relative">
+                {/* Círculos concêntricos animados */}
+                <div className="absolute inset-0 rounded-full border-2 border-[#00F0FF]/30 animate-pulse"></div>
+                <div className="absolute inset-2 rounded-full border border-[#A882FF]/40 animate-pulse" style={{ animationDelay: '0.5s' }}></div>
+                <div className="absolute inset-4 rounded-full border border-[#F5C97A]/50 animate-pulse" style={{ animationDelay: '1s' }}></div>
+                
+                {/* Ícone central do cérebro */}
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="w-16 h-16 md:w-20 md:h-20 bg-gradient-to-br from-[#00F0FF] via-[#A882FF] to-[#F5C97A] rounded-full flex items-center justify-center neural-glow">
+                    <Brain className="w-8 h-8 md:w-10 md:h-10 text-[#0B0F2A]" />
+                  </div>
+                </div>
+                
+                {/* Partículas orbitando */}
+                <div className="absolute inset-0">
+                  {[...Array(6)].map((_, i) => (
+                    <div
+                      key={i}
+                      className="absolute w-2 h-2 bg-[#00F0FF] rounded-full neural-glow"
+                      style={{
+                        top: '50%',
+                        left: '50%',
+                        transform: `translate(-50%, -50%) rotate(${i * 60}deg) translateY(-${24 + i * 4}px)`,
+                        animation: `spin 3s linear infinite`,
+                        animationDelay: `${i * 0.5}s`
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+              
+              {/* Nome YumerMind com efeito de escrita */}
+              <div className="relative">
+                <h1 className="text-4xl md:text-6xl lg:text-7xl font-light tracking-wider">
+                  <span 
+                    className="bg-gradient-to-r from-[#00F0FF] via-[#A882FF] to-[#F5C97A] bg-clip-text text-transparent neural-text-glow font-medium"
+                    style={{
+                      animation: 'fade-in 2s ease-out'
+                    }}
+                  >
+                    YumerMind
+                  </span>
+                </h1>
+                
+                {/* Subtítulo elegante */}
+                <div className="mt-4 opacity-0" style={{ animation: 'fade-in 2s ease-out 1s forwards' }}>
+                  <p className="text-xl md:text-2xl text-[#F2F2F2]/80 font-light tracking-wide">
+                    Seu segundo cérebro
+                  </p>
+                  <div className="w-24 h-px bg-gradient-to-r from-transparent via-[#00F0FF] to-transparent mx-auto mt-4"></div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Indicador de loading sutil */}
+            <div className="flex items-center justify-center space-x-2 opacity-60">
+              <div className="w-2 h-2 bg-[#00F0FF] rounded-full animate-pulse"></div>
+              <div className="w-2 h-2 bg-[#A882FF] rounded-full animate-pulse" style={{ animationDelay: '0.3s' }}></div>
+              <div className="w-2 h-2 bg-[#F5C97A] rounded-full animate-pulse" style={{ animationDelay: '0.6s' }}></div>
+            </div>
+          </div>
         </div>
       )}
       
@@ -630,7 +708,7 @@ export function ObservatoryLanding() {
             <div className="max-w-6xl mx-auto w-full">
               <ScrollReveal id="features-title" direction="up">
                 <div className="text-center mb-20">
-                  <h2 className="text-4xl md:text-6xl lg:text-7xl font-light mb-8 text-[#F2F2F2] leading-tight">
+                  <h2 className="text-4xl md:text-6xl lg:text-7xl font-light text-center mb-20 text-[#F2F2F2]">
                     Você nunca teve acesso a isso.
                     <br />
                     <span className="text-[#A882FF] neural-text-glow">Até agora.</span>
@@ -674,10 +752,10 @@ export function ObservatoryLanding() {
                   <p className="text-2xl md:text-3xl text-[#F2F2F2] font-light">
                     Você não adivinha mais.
                   </p>
-                  <p className="text-2xl md:text-3xl text-[#00F0FF] font-light mt-4 neural-text-glow">
+                  <p className="text-2xl md:text-3xl text-[#00F0FF] font-light neural-text-glow">
                     Você vê.
                   </p>
-                  <p className="text-xl md:text-2xl text-[#F5C97A] font-light mt-4 neural-text-glow">
+                  <p className="text-xl md:text-2xl text-[#F5C97A] font-light neural-text-glow">
                     E o que você vê, muda tudo.
                   </p>
                 </div>
@@ -727,7 +805,7 @@ export function ObservatoryLanding() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 {benefits.map((benefit, index) => (
                   <ScrollReveal key={index} id={`benefit-${index}`} direction="up" delay={index * 150}>
-                    <Card className="bg-gradient-to-br from-[#0B0F2A]/90 to-[#0B0F2A]/60 border border-[#A882FF]/30 backdrop-blur-md hover:bg-[#A882FF]/10 transition-all duration-500 hover:scale-105 group neural-card cursor-pointer">
+                    <Card className="bg-gradient-to-br from-[#0B0F2A]/90 to-[#0B0F2A]/60 border border-[#A882FF]/30 backdrop-blur-md hover:bg-[#A882FF]/10 transition-all duration-500 hover:scale-105 group neural-card">
                       <CardContent className="p-8">
                         <div className="flex items-start mb-4">
                           <div className="w-12 h-12 bg-gradient-to-r from-[#A882FF]/30 to-[#F5C97A]/30 rounded-full flex items-center justify-center mr-4 group-hover:scale-110 transition-transform border border-[#A882FF]/40">
@@ -837,8 +915,13 @@ export function ObservatoryLanding() {
             </div>
           </section>
 
-          {/* Estilos CSS refinados */}
+          {/* Estilos CSS refinados com novas animações */}
           <style>{`
+            @keyframes spin {
+              from { transform: translate(-50%, -50%) rotate(0deg) translateY(-24px); }
+              to { transform: translate(-50%, -50%) rotate(360deg) translateY(-24px); }
+            }
+            
             .neural-glow {
               box-shadow: 
                 0 0 ${isMobile ? '10px' : '20px'} rgba(0, 240, 255, 0.3), 
