@@ -54,9 +54,10 @@ export function AreasOfLife() {
     );
   }
 
-  // Filtrar insights por área de vida dos assistentes
+  // Filtrar insights por área de vida dos assistentes REAIS
   const lifeAreasInsights = data.insightsWithAssistant.filter(insight => 
-    insight.assistantArea && ['relacionamentos', 'carreira', 'saude', 'familia', 'financas'].includes(insight.assistantArea.toLowerCase())
+    insight.assistantArea && 
+    ['relacionamentos', 'carreira', 'saude', 'familia', 'financas', 'desenvolvimento', 'criatividade', 'proposito'].includes(insight.assistantArea.toLowerCase())
   );
 
   const lastUpdate = data.metrics.lastAnalysis ? 
@@ -96,10 +97,12 @@ export function AreasOfLife() {
       headerActions={headerActions}
     >
       <div className={responsiveContainerClasses.grid.threeColumns}>
-        {/* Áreas principais mapeadas pelos assistentes */}
+        {/* Áreas mapeadas PELOS ASSISTENTES REAIS */}
         {['Relacionamentos', 'Carreira', 'Saúde', 'Família', 'Finanças', 'Desenvolvimento'].map((area, index) => {
           const areaInsights = lifeAreasInsights.filter(insight => 
-            insight.assistantArea?.toLowerCase().includes(area.toLowerCase())
+            insight.assistantArea?.toLowerCase().includes(area.toLowerCase()) ||
+            insight.description?.toLowerCase().includes(area.toLowerCase()) ||
+            insight.title?.toLowerCase().includes(area.toLowerCase())
           );
           
           return (
@@ -140,7 +143,7 @@ export function AreasOfLife() {
         })}
       </div>
 
-      {/* Insights detalhados das áreas */}
+      {/* Insights detalhados das áreas REAIS */}
       {lifeAreasInsights.length > 0 && (
         <Card className={responsiveCardClasses.base}>
           <CardHeader className={responsiveCardClasses.header}>
