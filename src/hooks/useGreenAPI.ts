@@ -52,14 +52,11 @@ export function useGreenAPI() {
   const updateAPIConfig = useCallback((newConfig: any) => {
     if (!config) return;
     
-    updateConfig({
-      ...config,
-      whatsapp: {
-        ...config.whatsapp,
-        greenapi: {
-          ...apiConfig,
-          ...newConfig
-        }
+    updateConfig('whatsapp', {
+      ...config.whatsapp,
+      greenapi: {
+        ...apiConfig,
+        ...newConfig
       }
     });
   }, [config, apiConfig, updateConfig]);
