@@ -50,11 +50,11 @@ export function ObservatoryLanding() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const scrollY = useParallax();
   const [soundEnabled, setSoundEnabled] = React.useState(true);
-  const [showBrainAnimation, setShowBrainAnimation] = React.useState(true);
   const [showContent, setShowContent] = React.useState(false);
+  const [showLogo, setShowLogo] = React.useState(true);
+  const [showActivatingText, setShowActivatingText] = React.useState(false);
   const [showFirstPhrase, setShowFirstPhrase] = React.useState(false);
   const [showSecondPhrase, setShowSecondPhrase] = React.useState(false);
-  const [showLogo, setShowLogo] = React.useState(false);
   const audioContextRef = useRef<AudioContext | null>(null);
   const [audioInitialized, setAudioInitialized] = React.useState(false);
   const soundEffectsRef = useRef<{
@@ -89,43 +89,32 @@ export function ObservatoryLanding() {
     }
   }, [isMobile, audioInitialized, initMobileAudio]);
 
-  // Controlar sequência da animação refinada
-  const handleBrainAnimationComplete = () => {
-    console.log('🧠 Animação do cérebro completa, iniciando sequência refinada');
+  // Sequência de entrada refinada
+  useEffect(() => {
+    console.log('🚀 Iniciando sequência de entrada do YumerMind');
     
-    // Primeiro mostra o logo com fade elegante
-    setTimeout(() => {
-      setShowLogo(true);
-      console.log('✨ Logo YumerMind emergindo');
-    }, 500);
+    // Mostrar logo imediatamente
+    setShowLogo(true);
     
-    // Depois remove a animação do cérebro e mostra conteúdo
+    // Mostrar texto "ativando" após 2 segundos
     setTimeout(() => {
-      setShowBrainAnimation(false);
+      setShowActivatingText(true);
+      console.log('⚡ Mostrando texto de ativação');
+    }, 2000);
+    
+    // Após 4 segundos, começar transição para conteúdo
+    setTimeout(() => {
+      setShowLogo(false);
+      setShowActivatingText(false);
+      
       setTimeout(() => {
         setShowContent(true);
         setTimeout(() => setShowFirstPhrase(true), 700);
         setTimeout(() => setShowSecondPhrase(true), 1400);
-        console.log('✅ Conteúdo da página exibido com nova sequência');
+        console.log('✅ Conteúdo da página exibido');
       }, 600);
-    }, 1500);
-  };
-
-  // Inicializar conteúdo após um tempo máximo (fallback)
-  useEffect(() => {
-    const maxWaitTime = 9000;
-    const timer = setTimeout(() => {
-      if (!showContent) {
-        console.log('⏰ Timeout da animação, forçando exibição do conteúdo');
-        setShowBrainAnimation(false);
-        setShowContent(true);
-        setTimeout(() => setShowFirstPhrase(true), 300);
-        setTimeout(() => setShowSecondPhrase(true), 800);
-      }
-    }, maxWaitTime);
-
-    return () => clearTimeout(timer);
-  }, [showContent]);
+    }, 4000);
+  }, []);
 
   // Sistema de áudio neural otimizado
   useEffect(() => {
@@ -507,82 +496,83 @@ export function ObservatoryLanding() {
         }}
       />
       
-      {/* Animação do cérebro neural */}
-      {showBrainAnimation && (
-        <div className="relative z-30">
-          <BrainAnimation 
-            onAnimationComplete={handleBrainAnimationComplete}
-            soundEnabled={soundEnabled}
-          />
-        </div>
-      )}
-      
-      {/* Logo YumerMind emergindo após cérebro */}
-      {showLogo && !showContent && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-[#0B0F2A]/95 backdrop-blur-md">
-          <div className="text-center animate-fade-in">
-            {/* Logo com emergência neural */}
-            <div className="relative mb-8">
-              <div className="w-32 h-32 md:w-40 md:h-40 mx-auto mb-6 relative">
-                {/* Círculos concêntricos animados */}
-                <div className="absolute inset-0 rounded-full border-2 border-[#00F0FF]/30 animate-pulse"></div>
-                <div className="absolute inset-2 rounded-full border border-[#A882FF]/40 animate-pulse" style={{ animationDelay: '0.5s' }}></div>
-                <div className="absolute inset-4 rounded-full border border-[#F5C97A]/50 animate-pulse" style={{ animationDelay: '1s' }}></div>
-                
-                {/* Ícone central do cérebro */}
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-16 h-16 md:w-20 md:h-20 bg-gradient-to-br from-[#00F0FF] via-[#A882FF] to-[#F5C97A] rounded-full flex items-center justify-center neural-glow">
-                    <Brain className="w-8 h-8 md:w-10 md:h-10 text-[#0B0F2A]" />
+      {/* Logo YumerMind com sequência de entrada */}
+      {(showLogo || showActivatingText) && !showContent && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-[#0B0F2A]/98 backdrop-blur-md">
+          <div className="text-center">
+            {/* Logo principal */}
+            {showLogo && (
+              <div 
+                className="relative mb-8 animate-fade-in"
+                style={{ 
+                  animation: 'fade-in 1.5s ease-out',
+                  animationFillMode: 'both'
+                }}
+              >
+                <div className="w-32 h-32 md:w-40 md:h-40 mx-auto mb-6 relative">
+                  {/* Círculos concêntricos animados */}
+                  <div className="absolute inset-0 rounded-full border-2 border-[#00F0FF]/30 animate-pulse"></div>
+                  <div className="absolute inset-2 rounded-full border border-[#A882FF]/40 animate-pulse" style={{ animationDelay: '0.5s' }}></div>
+                  <div className="absolute inset-4 rounded-full border border-[#F5C97A]/50 animate-pulse" style={{ animationDelay: '1s' }}></div>
+                  
+                  {/* Ícone central do cérebro */}
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="w-16 h-16 md:w-20 md:h-20 bg-gradient-to-br from-[#00F0FF] via-[#A882FF] to-[#F5C97A] rounded-full flex items-center justify-center neural-glow">
+                      <Brain className="w-8 h-8 md:w-10 md:h-10 text-[#0B0F2A]" />
+                    </div>
+                  </div>
+                  
+                  {/* Partículas orbitando */}
+                  <div className="absolute inset-0">
+                    {[...Array(6)].map((_, i) => (
+                      <div
+                        key={i}
+                        className="absolute w-2 h-2 bg-[#00F0FF] rounded-full neural-glow"
+                        style={{
+                          top: '50%',
+                          left: '50%',
+                          transform: `translate(-50%, -50%) rotate(${i * 60}deg) translateY(-${24 + i * 4}px)`,
+                          animation: `spin 3s linear infinite`,
+                          animationDelay: `${i * 0.5}s`
+                        }}
+                      />
+                    ))}
                   </div>
                 </div>
                 
-                {/* Partículas orbitando */}
-                <div className="absolute inset-0">
-                  {[...Array(6)].map((_, i) => (
-                    <div
-                      key={i}
-                      className="absolute w-2 h-2 bg-[#00F0FF] rounded-full neural-glow"
-                      style={{
-                        top: '50%',
-                        left: '50%',
-                        transform: `translate(-50%, -50%) rotate(${i * 60}deg) translateY(-${24 + i * 4}px)`,
-                        animation: `spin 3s linear infinite`,
-                        animationDelay: `${i * 0.5}s`
-                      }}
-                    />
-                  ))}
+                {/* Nome YumerMind */}
+                <div className="relative">
+                  <h1 className="text-4xl md:text-6xl lg:text-7xl font-light tracking-wider">
+                    <span 
+                      className="bg-gradient-to-r from-[#00F0FF] via-[#A882FF] to-[#F5C97A] bg-clip-text text-transparent neural-text-glow font-medium"
+                    >
+                      YumerMind
+                    </span>
+                  </h1>
                 </div>
               </div>
-              
-              {/* Nome YumerMind com efeito de escrita */}
-              <div className="relative">
-                <h1 className="text-4xl md:text-6xl lg:text-7xl font-light tracking-wider">
-                  <span 
-                    className="bg-gradient-to-r from-[#00F0FF] via-[#A882FF] to-[#F5C97A] bg-clip-text text-transparent neural-text-glow font-medium"
-                    style={{
-                      animation: 'fade-in 2s ease-out'
-                    }}
-                  >
-                    YumerMind
-                  </span>
-                </h1>
-                
-                {/* Subtítulo elegante */}
-                <div className="mt-4 opacity-0" style={{ animation: 'fade-in 2s ease-out 1s forwards' }}>
-                  <p className="text-xl md:text-2xl text-[#F2F2F2]/80 font-light tracking-wide">
-                    Seu segundo cérebro
-                  </p>
-                  <div className="w-24 h-px bg-gradient-to-r from-transparent via-[#00F0FF] to-transparent mx-auto mt-4"></div>
-                </div>
-              </div>
-            </div>
+            )}
             
-            {/* Indicador de loading sutil */}
-            <div className="flex items-center justify-center space-x-2 opacity-60">
-              <div className="w-2 h-2 bg-[#00F0FF] rounded-full animate-pulse"></div>
-              <div className="w-2 h-2 bg-[#A882FF] rounded-full animate-pulse" style={{ animationDelay: '0.3s' }}></div>
-              <div className="w-2 h-2 bg-[#F5C97A] rounded-full animate-pulse" style={{ animationDelay: '0.6s' }}></div>
-            </div>
+            {/* Texto de ativação */}
+            {showActivatingText && (
+              <div 
+                className="text-center opacity-0"
+                style={{ 
+                  animation: 'fade-in 1s ease-out 0.5s forwards'
+                }}
+              >
+                <p className="text-xl md:text-2xl text-[#F2F2F2]/90 font-light tracking-wide mb-4">
+                  Seu segundo cérebro está ativando...
+                </p>
+                
+                {/* Indicador de loading elegante */}
+                <div className="flex items-center justify-center space-x-2 opacity-70">
+                  <div className="w-2 h-2 bg-[#00F0FF] rounded-full animate-pulse"></div>
+                  <div className="w-2 h-2 bg-[#A882FF] rounded-full animate-pulse" style={{ animationDelay: '0.3s' }}></div>
+                  <div className="w-2 h-2 bg-[#F5C97A] rounded-full animate-pulse" style={{ animationDelay: '0.6s' }}></div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
