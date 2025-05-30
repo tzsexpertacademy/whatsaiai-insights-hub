@@ -373,9 +373,11 @@ export function useGreenAPI() {
 
       // Buscar configuração do assistente selecionado dos assistentes da plataforma
       const { data: assistantConfig } = await supabase
-        .from('client_configs')
-        .select('openai_config')
+        .from('assistants_config')
+        .select('assistant_name, prompt')
         .eq('user_id', config.whatsapp?.authorizedNumber || 'default')
+        .eq('id', selectedAssistant)
+        .eq('is_active', true)
         .single();
 
       let systemPrompt = `Você é um assistente pessoal especializado em autoconhecimento e desenvolvimento pessoal. 
@@ -390,16 +392,10 @@ export function useGreenAPI() {
       
       Contexto: Esta é uma conversa de autoconhecimento onde a pessoa está refletindo consigo mesma.`;
 
-      // Se encontrou configuração dos assistentes da plataforma, buscar o assistente selecionado
-      if (assistantConfig?.openai_config?.assistants) {
-        const selectedAssistantConfig = assistantConfig.openai_config.assistants.find(
-          (assistant: any) => assistant.id === selectedAssistant
-        );
-        
-        if (selectedAssistantConfig && selectedAssistantConfig.prompt) {
-          systemPrompt = selectedAssistantConfig.prompt;
-          console.log(`✅ Usando prompt do assistente da plataforma: ${selectedAssistantConfig.name}`);
-        }
+      // Se encontrou configuração do assistente da plataforma, usar o prompt dele
+      if (assistantConfig?.prompt) {
+        systemPrompt = assistantConfig.prompt;
+        console.log(`✅ Usando prompt do assistente da plataforma: ${assistantConfig.assistant_name}`);
       }
 
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -709,20 +705,15 @@ export function useGreenAPI() {
           const aiResponse = await generateAIResponse(message);
           
           // Buscar nome do assistente para mostrar na resposta
-          const { data: assistantConfig } = await supabase
-            .from('client_configs')
-            .select('openai_config')
-            .eq('user_id', config.whatsapp?.authorizedNumber || 'default')
+          const { data: assistantData } = await supabase
+            .from('assistants_config')
+            .select('assistant_name')
+            .eq('id', selectedAssistant)
             .single();
 
           let assistantName = selectedAssistant.toUpperCase();
-          if (assistantConfig?.openai_config?.assistants) {
-            const selectedAssistantConfig = assistantConfig.openai_config.assistants.find(
-              (assistant: any) => assistant.id === selectedAssistant
-            );
-            if (selectedAssistantConfig) {
-              assistantName = selectedAssistantConfig.name;
-            }
+          if (assistantData?.assistant_name) {
+            assistantName = assistantData.assistant_name;
           }
           
           // Simular resposta do assistente

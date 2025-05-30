@@ -29,6 +29,7 @@ export function ChatInterface() {
   const [isSending, setIsSending] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const messagesEndRef = useRef(null);
+  const { toast } = useToast();
 
   const {
     greenAPIState,

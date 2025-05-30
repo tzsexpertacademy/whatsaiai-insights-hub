@@ -40,7 +40,6 @@ export function GreenAPIWebhookConfig() {
           body: JSON.stringify({
             webhookUrl: webhookUrl,
             webhookUrlToken: '',
-            getSettingsWebhook: true,
             incomingWebhook: true,
             outgoingWebhook: true,
             outgoingMessageWebhook: true,
@@ -87,6 +86,8 @@ export function GreenAPIWebhookConfig() {
 
   const testWebhook = async () => {
     try {
+      console.log('🧪 Testando webhook...');
+      
       const response = await fetch(webhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -97,15 +98,21 @@ export function GreenAPIWebhookConfig() {
         })
       });
 
+      console.log('📊 Resposta do teste:', response.status);
+
       if (response.ok) {
+        const result = await response.json();
+        console.log('✅ Resultado do teste:', result);
+        
         toast({
           title: "Webhook funcionando!",
           description: "O webhook está respondendo corretamente"
         });
       } else {
-        throw new Error('Webhook não respondeu corretamente');
+        throw new Error(`Webhook retornou status ${response.status}`);
       }
     } catch (error) {
+      console.error('❌ Erro no teste do webhook:', error);
       toast({
         title: "Erro no teste",
         description: "O webhook não está funcionando corretamente",

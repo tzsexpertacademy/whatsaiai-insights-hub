@@ -51,13 +51,6 @@ serve(async (req) => {
         });
       }
 
-      // Se for auto-conversa (mesmo número), processar resposta automática
-      if (await isAutoConversation(supabase, chatId)) {
-        console.log('🤖 Auto-conversa detectada, processando...');
-        await markAsAutoConversation(supabase, chatId, messageText);
-      }
-
-      // Notificar frontend sobre nova mensagem (pode ser usado para atualização em tempo real)
       console.log('✅ Mensagem processada com sucesso');
     }
 
@@ -67,6 +60,17 @@ serve(async (req) => {
       console.log('📊 Status da mensagem:', statusData);
       
       await updateMessageStatus(supabase, statusData);
+    }
+
+    // Resposta de teste para webhook
+    if (webhookData.typeWebhook === 'test') {
+      console.log('🧪 Teste do webhook recebido');
+      return new Response(
+        JSON.stringify({ success: true, message: 'Webhook GREEN-API funcionando corretamente' }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
     }
 
     return new Response(
@@ -110,18 +114,6 @@ async function checkIfChatIsMonitored(supabase: any, chatId: string): Promise<bo
     console.error('Erro ao verificar monitoramento:', error);
     return false;
   }
-}
-
-async function isAutoConversation(supabase: any, chatId: string): Promise<boolean> {
-  // Implementar lógica para detectar auto-conversas
-  // Por enquanto, verificamos se o chatId contém padrões específicos
-  const phoneNumber = chatId.replace('@c.us', '').replace('@g.us', '');
-  
-  // Aqui você pode implementar lógica mais sofisticada para detectar auto-conversas
-  // Por exemplo, comparar com o número da instância GREEN-API
-  console.log('🔍 Verificando auto-conversa para:', phoneNumber);
-  
-  return false; // Por enquanto retorna false, implemente a lógica específica
 }
 
 async function saveConversationToDatabase(supabase: any, messageInfo: any) {
@@ -214,11 +206,6 @@ async function saveConversationToDatabase(supabase: any, messageInfo: any) {
     console.error('❌ Erro no banco de dados:', dbError);
     throw dbError;
   }
-}
-
-async function markAsAutoConversation(supabase: any, chatId: string, messageText: string) {
-  console.log('🔄 Processando auto-conversa:', chatId, messageText);
-  // Implementar lógica específica para auto-conversas se necessário
 }
 
 async function updateMessageStatus(supabase: any, statusData: any) {
