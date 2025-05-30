@@ -165,7 +165,7 @@ export function useGreenAPI() {
     }
   }, [apiConfig.instanceId, apiConfig.apiToken, config?.whatsapp, updateConfig]);
 
-  // Função otimizada para carregar chats
+  // Função otimizada para carregar chats dos últimos 3 dias
   const loadChats = useCallback(async () => {
     if (!user?.id) {
       console.log('❌ Usuário não autenticado');
@@ -174,27 +174,32 @@ export function useGreenAPI() {
 
     // Debounce simples
     const now = Date.now();
-    if (now - lastFetchTime < 3000) {
+    if (now - lastFetchTime < 2000) { // Reduzido para 2 segundos
       console.log('⏳ Aguardando debounce para carregar chats');
       return;
     }
     setLastFetchTime(now);
 
     try {
-      console.log('📱 Carregando chats do banco de dados...');
+      console.log('📱 Carregando chats do banco de dados (últimos 3 dias)...');
+      
+      // Data de 3 dias atrás
+      const threeDaysAgo = new Date();
+      threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
       
       // Buscar conversas do banco de dados (mensagens recebidas via webhook)
       const { data: conversations, error: dbError } = await supabase
         .from('whatsapp_conversations')
         .select(`
           *,
-          whatsapp_messages(
+          whatsapp_messages!inner(
             message_text,
             timestamp,
             sender_type
           )
         `)
         .eq('user_id', user.id)
+        .gte('updated_at', threeDaysAgo.toISOString())
         .order('updated_at', { ascending: false });
 
       if (dbError) {
@@ -214,7 +219,7 @@ export function useGreenAPI() {
           return {
             chatId: conv.contact_phone,
             name: conv.contact_name || conv.contact_phone.split('@')[0],
-            lastMessage: lastMessage?.message_text || 'Sem mensagens',
+            lastMessage: lastMessage?.message_text || 'Sem mensagens recentes',
             unreadCount: 0,
             isPinned: false,
             isMonitored: false,
@@ -223,13 +228,13 @@ export function useGreenAPI() {
           };
         });
         
-        console.log(`✅ ${dbChats.length} conversas carregadas do banco`);
+        console.log(`✅ ${dbChats.length} conversas dos últimos 3 dias carregadas do banco`);
       }
 
-      // Se tiver GREEN-API configurado, buscar chats da API também
+      // Se tiver GREEN-API configurado, buscar chats da API também (apenas recentes)
       if (apiConfig.instanceId && apiConfig.apiToken) {
         try {
-          console.log('📱 Buscando chats do GREEN-API...');
+          console.log('📱 Buscando chats recentes do GREEN-API...');
           
           const response = await fetch(
             `https://api.green-api.com/waInstance${apiConfig.instanceId}/getChats/${apiConfig.apiToken}`,
@@ -241,7 +246,16 @@ export function useGreenAPI() {
             console.log('📊 Chats do GREEN-API:', data?.length || 0);
 
             if (data && Array.isArray(data)) {
-              const apiChats: Chat[] = data.map((chat: any) => ({
+              // Filtrar apenas chats com atividade recente (últimos 3 dias)
+              const recentChats = data.filter((chat: any) => {
+                const lastMessageTime = chat.lastMessage?.timestamp;
+                if (!lastMessageTime) return false;
+                
+                const messageDate = new Date(lastMessageTime * 1000);
+                return messageDate >= threeDaysAgo;
+              });
+
+              const apiChats: Chat[] = recentChats.map((chat: any) => ({
                 chatId: chat.id || chat.chatId,
                 name: chat.name || chat.id?.split('@')[0] || chat.chatId?.split('@')[0],
                 lastMessage: chat.lastMessage?.body || 'Sem mensagens',
@@ -263,7 +277,7 @@ export function useGreenAPI() {
               });
 
               setChats(combinedChats);
-              console.log('✅ Chats combinados salvos:', combinedChats.length);
+              console.log(`✅ ${combinedChats.length} chats combinados salvos (últimos 3 dias)`);
             }
           } else {
             setChats(dbChats);
@@ -301,7 +315,11 @@ export function useGreenAPI() {
     try {
       console.log(`📖 Carregando histórico do chat: ${chatId}`);
       
-      // Buscar mensagens do banco de dados primeiro
+      // Data de 3 dias atrás para limitar busca
+      const threeDaysAgo = new Date();
+      threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+      
+      // Buscar mensagens do banco de dados primeiro (últimos 3 dias)
       const { data: dbMessages, error: dbError } = await supabase
         .from('whatsapp_messages')
         .select(`
@@ -310,11 +328,12 @@ export function useGreenAPI() {
         `)
         .eq('conversation.contact_phone', chatId)
         .eq('conversation.user_id', user.id)
+        .gte('timestamp', threeDaysAgo.toISOString())
         .order('timestamp', { ascending: true })
         .limit(100);
 
       if (!dbError && dbMessages && dbMessages.length > 0) {
-        console.log('📊 Mensagens carregadas do banco:', dbMessages.length);
+        console.log(`📊 ${dbMessages.length} mensagens carregadas do banco (últimos 3 dias)`);
         
         const formattedMessages: Message[] = dbMessages.map((msg: any) => ({
           id: msg.id,
@@ -331,7 +350,7 @@ export function useGreenAPI() {
         return;
       }
 
-      // Se não tiver no banco, tentar buscar do GREEN-API
+      // Se não tiver no banco, tentar buscar do GREEN-API (últimas 50 mensagens)
       if (!apiConfig.instanceId || !apiConfig.apiToken) {
         console.log('⚠️ GREEN-API não configurado');
         setMessages(prev => ({ ...prev, [chatId]: [] }));
@@ -360,7 +379,13 @@ export function useGreenAPI() {
       console.log('📊 Histórico carregado do GREEN-API:', data?.length || 0);
 
       if (data && Array.isArray(data)) {
-        const formattedMessages: Message[] = data.map((msg: any) => ({
+        // Filtrar apenas mensagens dos últimos 3 dias
+        const recentMessages = data.filter((msg: any) => {
+          const messageDate = new Date(msg.timestamp * 1000);
+          return messageDate >= threeDaysAgo;
+        });
+
+        const formattedMessages: Message[] = recentMessages.map((msg: any) => ({
           id: msg.idMessage || Math.random().toString(),
           text: msg.textMessage || msg.extendedTextMessage?.text || '[Mídia]',
           sender: msg.type === 'outgoing' ? 'user' : 'customer',
@@ -372,7 +397,7 @@ export function useGreenAPI() {
         }));
 
         setMessages(prev => ({ ...prev, [chatId]: formattedMessages }));
-        console.log('✅ Histórico formatado e salvo:', formattedMessages.length);
+        console.log(`✅ ${formattedMessages.length} mensagens recentes formatadas e salvas`);
       } else {
         setMessages(prev => ({ ...prev, [chatId]: [] }));
       }
