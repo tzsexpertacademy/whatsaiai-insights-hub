@@ -172,7 +172,7 @@ export function useGreenAPI() {
     }
   }, [apiConfig.instanceId, apiConfig.apiToken, config?.whatsapp, updateConfig]);
 
-  // Otimizar carregamento de chats com debounce
+  // Função para carregar chats incluindo mensagens recebidas
   const loadChats = useCallback(async () => {
     if (!apiConfig.instanceId || !apiConfig.apiToken) {
       console.log('❌ GREEN-API não configurado para carregar chats');
@@ -188,22 +188,62 @@ export function useGreenAPI() {
     setLastFetchTime(now);
 
     try {
-      console.log('📱 Carregando chats do GREEN-API...');
+      console.log('📱 Carregando chats...');
       
+      // Primeiro, buscar conversas do banco de dados (mensagens recebidas)
+      let dbChats: Chat[] = [];
+      
+      if (user?.id) {
+        const { data: conversations, error: dbError } = await supabase
+          .from('whatsapp_conversations')
+          .select(`
+            *,
+            whatsapp_messages!inner(
+              message_text,
+              timestamp,
+              sender_type
+            )
+          `)
+          .eq('user_id', user.id)
+          .order('updated_at', { ascending: false });
+
+        if (!dbError && conversations) {
+          dbChats = conversations.map((conv: any) => {
+            const lastMessage = conv.whatsapp_messages && conv.whatsapp_messages.length > 0 
+              ? conv.whatsapp_messages[conv.whatsapp_messages.length - 1]
+              : null;
+
+            return {
+              chatId: conv.contact_phone,
+              name: conv.contact_name || conv.contact_phone,
+              lastMessage: lastMessage?.message_text || 'Sem mensagens',
+              unreadCount: 0, // Implementar lógica de mensagens não lidas se necessário
+              isPinned: false,
+              isMonitored: false,
+              isGroup: conv.contact_phone.includes('@g.us'),
+              assignedAssistant: ''
+            };
+          });
+        }
+      }
+
+      // Depois, buscar chats do GREEN-API
       const response = await fetch(
         `https://api.green-api.com/waInstance${apiConfig.instanceId}/getChats/${apiConfig.apiToken}`,
         { method: 'GET' }
       );
 
       if (!response.ok) {
-        throw new Error(`Erro ao carregar chats: ${response.status}`);
+        console.log('⚠️ Não foi possível carregar chats do GREEN-API, usando apenas dados do banco');
+        setChats(dbChats);
+        return;
       }
 
       const data = await response.json();
       console.log('📊 Chats carregados do GREEN-API:', data?.length || 0);
 
       if (data && Array.isArray(data)) {
-        const formattedChats: Chat[] = data.map((chat: any) => ({
+        const apiChats: Chat[] = data.map((chat: any) => ({
           chatId: chat.id || chat.chatId,
           name: chat.name || chat.chatId,
           lastMessage: chat.lastMessage?.body || 'Sem mensagens',
@@ -214,18 +254,56 @@ export function useGreenAPI() {
           assignedAssistant: ''
         }));
 
-        setChats(formattedChats);
-        console.log('✅ Chats formatados e salvos:', formattedChats.length);
+        // Combinar chats do banco com chats da API, priorizando dados do banco
+        const combinedChats = [...dbChats];
+        
+        apiChats.forEach(apiChat => {
+          const existsInDb = dbChats.find(dbChat => dbChat.chatId === apiChat.chatId);
+          if (!existsInDb) {
+            combinedChats.push(apiChat);
+          }
+        });
+
+        setChats(combinedChats);
+        console.log('✅ Chats combinados salvos:', combinedChats.length);
+      } else {
+        setChats(dbChats);
       }
     } catch (error) {
       console.error('❌ Erro ao carregar chats:', error);
+      // Em caso de erro, usar apenas dados do banco se existirem
+      if (user?.id) {
+        try {
+          const { data: conversations } = await supabase
+            .from('whatsapp_conversations')
+            .select('*')
+            .eq('user_id', user.id);
+          
+          if (conversations) {
+            const fallbackChats = conversations.map((conv: any) => ({
+              chatId: conv.contact_phone,
+              name: conv.contact_name || conv.contact_phone,
+              lastMessage: 'Carregue o histórico para ver mensagens',
+              unreadCount: 0,
+              isPinned: false,
+              isMonitored: false,
+              isGroup: conv.contact_phone.includes('@g.us'),
+              assignedAssistant: ''
+            }));
+            setChats(fallbackChats);
+          }
+        } catch (dbError) {
+          console.error('❌ Erro ao carregar dados do banco:', dbError);
+        }
+      }
+      
       toast({
         title: "Erro ao carregar chats",
         description: "Verifique suas credenciais GREEN-API",
         variant: "destructive"
       });
     }
-  }, [apiConfig.instanceId, apiConfig.apiToken, lastFetchTime, toast]);
+  }, [apiConfig.instanceId, apiConfig.apiToken, lastFetchTime, user?.id, toast]);
 
   const loadChatHistory = useCallback(async (chatId: string) => {
     if (!chatId) {
@@ -242,7 +320,7 @@ export function useGreenAPI() {
     try {
       console.log(`📖 Carregando histórico do chat: ${chatId}`);
       
-      // Primeiro, tentar carregar do banco de dados
+      // Primeiro, carregar mensagens do banco de dados
       if (user?.id) {
         const { data: dbMessages, error: dbError } = await supabase
           .from('whatsapp_messages')
@@ -251,8 +329,9 @@ export function useGreenAPI() {
             conversation:whatsapp_conversations!inner(*)
           `)
           .eq('conversation.contact_phone', chatId)
+          .eq('conversation.user_id', user.id)
           .order('timestamp', { ascending: true })
-          .limit(50);
+          .limit(100);
 
         if (!dbError && dbMessages && dbMessages.length > 0) {
           console.log('📊 Mensagens carregadas do banco:', dbMessages.length);
@@ -261,7 +340,10 @@ export function useGreenAPI() {
             id: msg.id,
             text: msg.message_text,
             sender: msg.sender_type === 'customer' ? 'customer' : 'user',
-            timestamp: new Date(msg.timestamp).toLocaleTimeString(),
+            timestamp: new Date(msg.timestamp).toLocaleTimeString('pt-BR', {
+              hour: '2-digit',
+              minute: '2-digit'
+            }),
             platform: 'database'
           }));
 
@@ -270,7 +352,7 @@ export function useGreenAPI() {
         }
       }
 
-      // Se não tiver no banco, carregar do GREEN-API
+      // Se não tiver no banco, tentar carregar do GREEN-API
       if (!apiConfig.instanceId || !apiConfig.apiToken) {
         console.log('⚠️ GREEN-API não configurado');
         setMessages(prev => ({ ...prev, [chatId]: [] }));
@@ -303,7 +385,10 @@ export function useGreenAPI() {
           id: msg.idMessage || Math.random().toString(),
           text: msg.textMessage || msg.extendedTextMessage?.text || '[Mídia]',
           sender: msg.type === 'outgoing' ? 'user' : 'customer',
-          timestamp: new Date(msg.timestamp * 1000).toLocaleTimeString(),
+          timestamp: new Date(msg.timestamp * 1000).toLocaleTimeString('pt-BR', {
+            hour: '2-digit',
+            minute: '2-digit'
+          }),
           platform: 'greenapi'
         }));
 
