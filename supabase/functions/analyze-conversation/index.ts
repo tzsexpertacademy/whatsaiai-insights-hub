@@ -28,6 +28,8 @@ interface AnalysisRequest {
   analysisType: string;
   timestamp: string;
   conversationsData?: any[];
+  chatHistoryData?: any[];
+  onlyRealData?: boolean;
 }
 
 serve(async (req) => {
@@ -49,7 +51,9 @@ serve(async (req) => {
       assistantsCount: requestBody.assistants?.length,
       hasOpenAIKey: !!requestBody.openaiConfig?.apiKey,
       analysisType: requestBody.analysisType,
-      hasConversationsData: !!requestBody.conversationsData
+      hasConversationsData: !!requestBody.conversationsData,
+      hasChatHistoryData: !!requestBody.chatHistoryData,
+      onlyRealData: requestBody.onlyRealData
     });
 
     const {
@@ -58,7 +62,8 @@ serve(async (req) => {
       assistants,
       analysisType,
       timestamp,
-      conversationsData
+      conversationsData,
+      chatHistoryData
     }: AnalysisRequest = requestBody;
 
     // Validações de segurança
@@ -93,58 +98,106 @@ serve(async (req) => {
     console.log('🤖 Assistentes configurados:', assistants.map(a => `${a.name} (${a.model}) - ${a.area}`));
 
     // Usar dados de conversas fornecidos ou buscar do banco
-    let conversations = conversationsData;
+    let conversations = conversationsData || [];
+    let chatHistory = chatHistoryData || [];
 
-    if (!conversations || conversations.length === 0) {
-      console.log('📋 Buscando conversas do WhatsApp no banco...');
+    // Se não há dados fornecidos, buscar do banco
+    if (conversations.length === 0 && chatHistory.length === 0) {
+      console.log('📋 Buscando dados do banco...');
       
       // Buscar conversações do WhatsApp
-      const { data: whatsappConversations, error: convError } = await supabaseClient
+      const { data: whatsappConversations, error: whatsappError } = await supabaseClient
         .from('whatsapp_conversations')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      if (whatsappError) {
+        console.error('❌ Erro ao buscar conversações WhatsApp:', whatsappError);
+      } else {
+        conversations = [...conversations, ...(whatsappConversations || [])];
+      }
+
+      // Buscar conversações comerciais
+      const { data: commercialConversations, error: commercialError } = await supabaseClient
+        .from('commercial_conversations')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      if (commercialError) {
+        console.error('❌ Erro ao buscar conversações comerciais:', commercialError);
+      } else {
+        conversations = [...conversations, ...(commercialConversations || [])];
+      }
+
+      // Buscar histórico de chat
+      const { data: chatHistoryFromDB, error: chatHistoryError } = await supabaseClient
+        .from('chat_history')
         .select('*')
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
         .limit(50);
 
-      if (convError) {
-        console.error('❌ Erro ao buscar conversações WhatsApp:', convError);
-        return new Response(
-          JSON.stringify({ 
-            success: false, 
-            error: `Erro ao buscar conversas: ${convError.message}` 
-          }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+      if (chatHistoryError) {
+        console.error('❌ Erro ao buscar histórico de chat:', chatHistoryError);
+      } else {
+        chatHistory = chatHistoryFromDB || [];
       }
-
-      conversations = whatsappConversations || [];
     }
 
-    console.log(`📊 Total de conversas para análise: ${conversations.length}`);
+    const totalDataSources = conversations.length + chatHistory.length;
+    console.log(`📊 Total de dados para análise: ${totalDataSources} (conversas: ${conversations.length}, chat: ${chatHistory.length})`);
 
-    // SEMPRE EXIGIR CONVERSAS REAIS - NUNCA CRIAR DADOS DEMO
-    if (!conversations || conversations.length === 0) {
-      console.log('❌ Nenhuma conversa encontrada - análise cancelada');
+    // SEMPRE EXIGIR DADOS REAIS - NUNCA CRIAR DADOS DEMO
+    if (totalDataSources === 0) {
+      console.log('❌ Nenhum dado encontrado - análise cancelada');
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'Nenhuma conversa encontrada para análise. Importe conversas do WhatsApp primeiro.' 
+          error: 'Nenhum dado encontrado para análise. É necessário ter conversas do WhatsApp, comerciais ou histórico de chat com assistentes para executar a análise.' 
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     // Preparar texto para análise
-    const conversationText = conversations
-      .map(conv => {
-        if (conv.messages && Array.isArray(conv.messages)) {
-          return conv.messages.map(msg => `[${conv.contact_name || 'Contato'}]: ${msg.text || msg.message_text || msg.message || 'Mensagem'}`).join('\n');
-        }
-        return `[${conv.contact_name || 'Contato'}]: Conversa registrada em ${new Date(conv.created_at).toLocaleString('pt-BR')}`;
-      })
-      .join('\n');
+    let analysisText = '';
+    
+    // Adicionar conversas
+    if (conversations.length > 0) {
+      analysisText += conversations
+        .map(conv => {
+          const contactName = conv.contact_name || conv.participant_name || 'Contato';
+          const content = conv.last_message || conv.content || `Conversa registrada em ${new Date(conv.created_at).toLocaleString('pt-BR')}`;
+          return `[${contactName}]: ${content}`;
+        })
+        .join('\n') + '\n';
+    }
 
-    console.log(`📝 Texto preparado para análise: ${conversationText.length} caracteres`);
+    // Adicionar histórico de chat
+    if (chatHistory.length > 0) {
+      analysisText += chatHistory
+        .map(chat => {
+          return `[Usuário]: ${chat.user_message}\n[Assistente ${chat.assistant_id}]: ${chat.assistant_response}`;
+        })
+        .join('\n');
+    }
+
+    console.log(`📝 Texto preparado para análise: ${analysisText.length} caracteres`);
+
+    if (analysisText.length === 0) {
+      console.log('❌ Texto vazio para análise');
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'Dados insuficientes para análise - conteúdo vazio' 
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     const insights = [];
     const assistantsUsed = [];
@@ -159,19 +212,19 @@ serve(async (req) => {
 
 CONTEXTO DE ANÁLISE:
 - Você é o assistente "${assistant.name}" especializado em "${assistant.area}"
-- Sua função é analisar as conversações do usuário e gerar insights específicos
+- Sua função é analisar os dados reais do usuário e gerar insights específicos
 - Foque na sua área de especialização: ${assistant.area}
 
 INSTRUÇÕES ESPECÍFICAS:
-- Analise as conversações fornecidas
-- Gere insights práticos e acionáveis
+- Analise os dados fornecidos (conversas e histórico de chat)
+- Gere insights práticos e acionáveis baseados APENAS nos dados reais
 - Seja objetivo e construtivo  
 - Máximo 200 palavras
 - Responda sempre em português brasileiro
 - Identifique padrões comportamentais relevantes à sua área
 
-DADOS PARA ANÁLISE:
-${conversationText.substring(0, 3000)}`;
+DADOS REAIS PARA ANÁLISE:
+${analysisText.substring(0, 3000)}`;
 
         console.log(`📤 Enviando requisição para OpenAI - Assistente: ${assistant.name}`);
 
@@ -185,10 +238,10 @@ ${conversationText.substring(0, 3000)}`;
             model: assistant.model,
             messages: [
               { role: 'system', content: systemPrompt },
-              { role: 'user', content: `Analise as conversações e gere insights específicos para a área de ${assistant.area}.` }
+              { role: 'user', content: `Analise os dados reais e gere insights específicos para a área de ${assistant.area}.` }
             ],
-            temperature: openaiConfig.temperature,
-            max_tokens: Math.min(openaiConfig.maxTokens, 500),
+            temperature: openaiConfig.temperature || 0.5,
+            max_tokens: Math.min(openaiConfig.maxTokens || 250, 500),
           }),
         });
 
@@ -201,13 +254,13 @@ ${conversationText.substring(0, 3000)}`;
         }
 
         const aiData = await response.json();
-        const insight = aiData.choices[0]?.message?.content;
+        const insight = aiData.choices?.[0]?.message?.content;
 
-        if (insight) {
+        if (insight && insight.trim().length > 0) {
           const insightData = {
             assistant_id: assistant.id,
             assistant_name: assistant.name,
-            content: insight,
+            content: insight.trim(),
             area: assistant.area,
             model_used: assistant.model,
             generated_at: new Date().toISOString()
@@ -235,7 +288,7 @@ ${conversationText.substring(0, 3000)}`;
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'Nenhum insight foi gerado pelos assistentes. Verifique a configuração da OpenAI.' 
+          error: 'Nenhum insight foi gerado pelos assistentes. Verifique a configuração da OpenAI e os dados disponíveis.' 
         }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -262,7 +315,9 @@ ${conversationText.substring(0, 3000)}`;
             model_used: insight.model_used,
             generated_at: insight.generated_at,
             analysis_type: analysisType,
-            conversations_analyzed: conversations.length
+            conversations_analyzed: conversations.length,
+            chat_history_analyzed: chatHistory.length,
+            total_data_sources: totalDataSources
           }
         }))
       );
@@ -286,7 +341,9 @@ ${conversationText.substring(0, 3000)}`;
       insightsGenerated: insights.length,
       assistantsUsed: assistantsUsed.length,
       processingTime: `${processingTime}ms`,
-      conversationsAnalyzed: conversations.length
+      conversationsAnalyzed: conversations.length,
+      chatHistoryAnalyzed: chatHistory.length,
+      totalDataSources: totalDataSources
     });
 
     return new Response(
@@ -296,7 +353,9 @@ ${conversationText.substring(0, 3000)}`;
         assistantsUsed: assistantsUsed,
         processingTime: processingTime,
         conversationsAnalyzed: conversations.length,
-        message: `Análise concluída com ${insights.length} insights gerados por ${assistantsUsed.length} assistentes`
+        chatHistoryAnalyzed: chatHistory.length,
+        totalDataSources: totalDataSources,
+        message: `Análise concluída com ${insights.length} insights gerados por ${assistantsUsed.length} assistentes baseados em dados reais`
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
