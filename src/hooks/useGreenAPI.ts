@@ -1,3 +1,4 @@
+
 import { useState, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useClientConfig } from '@/contexts/ClientConfigContext';
@@ -107,7 +108,10 @@ export function useGreenAPI() {
   const checkInstanceStatus = useCallback(async () => {
     const { instanceId, apiToken } = getAPIConfig();
     
+    console.log('🔍 Verificando status da instância:', { instanceId: instanceId ? 'presente' : 'ausente', apiToken: apiToken ? 'presente' : 'ausente' });
+    
     if (!instanceId || !apiToken) {
+      console.log('❌ Credenciais não configuradas');
       setConnectionState(prev => ({ ...prev, isConnected: false }));
       return false;
     }
@@ -115,16 +119,23 @@ export function useGreenAPI() {
     try {
       setConnectionState(prev => ({ ...prev, isLoading: true }));
       
-      const response = await fetch(
-        `https://api.green-api.com/waInstance${instanceId}/getStateInstance/${apiToken}`
-      );
+      const url = `https://api.green-api.com/waInstance${instanceId}/getStateInstance/${apiToken}`;
+      console.log('📡 Fazendo requisição para:', url);
+      
+      const response = await fetch(url);
+      console.log('📥 Status da resposta:', response.status, response.statusText);
 
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+        const errorText = await response.text();
+        console.error('❌ Erro na resposta:', errorText);
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
       }
 
       const data = await response.json();
+      console.log('📋 Dados recebidos:', data);
+      
       const isConnected = data.stateInstance === 'authorized';
+      console.log('✅ Status de conexão:', isConnected ? 'CONECTADO' : 'DESCONECTADO');
       
       let phoneNumber = '';
       if (isConnected) {
@@ -135,9 +146,10 @@ export function useGreenAPI() {
           if (settingsResponse.ok) {
             const settingsData = await settingsResponse.json();
             phoneNumber = settingsData.wid || `Instance ${instanceId}`;
+            console.log('📞 Número obtido:', phoneNumber);
           }
         } catch (error) {
-          console.log('Não foi possível obter número do telefone:', error);
+          console.log('⚠️ Não foi possível obter número do telefone:', error);
           phoneNumber = `Instance ${instanceId}`;
         }
       }
@@ -151,7 +163,7 @@ export function useGreenAPI() {
 
       return isConnected;
     } catch (error) {
-      console.error('Erro ao verificar status:', error);
+      console.error('❌ Erro ao verificar status:', error);
       setConnectionState(prev => ({
         ...prev,
         isConnected: false,
@@ -247,20 +259,28 @@ export function useGreenAPI() {
   const loadChats = useCallback(async () => {
     const { instanceId, apiToken } = getAPIConfig();
     
+    console.log('📱 Iniciando carregamento de conversas...');
+    
     if (!instanceId || !apiToken || !connectionState.isConnected) {
+      console.log('❌ Não é possível carregar conversas - credenciais ou conexão ausente');
       return;
     }
 
     try {
-      const response = await fetch(
-        `https://api.green-api.com/waInstance${instanceId}/getChats/${apiToken}`
-      );
+      const url = `https://api.green-api.com/waInstance${instanceId}/getChats/${apiToken}`;
+      console.log('📡 Fazendo requisição para conversas:', url);
+      
+      const response = await fetch(url);
+      console.log('📥 Status da resposta de conversas:', response.status, response.statusText);
 
       if (!response.ok) {
-        throw new Error(`Erro HTTP: ${response.status}`);
+        const errorText = await response.text();
+        console.error('❌ Erro na resposta de conversas:', errorText);
+        throw new Error(`Erro HTTP: ${response.status} - ${errorText}`);
       }
 
       const data = await response.json();
+      console.log('📋 Dados de conversas recebidos:', data);
       
       if (Array.isArray(data)) {
         const formattedChats: Chat[] = data.slice(0, 20).map((chat: any) => ({
@@ -273,13 +293,15 @@ export function useGreenAPI() {
         }));
 
         setChats(formattedChats);
-        console.log(`✅ Carregadas ${formattedChats.length} conversas`);
+        console.log(`✅ Carregadas ${formattedChats.length} conversas:`, formattedChats.map(c => c.name));
+      } else {
+        console.error('❌ Resposta de conversas não é um array:', data);
       }
     } catch (error) {
-      console.error('Erro ao carregar conversas:', error);
+      console.error('❌ Erro ao carregar conversas:', error);
       toast({
         title: "Erro ao carregar conversas",
-        description: "Verifique sua conexão GREEN-API",
+        description: `${error instanceof Error ? error.message : 'Erro desconhecido'}`,
         variant: "destructive"
       });
     }
@@ -289,7 +311,10 @@ export function useGreenAPI() {
   const loadChatMessages = useCallback(async (chatId: string, period: MessagePeriod = currentPeriod) => {
     const { instanceId, apiToken } = getAPIConfig();
     
+    console.log(`📨 Iniciando carregamento de mensagens para chat: ${chatId}, período: ${period}`);
+    
     if (!instanceId || !apiToken || !chatId) {
+      console.log('❌ Não é possível carregar mensagens - parâmetros ausentes');
       return;
     }
 
@@ -298,43 +323,69 @@ export function useGreenAPI() {
     try {
       const startDate = getStartDate(period);
       const startTimestamp = Math.floor(startDate.getTime() / 1000);
+      console.log(`📅 Período: ${period}, data de início: ${startDate.toISOString()}, timestamp: ${startTimestamp}`);
       
-      const response = await fetch(
-        `https://api.green-api.com/waInstance${instanceId}/getChatHistory/${apiToken}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            chatId: chatId,
-            count: period === 'today' ? 50 : period === '7days' ? 100 : 200
-          })
-        }
-      );
+      const url = `https://api.green-api.com/waInstance${instanceId}/getChatHistory/${apiToken}`;
+      const requestBody = {
+        chatId: chatId,
+        count: period === 'today' ? 50 : period === '7days' ? 100 : 200
+      };
+      
+      console.log('📡 Fazendo requisição para mensagens:', url);
+      console.log('📋 Body da requisição:', requestBody);
+      
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody)
+      });
+
+      console.log('📥 Status da resposta de mensagens:', response.status, response.statusText);
 
       if (!response.ok) {
-        throw new Error(`Erro HTTP: ${response.status}`);
+        const errorText = await response.text();
+        console.error('❌ Erro na resposta de mensagens:', errorText);
+        throw new Error(`Erro HTTP: ${response.status} - ${errorText}`);
       }
 
       const data = await response.json();
+      console.log('📋 Dados de mensagens recebidos:', data);
+      console.log('📊 Tipo dos dados:', typeof data, 'É array:', Array.isArray(data));
       
       if (Array.isArray(data)) {
+        console.log(`📨 Total de mensagens brutas: ${data.length}`);
+        
         let filteredData = data;
         
         // Filtrar por período se não for 'all'
         if (period !== 'all') {
           filteredData = data.filter((msg: any) => {
             const msgTimestamp = msg.timestamp || 0;
-            return msgTimestamp >= startTimestamp;
+            const isInPeriod = msgTimestamp >= startTimestamp;
+            if (!isInPeriod) {
+              console.log(`🔄 Mensagem filtrada (fora do período): timestamp ${msgTimestamp}, limite ${startTimestamp}`);
+            }
+            return isInPeriod;
           });
+          console.log(`📊 Mensagens após filtro de período: ${filteredData.length}`);
         }
         
-        const formattedMessages: Message[] = filteredData.map((msg: any) => ({
-          id: msg.idMessage || Math.random().toString(),
-          text: msg.textMessage || '[Mídia]',
-          sender: msg.type === 'outgoing' ? 'user' : 'contact',
-          timestamp: new Date(msg.timestamp * 1000).toISOString(),
-          chatId: chatId
-        }));
+        const formattedMessages: Message[] = filteredData.map((msg: any, index: number) => {
+          console.log(`📝 Formatando mensagem ${index + 1}:`, {
+            id: msg.idMessage,
+            type: msg.type,
+            text: msg.textMessage,
+            timestamp: msg.timestamp
+          });
+          
+          return {
+            id: msg.idMessage || Math.random().toString(),
+            text: msg.textMessage || '[Mídia]',
+            sender: msg.type === 'outgoing' ? 'user' : 'contact',
+            timestamp: new Date(msg.timestamp * 1000).toISOString(),
+            chatId: chatId
+          };
+        });
 
         // Atualizar apenas as mensagens do chat atual
         setMessages(prev => [
@@ -344,13 +395,21 @@ export function useGreenAPI() {
         
         setCurrentPeriod(period);
         
-        console.log(`✅ Carregadas ${formattedMessages.length} mensagens (${period}) para ${chatId}`);
+        console.log(`✅ Processadas ${formattedMessages.length} mensagens (${period}) para ${chatId}`);
+        
+        // Log das primeiras mensagens para debug
+        if (formattedMessages.length > 0) {
+          console.log('📋 Primeiras mensagens formatadas:', formattedMessages.slice(0, 3));
+        }
+      } else {
+        console.error('❌ Resposta de mensagens não é um array:', data);
+        console.error('📋 Estrutura da resposta:', Object.keys(data || {}));
       }
     } catch (error) {
-      console.error('Erro ao carregar mensagens:', error);
+      console.error('❌ Erro ao carregar mensagens:', error);
       toast({
         title: "Erro ao carregar mensagens",
-        description: "Não foi possível carregar as mensagens",
+        description: `${error instanceof Error ? error.message : 'Erro desconhecido'}`,
         variant: "destructive"
       });
     } finally {
