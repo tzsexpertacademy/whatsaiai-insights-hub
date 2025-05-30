@@ -1,52 +1,68 @@
-
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useAnalysisData } from '@/contexts/AnalysisDataContext';
-import { Loader2, Lightbulb, Bot, Clock, TrendingUp } from 'lucide-react';
+import { Loader2, Lightbulb, Bot, Clock, TrendingUp, AlertCircle } from 'lucide-react';
+import { PageLayout } from '@/components/layout/PageLayout';
+import { AIAnalysisButton } from '@/components/AIAnalysisButton';
 
 export function Recommendations() {
   const { data, isLoading } = useAnalysisData();
 
+  const headerActions = (
+    <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+      <Badge className="bg-green-100 text-green-800 text-xs sm:text-sm">
+        💡 Recomendações IA
+      </Badge>
+      <AIAnalysisButton />
+    </div>
+  );
+
   if (isLoading) {
     return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-800 mb-2">Recomendações</h1>
-          <p className="text-slate-600">Sugestões de crescimento personalizadas pelos assistentes</p>
-        </div>
+      <PageLayout
+        title="Recomendações"
+        description="Sugestões de crescimento personalizadas pelos assistentes"
+        showBackButton={true}
+        headerActions={headerActions}
+      >
         <div className="flex items-center justify-center py-20">
           <Loader2 className="h-12 w-12 animate-spin text-gray-500" />
         </div>
-      </div>
+      </PageLayout>
     );
   }
 
   if (!data.hasRealData) {
     return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-800 mb-2">Recomendações</h1>
-          <p className="text-slate-600">Sugestões de crescimento personalizadas pelos assistentes</p>
-        </div>
-        
-        <Card className="bg-white/70 backdrop-blur-sm border-white/50">
-          <CardContent className="p-12">
-            <div className="flex flex-col items-center justify-center text-center space-y-4">
-              <Lightbulb className="h-16 w-16 text-gray-400" />
-              <h3 className="text-xl font-semibold text-gray-600">Recomendações não geradas</h3>
-              <p className="text-gray-500 max-w-md">
-                Para gerar sugestões personalizadas, os assistentes precisam analisar suas conversas.
-              </p>
-              <div className="text-left text-sm text-gray-600 space-y-1">
-                <p>• Execute a análise por IA no dashboard</p>
-                <p>• Os assistentes irão gerar recomendações personalizadas</p>
-                <p>• Dados serão atualizados automaticamente</p>
+      <PageLayout
+        title="Recomendações"
+        description="Sugestões de crescimento personalizadas pelos assistentes"
+        showBackButton={true}
+        headerActions={headerActions}
+      >
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-orange-500" />
+              Recomendações não geradas
+            </CardTitle>
+            <CardDescription>
+              Para gerar sugestões personalizadas, os assistentes precisam analisar suas conversas.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="text-center py-8">
+              <Lightbulb className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+              <div className="space-y-2">
+                <p className="text-sm text-gray-600">• Execute a análise por IA no dashboard</p>
+                <p className="text-sm text-gray-600">• Os assistentes irão gerar recomendações personalizadas</p>
+                <p className="text-sm text-gray-600">• Dados serão atualizados automaticamente</p>
               </div>
             </div>
           </CardContent>
         </Card>
-      </div>
+      </PageLayout>
     );
   }
 
@@ -69,12 +85,12 @@ export function Recommendations() {
     }) : null;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-slate-800 mb-2">Recomendações</h1>
-        <p className="text-slate-600">Sugestões de crescimento personalizadas pelos assistentes</p>
-      </div>
-
+    <PageLayout
+      title="Recomendações"
+      description="Sugestões de crescimento personalizadas pelos assistentes"
+      showBackButton={true}
+      headerActions={headerActions}
+    >
       {/* Indicadores dos assistentes */}
       <div className="flex flex-wrap items-center gap-2 mb-4">
         <Badge variant="outline" className="bg-purple-50 text-purple-700">
@@ -189,6 +205,6 @@ export function Recommendations() {
           </CardContent>
         </Card>
       )}
-    </div>
+    </PageLayout>
   );
 }

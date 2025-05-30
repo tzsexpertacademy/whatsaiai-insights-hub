@@ -4,22 +4,30 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Smartphone, Wifi, WifiOff, QrCode } from 'lucide-react';
 import { useClientConfig } from "@/contexts/ClientConfigContext";
+import { PageLayout } from '@/components/layout/PageLayout';
+import { Badge } from "@/components/ui/badge";
 
 export function WhatsAppConnection() {
   const { config } = useClientConfig();
   const whatsappConfig = config.whatsapp;
+
+  const headerActions = (
+    <Badge className="bg-green-100 text-green-800 text-xs sm:text-sm">
+      📱 WhatsApp Business
+    </Badge>
+  );
 
   const navigateToSettings = () => {
     window.location.href = '/settings';
   };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-slate-800 mb-2">Conexão WhatsApp</h1>
-        <p className="text-slate-600">Configure sua conexão com o WhatsApp Business</p>
-      </div>
-
+    <PageLayout
+      title="Conexão WhatsApp"
+      description="Configure sua conexão com o WhatsApp Business"
+      showBackButton={true}
+      headerActions={headerActions}
+    >
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="bg-white/70 backdrop-blur-sm border-white/50">
           <CardHeader>
@@ -134,6 +142,6 @@ export function WhatsAppConnection() {
           </div>
         </CardContent>
       </Card>
-    </div>
+    </PageLayout>
   );
 }

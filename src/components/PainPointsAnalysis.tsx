@@ -1,52 +1,68 @@
-
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useAnalysisData } from '@/contexts/AnalysisDataContext';
 import { Loader2, AlertTriangle, Bot, Clock, TrendingDown } from 'lucide-react';
+import { PageLayout } from '@/components/layout/PageLayout';
+import { AIAnalysisButton } from '@/components/AIAnalysisButton';
 
 export function PainPointsAnalysis() {
   const { data, isLoading } = useAnalysisData();
 
+  const headerActions = (
+    <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+      <Badge className="bg-red-100 text-red-800 text-xs sm:text-sm">
+        ⚠️ Pontos de Dor
+      </Badge>
+      <AIAnalysisButton />
+    </div>
+  );
+
   if (isLoading) {
     return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-800 mb-2">Pontos de Dor</h1>
-          <p className="text-slate-600">Áreas de atenção identificadas pelos assistentes</p>
-        </div>
+      <PageLayout
+        title="Pontos de Dor"
+        description="Áreas de atenção identificadas pelos assistentes"
+        showBackButton={true}
+        headerActions={headerActions}
+      >
         <div className="flex items-center justify-center py-20">
           <Loader2 className="h-12 w-12 animate-spin text-gray-500" />
         </div>
-      </div>
+      </PageLayout>
     );
   }
 
   if (!data.hasRealData) {
     return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-800 mb-2">Pontos de Dor</h1>
-          <p className="text-slate-600">Áreas de atenção identificadas pelos assistentes</p>
-        </div>
-        
-        <Card className="bg-white/70 backdrop-blur-sm border-white/50">
-          <CardContent className="p-12">
-            <div className="flex flex-col items-center justify-center text-center space-y-4">
-              <AlertTriangle className="h-16 w-16 text-gray-400" />
-              <h3 className="text-xl font-semibold text-gray-600">Pontos de dor não identificados</h3>
-              <p className="text-gray-500 max-w-md">
-                Para identificar áreas de atenção, os assistentes precisam analisar suas conversas.
-              </p>
-              <div className="text-left text-sm text-gray-600 space-y-1">
-                <p>• Execute a análise por IA no dashboard</p>
-                <p>• Os assistentes irão identificar pontos de melhoria</p>
-                <p>• Dados serão atualizados automaticamente</p>
+      <PageLayout
+        title="Pontos de Dor"
+        description="Áreas de atenção identificadas pelos assistentes"
+        showBackButton={true}
+        headerActions={headerActions}
+      >
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-orange-500" />
+              Pontos de dor não identificados
+            </CardTitle>
+            <CardDescription>
+              Para identificar áreas de atenção, os assistentes precisam analisar suas conversas.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="text-center py-8">
+              <AlertTriangle className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+              <div className="space-y-2">
+                <p className="text-sm text-gray-600">• Execute a análise por IA no dashboard</p>
+                <p className="text-sm text-gray-600">• Os assistentes irão identificar pontos de melhoria</p>
+                <p className="text-sm text-gray-600">• Dados serão atualizados automaticamente</p>
               </div>
             </div>
           </CardContent>
         </Card>
-      </div>
+      </PageLayout>
     );
   }
 
@@ -69,12 +85,12 @@ export function PainPointsAnalysis() {
     }) : null;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-slate-800 mb-2">Pontos de Dor</h1>
-        <p className="text-slate-600">Áreas de atenção identificadas pelos assistentes</p>
-      </div>
-
+    <PageLayout
+      title="Pontos de Dor"
+      description="Áreas de atenção identificadas pelos assistentes"
+      showBackButton={true}
+      headerActions={headerActions}
+    >
       {/* Indicadores dos assistentes */}
       <div className="flex flex-wrap items-center gap-2 mb-4">
         <Badge variant="outline" className="bg-purple-50 text-purple-700">
@@ -207,6 +223,6 @@ export function PainPointsAnalysis() {
           </CardContent>
         </Card>
       )}
-    </div>
+    </PageLayout>
   );
 }
