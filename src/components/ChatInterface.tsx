@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -46,13 +47,23 @@ export function ChatInterface() {
   } = useGreenAPI();
 
   useEffect(() => {
-    if (selectedChat) {
-      loadChatHistory(selectedChat.chatId);
+    if (selectedChat && selectedChat.chatId) {
+      console.log('📱 Carregando histórico para chat selecionado:', selectedChat.chatId);
+      loadChatHistory(selectedChat.chatId).catch(error => {
+        console.error('❌ Erro ao carregar histórico:', error);
+        toast({
+          title: "Erro ao carregar histórico",
+          description: "Não foi possível carregar o histórico do chat",
+          variant: "destructive"
+        });
+      });
     }
-  }, [selectedChat, loadChatHistory]);
+  }, [selectedChat, loadChatHistory, toast]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
   }, [messages, selectedChat]);
 
   // Polling para atualizar conversas automaticamente
@@ -111,7 +122,9 @@ export function ChatInterface() {
   };
 
   const renderChatMessages = () => {
-    const chatMessages = messages[selectedChat?.chatId] || [];
+    if (!selectedChat?.chatId) return null;
+    
+    const chatMessages = messages[selectedChat.chatId] || [];
 
     return chatMessages.map((msg) => (
       <div
@@ -125,7 +138,7 @@ export function ChatInterface() {
           {msg.text}
           <div className="text-xs text-gray-500 mt-1">
             <Clock className="h-3 w-3 inline-block mr-1" />
-            {new Date(msg.timestamp).toLocaleTimeString()}
+            {msg.timestamp}
           </div>
         </div>
       </div>
@@ -141,6 +154,7 @@ export function ChatInterface() {
         description: "Lista de conversas foi atualizada com sucesso"
       });
     } catch (error) {
+      console.error('❌ Erro ao atualizar conversas:', error);
       toast({
         title: "Erro ao atualizar",
         description: "Não foi possível atualizar as conversas",
@@ -273,8 +287,9 @@ export function ChatInterface() {
             </CardHeader>
             
             <CardContent className="flex-1 flex flex-col p-0">
-              <ScrollArea className="flex-1 p-4" ref={messagesEndRef}>
+              <ScrollArea className="flex-1 p-4">
                 {renderChatMessages()}
+                <div ref={messagesEndRef} />
               </ScrollArea>
               
               <Separator />
