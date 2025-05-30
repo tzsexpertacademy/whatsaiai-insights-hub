@@ -4,12 +4,14 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 import { useClientConfig } from '@/contexts/ClientConfigContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { Send, Bot, User, Loader2, RefreshCw, Zap, Settings, BarChart3, Brain, MessageSquare } from 'lucide-react';
+import { Send, Bot, User, Loader2, RefreshCw, Zap, Settings, BarChart3, Brain, MessageSquare, History, Trash2 } from 'lucide-react';
 import { useAssistantsConfig } from '@/hooks/useAssistantsConfig';
 import { useAIReportUpdate } from '@/hooks/useAIReportUpdate';
+import { useChatHistory } from '@/hooks/useChatHistory';
 import { PageLayout } from '@/components/layout/PageLayout';
 
 interface Message {
@@ -17,6 +19,7 @@ interface Message {
   sender: 'user' | 'bot';
   text: string;
   timestamp: string;
+  assistantId?: string;
 }
 
 interface Assistant {
@@ -32,6 +35,7 @@ export function ChatWithAssistants() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [selectedAssistant, setSelectedAssistant] = useState<string | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const { config } = useClientConfig();
   const { user } = useAuth();
@@ -40,13 +44,24 @@ export function ChatWithAssistants() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isConfiguring, setIsConfiguring] = useState(false);
   const { updateReport, isUpdating } = useAIReportUpdate();
+  const { chatHistory, isLoading: isLoadingHistory, saveChatMessage, clearChatHistory } = useChatHistory();
 
   const isOpenAIConfigured = config.openai?.apiKey && config.openai.apiKey.startsWith('sk-');
 
   const headerActions = (
-    <Badge className="bg-purple-100 text-purple-800 text-xs sm:text-sm">
-      🤖 Chat com Assistentes
-    </Badge>
+    <div className="flex items-center gap-2">
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => setShowHistory(!showHistory)}
+      >
+        <History className="w-4 h-4 mr-2" />
+        {showHistory ? 'Fechar' : 'Histórico'}
+      </Button>
+      <Badge className="bg-purple-100 text-purple-800 text-xs sm:text-sm">
+        🤖 Chat com Assistentes
+      </Badge>
+    </div>
   );
 
   useEffect(() => {
@@ -62,10 +77,12 @@ export function ChatWithAssistants() {
       id: Date.now().toString() + '-user',
       sender: 'user',
       text: input,
-      timestamp: new Date().toLocaleTimeString()
+      timestamp: new Date().toLocaleTimeString(),
+      assistantId: selectedAssistant
     };
 
     setMessages(prevMessages => [...prevMessages, userMessage]);
+    const messageText = input;
     setInput('');
     setIsSubmitting(true);
 
@@ -89,7 +106,7 @@ INSTRUÇÕES ESPECÍFICAS:
 - Identifique padrões comportamentais relevantes à sua área
 
 DADOS PARA ANÁLISE:
-${input}`;
+${messageText}`;
 
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -122,9 +139,13 @@ ${input}`;
           id: Date.now().toString() + '-bot',
           sender: 'bot',
           text: botResponseText,
-          timestamp: new Date().toLocaleTimeString()
+          timestamp: new Date().toLocaleTimeString(),
+          assistantId: selectedAssistant
         };
         setMessages(prevMessages => [...prevMessages, botMessage]);
+
+        // Salvar no histórico
+        await saveChatMessage(selectedAssistant, messageText, botResponseText);
       } else {
         throw new Error('Resposta vazia da OpenAI');
       }
@@ -139,6 +160,28 @@ ${input}`;
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const loadHistoryToChat = (historyItem: any) => {
+    const userMsg: Message = {
+      id: `history-user-${historyItem.id}`,
+      sender: 'user',
+      text: historyItem.user_message,
+      timestamp: new Date(historyItem.created_at).toLocaleTimeString(),
+      assistantId: historyItem.assistant_id
+    };
+
+    const botMsg: Message = {
+      id: `history-bot-${historyItem.id}`,
+      sender: 'bot',
+      text: historyItem.assistant_response,
+      timestamp: new Date(historyItem.created_at).toLocaleTimeString(),
+      assistantId: historyItem.assistant_id
+    };
+
+    setMessages([userMsg, botMsg]);
+    setSelectedAssistant(historyItem.assistant_id);
+    setShowHistory(false);
   };
 
   const toggleAssistant = async (assistantId: string) => {
@@ -176,6 +219,63 @@ ${input}`;
       headerActions={headerActions}
     >
       <div className="max-w-4xl mx-auto space-y-6">
+        {/* Histórico de Conversas */}
+        {showHistory && (
+          <Card className="border-blue-200 bg-blue-50">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <History className="w-5 h-5" />
+                  Histórico de Conversas
+                </CardTitle>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={clearChatHistory}
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Limpar Histórico
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {isLoadingHistory ? (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="w-6 h-6 animate-spin" />
+                </div>
+              ) : chatHistory.length > 0 ? (
+                <div className="space-y-3 max-h-60 overflow-y-auto">
+                  {chatHistory.map((item) => {
+                    const assistant = assistants.find(a => a.id === item.assistant_id);
+                    return (
+                      <div
+                        key={item.id}
+                        className="p-3 bg-white rounded-lg cursor-pointer hover:bg-gray-50 border"
+                        onClick={() => loadHistoryToChat(item)}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <Badge variant="outline">{assistant?.name || 'Assistente'}</Badge>
+                          <span className="text-xs text-gray-500">
+                            {new Date(item.created_at || item.timestamp).toLocaleDateString('pt-BR')}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-700 truncate">{item.user_message}</p>
+                        <p className="text-xs text-gray-500 mt-1 truncate">
+                          {item.assistant_response.substring(0, 100)}...
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-center text-gray-500 py-4">
+                  Nenhuma conversa salva ainda
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         {/* Header e Seleção de Assistente */}
         <Card>
           <CardHeader>

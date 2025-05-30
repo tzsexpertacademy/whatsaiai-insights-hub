@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,11 +14,14 @@ import {
   CheckCircle,
   AlertCircle,
   Sparkles,
-  Settings
+  Settings,
+  History,
+  Trash2
 } from 'lucide-react';
 import { useAssistantsConfig } from '@/hooks/useAssistantsConfig';
 import { useVoiceRecording } from '@/hooks/useVoiceRecording';
 import { useVoiceTranscription } from '@/hooks/useVoiceTranscription';
+import { useChatHistory } from '@/hooks/useChatHistory';
 import { VoiceRecordButton } from '@/components/VoiceRecordButton';
 import { useToast } from "@/hooks/use-toast";
 import { useClientConfig } from '@/contexts/ClientConfigContext';
@@ -48,21 +50,33 @@ export function VoiceChatInterface() {
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [isTyping, setIsTyping] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
   const { assistants } = useAssistantsConfig();
   const { config } = useClientConfig();
   const { isRecording, startRecording, stopRecording, audioLevel } = useVoiceRecording();
   const { transcribeAudio, isTranscribing } = useVoiceTranscription();
+  const { chatHistory, isLoading: isLoadingHistory, saveChatMessage, clearChatHistory } = useChatHistory();
   const { toast } = useToast();
 
   // Verificar se OpenAI está configurada
   const isOpenAIConfigured = config.openai?.apiKey && config.openai.apiKey.startsWith('sk-');
 
   const headerActions = (
-    <Badge className="bg-purple-100 text-purple-800 text-xs sm:text-sm">
-      🤖 Chat com Assistentes
-    </Badge>
+    <div className="flex items-center gap-2">
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => setShowHistory(!showHistory)}
+      >
+        <History className="w-4 h-4 mr-2" />
+        {showHistory ? 'Fechar' : 'Histórico'}
+      </Button>
+      <Badge className="bg-purple-100 text-purple-800 text-xs sm:text-sm">
+        🤖 Chat com Assistentes
+      </Badge>
+    </div>
   );
 
   // Mensagem inicial
@@ -195,6 +209,9 @@ INSTRUÇÕES PARA CHAT REAL:
         };
         
         setMessages(prev => [...prev, assistantMessage]);
+
+        // Salvar no histórico
+        await saveChatMessage(selectedAssistant, textToSend, response);
         
         toast({
           title: "✅ Resposta REAL recebida",
@@ -222,6 +239,28 @@ INSTRUÇÕES PARA CHAT REAL:
     }
     
     setIsTyping(false);
+  };
+
+  const loadHistoryToChat = (historyItem: any) => {
+    const userMsg: Message = {
+      id: Date.now(),
+      type: 'user',
+      content: historyItem.user_message,
+      timestamp: new Date(historyItem.created_at),
+      assistantId: historyItem.assistant_id
+    };
+
+    const botMsg: Message = {
+      id: Date.now() + 1,
+      type: 'assistant',
+      content: historyItem.assistant_response,
+      timestamp: new Date(historyItem.created_at),
+      assistantId: historyItem.assistant_id
+    };
+
+    setMessages([userMsg, botMsg]);
+    setSelectedAssistant(historyItem.assistant_id);
+    setShowHistory(false);
   };
 
   const handleVoiceRecording = async () => {
@@ -270,6 +309,63 @@ INSTRUÇÕES PARA CHAT REAL:
       showBackButton={true}
       headerActions={headerActions}
     >
+      {/* Histórico de Conversas */}
+      {showHistory && (
+        <Card className="border-blue-200 bg-blue-50 mb-6">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <History className="w-5 h-5" />
+                Histórico de Conversas
+              </CardTitle>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={clearChatHistory}
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Limpar Histórico
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {isLoadingHistory ? (
+              <div className="flex items-center justify-center py-4">
+                <Loader2 className="w-6 h-6 animate-spin" />
+              </div>
+            ) : chatHistory.length > 0 ? (
+              <div className="space-y-3 max-h-60 overflow-y-auto">
+                {chatHistory.map((item) => {
+                  const assistant = assistants.find(a => a.id === item.assistant_id);
+                  return (
+                    <div
+                      key={item.id}
+                      className="p-3 bg-white rounded-lg cursor-pointer hover:bg-gray-50 border"
+                      onClick={() => loadHistoryToChat(item)}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <Badge variant="outline">{assistant?.name || 'Assistente'}</Badge>
+                        <span className="text-xs text-gray-500">
+                          {new Date(item.created_at || item.timestamp).toLocaleDateString('pt-BR')}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-700 truncate">{item.user_message}</p>
+                      <p className="text-xs text-gray-500 mt-1 truncate">
+                        {item.assistant_response.substring(0, 100)}...
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-center text-gray-500 py-4">
+                Nenhuma conversa salva ainda
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Status da Conexão */}
       {!isOpenAIConfigured ? (
         <Alert className="border-red-200 bg-red-50">
