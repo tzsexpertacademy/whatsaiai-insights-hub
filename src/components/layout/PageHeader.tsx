@@ -29,11 +29,11 @@ export function PageHeader({
         responsiveContainerClasses.content,
         "py-3 sm:py-4"
       )}>
-        <div className={responsiveContainerClasses.flex.between}>
+        <div className="flex items-center justify-between gap-4">
           {/* Left side - Navigation */}
-          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
             {/* Mobile Menu Trigger */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-shrink-0">
               <SidebarTrigger className="h-8 w-8 sm:h-9 sm:w-9" />
               
               {/* Back button for mobile */}
@@ -51,17 +51,11 @@ export function PageHeader({
 
             {/* Title and Description */}
             <div className="min-w-0 flex-1">
-              <h1 className={combineResponsiveClasses(
-                responsiveTextClasses.title.h2,
-                "text-gray-900 truncate"
-              )}>
+              <h1 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 whitespace-nowrap overflow-hidden text-ellipsis">
                 {title}
               </h1>
               {description && (
-                <p className={combineResponsiveClasses(
-                  responsiveTextClasses.description,
-                  "hidden sm:block mt-1"
-                )}>
+                <p className="text-xs sm:text-sm text-gray-600 hidden sm:block mt-1 line-clamp-1">
                   {description}
                 </p>
               )}
@@ -88,10 +82,7 @@ export function PageHeader({
 
         {/* Mobile description */}
         {description && (
-          <p className={combineResponsiveClasses(
-            responsiveTextClasses.description,
-            "sm:hidden mt-2"
-          )}>
+          <p className="text-xs sm:text-sm text-gray-600 sm:hidden mt-2 line-clamp-2">
             {description}
           </p>
         )}
