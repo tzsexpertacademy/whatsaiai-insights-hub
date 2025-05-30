@@ -1,206 +1,224 @@
 
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Brain, Loader2, AlertCircle, TrendingUp, TrendingDown, Target } from 'lucide-react';
 import { Badge } from "@/components/ui/badge";
 import { useAnalysisData } from '@/contexts/AnalysisDataContext';
+import { AlertTriangle, CheckCircle, Info, Zap, Brain, Clock, Bot } from 'lucide-react';
 
 export function InsightsAlerts() {
   const { data, isLoading } = useAnalysisData();
 
-  // Debug: Log dos dados para verificar origem dos insights
-  console.log('🔍 DEBUG InsightsAlerts - Dados completos:', {
+  console.log('🚨 InsightsAlerts - Dados REAIS:', {
     hasRealData: data.hasRealData,
-    insights: data.insights,
-    insightsWithAssistant: data.insightsWithAssistant,
-    isLoading
+    insightsWithAssistant: data.insightsWithAssistant?.length || 0,
+    assistantsActive: data.metrics.assistantsActive
   });
 
-  // Debug: Verificar estrutura dos insights
-  if (data.insightsWithAssistant.length > 0) {
-    console.log('🔍 DEBUG Primeiro insight:', data.insightsWithAssistant[0]);
-    console.log('🔍 DEBUG Todos os insights com assistentes:', data.insightsWithAssistant.map(insight => ({
-      id: insight.id,
-      assistantName: insight.assistantName,
-      assistantArea: insight.assistantArea,
-      category: insight.category,
-      insight_type: insight.insight_type,
-      title: insight.title || insight.text?.substring(0, 50)
-    })));
+  if (isLoading) {
+    return (
+      <Card className="bg-white/70 backdrop-blur-sm border-white/50">
+        <CardContent className="p-6">
+          <div className="flex items-center justify-center h-32">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          </div>
+        </CardContent>
+      </Card>
+    );
   }
 
-  const getAssistantIcon = (area: string) => {
-    const iconMap: { [key: string]: string } = {
-      'psicologia': '🔮',
-      'financeiro': '💰',
-      'saude': '⚡',
-      'estrategia': '🎯',
-      'proposito': '🌟',
-      'criatividade': '🎨',
-      'relacionamentos': '👥',
-      'geral': '🤖',
-      'emotional': '❤️',
-      'behavioral': '🧠',
-      'growth': '📈'
-    };
-    return iconMap[area] || '🤖';
-  };
+  if (!data.hasRealData || !data.insightsWithAssistant || data.insightsWithAssistant.length === 0) {
+    return (
+      <Card className="bg-white/70 backdrop-blur-sm border-white/50">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Info className="h-5 w-5 text-blue-500" />
+            Central de Insights dos Assistentes
+          </CardTitle>
+          <CardDescription>
+            Aguardando análises reais dos assistentes especializados
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8">
+            <Brain className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum insight gerado ainda</h3>
+            <p className="text-gray-600 mb-4">
+              Os assistentes especializados ainda não analisaram seus dados
+            </p>
+            <div className="text-left max-w-md mx-auto space-y-2">
+              <p className="text-sm text-gray-600">• Execute análise por IA no dashboard</p>
+              <p className="text-sm text-gray-600">• Converse com os assistentes no chat</p>
+              <p className="text-sm text-gray-600">• Aguarde processamento dos insights</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
-  const getAssistantColor = (area: string) => {
-    const colorMap: { [key: string]: string } = {
-      'psicologia': 'bg-purple-100 text-purple-800',
-      'financeiro': 'bg-green-100 text-green-800',
-      'saude': 'bg-blue-100 text-blue-800',
-      'estrategia': 'bg-orange-100 text-orange-800',
-      'proposito': 'bg-yellow-100 text-yellow-800',
-      'criatividade': 'bg-pink-100 text-pink-800',
-      'relacionamentos': 'bg-indigo-100 text-indigo-800',
-      'geral': 'bg-gray-100 text-gray-800',
-      'emotional': 'bg-red-100 text-red-800',
-      'behavioral': 'bg-blue-100 text-blue-800',
-      'growth': 'bg-green-100 text-green-800'
-    };
-    return colorMap[area] || 'bg-gray-100 text-gray-800';
-  };
+  // Categorizar insights REAIS por prioridade
+  const highPriorityInsights = data.insightsWithAssistant.filter(insight => 
+    insight.priority === 'high'
+  );
 
-  const getPriorityIcon = (priority: string) => {
-    switch (priority) {
-      case 'high':
-        return <TrendingUp className="h-4 w-4 text-red-500" />;
-      case 'medium':
-        return <Target className="h-4 w-4 text-yellow-500" />;
-      case 'low':
-        return <TrendingDown className="h-4 w-4 text-green-500" />;
-      default:
-        return <AlertCircle className="h-4 w-4 text-gray-500" />;
-    }
-  };
+  const mediumPriorityInsights = data.insightsWithAssistant.filter(insight => 
+    insight.priority === 'medium'
+  );
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'high':
-        return 'border-l-red-500 bg-red-50';
-      case 'medium':
-        return 'border-l-yellow-500 bg-yellow-50';
-      case 'low':
-        return 'border-l-green-500 bg-green-50';
-      default:
-        return 'border-l-gray-500 bg-gray-50';
-    }
-  };
+  const lowPriorityInsights = data.insightsWithAssistant.filter(insight => 
+    insight.priority === 'low'
+  );
+
+  // Insights mais recentes
+  const recentInsights = data.insightsWithAssistant
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 3);
 
   return (
-    <Card className="bg-white/70 backdrop-blur-sm border-white/50">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Brain className="h-5 w-5 text-purple-600" />
-          Alertas e Insights dos Assistentes IA
-        </CardTitle>
-        <CardDescription>
-          Padrões e tendências detectados pelos assistentes especializados
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {isLoading ? (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
-            <span className="ml-2 text-gray-500">Carregando insights...</span>
-          </div>
-        ) : !data.hasRealData ? (
-          <div className="flex items-center justify-center py-8 text-center">
-            <div>
-              <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-              <p className="text-gray-500 text-sm">
-                Nenhum insight disponível ainda.
-                <br />
-                Configure assistentes e execute a análise por IA.
-              </p>
-            </div>
-          </div>
-        ) : data.insightsWithAssistant.length === 0 ? (
-          <div className="flex items-center justify-center py-8 text-center">
-            <div>
-              <Brain className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-              <p className="text-gray-500 text-sm">
-                Nenhum insight gerado ainda.
-                <br />
-                Clique em "Atualizar Relatório" para gerar análises.
-              </p>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {/* Debug info - Mostra origem dos insights */}
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm">
-              <h4 className="font-semibold text-yellow-800 mb-2">🔍 DEBUG - Origem dos Insights:</h4>
-              <div className="space-y-1 text-yellow-700">
-                <p><strong>Total de insights:</strong> {data.insightsWithAssistant.length}</p>
-                <p><strong>Insights únicos por assistente:</strong></p>
-                {data.insightsWithAssistant.map((insight, index) => (
-                  <div key={index} className="ml-4 text-xs">
-                    • <strong>{insight.assistantName || 'Sem nome'}</strong> 
-                    (área: {insight.assistantArea || 'não definida'}, 
-                    categoria: {insight.category || insight.insight_type || 'não definida'})
-                  </div>
-                ))}
+    <div className="space-y-6">
+      <Card className="bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Zap className="h-5 w-5 text-blue-600" />
+            Central de Insights dos Assistentes
+          </CardTitle>
+          <CardDescription>
+            Análises REAIS geradas por {data.metrics.assistantsActive} assistentes especializados
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Alta Prioridade */}
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <AlertTriangle className="h-5 w-5 text-red-600" />
+                <span className="font-medium text-red-800">Alta Prioridade</span>
+                <Badge className="bg-red-100 text-red-800 text-xs">
+                  {highPriorityInsights.length}
+                </Badge>
               </div>
+              <p className="text-sm text-red-600">
+                Insights que requerem atenção imediata dos assistentes
+              </p>
             </div>
 
-            {data.insightsWithAssistant.slice(0, 6).map((insight, index) => (
-              <div 
-                key={insight.id || index} 
-                className={`flex items-start gap-3 p-4 rounded-lg border-l-4 ${getPriorityColor(insight.priority || 'medium')}`}
-              >
-                <div className="flex-shrink-0 mt-1">
-                  {getPriorityIcon(insight.priority || 'medium')}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between gap-2 mb-2">
-                    <h4 className="font-medium text-gray-900 break-words">
-                      {insight.title || insight.text?.substring(0, 50) || 'Insight dos Assistentes'}
-                    </h4>
-                    <div className="flex flex-wrap gap-1 flex-shrink-0">
-                      {insight.assistantName && (
-                        <Badge className={getAssistantColor(insight.assistantArea || 'geral')}>
-                          {getAssistantIcon(insight.assistantArea || 'geral')} {insight.assistantName}
-                        </Badge>
-                      )}
-                      {insight.priority && (
-                        <Badge variant={insight.priority === 'high' ? 'destructive' : insight.priority === 'medium' ? 'default' : 'secondary'}>
-                          {insight.priority === 'high' ? 'Alto' : insight.priority === 'medium' ? 'Médio' : 'Baixo'}
-                        </Badge>
-                      )}
+            {/* Média Prioridade */}
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Info className="h-5 w-5 text-yellow-600" />
+                <span className="font-medium text-yellow-800">Média Prioridade</span>
+                <Badge className="bg-yellow-100 text-yellow-800 text-xs">
+                  {mediumPriorityInsights.length}
+                </Badge>
+              </div>
+              <p className="text-sm text-yellow-600">
+                Descobertas importantes para desenvolvimento
+              </p>
+            </div>
+
+            {/* Baixa Prioridade */}
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <CheckCircle className="h-5 w-5 text-green-600" />
+                <span className="font-medium text-green-800">Observações</span>
+                <Badge className="bg-green-100 text-green-800 text-xs">
+                  {lowPriorityInsights.length}
+                </Badge>
+              </div>
+              <p className="text-sm text-green-600">
+                Insights informativos dos assistentes
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Insights Recentes REAIS */}
+      <Card className="bg-white/70 backdrop-blur-sm border-white/50">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Brain className="h-5 w-5 text-purple-600" />
+            Insights Mais Recentes
+          </CardTitle>
+          <CardDescription>
+            Últimas análises geradas pelos assistentes especializados
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {recentInsights.map((insight, index) => {
+              const createdAt = new Date(insight.createdAt);
+              const formattedDate = createdAt.toLocaleDateString('pt-BR', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+              });
+
+              const getPriorityIcon = (priority: string) => {
+                switch (priority) {
+                  case 'high': return <AlertTriangle className="h-4 w-4 text-red-500" />;
+                  case 'medium': return <Info className="h-4 w-4 text-yellow-500" />;
+                  case 'low': return <CheckCircle className="h-4 w-4 text-green-500" />;
+                  default: return <Info className="h-4 w-4 text-blue-500" />;
+                }
+              };
+
+              const getPriorityColor = (priority: string) => {
+                switch (priority) {
+                  case 'high': return 'border-red-200 bg-red-50';
+                  case 'medium': return 'border-yellow-200 bg-yellow-50';
+                  case 'low': return 'border-green-200 bg-green-50';
+                  default: return 'border-blue-200 bg-blue-50';
+                }
+              };
+
+              return (
+                <div key={insight.id} className={`border rounded-lg p-4 ${getPriorityColor(insight.priority)}`}>
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      {getPriorityIcon(insight.priority)}
+                      <h4 className="font-medium text-slate-800 text-sm">{insight.title}</h4>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge className="bg-purple-100 text-purple-800 text-xs flex items-center gap-1">
+                        <Bot className="h-3 w-3" />
+                        {insight.assistantName}
+                      </Badge>
                     </div>
                   </div>
-                  <p className="text-sm text-gray-700 break-words mb-2">
-                    {insight.text || insight.content || insight.description}
+                  
+                  <p className="text-sm text-slate-600 mb-3 line-clamp-2">
+                    {insight.description}
                   </p>
-                  {(insight.category || insight.insight_type) && (
-                    <div className="flex items-center gap-2 text-xs text-gray-500">
-                      <span className="px-2 py-1 bg-gray-100 rounded-full">
-                        {insight.category || insight.insight_type}
+                  
+                  <div className="flex items-center justify-between text-xs text-slate-500">
+                    <div className="flex items-center gap-4">
+                      <span>Área: {insight.assistantArea}</span>
+                      <span className="flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {formattedDate}
                       </span>
-                      {insight.createdAt && (
-                        <span>
-                          {new Date(insight.createdAt).toLocaleDateString('pt-BR')}
-                        </span>
-                      )}
                     </div>
-                  )}
+                    <Badge 
+                      variant="outline" 
+                      className={`text-xs ${
+                        insight.priority === 'high' ? 'border-red-300 text-red-700' :
+                        insight.priority === 'medium' ? 'border-yellow-300 text-yellow-700' :
+                        'border-green-300 text-green-700'
+                      }`}
+                    >
+                      {insight.priority === 'high' ? 'Alta' :
+                       insight.priority === 'medium' ? 'Média' : 'Baixa'}
+                    </Badge>
+                  </div>
                 </div>
-              </div>
-            ))}
-            
-            {data.insightsWithAssistant.length > 6 && (
-              <div className="text-center pt-4 border-t">
-                <p className="text-sm text-gray-500">
-                  E mais {data.insightsWithAssistant.length - 6} insights disponíveis...
-                </p>
-              </div>
-            )}
+              );
+            })}
           </div>
-        )}
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
