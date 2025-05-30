@@ -104,20 +104,20 @@ export function AreasOfLife() {
   // Header actions com informações dos assistentes
   const headerActions = (
     <div className="flex flex-wrap items-center gap-2">
-      <Badge variant="outline" className="bg-purple-50 text-purple-700 text-xs">
+      <Badge variant="outline" className="bg-purple-50 text-purple-700 text-xs whitespace-nowrap">
         🔮 Análise dos Assistentes
       </Badge>
       {data.hasRealData && (
         <>
-          <Badge variant="outline" className="bg-blue-50 text-blue-700 text-xs">
+          <Badge variant="outline" className="bg-blue-50 text-blue-700 text-xs whitespace-nowrap">
             📊 {realInsights.length} insights reais
           </Badge>
-          <Badge variant="outline" className="bg-green-50 text-green-700 text-xs">
+          <Badge variant="outline" className="bg-green-50 text-green-700 text-xs whitespace-nowrap">
             🤖 {data.metrics.assistantsActive} assistentes ativos
           </Badge>
           {lastUpdate && (
-            <Badge variant="outline" className="bg-gray-50 text-gray-700 text-xs hidden sm:flex">
-              <Clock className="h-3 w-3 mr-1" />
+            <Badge variant="outline" className="bg-gray-50 text-gray-700 text-xs hidden sm:flex whitespace-nowrap">
+              <Clock className="h-3 w-3 mr-1 flex-shrink-0" />
               Última análise: {lastUpdate}
             </Badge>
           )}
@@ -139,10 +139,10 @@ export function AreasOfLife() {
         <Card className={responsiveCardClasses.base}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <AlertCircle className="h-5 w-5 text-orange-500" />
-              Áreas da Vida Não Mapeadas
+              <AlertCircle className="h-5 w-5 text-orange-500 flex-shrink-0" />
+              <span className="break-words">Áreas da Vida Não Mapeadas</span>
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="break-words">
               Para mapear suas áreas da vida, os assistentes precisam analisar suas conversas.
             </CardDescription>
           </CardHeader>
@@ -151,9 +151,11 @@ export function AreasOfLife() {
             "text-center"
           )}>
             <div className="flex flex-col items-center justify-center space-y-4">
-              <Brain className="h-16 w-16 text-gray-300" />
-              <h3 className="text-lg sm:text-xl font-semibold text-gray-600">Mapa das áreas ainda não criado</h3>
-              <p className="text-sm sm:text-base text-gray-500 max-w-md">
+              <Brain className="h-16 w-16 text-gray-300 flex-shrink-0" />
+              <h3 className="text-lg sm:text-xl font-semibold text-gray-600 break-words">
+                Mapa das áreas ainda não criado
+              </h3>
+              <p className="text-sm sm:text-base text-gray-500 max-w-md break-words">
                 Para mapear suas áreas da vida, os assistentes precisam analisar suas conversas.
               </p>
               <div className="text-left text-xs sm:text-sm text-gray-600 space-y-1">
@@ -176,7 +178,7 @@ export function AreasOfLife() {
       headerActions={headerActions}
     >
       {/* Grid das áreas da vida */}
-      <div className={responsiveContainerClasses.grid.threeColumns}>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
         {lifeAreasConfig.map((areaConfig) => {
           // Filtrar insights para esta área específica
           const areaInsights = realInsights.filter(insight => belongsToArea(insight, areaConfig));
@@ -188,24 +190,27 @@ export function AreasOfLife() {
           const Icon = areaConfig.icon;
           
           return (
-            <Card key={areaConfig.name} className={`${areaConfig.bgColor} border-0 hover:shadow-md transition-all duration-300`}>
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center justify-between flex-wrap gap-2">
-                  <div className="flex items-center gap-2">
-                    <Icon className={`w-5 h-5 ${areaConfig.color}`} />
-                    <span className="text-sm sm:text-base">{areaConfig.name}</span>
+            <Card 
+              key={areaConfig.name} 
+              className={`${areaConfig.bgColor} border-0 hover:shadow-md transition-all duration-300 flex flex-col h-full`}
+            >
+              <CardHeader className="pb-3 flex-shrink-0">
+                <CardTitle className="flex items-center justify-between gap-2 min-h-0">
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <Icon className={`w-5 h-5 ${areaConfig.color} flex-shrink-0`} />
+                    <span className="text-sm sm:text-base break-words">{areaConfig.name}</span>
                   </div>
-                  <Badge className="bg-purple-100 text-purple-800 text-xs">
+                  <Badge className="bg-purple-100 text-purple-800 text-xs flex-shrink-0 whitespace-nowrap">
                     {areaInsights.length} insights
                   </Badge>
                 </CardTitle>
-                <CardDescription className="text-xs sm:text-sm">
+                <CardDescription className="text-xs sm:text-sm break-words">
                   {areaInsights.length > 0 ? 'Análise por assistentes IA' : 'Aguardando análise'}
                 </CardDescription>
               </CardHeader>
-              <CardContent className="pt-0">
+              <CardContent className="pt-0 flex-1 flex flex-col">
                 {areaInsights.length > 0 ? (
-                  <div className="space-y-3">
+                  <div className="space-y-3 flex-1">
                     {/* Mostrar os 2 insights mais recentes */}
                     {areaInsights.slice(0, 2).map((insight, idx) => {
                       const createdAt = new Date(insight.createdAt);
@@ -218,26 +223,26 @@ export function AreasOfLife() {
 
                       return (
                         <div key={idx} className="border rounded-lg p-3 bg-white/70 backdrop-blur-sm">
-                          <div className="flex items-center justify-between mb-2 gap-2">
-                            <span className="text-xs sm:text-sm font-medium text-slate-800 truncate">
+                          <div className="flex items-start justify-between mb-2 gap-2">
+                            <span className="text-xs sm:text-sm font-medium text-slate-800 break-words flex-1 leading-tight">
                               {insight.title}
                             </span>
-                            <Badge className="bg-purple-100 text-purple-800 text-xs flex-shrink-0 flex items-center gap-1">
-                              <Bot className="w-3 h-3" />
-                              {insight.assistantName}
+                            <Badge className="bg-purple-100 text-purple-800 text-xs flex-shrink-0 flex items-center gap-1 whitespace-nowrap">
+                              <Bot className="w-3 h-3 flex-shrink-0" />
+                              <span className="truncate max-w-[80px]">{insight.assistantName}</span>
                             </Badge>
                           </div>
-                          <p className="text-xs text-slate-600 line-clamp-2 mb-2">
+                          <p className="text-xs text-slate-600 line-clamp-2 mb-2 break-words">
                             {insight.description.substring(0, 80)}...
                           </p>
-                          <div className="flex items-center justify-between text-xs text-slate-500">
-                            <span className="flex items-center gap-1">
-                              <Clock className="w-3 h-3" />
+                          <div className="flex items-center justify-between text-xs text-slate-500 gap-2">
+                            <span className="flex items-center gap-1 whitespace-nowrap">
+                              <Clock className="w-3 h-3 flex-shrink-0" />
                               {formattedDate}
                             </span>
                             <Badge 
                               variant="outline" 
-                              className={`text-xs ${
+                              className={`text-xs flex-shrink-0 whitespace-nowrap ${
                                 insight.priority === 'high' ? 'border-red-300 text-red-700' :
                                 insight.priority === 'medium' ? 'border-yellow-300 text-yellow-700' :
                                 'border-green-300 text-green-700'
@@ -255,27 +260,31 @@ export function AreasOfLife() {
                     {latestInsight && (
                       <div className="mt-3 p-2 bg-white/50 rounded-lg">
                         <div className="text-xs text-slate-600 space-y-1">
-                          <p className="flex items-center gap-1">
-                            <Bot className="w-3 h-3" />
-                            Último assistente: {latestInsight.assistantName}
+                          <p className="flex items-center gap-1 break-words">
+                            <Bot className="w-3 h-3 flex-shrink-0" />
+                            <span className="break-words">Último assistente: {latestInsight.assistantName}</span>
                           </p>
-                          <p className="flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
-                            Última análise: {new Date(latestInsight.createdAt).toLocaleDateString('pt-BR', {
-                              day: '2-digit',
-                              month: '2-digit',
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            })}
+                          <p className="flex items-center gap-1 break-words">
+                            <Clock className="w-3 h-3 flex-shrink-0" />
+                            <span className="break-words">
+                              Última análise: {new Date(latestInsight.createdAt).toLocaleDateString('pt-BR', {
+                                day: '2-digit',
+                                month: '2-digit',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </span>
                           </p>
                         </div>
                       </div>
                     )}
                   </div>
                 ) : (
-                  <div className="text-center py-4">
-                    <Icon className={`h-8 w-8 mx-auto mb-2 ${areaConfig.color} opacity-50`} />
-                    <p className="text-xs sm:text-sm text-gray-500">Aguardando análise dos assistentes</p>
+                  <div className="text-center py-4 flex-1 flex flex-col justify-center">
+                    <Icon className={`h-8 w-8 mx-auto mb-2 ${areaConfig.color} opacity-50 flex-shrink-0`} />
+                    <p className="text-xs sm:text-sm text-gray-500 break-words">
+                      Aguardando análise dos assistentes
+                    </p>
                   </div>
                 )}
               </CardContent>
@@ -289,10 +298,10 @@ export function AreasOfLife() {
         <Card className="mt-6 bg-white/70 backdrop-blur-sm border-white/50">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
-              <Brain className="w-6 h-6 text-purple-600" />
-              Insights Detalhados das Áreas da Vida
+              <Brain className="w-6 h-6 text-purple-600 flex-shrink-0" />
+              <span className="break-words">Insights Detalhados das Áreas da Vida</span>
             </CardTitle>
-            <CardDescription className="text-sm">
+            <CardDescription className="text-sm break-words">
               Análise completa pelos assistentes especializados - {realInsights.length} insights gerados
             </CardDescription>
           </CardHeader>
@@ -311,17 +320,17 @@ export function AreasOfLife() {
                 return (
                   <div key={insight.id} className="border rounded-lg p-4 bg-gradient-to-r from-purple-50 to-blue-50 hover:shadow-md transition-all duration-300">
                     <div className="flex items-start justify-between mb-3 gap-3">
-                      <h4 className="font-medium text-slate-800 text-sm sm:text-base flex-1">
+                      <h4 className="font-medium text-slate-800 text-sm sm:text-base flex-1 break-words leading-tight">
                         {insight.title}
                       </h4>
                       <div className="flex items-center gap-2 flex-shrink-0">
-                        <Badge className="bg-purple-100 text-purple-800 text-xs flex items-center gap-1">
-                          <Bot className="w-3 h-3" />
-                          {insight.assistantName}
+                        <Badge className="bg-purple-100 text-purple-800 text-xs flex items-center gap-1 whitespace-nowrap">
+                          <Bot className="w-3 h-3 flex-shrink-0" />
+                          <span className="truncate max-w-[100px]">{insight.assistantName}</span>
                         </Badge>
                         <Badge 
                           variant="outline" 
-                          className={`text-xs ${
+                          className={`text-xs whitespace-nowrap ${
                             insight.priority === 'high' ? 'border-red-300 text-red-700' :
                             insight.priority === 'medium' ? 'border-yellow-300 text-yellow-700' :
                             'border-green-300 text-green-700'
@@ -333,17 +342,17 @@ export function AreasOfLife() {
                       </div>
                     </div>
                     
-                    <p className="text-xs sm:text-sm text-slate-600 mb-3 leading-relaxed">
+                    <p className="text-xs sm:text-sm text-slate-600 mb-3 leading-relaxed break-words">
                       {insight.description}
                     </p>
                     
                     <div className="flex items-center justify-between text-xs text-slate-500 gap-2 pt-2 border-t border-gray-200">
-                      <span className="flex items-center gap-1">
-                        <Target className="w-3 h-3" />
-                        Área: {insight.assistantArea}
+                      <span className="flex items-center gap-1 break-words">
+                        <Target className="w-3 h-3 flex-shrink-0" />
+                        <span className="break-words">Área: {insight.assistantArea}</span>
                       </span>
-                      <span className="flex items-center gap-1">
-                        <Clock className="w-3 h-3" />
+                      <span className="flex items-center gap-1 whitespace-nowrap">
+                        <Clock className="w-3 h-3 flex-shrink-0" />
                         {formattedDate}
                       </span>
                     </div>
@@ -355,17 +364,17 @@ export function AreasOfLife() {
             {/* Resumo geral dos assistentes */}
             <div className="mt-6 p-4 bg-blue-50 rounded-lg">
               <h4 className="text-sm font-medium text-blue-800 mb-2 flex items-center gap-2">
-                <Brain className="w-4 h-4" />
-                Resumo da Análise das Áreas da Vida
+                <Brain className="w-4 h-4 flex-shrink-0" />
+                <span className="break-words">Resumo da Análise das Áreas da Vida</span>
               </h4>
               <div className="text-xs text-blue-600 space-y-1">
-                <p>🤖 {data.metrics.assistantsActive} assistentes especializados ativos</p>
-                <p>🏡 {realInsights.length} insights sobre áreas da vida gerados</p>
-                <p>📊 {lifeAreasConfig.filter(area => 
+                <p className="break-words">🤖 {data.metrics.assistantsActive} assistentes especializados ativos</p>
+                <p className="break-words">🏡 {realInsights.length} insights sobre áreas da vida gerados</p>
+                <p className="break-words">📊 {lifeAreasConfig.filter(area => 
                   realInsights.some(insight => belongsToArea(insight, area))
                 ).length} de {lifeAreasConfig.length} áreas mapeadas</p>
                 {lastUpdate && (
-                  <p>⏰ Última atualização: {lastUpdate}</p>
+                  <p className="break-words">⏰ Última atualização: {lastUpdate}</p>
                 )}
               </div>
             </div>
