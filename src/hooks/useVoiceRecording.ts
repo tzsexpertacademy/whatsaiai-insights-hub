@@ -1,4 +1,3 @@
-
 import { useState, useRef, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -62,55 +61,59 @@ export function useVoiceRecording(): UseVoiceRecordingReturn {
 
       cleanup();
 
-      // Solicitar permissão do microfone com configurações otimizadas
+      // Solicitar permissão do microfone com configurações específicas para melhor qualidade
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
-          sampleRate: 16000, // Mudança para 16kHz que é o padrão do Whisper
+          sampleRate: 44100, // Mudança para qualidade CD
           channelCount: 1,
           echoCancellation: true,
           noiseSuppression: true,
-          autoGainControl: true
+          autoGainControl: true,
+          volume: 1.0
         }
       });
 
       streamRef.current = stream;
-      console.log('📺 Stream de áudio obtido');
+      console.log('📺 Stream de áudio obtido com configurações:', {
+        sampleRate: 44100,
+        channelCount: 1,
+        tracks: stream.getAudioTracks().map(track => ({
+          kind: track.kind,
+          label: track.label,
+          enabled: track.enabled,
+          muted: track.muted,
+          settings: track.getSettings()
+        }))
+      });
 
-      // Verificar formatos suportados em ordem de preferência
-      const mimeTypes = [
-        'audio/webm;codecs=opus',
-        'audio/webm',
-        'audio/mp4;codecs=mp4a.40.2',
-        'audio/mp4',
-        'audio/wav'
-      ];
-
-      let selectedMimeType = '';
-      for (const mimeType of mimeTypes) {
-        if (MediaRecorder.isTypeSupported(mimeType)) {
-          selectedMimeType = mimeType;
-          console.log('🎵 Formato selecionado:', mimeType);
-          break;
-        }
+      // Usar apenas WebM com Opus para melhor compatibilidade
+      const preferredMimeType = 'audio/webm;codecs=opus';
+      
+      if (!MediaRecorder.isTypeSupported(preferredMimeType)) {
+        console.error('❌ Formato preferido não suportado:', preferredMimeType);
+        throw new Error('Navegador não suporta gravação de áudio no formato necessário');
       }
 
-      if (!selectedMimeType) {
-        throw new Error('Nenhum formato de áudio suportado pelo navegador');
-      }
+      console.log('✅ Usando formato:', preferredMimeType);
 
-      // Configurar MediaRecorder
+      // Configurar MediaRecorder com configurações otimizadas
       mediaRecorderRef.current = new MediaRecorder(stream, {
-        mimeType: selectedMimeType,
-        audioBitsPerSecond: 128000 // Qualidade adequada para transcrição
+        mimeType: preferredMimeType,
+        audioBitsPerSecond: 128000
       });
 
       audioChunksRef.current = [];
 
       // Configurar eventos do MediaRecorder
       mediaRecorderRef.current.ondataavailable = (event) => {
+        console.log('📦 Chunk recebido:', {
+          size: event.data.size,
+          type: event.data.type,
+          timestamp: new Date().toISOString()
+        });
+        
         if (event.data.size > 0) {
           audioChunksRef.current.push(event.data);
-          console.log('📦 Chunk de áudio recebido:', event.data.size, 'bytes');
         }
       };
 
@@ -149,8 +152,8 @@ export function useVoiceRecording(): UseVoiceRecordingReturn {
         console.warn('⚠️ Não foi possível criar contexto de áudio para feedback visual:', audioContextError);
       }
 
-      // Iniciar gravação
-      mediaRecorderRef.current.start(1000); // Coletar dados a cada segundo
+      // Iniciar gravação com coleta frequente de dados
+      mediaRecorderRef.current.start(250); // Coletar dados a cada 250ms
       setIsRecording(true);
 
       console.log('✅ Gravação iniciada com sucesso');
@@ -198,65 +201,98 @@ export function useVoiceRecording(): UseVoiceRecordingReturn {
 
       mediaRecorderRef.current.onstop = async () => {
         try {
+          console.log('🔍 Processando gravação parada:', {
+            totalChunks: audioChunksRef.current.length,
+            chunkSizes: audioChunksRef.current.map(chunk => chunk.size),
+            totalSize: audioChunksRef.current.reduce((sum, chunk) => sum + chunk.size, 0)
+          });
+
           if (audioChunksRef.current.length === 0) {
             throw new Error('Nenhum dado de áudio foi capturado');
           }
 
-          // Criar blob com o tipo MIME correto
-          const mimeType = mediaRecorderRef.current?.mimeType || 'audio/webm';
+          // Criar blob com verificação detalhada
+          const mimeType = mediaRecorderRef.current?.mimeType || 'audio/webm;codecs=opus';
           const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
           
-          console.log('📄 Áudio gravado:', {
+          console.log('📄 Áudio final criado:', {
             size: audioBlob.size,
             type: audioBlob.type,
-            chunks: audioChunksRef.current.length
+            chunks: audioChunksRef.current.length,
+            sizeInKB: Math.round(audioBlob.size / 1024),
+            durationEstimate: `~${Math.round(audioBlob.size / 16000)} segundos`
           });
 
+          // Verificações de qualidade
           if (audioBlob.size === 0) {
             throw new Error('Arquivo de áudio vazio');
           }
 
-          // Verificar tamanho mínimo (pelo menos 1KB)
-          if (audioBlob.size < 1024) {
-            throw new Error('Áudio muito curto. Grave por pelo menos 1 segundo.');
+          if (audioBlob.size < 2048) { // Mínimo 2KB
+            console.warn('⚠️ Áudio muito pequeno:', audioBlob.size, 'bytes');
+            throw new Error('Áudio muito curto. Fale por pelo menos 2 segundos.');
           }
 
-          // Converter blob para base64
+          if (audioBlob.size > 25 * 1024 * 1024) { // Máximo 25MB
+            throw new Error('Áudio muito longo. Máximo de 25MB permitido.');
+          }
+
+          // Converter blob para base64 com validação
           const reader = new FileReader();
           reader.onloadend = () => {
             try {
               const result = reader.result as string;
+              console.log('📝 Conversão para base64:', {
+                totalLength: result.length,
+                hasPrefix: result.includes('data:'),
+                hasComma: result.includes(','),
+                prefix: result.substring(0, 50)
+              });
+              
               if (!result || !result.includes(',')) {
-                throw new Error('Erro na conversão do áudio');
+                throw new Error('Erro na conversão do áudio para base64');
               }
               
-              const base64Audio = result.split(',')[1]; // Remove o prefixo data:audio/...;base64,
+              const base64Audio = result.split(',')[1];
               
               if (!base64Audio || base64Audio.length === 0) {
-                throw new Error('Áudio vazio após conversão');
+                throw new Error('Áudio vazio após conversão para base64');
+              }
+
+              // Validar base64
+              try {
+                atob(base64Audio.substring(0, 100)); // Testar decodificação de uma parte pequena
+              } catch (decodeError) {
+                console.error('❌ Base64 inválido:', decodeError);
+                throw new Error('Dados de áudio corrompidos');
               }
               
-              console.log('✅ Áudio convertido para base64, tamanho:', base64Audio.length);
+              console.log('✅ Áudio pronto para transcrição:', {
+                base64Length: base64Audio.length,
+                estimatedSizeKB: Math.round(base64Audio.length * 0.75 / 1024),
+                firstChars: base64Audio.substring(0, 20),
+                lastChars: base64Audio.substring(base64Audio.length - 20)
+              });
               
               toast({
                 title: "✅ Gravação concluída",
-                description: "Áudio processado com sucesso",
+                description: `Áudio de ${Math.round(audioBlob.size / 1024)}KB processado`,
               });
               
               resolve(base64Audio);
             } catch (conversionError) {
-              console.error('❌ Erro na conversão:', conversionError);
+              console.error('❌ Erro na conversão final:', conversionError);
               toast({
                 title: "❌ Erro no processamento",
-                description: "Erro ao converter áudio",
+                description: "Erro ao converter áudio para transcrição",
                 variant: "destructive",
               });
               resolve(null);
             }
           };
           
-          reader.onerror = () => {
-            console.error('❌ Erro ao ler arquivo de áudio');
+          reader.onerror = (error) => {
+            console.error('❌ Erro ao ler arquivo:', error);
             toast({
               title: "❌ Erro no processamento",
               description: "Não foi possível processar o áudio gravado",
@@ -268,10 +304,10 @@ export function useVoiceRecording(): UseVoiceRecordingReturn {
           reader.readAsDataURL(audioBlob);
 
         } catch (error) {
-          console.error('❌ Erro ao processar áudio:', error);
+          console.error('❌ Erro ao processar áudio final:', error);
           toast({
             title: "❌ Erro no processamento",
-            description: error instanceof Error ? error.message : "Erro desconhecido ao processar áudio",
+            description: error instanceof Error ? error.message : "Erro desconhecido",
             variant: "destructive",
           });
           resolve(null);
@@ -280,10 +316,13 @@ export function useVoiceRecording(): UseVoiceRecordingReturn {
         }
       };
 
-      // Parar o MediaRecorder
+      // Parar o MediaRecorder com verificação de estado
       try {
         if (mediaRecorderRef.current.state === 'recording') {
           mediaRecorderRef.current.stop();
+          console.log('📻 MediaRecorder parado');
+        } else {
+          console.warn('⚠️ MediaRecorder não estava gravando:', mediaRecorderRef.current.state);
         }
       } catch (error) {
         console.error('❌ Erro ao parar MediaRecorder:', error);
