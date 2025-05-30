@@ -60,14 +60,16 @@ export function useGreenAPI() {
 
   // Memoizar configuração com fallback mais robusto
   const apiConfig: GreenAPIConfig = useMemo(() => {
-    const whatsappConfig = config?.whatsapp?.greenapi;
+    const whatsappConfig = config?.whatsapp;
+    const greenApiConfig = whatsappConfig?.greenapi;
+    
     return {
-      instanceId: whatsappConfig?.instanceId || '',
-      apiToken: whatsappConfig?.apiToken || '',
-      phoneNumber: whatsappConfig?.phoneNumber || '',
-      webhookUrl: whatsappConfig?.webhookUrl || ''
+      instanceId: greenApiConfig?.instanceId || '',
+      apiToken: greenApiConfig?.apiToken || '',
+      phoneNumber: greenApiConfig?.phoneNumber || '',
+      webhookUrl: greenApiConfig?.webhookUrl || ''
     };
-  }, [config?.whatsapp?.greenapi]);
+  }, [config?.whatsapp]);
 
   console.log('🔧 Current API Config:', apiConfig);
   console.log('🔧 Full Config:', config);
@@ -94,9 +96,24 @@ export function useGreenAPI() {
     console.log('🔧 Atualizando configuração GREEN-API:', newConfig);
     
     try {
-      // Atualizar configuração diretamente
-      const currentWhatsApp = config?.whatsapp || {};
-      const currentGreenAPI = currentWhatsApp.greenapi || {};
+      // Garantir que existe uma estrutura de configuração válida
+      const currentWhatsApp = config?.whatsapp || {
+        isConnected: false,
+        authorizedNumber: '',
+        qrCode: '',
+        platform: 'greenapi',
+        autoSync: false,
+        syncInterval: 'daily',
+        autoReply: false,
+        lastImport: ''
+      };
+      
+      const currentGreenAPI = currentWhatsApp.greenapi || {
+        instanceId: '',
+        apiToken: '',
+        phoneNumber: '',
+        webhookUrl: ''
+      };
       
       const updatedGreenAPI = {
         ...currentGreenAPI,
