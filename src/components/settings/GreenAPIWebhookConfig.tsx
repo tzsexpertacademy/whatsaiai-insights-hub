@@ -14,7 +14,6 @@ export function GreenAPIWebhookConfig() {
   const { apiConfig, updateAPIConfig } = useGreenAPI();
   const { toast } = useToast();
   const [isConfiguring, setIsConfiguring] = useState(false);
-  const [isTesting, setIsTesting] = useState(false);
   const [webhookStatus, setWebhookStatus] = useState<'unknown' | 'active' | 'inactive'>('unknown');
 
   // URL do webhook para este projeto
@@ -31,8 +30,6 @@ export function GreenAPIWebhookConfig() {
     if (!apiConfig.instanceId || !apiConfig.apiToken) return;
 
     try {
-      console.log('🔍 Verificando status do webhook...');
-      
       const response = await fetch(
         `https://api.green-api.com/waInstance${apiConfig.instanceId}/getSettings/${apiConfig.apiToken}`,
         { method: 'GET' }
@@ -42,18 +39,11 @@ export function GreenAPIWebhookConfig() {
         const data = await response.json();
         console.log('📊 Configurações atuais:', data);
         
-        const isWebhookConfigured = data.webhookUrl === webhookUrl && data.incomingWebhook === true;
-        
-        if (isWebhookConfigured) {
+        if (data.webhookUrl === webhookUrl) {
           setWebhookStatus('active');
-          console.log('✅ Webhook configurado corretamente');
         } else {
           setWebhookStatus('inactive');
-          console.log('❌ Webhook não configurado ou incorreto');
         }
-      } else {
-        console.error('❌ Erro ao verificar configurações:', response.status);
-        setWebhookStatus('unknown');
       }
     } catch (error) {
       console.error('❌ Erro ao verificar status do webhook:', error);
@@ -98,9 +88,7 @@ export function GreenAPIWebhookConfig() {
       );
 
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ Erro ao configurar webhook:', response.status, errorText);
-        throw new Error(`Erro ${response.status}: ${errorText}`);
+        throw new Error(`Erro ao configurar webhook: ${response.status}`);
       }
 
       const data = await response.json();
@@ -137,81 +125,39 @@ export function GreenAPIWebhookConfig() {
   };
 
   const testWebhook = async () => {
-    if (!apiConfig.instanceId || !apiConfig.apiToken) {
-      toast({
-        title: "Configuração incompleta",
-        description: "Configure instanceId e apiToken primeiro",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    setIsTesting(true);
-
     try {
-      console.log('🧪 Testando webhook direto... URL:', webhookUrl);
+      console.log('🧪 Testando webhook...');
       
-      // Teste direto sem autenticação
-      const testPayload = {
-        typeWebhook: 'test',
-        instanceData: { 
-          idInstance: apiConfig.instanceId,
-          wid: 'test@webhook.test',
-          typeInstance: 'whatsapp'
-        },
-        timestamp: Date.now(),
-        messageData: {
-          typeMessage: 'textMessage',
-          textMessageData: {
-            textMessage: 'Teste do webhook GREEN-API'
-          }
-        },
-        senderData: {
-          chatId: 'test@c.us',
-          chatName: 'Teste Webhook',
-          sender: 'test@c.us'
-        }
-      };
-
-      console.log('📤 Enviando payload de teste:', testPayload);
-
-      const testResponse = await fetch(webhookUrl, {
+      const response = await fetch(webhookUrl, {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(testPayload)
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          typeWebhook: 'test',
+          instanceData: { wid: 'test' },
+          timestamp: Date.now()
+        })
       });
 
-      console.log('📊 Status da resposta do teste:', testResponse.status);
+      console.log('📊 Resposta do teste:', response.status);
 
-      if (testResponse.ok) {
-        const result = await testResponse.json();
+      if (response.ok) {
+        const result = await response.json();
         console.log('✅ Resultado do teste:', result);
         
         toast({
           title: "Webhook funcionando!",
-          description: "O webhook respondeu corretamente ao teste"
+          description: "O webhook está respondendo corretamente"
         });
       } else {
-        const errorText = await testResponse.text();
-        console.error('❌ Erro no teste:', testResponse.status, errorText);
-        
-        toast({
-          title: "Problema no webhook",
-          description: `Status ${testResponse.status}. Verifique os logs do Supabase.`,
-          variant: "destructive"
-        });
+        throw new Error(`Webhook retornou status ${response.status}`);
       }
     } catch (error) {
       console.error('❌ Erro no teste do webhook:', error);
       toast({
         title: "Erro no teste",
-        description: `Erro ao testar webhook: ${error.message}`,
+        description: "O webhook não está funcionando corretamente",
         variant: "destructive"
       });
-    } finally {
-      setIsTesting(false);
     }
   };
 
@@ -283,21 +229,10 @@ export function GreenAPIWebhookConfig() {
           <Alert>
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              Configure o webhook para receber mensagens automaticamente.
+              O webhook não está configurado corretamente. Configure-o para receber mensagens automaticamente.
             </AlertDescription>
           </Alert>
         )}
-
-        <div className="space-y-2">
-          <div className="text-sm text-gray-600">
-            <strong>Configurações atuais:</strong>
-          </div>
-          <div className="text-xs text-gray-500 space-y-1">
-            <div>Instance ID: {apiConfig.instanceId || 'Não configurado'}</div>
-            <div>API Token: {apiConfig.apiToken ? 'Configurado' : 'Não configurado'}</div>
-            <div>Webhook URL: {apiConfig.webhookUrl || 'Não configurado'}</div>
-          </div>
-        </div>
 
         <div className="flex gap-2">
           <Button 
@@ -305,15 +240,11 @@ export function GreenAPIWebhookConfig() {
             disabled={isConfiguring || !apiConfig.instanceId || !apiConfig.apiToken}
             className="flex-1"
           >
-            {isConfiguring ? 'Configurando...' : 'Configurar Webhook'}
+            {isConfiguring ? 'Configurando...' : 'Configurar Webhook Automaticamente'}
           </Button>
           
-          <Button 
-            onClick={testWebhook} 
-            variant="outline"
-            disabled={isTesting || !apiConfig.instanceId || !apiConfig.apiToken}
-          >
-            {isTesting ? 'Testando...' : 'Testar'}
+          <Button onClick={testWebhook} variant="outline">
+            Testar Webhook
           </Button>
         </div>
 
@@ -321,8 +252,9 @@ export function GreenAPIWebhookConfig() {
           <h4 className="font-medium text-blue-900 mb-2">Como funciona:</h4>
           <ul className="text-sm text-blue-800 space-y-1">
             <li>• O webhook recebe mensagens do WhatsApp em tempo real</li>
-            <li>• Mensagens são salvas automaticamente no banco de dados</li>
-            <li>• Sistema processa mensagens para todos os usuários configurados</li>
+            <li>• Mensagens de conversas monitoradas são salvas no banco</li>
+            <li>• Assistentes geram respostas automáticas quando configurados</li>
+            <li>• Status de mensagens são atualizados automaticamente</li>
           </ul>
         </div>
 
