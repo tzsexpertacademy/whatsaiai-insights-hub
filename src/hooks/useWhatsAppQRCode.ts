@@ -27,10 +27,12 @@ export function useWhatsAppQRCode() {
 
   // Carregar estado do localStorage
   useEffect(() => {
+    console.log('🔄 useWhatsAppQRCode - Carregando estado do localStorage...');
     const savedState = localStorage.getItem('whatsapp_qr_state');
     if (savedState) {
       try {
         const parsed = JSON.parse(savedState);
+        console.log('📦 Estado carregado do localStorage:', parsed);
         setQRState(parsed);
         
         // Atualizar config se conectado
@@ -42,77 +44,86 @@ export function useWhatsAppQRCode() {
           });
         }
       } catch (error) {
-        console.log('Erro ao carregar estado salvo:', error);
+        console.log('❌ Erro ao carregar estado salvo:', error);
         localStorage.removeItem('whatsapp_qr_state');
       }
+    } else {
+      console.log('📦 Nenhum estado salvo encontrado');
     }
   }, []);
 
   // Salvar estado no localStorage
   useEffect(() => {
     if (qrState.qrCode || qrState.isConnected) {
+      console.log('💾 Salvando estado no localStorage:', qrState);
       localStorage.setItem('whatsapp_qr_state', JSON.stringify(qrState));
     }
   }, [qrState]);
 
   const generateQRCode = async (): Promise<void> => {
-    console.log('🔄 Iniciando geração de QR Code...');
-    
-    setQRState(prev => ({ ...prev, isGenerating: true }));
+    console.log('🔄 INICIANDO GERAÇÃO DE QR CODE - Função chamada');
+    console.log('📊 Estado atual antes da geração:', qrState);
     
     try {
+      console.log('🎯 Definindo isGenerating = true');
+      setQRState(prev => {
+        const newState = { ...prev, isGenerating: true };
+        console.log('🔄 Estado atualizado para:', newState);
+        return newState;
+      });
+      
+      // Aguardar um pouco para garantir que o estado seja atualizado
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       // Gerar sessionId único
       const sessionId = `session_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
-      console.log('📱 SessionId gerado:', sessionId);
+      console.log('🆔 SessionId gerado:', sessionId);
       
       // Dados para o QR Code
       const qrData = `whatsapp://connect/${sessionId}`;
-      console.log('📋 Dados do QR:', qrData);
+      console.log('📋 Dados do QR Code:', qrData);
       
       // Gerar QR Code usando API pública
       const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrData)}&bgcolor=FFFFFF&color=000000&margin=10`;
-      console.log('🖼️ URL do QR Code:', qrCodeUrl);
+      console.log('🖼️ URL do QR Code gerada:', qrCodeUrl);
       
-      // Testar se a URL do QR Code é válida
-      const testImg = new Image();
-      testImg.onload = () => {
-        console.log('✅ QR Code gerado com sucesso!');
-        
-        setQRState(prev => ({
+      console.log('✅ QR Code gerado com sucesso - Atualizando estado');
+      
+      setQRState(prev => {
+        const newState = {
           ...prev,
           qrCode: qrCodeUrl,
           sessionId: sessionId,
           isGenerating: false
-        }));
+        };
+        console.log('🎉 Estado final do QR Code:', newState);
+        return newState;
+      });
 
-        // Atualizar configuração
-        updateConfig('whatsapp', {
-          qrCode: qrCodeUrl
-        });
+      // Atualizar configuração
+      updateConfig('whatsapp', {
+        qrCode: qrCodeUrl
+      });
 
-        toast({
-          title: "✅ QR Code gerado!",
-          description: "Escaneie com seu WhatsApp Business para conectar"
-        });
+      toast({
+        title: "✅ QR Code gerado!",
+        description: "Escaneie com seu WhatsApp Business para conectar"
+      });
 
-        // Simular detecção de conexão após 15 segundos (para demonstração)
-        setTimeout(() => {
-          console.log('🔄 Simulando conexão automática...');
-          connectWhatsApp(sessionId);
-        }, 15000);
-      };
-      
-      testImg.onerror = () => {
-        console.error('❌ Erro ao carregar imagem do QR Code');
-        throw new Error('Falha ao gerar QR Code');
-      };
-      
-      testImg.src = qrCodeUrl;
+      console.log('⏰ Configurando simulação de conexão em 15 segundos...');
+      // Simular detecção de conexão após 15 segundos (para demonstração)
+      setTimeout(() => {
+        console.log('🔄 Executando simulação de conexão automática...');
+        connectWhatsApp(sessionId);
+      }, 15000);
 
     } catch (error) {
-      console.error('❌ Erro ao gerar QR Code:', error);
+      console.error('❌ ERRO na geração do QR Code:', error);
       
-      setQRState(prev => ({ ...prev, isGenerating: false }));
+      setQRState(prev => ({ 
+        ...prev, 
+        isGenerating: false 
+      }));
       
       toast({
         title: "❌ Erro ao gerar QR Code",
@@ -123,13 +134,13 @@ export function useWhatsAppQRCode() {
   };
 
   const connectWhatsApp = async (sessionId: string) => {
-    console.log('📱 Conectando WhatsApp...', sessionId);
+    console.log('📱 Conectando WhatsApp com sessionId:', sessionId);
     
     // Gerar número fictício para demonstração
     const phoneNumber = `+55 11 9${Math.floor(Math.random() * 9000) + 1000}-${Math.floor(Math.random() * 9000) + 1000}`;
     const now = new Date().toISOString();
     
-    console.log('✅ WhatsApp conectado:', phoneNumber);
+    console.log('✅ WhatsApp conectado com número:', phoneNumber);
     
     setQRState(prev => ({
       ...prev,
@@ -198,6 +209,12 @@ export function useWhatsAppQRCode() {
     if (minutesDiff > 30) return 'idle';
     return 'active';
   };
+
+  console.log('🔍 Hook useWhatsAppQRCode - Estado atual:', {
+    isGenerating: qrState.isGenerating,
+    hasQRCode: !!qrState.qrCode,
+    isConnected: qrState.isConnected
+  });
 
   return {
     qrState,
