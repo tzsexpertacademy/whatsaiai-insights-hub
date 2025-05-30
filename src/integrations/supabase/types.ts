@@ -9,6 +9,90 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      analysis_cost_control: {
+        Row: {
+          analysis_date: string
+          cache_hits: number | null
+          cache_miss: number | null
+          conversations_processed: number | null
+          created_at: string
+          id: string
+          insights_generated: number | null
+          total_analyses: number | null
+          total_cost_estimate: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          analysis_date?: string
+          cache_hits?: number | null
+          cache_miss?: number | null
+          conversations_processed?: number | null
+          created_at?: string
+          id?: string
+          insights_generated?: number | null
+          total_analyses?: number | null
+          total_cost_estimate?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          analysis_date?: string
+          cache_hits?: number | null
+          cache_miss?: number | null
+          conversations_processed?: number | null
+          created_at?: string
+          id?: string
+          insights_generated?: number | null
+          total_analyses?: number | null
+          total_cost_estimate?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      analysis_summaries: {
+        Row: {
+          analysis_type: string
+          chat_messages_analyzed: number | null
+          conversations_analyzed: number | null
+          cost_estimate: number | null
+          created_at: string
+          data_hash: string
+          id: string
+          insights_generated: number | null
+          summary_content: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          analysis_type: string
+          chat_messages_analyzed?: number | null
+          conversations_analyzed?: number | null
+          cost_estimate?: number | null
+          created_at?: string
+          data_hash: string
+          id?: string
+          insights_generated?: number | null
+          summary_content: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          analysis_type?: string
+          chat_messages_analyzed?: number | null
+          conversations_analyzed?: number | null
+          cost_estimate?: number | null
+          created_at?: string
+          data_hash?: string
+          id?: string
+          insights_generated?: number | null
+          summary_content?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       chat_history: {
         Row: {
           assistant_id: string
@@ -240,6 +324,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      conversation_analysis_cache: {
+        Row: {
+          analysis_results: Json | null
+          content_hash: string
+          conversation_id: string
+          conversation_type: string
+          created_at: string
+          id: string
+          last_analysis_date: string
+          message_count: number | null
+          processed_by_assistants: string[] | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          analysis_results?: Json | null
+          content_hash: string
+          conversation_id: string
+          conversation_type: string
+          created_at?: string
+          id?: string
+          last_analysis_date?: string
+          message_count?: number | null
+          processed_by_assistants?: string[] | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          analysis_results?: Json | null
+          content_hash?: string
+          conversation_id?: string
+          conversation_type?: string
+          created_at?: string
+          id?: string
+          last_analysis_date?: string
+          message_count?: number | null
+          processed_by_assistants?: string[] | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       insights: {
         Row: {
