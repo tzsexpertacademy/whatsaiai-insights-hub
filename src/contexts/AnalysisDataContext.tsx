@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -236,9 +235,22 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
         return;
       }
 
-      // ✅ PROCESSAR APENAS INSIGHTS REAIS GERADOS PELOS ASSISTENTES
+      // ✅ PROCESSAR APENAS INSIGHTS REAIS GERADOS PELOS ASSISTENTES COM MAPEAMENTO CORRETO
       const processedInsights = (insightsData || []).map(insight => {
-        const assistantInfo = getAssistantByInsightType(insight.insight_type);
+        console.log('🔄 Processando insight:', { 
+          id: insight.id, 
+          type: insight.insight_type, 
+          title: insight.title?.substring(0, 50) 
+        });
+        
+        // USAR MAPEAMENTO MELHORADO COM ANÁLISE DE CONTEÚDO
+        const assistantInfo = getAssistantByInsightType(
+          insight.insight_type, 
+          insight.title, 
+          insight.description
+        );
+        
+        console.log('✅ Assistente mapeado:', assistantInfo.name, 'para tipo:', insight.insight_type);
         
         return {
           ...insight,
@@ -251,6 +263,14 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
           source: 'assistant_analysis'
         };
       });
+
+      console.log('🎯 INSIGHTS PROCESSADOS COM ASSISTENTES CORRETOS:', 
+        processedInsights.map(i => ({ 
+          id: i.id, 
+          assistant: i.assistantName, 
+          type: i.insight_type 
+        }))
+      );
 
       // ✅ COMBINAR APENAS CONVERSAS REAIS
       const allRealConversations = [
@@ -385,7 +405,7 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
       };
 
       setData(finalData);
-      console.log('✅ DADOS REAIS CARREGADOS COM SUCESSO - SEM SIMULAÇÃO');
+      console.log('✅ DADOS REAIS CARREGADOS COM ASSISTENTES CORRETOS');
 
     } catch (error) {
       console.error('❌ ERRO AO CARREGAR DADOS REAIS:', error);
