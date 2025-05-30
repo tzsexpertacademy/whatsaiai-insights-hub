@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,15 +8,29 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CheckCircle, ExternalLink, Copy, Download, Smartphone, Zap, Globe, PlayCircle, QrCode, Loader2, MessageSquare, Send } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
+import { useClientConfig } from '@/contexts/ClientConfigContext';
 
 export function WhatsAppWebMakeSetup() {
   const { toast } = useToast();
+  const { config, updateConfig, saveConfig } = useClientConfig();
   const [currentStep, setCurrentStep] = useState(0);
-  const [webhookUrl, setWebhookUrl] = useState('https://hook.eu2.make.com/rl4ldgcqv5cvae66bf4gckoc5ghdcpki');
+  const [webhookUrl, setWebhookUrl] = useState('');
   const [testPhone, setTestPhone] = useState('');
   const [testMessage, setTestMessage] = useState('Olá! Esta é uma mensagem de teste do Observatório via Make.com + GREEN-API 🚀');
   const [isConnected, setIsConnected] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
+
+  // Carregar configurações ao inicializar
+  useEffect(() => {
+    if (config.whatsapp.makeWebhookUrl) {
+      setWebhookUrl(config.whatsapp.makeWebhookUrl);
+      setCurrentStep(1);
+    }
+    if (config.whatsapp.isConnected) {
+      setIsConnected(true);
+      setCurrentStep(3);
+    }
+  }, [config]);
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -27,13 +40,39 @@ export function WhatsAppWebMakeSetup() {
     });
   };
 
-  const saveWebhook = () => {
-    localStorage.setItem('make_greenapi_webhook', webhookUrl);
-    toast({
-      title: "Webhook GREEN-API salvo!",
-      description: "URL do webhook Make.com foi salva",
-    });
-    setCurrentStep(1);
+  const saveWebhook = async () => {
+    if (!webhookUrl.trim()) {
+      toast({
+        title: "URL necessária",
+        description: "Por favor, insira a URL do webhook",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      // Atualizar configuração
+      updateConfig('whatsapp', {
+        makeWebhookUrl: webhookUrl,
+        platform: 'make-greenapi'
+      });
+
+      // Salvar no banco
+      await saveConfig();
+
+      toast({
+        title: "Webhook GREEN-API salvo!",
+        description: "URL do webhook Make.com foi salva com sucesso",
+      });
+      setCurrentStep(1);
+    } catch (error) {
+      console.error('Erro ao salvar webhook:', error);
+      toast({
+        title: "Erro ao salvar",
+        description: "Não foi possível salvar a configuração",
+        variant: "destructive"
+      });
+    }
   };
 
   const testSendMessage = async () => {
@@ -41,6 +80,15 @@ export function WhatsAppWebMakeSetup() {
       toast({
         title: "Dados incompletos",
         description: "Preencha o número e a mensagem para teste",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!webhookUrl) {
+      toast({
+        title: "Webhook não configurado",
+        description: "Configure o webhook primeiro",
         variant: "destructive"
       });
       return;
@@ -62,6 +110,14 @@ export function WhatsAppWebMakeSetup() {
       });
 
       if (response.ok) {
+        // Atualizar configuração para conectado
+        updateConfig('whatsapp', {
+          isConnected: true,
+          authorizedNumber: testPhone.replace(/\D/g, '')
+        });
+
+        await saveConfig();
+
         toast({
           title: "✅ Mensagem enviada!",
           description: "Verifique seu WhatsApp para confirmar o recebimento",
@@ -83,6 +139,15 @@ export function WhatsAppWebMakeSetup() {
   };
 
   const testReceiveMessage = async () => {
+    if (!webhookUrl) {
+      toast({
+        title: "Webhook não configurado",
+        description: "Configure o webhook primeiro",
+        variant: "destructive"
+      });
+      return;
+    }
+
     try {
       const response = await fetch(webhookUrl, {
         method: 'POST',
@@ -176,23 +241,24 @@ export function WhatsAppWebMakeSetup() {
                     value={webhookUrl}
                     onChange={(e) => setWebhookUrl(e.target.value)}
                     className="font-mono text-sm"
+                    placeholder="https://hook.eu2.make.com/..."
                   />
-                  <Button onClick={() => copyToClipboard(webhookUrl)} variant="outline" size="sm">
+                  <Button onClick={() => copyToClipboard(webhookUrl)} variant="outline" size="sm" disabled={!webhookUrl}>
                     <Copy className="h-4 w-4" />
                   </Button>
                 </div>
               </div>
 
-              <Button onClick={saveWebhook} className="w-full">
+              <Button onClick={saveWebhook} className="w-full" disabled={!webhookUrl.trim()}>
                 <CheckCircle className="mr-2 h-4 w-4" />
                 Salvar Configuração
               </Button>
 
-              {webhookUrl && (
+              {config.whatsapp.makeWebhookUrl && (
                 <Alert>
                   <CheckCircle className="h-4 w-4" />
                   <AlertDescription>
-                    <strong>✅ Webhook configurado!</strong> Agora você pode testar o envio de mensagens.
+                    <strong>✅ Webhook configurado!</strong> Salvo: {config.whatsapp.makeWebhookUrl}
                   </AlertDescription>
                 </Alert>
               )}
@@ -246,7 +312,7 @@ export function WhatsAppWebMakeSetup() {
               <div className="grid gap-2">
                 <Button 
                   onClick={testSendMessage} 
-                  disabled={isTesting || !testPhone || !testMessage}
+                  disabled={isTesting || !testPhone || !testMessage || !webhookUrl}
                   className="bg-green-600 hover:bg-green-700"
                 >
                   {isTesting ? (
@@ -265,7 +331,7 @@ export function WhatsAppWebMakeSetup() {
                 <Button 
                   onClick={testReceiveMessage} 
                   variant="outline"
-                  disabled={!testPhone}
+                  disabled={!testPhone || !webhookUrl}
                 >
                   <MessageSquare className="mr-2 h-4 w-4" />
                   Teste de Recebimento
@@ -309,47 +375,57 @@ export function WhatsAppWebMakeSetup() {
             <CardContent className="space-y-4">
               <div className="grid gap-4">
                 <div className={`p-3 rounded-lg border ${
-                  webhookUrl ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
+                  config.whatsapp.makeWebhookUrl ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
                 }`}>
                   <div className="flex items-center gap-2">
-                    {webhookUrl ? (
+                    {config.whatsapp.makeWebhookUrl ? (
                       <CheckCircle className="h-5 w-5 text-green-600" />
                     ) : (
                       <QrCode className="h-5 w-5 text-red-600" />
                     )}
                     <span className={`font-medium ${
-                      webhookUrl ? 'text-green-800' : 'text-red-800'
+                      config.whatsapp.makeWebhookUrl ? 'text-green-800' : 'text-red-800'
                     }`}>
                       Webhook URL
                     </span>
                   </div>
                   <p className={`text-sm ${
-                    webhookUrl ? 'text-green-600' : 'text-red-600'
+                    config.whatsapp.makeWebhookUrl ? 'text-green-600' : 'text-red-600'
                   }`}>
-                    {webhookUrl ? 'Configurado' : 'Não configurado'}
+                    {config.whatsapp.makeWebhookUrl ? 'Configurado e salvo' : 'Não configurado'}
                   </p>
+                  {config.whatsapp.makeWebhookUrl && (
+                    <p className="text-xs text-gray-500 mt-1 font-mono">
+                      {config.whatsapp.makeWebhookUrl}
+                    </p>
+                  )}
                 </div>
 
                 <div className={`p-3 rounded-lg border ${
-                  isConnected ? 'bg-green-50 border-green-200' : 'bg-yellow-50 border-yellow-200'
+                  config.whatsapp.isConnected ? 'bg-green-50 border-green-200' : 'bg-yellow-50 border-yellow-200'
                 }`}>
                   <div className="flex items-center gap-2">
-                    {isConnected ? (
+                    {config.whatsapp.isConnected ? (
                       <CheckCircle className="h-5 w-5 text-green-600" />
                     ) : (
                       <Loader2 className="h-5 w-5 text-yellow-600" />
                     )}
                     <span className={`font-medium ${
-                      isConnected ? 'text-green-800' : 'text-yellow-800'
+                      config.whatsapp.isConnected ? 'text-green-800' : 'text-yellow-800'
                     }`}>
                       Teste de Conexão
                     </span>
                   </div>
                   <p className={`text-sm ${
-                    isConnected ? 'text-green-600' : 'text-yellow-600'
+                    config.whatsapp.isConnected ? 'text-green-600' : 'text-yellow-600'
                   }`}>
-                    {isConnected ? 'Sucesso - Mensagem enviada' : 'Aguardando teste'}
+                    {config.whatsapp.isConnected ? 'Sucesso - WhatsApp conectado' : 'Aguardando teste'}
                   </p>
+                  {config.whatsapp.authorizedNumber && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Número: {config.whatsapp.authorizedNumber}
+                    </p>
+                  )}
                 </div>
               </div>
 
