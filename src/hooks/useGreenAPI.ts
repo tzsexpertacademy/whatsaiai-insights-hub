@@ -348,20 +348,20 @@ export function useGreenAPI() {
   };
 
   const formatContactName = (chatId: string, rawName?: string) => {
-    // Se já tem um nome definido, usar ele
-    if (rawName && rawName !== chatId) {
+    // Se já tem um nome definido e não é igual ao chatId, usar ele
+    if (rawName && rawName !== chatId && rawName.trim() !== '') {
       return rawName;
     }
 
-    // Extrair número do chatId e formatar como nome amigável
+    // Extrair número do chatId
     const phoneNumber = chatId.replace('@c.us', '').replace('@g.us', '');
     
-    // Se é um grupo
+    // Se é um grupo, tentar usar o nome ou criar um padrão
     if (chatId.includes('@g.us')) {
-      return rawName || `Grupo ${phoneNumber.substring(0, 8)}...`;
+      return rawName && rawName.trim() !== '' ? rawName : `Grupo ${phoneNumber.substring(0, 8)}...`;
     }
     
-    // Se é um contato individual, tentar formatar o número
+    // Para contatos individuais, tentar formatar o número de forma mais amigável
     if (phoneNumber.length >= 10) {
       // Formato brasileiro: +55 (xx) xxxxx-xxxx
       if (phoneNumber.startsWith('55') && phoneNumber.length === 13) {
@@ -370,7 +370,14 @@ export function useGreenAPI() {
         const secondPart = phoneNumber.substring(9);
         return `+55 (${ddd}) ${firstPart}-${secondPart}`;
       }
-      // Outros formatos internacionais
+      // Outros formatos internacionais - mostrar com formatação mais limpa
+      if (phoneNumber.length >= 11) {
+        const country = phoneNumber.substring(0, 2);
+        const area = phoneNumber.substring(2, 4);
+        const number = phoneNumber.substring(4);
+        return `+${country} (${area}) ${number}`;
+      }
+      // Números menores - formato simples
       return `+${phoneNumber}`;
     }
     
@@ -390,15 +397,30 @@ export function useGreenAPI() {
       const data = await response.json();
       console.log('💬 Chats carregados:', data);
       
-      const formattedChats: GreenAPIChat[] = data.map((chat: any) => ({
-        chatId: chat.id,
-        name: formatContactName(chat.id, chat.name),
-        lastMessage: chat.lastMessage?.body || '',
-        lastMessageTime: chat.lastMessage?.timestamp ? new Date(chat.lastMessage.timestamp * 1000).toISOString() : new Date().toISOString(),
-        unreadCount: chat.unreadCount || 0,
-        isGroup: chat.id.includes('@g.us'),
-        isPinned: pinnedChats.includes(chat.id)
-      }));
+      const formattedChats: GreenAPIChat[] = data.map((chat: any) => {
+        // Tentar obter nome do contato de diferentes campos possíveis
+        let contactName = chat.name || chat.contact?.name || chat.contact?.pushname || chat.contact?.formattedName;
+        
+        // Para grupos, usar o nome do grupo
+        if (chat.id.includes('@g.us')) {
+          contactName = chat.name || chat.subject || contactName;
+        }
+        
+        // Se ainda não temos nome e é um contato individual, tentar usar pushname ou outros campos
+        if (!contactName && chat.id.includes('@c.us')) {
+          contactName = chat.contact?.pushname || chat.contact?.notify || chat.lastMessage?.author || null;
+        }
+        
+        return {
+          chatId: chat.id,
+          name: formatContactName(chat.id, contactName),
+          lastMessage: chat.lastMessage?.body || '',
+          lastMessageTime: chat.lastMessage?.timestamp ? new Date(chat.lastMessage.timestamp * 1000).toISOString() : new Date().toISOString(),
+          unreadCount: chat.unreadCount || 0,
+          isGroup: chat.id.includes('@g.us'),
+          isPinned: pinnedChats.includes(chat.id)
+        };
+      });
 
       // Ordenar: fixados primeiro, depois por timestamp da última mensagem
       const sortedChats = formattedChats.sort((a, b) => {
