@@ -48,17 +48,25 @@ export function useGreenAPI() {
 
   // Obter configuração atual da GREEN-API
   const getAPIConfig = useCallback((): GreenAPIConfig => {
-    const greenapi = config?.whatsapp?.greenapi;
+    if (!config || !config.whatsapp) {
+      return { instanceId: '', apiToken: '' };
+    }
+    
+    const whatsappConfig = config.whatsapp;
+    const greenapi = whatsappConfig.greenapi || { instanceId: '', apiToken: '' };
+    
     return {
-      instanceId: greenapi?.instanceId || '',
-      apiToken: greenapi?.apiToken || ''
+      instanceId: greenapi.instanceId || '',
+      apiToken: greenapi.apiToken || ''
     };
   }, [config]);
 
   // Salvar configuração da GREEN-API
   const saveAPIConfig = useCallback((newConfig: Partial<GreenAPIConfig>) => {
-    const currentWhatsapp = config?.whatsapp || {};
-    const currentGreenapi = currentWhatsapp.greenapi || {};
+    if (!config || !config.whatsapp) return;
+    
+    const currentWhatsapp = config.whatsapp;
+    const currentGreenapi = currentWhatsapp.greenapi || { instanceId: '', apiToken: '' };
     
     updateConfig('whatsapp', {
       ...currentWhatsapp,
@@ -173,7 +181,7 @@ export function useGreenAPI() {
       setConnectionState(prev => ({ ...prev, isLoading: false }));
       toast({
         title: "Erro ao gerar QR Code",
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Erro desconhecido',
         variant: "destructive"
       });
     }
