@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -29,23 +30,72 @@ export function DocumentAIAnalysis() {
   const [selectedAssistants, setSelectedAssistants] = useState<string[]>([]);
   const [analysisType, setAnalysisType] = useState<string>('document');
 
-  // Carregar assistentes disponíveis
+  // Carregar configurações do usuário do client_configs
+  const [userConfig, setUserConfig] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchUserConfig = async () => {
+      if (!user?.id) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('client_configs')
+          .select('openai_config')
+          .eq('user_id', user.id)
+          .single();
+          
+        if (error) {
+          console.error('Erro ao carregar configuração:', error);
+          return;
+        }
+        
+        setUserConfig(data);
+      } catch (error) {
+        console.error('Erro ao buscar configurações:', error);
+      }
+    };
+    
+    fetchUserConfig();
+  }, [user?.id]);
+
+  // Carregar assistentes do insights (usando os dados reais)
   useEffect(() => {
     const fetchAssistants = async () => {
       if (!user?.id) return;
       
       try {
-        const { data, error } = await supabase
-          .from('assistants')
-          .select('*')
+        // Buscar insights únicos por tipo para mapear assistentes reais
+        const { data: insightsData, error } = await supabase
+          .from('insights')
+          .select('insight_type, metadata')
+          .eq('user_id', user.id)
           .eq('status', 'active');
           
-        if (error) throw error;
+        if (error) {
+          console.error('Erro ao buscar insights:', error);
+          return;
+        }
         
-        setAssistants(data || []);
+        // Extrair assistentes únicos dos metadados
+        const uniqueAssistants = new Map();
+        insightsData?.forEach(insight => {
+          const metadata = insight.metadata as any;
+          if (metadata?.assistant_name && metadata?.assistant_id) {
+            uniqueAssistants.set(metadata.assistant_id, {
+              id: metadata.assistant_id,
+              name: metadata.assistant_name,
+              area: insight.insight_type,
+              status: 'active'
+            });
+          }
+        });
+        
+        const assistantsList = Array.from(uniqueAssistants.values());
+        setAssistants(assistantsList);
+        
         // Selecionar automaticamente o primeiro assistente
-        if (data && data.length > 0) {
-          setSelectedAssistants([data[0].id]);
+        if (assistantsList.length > 0) {
+          setSelectedAssistants([assistantsList[0].id]);
         }
       } catch (error) {
         console.error('Erro ao carregar assistentes:', error);
@@ -102,27 +152,22 @@ export function DocumentAIAnalysis() {
       return;
     }
     
+    if (!userConfig?.openai_config?.apiKey) {
+      toast({
+        title: "Configuração necessária",
+        description: "Configure sua chave API do OpenAI nas configurações.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     setIsAnalyzing(true);
     
     try {
-      // Obter configuração OpenAI do usuário
-      const { data: userConfig, error: configError } = await supabase
-        .from('user_settings')
-        .select('openai_api_key')
-        .eq('user_id', user?.id)
-        .single();
-        
-      if (configError || !userConfig?.openai_api_key) {
-        throw new Error('Chave API OpenAI não configurada');
-      }
-      
       // Obter detalhes dos assistentes selecionados
-      const { data: selectedAssistantDetails, error: assistantsError } = await supabase
-        .from('assistants')
-        .select('*')
-        .in('id', selectedAssistants);
-        
-      if (assistantsError) throw assistantsError;
+      const selectedAssistantDetails = assistants.filter(assistant => 
+        selectedAssistants.includes(assistant.id)
+      );
       
       // Gerar hash do documento para cache
       const documentHash = generateDataHash(documentContent);
@@ -131,7 +176,7 @@ export function DocumentAIAnalysis() {
       const analysisData = {
         userId: user?.id,
         openaiConfig: {
-          apiKey: userConfig.openai_api_key,
+          apiKey: userConfig.openai_config.apiKey,
           model: selectedModel,
           temperature: 0.5,
           maxTokens: 1000

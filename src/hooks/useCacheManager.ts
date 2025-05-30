@@ -172,10 +172,10 @@ export function useCacheManager() {
       }
 
       if (existing) {
-        // Atualizar registro existente
+        // Atualizar registro existente - corrigido para usar number em vez de string
         const updates = {
           total_analyses: (existing.total_analyses || 0) + (stats.total_analyses || 0),
-          total_cost_estimate: (parseFloat(existing.total_cost_estimate?.toString() || '0') + (stats.total_cost_estimate || 0)).toString(),
+          total_cost_estimate: (existing.total_cost_estimate || 0) + (stats.total_cost_estimate || 0),
           conversations_processed: (existing.conversations_processed || 0) + (stats.conversations_processed || 0),
           insights_generated: (existing.insights_generated || 0) + (stats.insights_generated || 0),
           cache_hits: (existing.cache_hits || 0) + (stats.cache_hits || 0),
@@ -198,7 +198,7 @@ export function useCacheManager() {
             user_id: userId,
             analysis_date: today,
             total_analyses: stats.total_analyses || 0,
-            total_cost_estimate: (stats.total_cost_estimate || 0).toString(),
+            total_cost_estimate: stats.total_cost_estimate || 0,
             conversations_processed: stats.conversations_processed || 0,
             insights_generated: stats.insights_generated || 0,
             cache_hits: stats.cache_hits || 0,
@@ -262,7 +262,7 @@ export function useCacheManager() {
       // Calcular totais
       const totals = (data || []).reduce((acc, day) => ({
         totalAnalyses: acc.totalAnalyses + (day.total_analyses || 0),
-        totalCost: acc.totalCost + parseFloat(day.total_cost_estimate?.toString() || '0'),
+        totalCost: acc.totalCost + (day.total_cost_estimate || 0),
         totalConversations: acc.totalConversations + (day.conversations_processed || 0),
         totalInsights: acc.totalInsights + (day.insights_generated || 0),
         cacheHits: acc.cacheHits + (day.cache_hits || 0),
