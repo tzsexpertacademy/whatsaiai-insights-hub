@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { useClientConfig } from '@/contexts/ClientConfigContext';
@@ -35,6 +34,7 @@ interface GreenAPIChat {
   lastMessageTime?: string;
   unreadCount: number;
   isGroup: boolean;
+  isPinned?: boolean;
 }
 
 export function useGreenAPI() {
@@ -55,6 +55,7 @@ export function useGreenAPI() {
   const [chats, setChats] = useState<GreenAPIChat[]>([]);
   const [messages, setMessages] = useState<Record<string, GreenAPIMessage[]>>({});
   const [isLoading, setIsLoading] = useState(false);
+  const [pinnedChats, setPinnedChats] = useState<string[]>([]);
   
   const { toast } = useToast();
   const { config, updateConfig, saveConfig } = useClientConfig();
@@ -63,6 +64,7 @@ export function useGreenAPI() {
   useEffect(() => {
     const savedConfig = localStorage.getItem('greenapi_config');
     const savedState = localStorage.getItem('greenapi_state');
+    const savedPinnedChats = localStorage.getItem('greenapi_pinned_chats');
     
     if (savedConfig) {
       const parsed = JSON.parse(savedConfig);
@@ -81,6 +83,11 @@ export function useGreenAPI() {
         });
       }
     }
+
+    if (savedPinnedChats) {
+      const parsed = JSON.parse(savedPinnedChats);
+      setPinnedChats(parsed);
+    }
   }, []);
 
   // Salvar estado no localStorage
@@ -95,6 +102,10 @@ export function useGreenAPI() {
       localStorage.setItem('greenapi_config', JSON.stringify(apiConfig));
     }
   }, [apiConfig]);
+
+  useEffect(() => {
+    localStorage.setItem('greenapi_pinned_chats', JSON.stringify(pinnedChats));
+  }, [pinnedChats]);
 
   const getAPIUrl = (method: string) => {
     return `https://api.green-api.com/waInstance${apiConfig.instanceId}/${method}/${apiConfig.apiToken}`;
@@ -336,6 +347,36 @@ export function useGreenAPI() {
     }
   };
 
+  const formatContactName = (chatId: string, rawName?: string) => {
+    // Se já tem um nome definido, usar ele
+    if (rawName && rawName !== chatId) {
+      return rawName;
+    }
+
+    // Extrair número do chatId e formatar como nome amigável
+    const phoneNumber = chatId.replace('@c.us', '').replace('@g.us', '');
+    
+    // Se é um grupo
+    if (chatId.includes('@g.us')) {
+      return rawName || `Grupo ${phoneNumber.substring(0, 8)}...`;
+    }
+    
+    // Se é um contato individual, tentar formatar o número
+    if (phoneNumber.length >= 10) {
+      // Formato brasileiro: +55 (xx) xxxxx-xxxx
+      if (phoneNumber.startsWith('55') && phoneNumber.length === 13) {
+        const ddd = phoneNumber.substring(2, 4);
+        const firstPart = phoneNumber.substring(4, 9);
+        const secondPart = phoneNumber.substring(9);
+        return `+55 (${ddd}) ${firstPart}-${secondPart}`;
+      }
+      // Outros formatos internacionais
+      return `+${phoneNumber}`;
+    }
+    
+    return phoneNumber;
+  };
+
   const loadChats = async () => {
     try {
       console.log('📋 Carregando chats GREEN-API...');
@@ -351,22 +392,30 @@ export function useGreenAPI() {
       
       const formattedChats: GreenAPIChat[] = data.map((chat: any) => ({
         chatId: chat.id,
-        name: chat.name || chat.id.replace('@c.us', '').replace('@g.us', ''),
+        name: formatContactName(chat.id, chat.name),
         lastMessage: chat.lastMessage?.body || '',
         lastMessageTime: chat.lastMessage?.timestamp ? new Date(chat.lastMessage.timestamp * 1000).toISOString() : new Date().toISOString(),
         unreadCount: chat.unreadCount || 0,
-        isGroup: chat.id.includes('@g.us')
-      })).sort((a, b) => {
-        // Ordenar por timestamp da última mensagem (mais recente primeiro)
+        isGroup: chat.id.includes('@g.us'),
+        isPinned: pinnedChats.includes(chat.id)
+      }));
+
+      // Ordenar: fixados primeiro, depois por timestamp da última mensagem
+      const sortedChats = formattedChats.sort((a, b) => {
+        // Primeiro critério: chats fixados vêm primeiro
+        if (a.isPinned && !b.isPinned) return -1;
+        if (!a.isPinned && b.isPinned) return 1;
+        
+        // Segundo critério: ordenar por timestamp da última mensagem (mais recente primeiro)
         const timeA = a.lastMessageTime ? new Date(a.lastMessageTime).getTime() : 0;
         const timeB = b.lastMessageTime ? new Date(b.lastMessageTime).getTime() : 0;
         return timeB - timeA;
       });
 
-      setChats(formattedChats);
+      setChats(sortedChats);
 
       // Salvar cada conversa no banco de dados para análise futura
-      for (const chat of formattedChats) {
+      for (const chat of sortedChats) {
         await saveConversationToDatabase(chat);
       }
       
@@ -378,6 +427,38 @@ export function useGreenAPI() {
         variant: "destructive"
       });
     }
+  };
+
+  const togglePinChat = (chatId: string) => {
+    setPinnedChats(prev => {
+      const newPinnedChats = prev.includes(chatId) 
+        ? prev.filter(id => id !== chatId)
+        : [...prev, chatId];
+      
+      // Atualizar o estado dos chats também
+      setChats(prevChats => 
+        prevChats.map(chat => ({
+          ...chat,
+          isPinned: newPinnedChats.includes(chat.chatId)
+        })).sort((a, b) => {
+          // Primeiro critério: chats fixados vêm primeiro
+          if (a.isPinned && !b.isPinned) return -1;
+          if (!a.isPinned && b.isPinned) return 1;
+          
+          // Segundo critério: ordenar por timestamp da última mensagem (mais recente primeiro)
+          const timeA = a.lastMessageTime ? new Date(a.lastMessageTime).getTime() : 0;
+          const timeB = b.lastMessageTime ? new Date(b.lastMessageTime).getTime() : 0;
+          return timeB - timeA;
+        })
+      );
+      
+      return newPinnedChats;
+    });
+
+    toast({
+      title: pinnedChats.includes(chatId) ? "Chat desfixado" : "Chat fixado",
+      description: pinnedChats.includes(chatId) ? "Chat removido dos fixos" : "Chat adicionado aos fixos"
+    });
   };
 
   const loadChatHistory = async (chatId: string) => {
@@ -540,12 +621,14 @@ export function useGreenAPI() {
     chats,
     messages,
     isLoading,
+    pinnedChats,
     updateAPIConfig,
     getQRCode,
     loadChats,
     loadChatHistory,
     sendMessage,
     disconnect,
-    checkConnectionStatus
+    checkConnectionStatus,
+    togglePinChat
   };
 }

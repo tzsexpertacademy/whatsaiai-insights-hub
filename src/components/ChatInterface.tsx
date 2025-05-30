@@ -5,20 +5,23 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Send, Bot, User, Phone, Wifi, WifiOff, AlertCircle, Shield, RefreshCw, Search, MoreVertical, Calendar, Filter } from 'lucide-react';
+import { Send, Bot, User, Phone, Wifi, WifiOff, AlertCircle, Shield, RefreshCw, Search, MoreVertical, Calendar, Filter, Pin, PinOff } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { useGreenAPI } from "@/hooks/useGreenAPI";
 import { useAdmin } from "@/contexts/AdminContext";
 import { PageLayout } from '@/components/layout/PageLayout';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 export function ChatInterface() {
   const {
     greenAPIState,
     chats,
     messages,
+    pinnedChats,
     loadChats,
     loadChatHistory,
-    sendMessage
+    sendMessage,
+    togglePinChat
   } = useGreenAPI();
   
   const { isAdmin } = useAdmin();
@@ -127,6 +130,10 @@ export function ChatInterface() {
       title: "Atualizando...",
       description: "Carregando conversas mais recentes"
     });
+  };
+
+  const handleTogglePin = (chatId: string, chatName: string) => {
+    togglePinChat(chatId);
   };
 
   const formatTime = (timestamp: string) => {
@@ -274,6 +281,7 @@ export function ChatInterface() {
             <span>{filteredChats.length} conversas • {getPeriodLabel(periodFilter)}</span>
             <span className="text-xs">
               {filteredChats.filter(c => c.unreadCount > 0).length} não lidas
+              {pinnedChats.length > 0 && ` • ${pinnedChats.length} fixadas`}
             </span>
           </div>
 
@@ -283,12 +291,16 @@ export function ChatInterface() {
               {filteredChats.map((chat) => (
                 <div
                   key={chat.chatId}
-                  onClick={() => handleChatSelect(chat.chatId)}
-                  className={`p-4 cursor-pointer transition-colors hover:bg-gray-100 ${
+                  className={`relative group p-4 cursor-pointer transition-colors hover:bg-gray-100 ${
                     activeChat === chat.chatId ? 'bg-green-50 border-r-4 border-green-500' : ''
-                  } ${chat.unreadCount > 0 ? 'bg-blue-50' : ''}`}
+                  } ${chat.unreadCount > 0 ? 'bg-blue-50' : ''} ${
+                    chat.isPinned ? 'bg-yellow-50 border-l-4 border-yellow-400' : ''
+                  }`}
                 >
-                  <div className="flex items-start gap-3">
+                  <div 
+                    className="flex items-start gap-3"
+                    onClick={() => handleChatSelect(chat.chatId)}
+                  >
                     {/* Avatar */}
                     <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold relative ${
                       chat.isGroup ? 'bg-blue-500' : 'bg-green-500'
@@ -297,6 +309,11 @@ export function ChatInterface() {
                       {chat.unreadCount > 0 && (
                         <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
                           {chat.unreadCount > 9 ? '9+' : chat.unreadCount}
+                        </div>
+                      )}
+                      {chat.isPinned && (
+                        <div className="absolute -top-1 -left-1 bg-yellow-500 rounded-full w-4 h-4 flex items-center justify-center">
+                          <Pin className="w-2 h-2 text-white" />
                         </div>
                       )}
                     </div>
@@ -324,13 +341,52 @@ export function ChatInterface() {
                         }`}>
                           {chat.lastMessage || 'Nenhuma mensagem'}
                         </p>
-                        {chat.isGroup && (
-                          <Badge variant="outline" className="text-xs ml-2">
-                            Grupo
-                          </Badge>
-                        )}
+                        <div className="flex items-center gap-2">
+                          {chat.isGroup && (
+                            <Badge variant="outline" className="text-xs">
+                              Grupo
+                            </Badge>
+                          )}
+                          {chat.isPinned && (
+                            <Badge className="text-xs bg-yellow-100 text-yellow-800">
+                              <Pin className="w-3 h-3 mr-1" />
+                              Fixado
+                            </Badge>
+                          )}
+                        </div>
                       </div>
                     </div>
+                  </div>
+
+                  {/* Menu de opções */}
+                  <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleTogglePin(chat.chatId, chat.name);
+                          }}
+                        >
+                          {chat.isPinned ? (
+                            <>
+                              <PinOff className="mr-2 h-4 w-4" />
+                              Desfixar conversa
+                            </>
+                          ) : (
+                            <>
+                              <Pin className="mr-2 h-4 w-4" />
+                              Fixar conversa
+                            </>
+                          )}
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </div>
               ))}
@@ -363,13 +419,26 @@ export function ChatInterface() {
               {/* Header do chat */}
               <div className="p-4 border-b border-gray-200 bg-gray-50">
                 <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold ${
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold relative ${
                     activeChatInfo.isGroup ? 'bg-blue-500' : 'bg-green-500'
                   }`}>
                     {activeChatInfo.isGroup ? '👥' : activeChatInfo.name.charAt(0).toUpperCase()}
+                    {activeChatInfo.isPinned && (
+                      <div className="absolute -top-1 -left-1 bg-yellow-500 rounded-full w-4 h-4 flex items-center justify-center">
+                        <Pin className="w-2 h-2 text-white" />
+                      </div>
+                    )}
                   </div>
                   <div className="flex-1">
-                    <h3 className="font-semibold text-gray-900">{activeChatInfo.name}</h3>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-semibold text-gray-900">{activeChatInfo.name}</h3>
+                      {activeChatInfo.isPinned && (
+                        <Badge className="text-xs bg-yellow-100 text-yellow-800">
+                          <Pin className="w-3 h-3 mr-1" />
+                          Fixado
+                        </Badge>
+                      )}
+                    </div>
                     <p className="text-sm text-gray-600">
                       {activeChatInfo.isGroup ? 'Grupo' : 'Contato'} • GREEN-API
                       {chatMessages.length > 0 && (
@@ -490,6 +559,9 @@ export function ChatInterface() {
                     ? 'Aguardando mensagens...' 
                     : `${filteredChats.length} conversas disponíveis`
                   }
+                  {pinnedChats.length > 0 && (
+                    <span className="ml-2">• {pinnedChats.length} fixadas</span>
+                  )}
                 </p>
               </div>
             </div>
