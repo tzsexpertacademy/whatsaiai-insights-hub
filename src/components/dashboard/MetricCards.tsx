@@ -161,7 +161,7 @@ export function MetricCards() {
                 <div className="flex items-center gap-1">
                   <span className="text-lg font-bold text-gray-600">{metric.trend}</span>
                   {metric.isReal && (
-                    <Bot className="w-4 h-4 text-green-600" title="Dados reais dos assistentes" />
+                    <Bot className="w-4 h-4 text-green-600" />
                   )}
                 </div>
               </div>
