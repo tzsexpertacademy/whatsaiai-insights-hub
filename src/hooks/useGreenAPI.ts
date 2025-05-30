@@ -13,6 +13,7 @@ interface Chat {
   isPinned: boolean;
   isMonitored: boolean;
   isGroup: boolean;
+  assignedAssistant?: string;
 }
 
 interface Message {
@@ -27,6 +28,16 @@ interface GreenAPIState {
   isConnected: boolean;
   instanceId: string;
   phoneNumber: string;
+  qrCode: string;
+  isGenerating: boolean;
+  lastConnected: string;
+}
+
+interface GreenAPIConfig {
+  instanceId: string;
+  apiToken: string;
+  phoneNumber?: string;
+  webhookUrl?: string;
 }
 
 export function useGreenAPI() {
@@ -37,12 +48,23 @@ export function useGreenAPI() {
   const [greenAPIState, setGreenAPIState] = useState<GreenAPIState>({
     isConnected: false,
     instanceId: '',
-    phoneNumber: ''
+    phoneNumber: '',
+    qrCode: '',
+    isGenerating: false,
+    lastConnected: ''
   });
 
   const [chats, setChats] = useState<Chat[]>([]);
   const [messages, setMessages] = useState<Record<string, Message[]>>({});
   const [selectedAssistant, setSelectedAssistant] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  const apiConfig: GreenAPIConfig = {
+    instanceId: config.whatsapp?.greenapi?.instanceId || '',
+    apiToken: config.whatsapp?.greenapi?.apiToken || '',
+    phoneNumber: config.whatsapp?.greenapi?.phoneNumber || '',
+    webhookUrl: config.whatsapp?.greenapi?.webhookUrl || ''
+  };
 
   const updateAPIConfig = useCallback((newConfig: any) => {
     console.log('🔧 Atualizando configuração GREEN-API:', newConfig);
@@ -58,7 +80,7 @@ export function useGreenAPI() {
   }, []);
 
   const loadChats = useCallback(async () => {
-    if (!greenAPIState.isConnected || !config.greenapi?.instanceId) {
+    if (!greenAPIState.isConnected || !apiConfig.instanceId) {
       console.log('❌ GREEN-API não conectado para carregar chats');
       return;
     }
@@ -67,7 +89,7 @@ export function useGreenAPI() {
       console.log('📱 Carregando chats do GREEN-API...');
       
       const response = await fetch(
-        `https://api.green-api.com/waInstance${config.greenapi.instanceId}/getChats/${config.greenapi.apiToken}`,
+        `https://api.green-api.com/waInstance${apiConfig.instanceId}/getChats/${apiConfig.apiToken}`,
         { method: 'GET' }
       );
 
@@ -86,7 +108,8 @@ export function useGreenAPI() {
           unreadCount: chat.unreadCount || 0,
           isPinned: false,
           isMonitored: false,
-          isGroup: chat.id?.includes('@g.us') || false
+          isGroup: chat.id?.includes('@g.us') || false,
+          assignedAssistant: ''
         }));
 
         setChats(formattedChats);
@@ -95,7 +118,7 @@ export function useGreenAPI() {
     } catch (error) {
       console.error('❌ Erro ao carregar chats:', error);
     }
-  }, [greenAPIState.isConnected, config.greenapi]);
+  }, [greenAPIState.isConnected, apiConfig]);
 
   const loadChatHistory = useCallback(async (chatId: string) => {
     if (!chatId || !greenAPIState.isConnected) {
@@ -135,7 +158,7 @@ export function useGreenAPI() {
 
       // Se não tiver no banco, carregar do GREEN-API
       const response = await fetch(
-        `https://api.green-api.com/waInstance${config.greenapi?.instanceId}/getChatHistory/${config.greenapi?.apiToken}`,
+        `https://api.green-api.com/waInstance${apiConfig.instanceId}/getChatHistory/${apiConfig.apiToken}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -174,10 +197,10 @@ export function useGreenAPI() {
       console.error('❌ Erro ao carregar histórico:', error);
       setMessages(prev => ({ ...prev, [chatId]: [] }));
     }
-  }, [greenAPIState.isConnected, config.greenapi, user?.id]);
+  }, [greenAPIState.isConnected, apiConfig, user?.id]);
 
   const sendMessage = useCallback(async (chatId: string, message: string): Promise<boolean> => {
-    if (!greenAPIState.isConnected || !config.greenapi?.instanceId) {
+    if (!greenAPIState.isConnected || !apiConfig.instanceId) {
       toast({
         title: "Erro de conexão",
         description: "GREEN-API não está conectado",
@@ -190,7 +213,7 @@ export function useGreenAPI() {
       console.log(`📤 Enviando mensagem para ${chatId}: ${message}`);
       
       const response = await fetch(
-        `https://api.green-api.com/waInstance${config.greenapi.instanceId}/sendMessage/${config.greenapi.apiToken}`,
+        `https://api.green-api.com/waInstance${apiConfig.instanceId}/sendMessage/${apiConfig.apiToken}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -237,7 +260,7 @@ export function useGreenAPI() {
       });
       return false;
     }
-  }, [greenAPIState.isConnected, config.greenapi, toast]);
+  }, [greenAPIState.isConnected, apiConfig, toast]);
 
   const togglePinChat = useCallback((chatId: string) => {
     setChats(prev => prev.map(chat => 
@@ -255,10 +278,67 @@ export function useGreenAPI() {
     ));
   }, []);
 
+  const assignAssistantToChat = useCallback((chatId: string, assistantId: string) => {
+    setChats(prev => prev.map(chat => 
+      chat.chatId === chatId 
+        ? { ...chat, assignedAssistant: assistantId }
+        : chat
+    ));
+    
+    toast({
+      title: "Assistente atribuído",
+      description: `Assistente configurado para este número`
+    });
+  }, [toast]);
+
   const refreshChats = useCallback(async () => {
     console.log('🔄 Atualizando lista de conversas...');
     await loadChats();
   }, [loadChats]);
+
+  const getQRCode = useCallback(async (): Promise<string> => {
+    setIsLoading(true);
+    setGreenAPIState(prev => ({ ...prev, isGenerating: true }));
+    
+    try {
+      // Simular geração de QR Code
+      const qrCode = `data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==`;
+      
+      setGreenAPIState(prev => ({
+        ...prev,
+        qrCode,
+        isGenerating: false
+      }));
+      
+      return qrCode;
+    } catch (error) {
+      console.error('Erro ao gerar QR Code:', error);
+      return '';
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const disconnect = useCallback(() => {
+    setGreenAPIState({
+      isConnected: false,
+      instanceId: '',
+      phoneNumber: '',
+      qrCode: '',
+      isGenerating: false,
+      lastConnected: ''
+    });
+    
+    toast({
+      title: "Desconectado",
+      description: "GREEN-API desconectado"
+    });
+  }, [toast]);
+
+  const checkConnectionStatus = useCallback(async () => {
+    // Implementar verificação de status
+    return greenAPIState.isConnected;
+  }, [greenAPIState.isConnected]);
 
   return {
     greenAPIState,
@@ -269,9 +349,15 @@ export function useGreenAPI() {
     sendMessage,
     togglePinChat,
     toggleMonitorChat,
+    assignAssistantToChat,
     selectedAssistant,
     setSelectedAssistant,
     updateAPIConfig,
-    refreshChats
+    refreshChats,
+    apiConfig,
+    isLoading,
+    getQRCode,
+    disconnect,
+    checkConnectionStatus
   };
 }

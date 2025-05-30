@@ -18,6 +18,7 @@ serve(async (req) => {
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
     
     const supabase = createClient(supabaseUrl, supabaseKey);
     
@@ -37,6 +38,9 @@ serve(async (req) => {
 
       console.log(`💬 Nova mensagem GREEN-API de ${senderName}: ${messageText}`);
 
+      // Verificar se há assistente configurado para este chat
+      const assignedAssistant = await getAssignedAssistant(supabase, chatId);
+      
       // Verificar se é conversa monitorada
       const isMonitored = await checkIfChatIsMonitored(supabase, chatId);
       
@@ -47,6 +51,18 @@ serve(async (req) => {
           senderName,
           messageText,
           messageId,
+          timestamp
+        });
+      }
+
+      // Gerar resposta automática se houver assistente configurado
+      if (assignedAssistant && openaiApiKey && messageText.trim()) {
+        console.log(`🤖 Gerando resposta automática com assistente: ${assignedAssistant.assistant_name}`);
+        await generateAutoReply(supabase, {
+          chatId,
+          messageText,
+          assistantConfig: assignedAssistant,
+          openaiApiKey,
           timestamp
         });
       }
@@ -94,6 +110,126 @@ serve(async (req) => {
     );
   }
 });
+
+async function getAssignedAssistant(supabase: any, chatId: string) {
+  try {
+    // Buscar assistente configurado para este chat
+    // Por enquanto, vamos buscar o primeiro assistente ativo do usuário
+    // Em uma implementação completa, você salvaria a configuração chat -> assistente
+    const { data, error } = await supabase
+      .from('assistants_config')
+      .select('*')
+      .eq('is_active', true)
+      .limit(1)
+      .single();
+
+    if (error) {
+      console.log('Nenhum assistente configurado:', error);
+      return null;
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Erro ao buscar assistente:', error);
+    return null;
+  }
+}
+
+async function generateAutoReply(supabase: any, params: any) {
+  const { chatId, messageText, assistantConfig, openaiApiKey, timestamp } = params;
+  
+  try {
+    console.log('🤖 Gerando resposta automática...');
+    
+    const systemPrompt = `${assistantConfig.prompt}
+
+INSTRUÇÕES ESPECÍFICAS:
+- Você é o assistente "${assistantConfig.assistant_name}" especializado em "${assistantConfig.assistant_role}"
+- Responda como se fosse uma conversa de WhatsApp
+- Seja natural, cordial e profissional
+- Mantenha respostas concisas (máximo 2 parágrafos)
+- Responda sempre em português brasileiro`;
+
+    const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openaiApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: messageText }
+        ],
+        temperature: 0.7,
+        max_tokens: 300,
+      }),
+    });
+
+    if (aiResponse.ok) {
+      const aiData = await aiResponse.json();
+      const replyText = aiData.choices[0].message.content;
+
+      console.log('💬 Resposta gerada:', replyText);
+
+      // Salvar resposta no banco
+      const conversationId = await getOrCreateConversationId(supabase, chatId);
+      
+      if (conversationId) {
+        await supabase
+          .from('whatsapp_messages')
+          .insert({
+            conversation_id: conversationId,
+            sender_type: 'assistant',
+            message_text: replyText,
+            ai_generated: true,
+            timestamp: new Date().toISOString(),
+            metadata: {
+              assistant_id: assistantConfig.id,
+              assistant_name: assistantConfig.assistant_name
+            }
+          });
+
+        console.log('✅ Resposta automática salva no banco');
+      }
+
+      // Aqui você enviaria a resposta via GREEN-API
+      // await sendMessageViaGreenAPI(chatId, replyText);
+    }
+  } catch (error) {
+    console.error('❌ Erro ao gerar resposta automática:', error);
+  }
+}
+
+async function getOrCreateConversationId(supabase: any, chatId: string) {
+  try {
+    const { data: existing } = await supabase
+      .from('whatsapp_conversations')
+      .select('id')
+      .eq('contact_phone', chatId)
+      .single();
+
+    if (existing) {
+      return existing.id;
+    }
+
+    const { data: newConv } = await supabase
+      .from('whatsapp_conversations')
+      .insert({
+        contact_phone: chatId,
+        contact_name: chatId,
+        messages: []
+      })
+      .select('id')
+      .single();
+
+    return newConv?.id;
+  } catch (error) {
+    console.error('Erro ao obter/criar conversa:', error);
+    return null;
+  }
+}
 
 async function checkIfChatIsMonitored(supabase: any, chatId: string): Promise<boolean> {
   try {
