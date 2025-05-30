@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -5,14 +6,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Bot, CheckCircle, AlertCircle, Brain, Loader2, CreditCard, Key, ExternalLink, ArrowRight, DollarSign } from 'lucide-react';
+import { Bot, CheckCircle, AlertCircle, Brain, Loader2, Key, ExternalLink, ArrowRight, DollarSign, Zap, Target, TrendingUp } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { useClientConfig } from '@/contexts/ClientConfigContext';
 
 const availableModels = [
-  { id: 'gpt-4o', name: 'GPT-4o', description: 'Mais poderoso e caro, com visão' },
-  { id: 'gpt-4o-mini', name: 'GPT-4o Mini', description: 'Rápido e econômico, com visão' },
-  { id: 'gpt-4.5-preview', name: 'GPT-4.5 Preview', description: 'Modelo preview muito poderoso' }
+  { id: 'gpt-4o-mini', name: 'GPT-4o Mini', description: 'Rápido e econômico, ideal para começar', recommended: true },
+  { id: 'gpt-4o', name: 'GPT-4o', description: 'Mais poderoso, para análises avançadas', recommended: false },
+  { id: 'gpt-4.5-preview', name: 'GPT-4.5 Preview', description: 'Modelo experimental de última geração', recommended: false }
 ];
 
 export function OpenAIConfig() {
@@ -25,8 +26,8 @@ export function OpenAIConfig() {
   const testConnection = async () => {
     if (!config.openai.apiKey.startsWith('sk-')) {
       toast({
-        title: "Erro",
-        description: "Chave API OpenAI inválida. Deve começar com 'sk-'",
+        title: "Chave API inválida",
+        description: "A chave API deve começar com 'sk-'",
         variant: "destructive",
       });
       return;
@@ -41,21 +42,21 @@ export function OpenAIConfig() {
         await saveConfig();
         
         toast({
-          title: "Conectado!",
-          description: "OpenAI API configurada e salva com sucesso",
+          title: "🎉 Conectado com sucesso!",
+          description: "Sua IA está pronta para revolucionar sua análise",
         });
       } else {
         toast({
           title: "Falha na conexão",
-          description: "Não foi possível conectar à API da OpenAI",
+          description: "Verifique sua chave API e tente novamente",
           variant: "destructive",
         });
       }
     } catch (error) {
       console.error('Erro ao testar API OpenAI:', error);
       toast({
-        title: "Falha na conexão",
-        description: "Não foi possível conectar à API da OpenAI",
+        title: "Erro de conexão",
+        description: "Não foi possível conectar à OpenAI",
         variant: "destructive",
       });
     } finally {
@@ -75,34 +76,65 @@ export function OpenAIConfig() {
     
     toast({
       title: "Desconectado",
-      description: "Conexão com OpenAI removida e salva",
+      description: "Conexão removida com sucesso",
     });
   };
 
   return (
-    <div className="space-y-6">
-      {/* Guia de Instalação */}
-      <Card className="bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-blue-800">
-            <Bot className="h-5 w-5" />
-            Guia de Configuração da OpenAI
-          </CardTitle>
-          <CardDescription className="text-blue-700">
-            Siga este passo-a-passo para configurar sua conta OpenAI e conectar ao Observatório
+    <div className="space-y-8">
+      {/* Hero Section */}
+      <div className="relative bg-gradient-to-br from-blue-600 via-purple-600 to-emerald-500 rounded-2xl p-8 text-white overflow-hidden">
+        <div className="absolute inset-0 bg-black/20 rounded-2xl"></div>
+        <div className="relative z-10">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
+              <Bot className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold">Ative sua IA</h1>
+              <p className="text-blue-100">Transforme dados em insights poderosos</p>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
+              <Target className="w-5 h-5 text-emerald-300 mb-2" />
+              <h3 className="font-semibold text-sm mb-1">Análise Instantânea</h3>
+              <p className="text-xs text-blue-100">Insights em segundos</p>
+            </div>
+            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
+              <TrendingUp className="w-5 h-5 text-emerald-300 mb-2" />
+              <h3 className="font-semibold text-sm mb-1">Custo Baixo</h3>
+              <p className="text-xs text-blue-100">A partir de $0,001 por análise</p>
+            </div>
+            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
+              <Zap className="w-5 h-5 text-emerald-300 mb-2" />
+              <h3 className="font-semibold text-sm mb-1">Setup Rápido</h3>
+              <p className="text-xs text-blue-100">3 passos simples</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Setup Guide - Simplified */}
+      <Card className="border-none shadow-lg">
+        <CardHeader className="pb-4">
+          <CardTitle className="text-xl text-gray-800">Como começar</CardTitle>
+          <CardDescription className="text-gray-600">
+            Configure sua conta OpenAI em 3 passos simples
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="grid gap-4">
-            {/* Passo 1 */}
-            <div className="flex gap-4 p-4 bg-white rounded-lg border border-blue-200">
-              <div className="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold">
+        <CardContent>
+          <div className="space-y-4">
+            {/* Step 1 */}
+            <div className="flex gap-4 p-4 bg-blue-50 rounded-xl border border-blue-100">
+              <div className="flex-shrink-0 w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold text-sm">
                 1
               </div>
               <div className="flex-1">
-                <h3 className="font-semibold text-blue-800 mb-2">Criar Conta na OpenAI</h3>
-                <p className="text-sm text-gray-700 mb-3">
-                  Acesse o site da OpenAI e crie sua conta gratuita
+                <h3 className="font-semibold text-gray-800 mb-1">Crie sua conta OpenAI</h3>
+                <p className="text-sm text-gray-600 mb-3">
+                  Acesse o site oficial e crie sua conta gratuita
                 </p>
                 <Button 
                   variant="outline" 
@@ -111,55 +143,43 @@ export function OpenAIConfig() {
                   onClick={() => window.open('https://platform.openai.com/signup', '_blank')}
                 >
                   <ExternalLink className="w-4 h-4 mr-2" />
-                  Criar Conta OpenAI
+                  Criar Conta
                 </Button>
               </div>
             </div>
 
-            {/* Passo 2 */}
-            <div className="flex gap-4 p-4 bg-white rounded-lg border border-blue-200">
-              <div className="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold">
+            {/* Step 2 */}
+            <div className="flex gap-4 p-4 bg-green-50 rounded-xl border border-green-100">
+              <div className="flex-shrink-0 w-8 h-8 bg-green-500 text-white rounded-full flex items-center justify-center font-bold text-sm">
                 2
               </div>
               <div className="flex-1">
-                <h3 className="font-semibold text-blue-800 mb-2">Adicionar Saldo (Créditos)</h3>
-                <p className="text-sm text-gray-700 mb-3">
-                  Para usar a API, você precisa adicionar créditos à sua conta. Recomendamos começar com $10-20.
+                <h3 className="font-semibold text-gray-800 mb-1">Adicione créditos</h3>
+                <p className="text-sm text-gray-600 mb-3">
+                  Comece com $10-20 (suficiente para milhares de análises)
                 </p>
-                <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200 mb-3">
-                  <p className="text-xs text-yellow-800">
-                    💡 <strong>Dica:</strong> O modelo GPT-4o-mini custa cerca de $0,15 por 1M tokens de entrada e $0,60 por 1M tokens de saída.
-                    Com $10, você pode processar milhares de análises!
-                  </p>
-                </div>
                 <Button 
                   variant="outline" 
                   size="sm" 
                   className="text-green-600 border-green-300 hover:bg-green-50"
                   onClick={() => window.open('https://platform.openai.com/account/billing/overview', '_blank')}
                 >
-                  <CreditCard className="w-4 h-4 mr-2" />
+                  <DollarSign className="w-4 h-4 mr-2" />
                   Adicionar Créditos
                 </Button>
               </div>
             </div>
 
-            {/* Passo 3 */}
-            <div className="flex gap-4 p-4 bg-white rounded-lg border border-blue-200">
-              <div className="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold">
+            {/* Step 3 */}
+            <div className="flex gap-4 p-4 bg-purple-50 rounded-xl border border-purple-100">
+              <div className="flex-shrink-0 w-8 h-8 bg-purple-500 text-white rounded-full flex items-center justify-center font-bold text-sm">
                 3
               </div>
               <div className="flex-1">
-                <h3 className="font-semibold text-blue-800 mb-2">Gerar Chave da API</h3>
-                <p className="text-sm text-gray-700 mb-3">
-                  Crie uma nova chave API para conectar o Observatório à sua conta OpenAI
+                <h3 className="font-semibold text-gray-800 mb-1">Gere sua chave API</h3>
+                <p className="text-sm text-gray-600 mb-3">
+                  Cole a chave no campo abaixo (começa com "sk-")
                 </p>
-                <div className="bg-red-50 p-3 rounded-lg border border-red-200 mb-3">
-                  <p className="text-xs text-red-800">
-                    🔒 <strong>Importante:</strong> Mantenha sua chave API em segurança! Não compartilhe com ninguém.
-                    A chave sempre começa com "sk-"
-                  </p>
-                </div>
                 <Button 
                   variant="outline" 
                   size="sm" 
@@ -167,117 +187,86 @@ export function OpenAIConfig() {
                   onClick={() => window.open('https://platform.openai.com/api-keys', '_blank')}
                 >
                   <Key className="w-4 h-4 mr-2" />
-                  Gerar Chave API
+                  Gerar Chave
                 </Button>
               </div>
             </div>
-
-            {/* Passo 4 */}
-            <div className="flex gap-4 p-4 bg-white rounded-lg border border-green-200">
-              <div className="flex-shrink-0 w-8 h-8 bg-green-600 text-white rounded-full flex items-center justify-center font-bold">
-                4
-              </div>
-              <div className="flex-1">
-                <h3 className="font-semibold text-green-800 mb-2">Conectar ao Observatório</h3>
-                <p className="text-sm text-gray-700 mb-3">
-                  Cole sua chave API no campo abaixo e teste a conexão
-                </p>
-                <div className="flex items-center gap-2 text-green-600">
-                  <ArrowRight className="w-4 h-4" />
-                  <span className="text-sm font-medium">Configure sua chave API abaixo ⬇️</span>
-                </div>
-              </div>
-            </div>
           </div>
-
-          <Alert>
-            <DollarSign className="h-4 w-4" />
-            <AlertDescription>
-              <strong>Estimativa de Custos:</strong> Uma análise típica do Observatório consome cerca de 300-800 tokens, 
-              custando aproximadamente $0,001 a $0,003 por análise com o modelo GPT-4o-mini.
-            </AlertDescription>
-          </Alert>
         </CardContent>
       </Card>
 
-      {/* Configuração da API */}
+      {/* Configuration Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="bg-white/70 backdrop-blur-sm border-white/50">
+        {/* Connection Card */}
+        <Card className="shadow-lg border-none">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Bot className="h-5 w-5 text-green-600" />
-              Status da OpenAI API
+              {isLoading ? (
+                <Loader2 className="h-5 w-5 text-blue-500 animate-spin" />
+              ) : isConnected ? (
+                <CheckCircle className="h-5 w-5 text-green-500" />
+              ) : (
+                <AlertCircle className="h-5 w-5 text-orange-500" />
+              )}
+              Status da Conexão
             </CardTitle>
             <CardDescription>
-              Status da conexão com a API OpenAI
+              {isConnected ? 'IA conectada e funcionando' : 'Configure sua chave API para começar'}
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-3 mb-4">
-              {isLoading ? (
-                <>
-                  <Loader2 className="h-6 w-6 text-blue-500 animate-spin" />
-                  <span className="text-blue-600 font-medium">Verificando...</span>
-                </>
-              ) : isConnected ? (
-                <>
-                  <CheckCircle className="h-6 w-6 text-green-500" />
-                  <span className="text-green-600 font-medium">Conectado</span>
-                </>
-              ) : (
-                <>
-                  <AlertCircle className="h-6 w-6 text-red-500" />
-                  <span className="text-red-600 font-medium">Desconectado</span>
-                </>
-              )}
-            </div>
-            
+          <CardContent className="space-y-4">
             {isConnected && (
-              <div className="bg-green-50 p-3 rounded-lg border border-green-200">
-                <p className="text-sm text-green-700">
-                  Modelo padrão: {availableModels.find(m => m.id === config.openai.model)?.name}
-                </p>
-                <p className="text-sm text-green-700">
-                  Configuração salva no seu perfil
-                </p>
-              </div>
+              <Alert className="border-green-200 bg-green-50">
+                <CheckCircle className="h-4 w-4 text-green-600" />
+                <AlertDescription className="text-green-700">
+                  <strong>✅ Conectado!</strong> Sua IA está pronta para uso.
+                  <br />
+                  Modelo: {availableModels.find(m => m.id === config.openai.model)?.name}
+                </AlertDescription>
+              </Alert>
             )}
 
-            <div className="space-y-3 mt-4">
-              <div>
-                <Label htmlFor="apikey">Chave da API OpenAI *</Label>
-                <Input
-                  id="apikey"
-                  type="password"
-                  placeholder="sk-..."
-                  value={config.openai.apiKey}
-                  onChange={(e) => updateConfig('openai', { apiKey: e.target.value })}
-                  disabled={isConnected}
-                />
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="apikey" className="text-sm font-medium">Chave API OpenAI</Label>
+              <Input
+                id="apikey"
+                type="password"
+                placeholder="sk-proj-..."
+                value={config.openai.apiKey}
+                onChange={(e) => updateConfig('openai', { apiKey: e.target.value })}
+                disabled={isConnected}
+                className="font-mono text-sm"
+              />
+              <p className="text-xs text-gray-500">
+                Sua chave permanece segura e privada
+              </p>
             </div>
 
-            <div className="flex gap-2 mt-4">
+            <div className="pt-2">
               {!isConnected ? (
                 <Button 
                   onClick={testConnection} 
-                  className="flex-1" 
+                  className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700" 
                   disabled={!config.openai.apiKey || isTesting || isLoading}
+                  size="lg"
                 >
                   {isTesting ? (
                     <>
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Testando...
+                      Conectando...
                     </>
                   ) : (
-                    'Testar e Salvar'
+                    <>
+                      <Zap className="h-4 w-4 mr-2" />
+                      Conectar e Ativar IA
+                    </>
                   )}
                 </Button>
               ) : (
                 <Button 
                   onClick={disconnect} 
-                  variant="destructive" 
-                  className="flex-1"
+                  variant="outline" 
+                  className="w-full border-red-300 text-red-600 hover:bg-red-50"
                   disabled={isLoading}
                 >
                   Desconectar
@@ -287,16 +276,20 @@ export function OpenAIConfig() {
           </CardContent>
         </Card>
 
-        <Card className="bg-white/70 backdrop-blur-sm border-white/50">
+        {/* Model Configuration */}
+        <Card className="shadow-lg border-none">
           <CardHeader>
-            <CardTitle>Configurações dos Modelos</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <Brain className="h-5 w-5 text-purple-500" />
+              Configuração do Modelo
+            </CardTitle>
             <CardDescription>
-              Configure os parâmetros dos modelos de IA
+              Ajuste os parâmetros da IA conforme sua necessidade
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="model">Modelo Padrão</Label>
+            <div className="space-y-2">
+              <Label htmlFor="model">Modelo de IA</Label>
               <Select 
                 value={config.openai.model} 
                 onValueChange={(value) => updateConfig('openai', { model: value })}
@@ -308,9 +301,18 @@ export function OpenAIConfig() {
                 <SelectContent>
                   {availableModels.map((model) => (
                     <SelectItem key={model.id} value={model.id}>
-                      <div>
-                        <div className="font-medium">{model.name}</div>
-                        <div className="text-xs text-gray-500">{model.description}</div>
+                      <div className="flex items-center gap-2">
+                        <div>
+                          <div className="font-medium flex items-center gap-2">
+                            {model.name}
+                            {model.recommended && (
+                              <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                                Recomendado
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-xs text-gray-500">{model.description}</div>
+                        </div>
                       </div>
                     </SelectItem>
                   ))}
@@ -318,42 +320,48 @@ export function OpenAIConfig() {
               </Select>
             </div>
 
-            <div>
-              <Label htmlFor="maxTokens">Máximo de Tokens</Label>
-              <Input
-                id="maxTokens"
-                type="number"
-                placeholder="400"
-                value={config.openai.maxTokens}
-                onChange={(e) => updateConfig('openai', { maxTokens: parseInt(e.target.value) || 400 })}
-                disabled={isConnected}
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Máximo de tokens por resposta (recomendado: 400-1000)
-              </p>
-            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="maxTokens">Max Tokens</Label>
+                <Select
+                  value={config.openai.maxTokens.toString()}
+                  onValueChange={(value) => updateConfig('openai', { maxTokens: parseInt(value) })}
+                  disabled={isConnected}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="400">400 (Rápido)</SelectItem>
+                    <SelectItem value="800">800 (Equilibrado)</SelectItem>
+                    <SelectItem value="1500">1500 (Detalhado)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-            <div>
-              <Label htmlFor="temperature">Temperatura</Label>
-              <Input
-                id="temperature"
-                type="number"
-                step="0.1"
-                min="0"
-                max="2"
-                placeholder="0.7"
-                value={config.openai.temperature}
-                onChange={(e) => updateConfig('openai', { temperature: parseFloat(e.target.value) || 0.7 })}
-                disabled={isConnected}
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Criatividade das respostas (0 = preciso, 2 = criativo)
-              </p>
+              <div className="space-y-2">
+                <Label htmlFor="temperature">Criatividade</Label>
+                <Select
+                  value={config.openai.temperature.toString()}
+                  onValueChange={(value) => updateConfig('openai', { temperature: parseFloat(value) })}
+                  disabled={isConnected}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0.3">0.3 (Preciso)</SelectItem>
+                    <SelectItem value="0.7">0.7 (Equilibrado)</SelectItem>
+                    <SelectItem value="1.0">1.0 (Criativo)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             {!isConnected && (
               <Button 
                 onClick={saveConfig} 
+                variant="outline"
                 className="w-full mt-4"
                 disabled={isLoading}
               >
@@ -371,32 +379,19 @@ export function OpenAIConfig() {
         </Card>
       </div>
 
-      {/* Modelos Disponíveis */}
-      <Card className="bg-white/70 backdrop-blur-sm border-white/50">
-        <CardHeader>
-          <CardTitle>Modelos Disponíveis</CardTitle>
-          <CardDescription>
-            Informações sobre os modelos OpenAI disponíveis
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {availableModels.map((model) => (
-              <div key={model.id} className="p-4 border rounded-lg bg-gray-50">
-                <div className="flex items-center gap-2 mb-2">
-                  <Brain className="h-4 w-4 text-blue-500" />
-                  <h3 className="font-medium">{model.name}</h3>
-                </div>
-                <p className="text-sm text-gray-600">{model.description}</p>
-                {model.id === config.openai.model && (
-                  <div className="mt-2">
-                    <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                      Modelo Padrão
-                    </span>
-                  </div>
-                )}
-              </div>
-            ))}
+      {/* Cost Information */}
+      <Card className="bg-gradient-to-r from-emerald-50 to-blue-50 border-emerald-200">
+        <CardContent className="p-6">
+          <div className="flex items-start gap-3">
+            <DollarSign className="h-5 w-5 text-emerald-600 mt-0.5" />
+            <div>
+              <h3 className="font-semibold text-emerald-800 mb-1">Custo Transparente</h3>
+              <p className="text-sm text-emerald-700">
+                <strong>GPT-4o Mini:</strong> ~$0,001 por análise típica • 
+                <strong> GPT-4o:</strong> ~$0,005 por análise • 
+                Com $10 você faz milhares de análises!
+              </p>
+            </div>
           </div>
         </CardContent>
       </Card>
