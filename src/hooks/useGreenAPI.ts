@@ -46,13 +46,16 @@ export function useGreenAPI() {
   const [selectedAssistant, setSelectedAssistant] = useState('Analista Geral');
   const [isLoading, setIsLoading] = useState(false);
 
-  // Configuração da GREEN-API
+  // Configuração da GREEN-API com fallback para valores padrão
   const apiConfig = config?.whatsapp?.greenapi || { instanceId: '', apiToken: '', webhookUrl: '' };
 
   const updateAPIConfig = useCallback((newConfig: any) => {
+    if (!config) return;
+    
     updateConfig({
+      ...config,
       whatsapp: {
-        ...config?.whatsapp,
+        ...config.whatsapp,
         greenapi: {
           ...apiConfig,
           ...newConfig

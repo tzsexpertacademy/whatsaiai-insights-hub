@@ -1,3 +1,4 @@
+
 export interface WhatsAppConfig {
   isConnected: boolean;
   authorizedNumber: string;
@@ -10,6 +11,11 @@ export interface WhatsAppConfig {
   atendechatApiKey?: string;
   atendechatWebhookUrl?: string;
   makeWebhookUrl?: string;
+  greenapi?: {
+    instanceId: string;
+    apiToken: string;
+    webhookUrl: string;
+  };
 }
 
 export interface OpenAIConfig {
@@ -47,7 +53,12 @@ export const defaultConfig: ClientConfig = {
     lastImport: '',
     atendechatApiKey: '',
     atendechatWebhookUrl: '',
-    makeWebhookUrl: ''
+    makeWebhookUrl: '',
+    greenapi: {
+      instanceId: '',
+      apiToken: '',
+      webhookUrl: ''
+    }
   },
   openai: {
     apiKey: '',
