@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
@@ -54,7 +55,7 @@ const defaultNotifications: NotificationConfig[] = [
 export function useNotifications() {
   const [notifications, setNotifications] = useState<NotificationConfig[]>([]);
   const [permission, setPermission] = useState<NotificationPermission>('default');
-  const { user } = useAuth();
+  const { user, createCheckout } = useAuth();
 
   // Função para verificar se o usuário está em período de trial
   const isInTrialPeriod = useCallback(() => {
@@ -271,8 +272,8 @@ export function useNotifications() {
           onClick: async () => {
             console.log('💳 Clique no botão de assinatura - redirecionando para checkout');
             try {
-              if (user && typeof user.createCheckout === 'function') {
-                await user.createCheckout();
+              if (createCheckout && typeof createCheckout === 'function') {
+                await createCheckout();
               } else {
                 // Fallback se createCheckout não estiver disponível
                 window.location.href = '/dashboard/profile';
@@ -345,7 +346,7 @@ export function useNotifications() {
     } else {
       console.log(`⚠️ Notificação do navegador não disponível. Permissão: ${permission}`);
     }
-  }, [permission, user]);
+  }, [permission, createCheckout]);
 
   // Verificar e disparar notificações
   const checkNotifications = useCallback(() => {
