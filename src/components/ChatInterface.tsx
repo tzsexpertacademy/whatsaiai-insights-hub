@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { Send, Bot, User, Phone, Wifi, WifiOff, AlertCircle, Shield, RefreshCw, Search, MoreVertical } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Send, Bot, User, Phone, Wifi, WifiOff, AlertCircle, Shield, RefreshCw, Search, MoreVertical, Calendar, Filter } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { useGreenAPI } from "@/hooks/useGreenAPI";
 import { useAdmin } from "@/contexts/AdminContext";
@@ -27,6 +28,8 @@ export function ChatInterface() {
   const [activeChat, setActiveChat] = useState<string>('');
   const [isTyping, setIsTyping] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [periodFilter, setPeriodFilter] = useState('7'); // dias
+  const [showFilters, setShowFilters] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
@@ -52,12 +55,27 @@ export function ChatInterface() {
     scrollToBottom();
   }, [messages, activeChat]);
 
-  // Ordenar chats por data da última mensagem
-  const sortedChats = chats
-    .filter(chat => 
-      searchQuery === '' || 
-      chat.name.toLowerCase().includes(searchQuery.toLowerCase())
-    )
+  // Filtrar chats por período
+  const getDateFilterThreshold = () => {
+    const now = new Date();
+    const days = parseInt(periodFilter);
+    return new Date(now.getTime() - (days * 24 * 60 * 60 * 1000));
+  };
+
+  const filteredChats = chats
+    .filter(chat => {
+      // Filtro por busca
+      const matchesSearch = searchQuery === '' || 
+        chat.name.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      // Filtro por período
+      const threshold = getDateFilterThreshold();
+      const matchesPeriod = chat.lastMessageTime ? 
+        new Date(chat.lastMessageTime) >= threshold : 
+        true; // Mostrar chats sem mensagens também
+      
+      return matchesSearch && matchesPeriod;
+    })
     .sort((a, b) => {
       const timeA = a.lastMessageTime ? new Date(a.lastMessageTime).getTime() : 0;
       const timeB = b.lastMessageTime ? new Date(b.lastMessageTime).getTime() : 0;
@@ -133,6 +151,16 @@ export function ChatInterface() {
     }
   };
 
+  const getPeriodLabel = (days: string) => {
+    switch(days) {
+      case '1': return 'Hoje';
+      case '7': return 'Última semana';
+      case '30': return 'Último mês';
+      case '90': return 'Últimos 3 meses';
+      default: return 'Período personalizado';
+    }
+  };
+
   const headerActions = (
     <div className="flex flex-wrap items-center gap-2 sm:gap-3">
       <Badge className="bg-green-100 text-green-800 text-xs sm:text-sm">
@@ -183,7 +211,7 @@ export function ChatInterface() {
   return (
     <PageLayout
       title="WhatsApp Business"
-      description={`${sortedChats.length} conversas • ${greenAPIState.phoneNumber}`}
+      description={`${filteredChats.length} conversas • ${greenAPIState.phoneNumber}`}
       showBackButton={true}
       headerActions={headerActions}
     >
@@ -196,6 +224,14 @@ export function ChatInterface() {
               <h2 className="text-lg font-semibold">Conversas</h2>
               <div className="flex items-center gap-2">
                 <Button 
+                  onClick={() => setShowFilters(!showFilters)} 
+                  variant="ghost" 
+                  size="sm"
+                  className="text-white hover:bg-green-700"
+                >
+                  <Filter className="h-4 w-4" />
+                </Button>
+                <Button 
                   onClick={handleRefreshChats} 
                   variant="ghost" 
                   size="sm"
@@ -203,18 +239,11 @@ export function ChatInterface() {
                 >
                   <RefreshCw className="h-4 w-4" />
                 </Button>
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  className="text-white hover:bg-green-700"
-                >
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
               </div>
             </div>
             
             {/* Busca */}
-            <div className="relative">
+            <div className="relative mb-3">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
               <Input
                 placeholder="Buscar conversas..."
@@ -223,12 +252,38 @@ export function ChatInterface() {
                 className="pl-10 bg-white/20 border-white/30 text-white placeholder-white/70"
               />
             </div>
+
+            {/* Filtros de período */}
+            {showFilters && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm">
+                  <Calendar className="h-4 w-4" />
+                  <span>Período:</span>
+                </div>
+                <Select value={periodFilter} onValueChange={setPeriodFilter}>
+                  <SelectTrigger className="bg-white/20 border-white/30 text-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">Hoje</SelectItem>
+                    <SelectItem value="7">Última semana</SelectItem>
+                    <SelectItem value="30">Último mês</SelectItem>
+                    <SelectItem value="90">Últimos 3 meses</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+
+          {/* Stats do filtro */}
+          <div className="px-4 py-2 bg-green-500 text-white text-sm">
+            {filteredChats.length} conversas • {getPeriodLabel(periodFilter)}
           </div>
 
           {/* Lista de conversas */}
           <ScrollArea className="flex-1">
             <div className="divide-y divide-gray-200">
-              {sortedChats.map((chat) => (
+              {filteredChats.map((chat) => (
                 <div
                   key={chat.chatId}
                   onClick={() => handleChatSelect(chat.chatId)}
@@ -277,21 +332,21 @@ export function ChatInterface() {
                 </div>
               ))}
               
-              {sortedChats.length === 0 && (
+              {filteredChats.length === 0 && (
                 <div className="text-center py-12 px-4">
                   <Phone className="h-12 w-12 text-gray-400 mx-auto mb-3" />
                   <h3 className="text-gray-600 font-medium mb-2">
-                    {searchQuery ? 'Nenhuma conversa encontrada' : 'Nenhuma conversa'}
+                    {searchQuery || periodFilter !== '90' ? 'Nenhuma conversa encontrada' : 'Nenhuma conversa'}
                   </h3>
                   <p className="text-gray-500 text-sm mb-4">
-                    {searchQuery ? 'Tente buscar por outro termo' : 'Aguardando mensagens do WhatsApp'}
+                    {searchQuery ? 'Tente buscar por outro termo' : 
+                     periodFilter !== '90' ? 'Tente expandir o período de filtro' : 
+                     'Aguardando mensagens do WhatsApp'}
                   </p>
-                  {!searchQuery && (
-                    <Button onClick={handleRefreshChats} variant="outline" size="sm">
-                      <RefreshCw className="mr-2 h-4 w-4" />
-                      Atualizar
-                    </Button>
-                  )}
+                  <Button onClick={handleRefreshChats} variant="outline" size="sm">
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Atualizar
+                  </Button>
                 </div>
               )}
             </div>
@@ -314,6 +369,9 @@ export function ChatInterface() {
                     <h3 className="font-semibold text-gray-900">{activeChatInfo.name}</h3>
                     <p className="text-sm text-gray-600">
                       {activeChatInfo.isGroup ? 'Grupo' : 'Contato'} • GREEN-API
+                      {chatMessages.length > 0 && (
+                        <span className="ml-2">• {chatMessages.length} mensagens</span>
+                      )}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
@@ -326,41 +384,50 @@ export function ChatInterface() {
               {/* Mensagens */}
               <ScrollArea className="flex-1 p-4 bg-gray-100">
                 <div className="space-y-4">
-                  {chatMessages.map((message) => (
-                    <div
-                      key={message.id}
-                      className={`flex ${
-                        message.sender === 'user' ? 'justify-end' : 'justify-start'
-                      }`}
-                    >
+                  {chatMessages.length === 0 ? (
+                    <div className="text-center py-8">
+                      <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-3">
+                        <Phone className="h-8 w-8 text-gray-400" />
+                      </div>
+                      <p className="text-gray-500">Carregando conversa...</p>
+                    </div>
+                  ) : (
+                    chatMessages.map((message) => (
                       <div
-                        className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg shadow-sm ${
-                          message.sender === 'user'
-                            ? 'bg-green-500 text-white rounded-br-none'
-                            : 'bg-white text-gray-800 rounded-bl-none border'
+                        key={message.id}
+                        className={`flex ${
+                          message.sender === 'user' ? 'justify-end' : 'justify-start'
                         }`}
                       >
-                        <p className="text-sm whitespace-pre-wrap">{message.text}</p>
-                        <div className="flex items-center justify-between mt-1">
-                          <p className={`text-xs ${
-                            message.sender === 'user' ? 'text-green-100' : 'text-gray-500'
-                          }`}>
-                            {new Date(message.timestamp).toLocaleTimeString('pt-BR', {
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            })}
-                          </p>
-                          {message.sender === 'user' && (
-                            <span className="text-xs text-green-100 ml-2">
-                              {message.status === 'sent' && '✓'}
-                              {message.status === 'delivered' && '✓✓'}
-                              {message.status === 'read' && '✓✓'}
-                            </span>
-                          )}
+                        <div
+                          className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg shadow-sm ${
+                            message.sender === 'user'
+                              ? 'bg-green-500 text-white rounded-br-none'
+                              : 'bg-white text-gray-800 rounded-bl-none border'
+                          }`}
+                        >
+                          <p className="text-sm whitespace-pre-wrap">{message.text}</p>
+                          <div className="flex items-center justify-between mt-1">
+                            <p className={`text-xs ${
+                              message.sender === 'user' ? 'text-green-100' : 'text-gray-500'
+                            }`}>
+                              {new Date(message.timestamp).toLocaleTimeString('pt-BR', {
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </p>
+                            {message.sender === 'user' && (
+                              <span className="text-xs text-green-100 ml-2">
+                                {message.status === 'sent' && '✓'}
+                                {message.status === 'delivered' && '✓✓'}
+                                {message.status === 'read' && '✓✓'}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    ))
+                  )}
                   
                   {isTyping && (
                     <div className="flex justify-start">
@@ -411,9 +478,9 @@ export function ChatInterface() {
                 <h3 className="text-xl font-semibold text-gray-700 mb-2">WhatsApp Business</h3>
                 <p className="text-gray-500 mb-1">Selecione uma conversa para começar</p>
                 <p className="text-sm text-gray-400">
-                  {sortedChats.length === 0 
+                  {filteredChats.length === 0 
                     ? 'Aguardando mensagens...' 
-                    : `${sortedChats.length} conversas disponíveis`
+                    : `${filteredChats.length} conversas disponíveis`
                   }
                 </p>
               </div>

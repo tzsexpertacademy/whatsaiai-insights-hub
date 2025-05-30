@@ -1,7 +1,7 @@
-
 import { useState, useEffect } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { useClientConfig } from '@/contexts/ClientConfigContext';
+import { supabase } from '@/integrations/supabase/client';
 
 interface GreenAPIConfig {
   instanceId: string;
@@ -283,6 +283,57 @@ export function useGreenAPI() {
     };
   };
 
+  const saveConversationToDatabase = async (chat: GreenAPIChat, messageData?: any) => {
+    try {
+      console.log('💾 Salvando conversa no banco:', chat.chatId);
+      
+      // Salvar/atualizar conversa na tabela whatsapp_conversations
+      const conversationData = {
+        contact_phone: chat.chatId,
+        contact_name: chat.name,
+        messages: messageData ? [messageData] : [],
+        session_id: `greenapi_${chat.chatId}`,
+        updated_at: new Date().toISOString()
+      };
+
+      // Verificar se já existe
+      const { data: existingConversation } = await supabase
+        .from('whatsapp_conversations')
+        .select('*')
+        .eq('contact_phone', chat.chatId)
+        .maybeSingle();
+
+      if (existingConversation) {
+        // Atualizar conversa existente
+        const updatedMessages = [...(existingConversation.messages || [])];
+        if (messageData) {
+          updatedMessages.push(messageData);
+        }
+
+        await supabase
+          .from('whatsapp_conversations')
+          .update({
+            contact_name: chat.name,
+            messages: updatedMessages,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existingConversation.id);
+
+        console.log('✅ Conversa atualizada no banco');
+      } else {
+        // Criar nova conversa
+        await supabase
+          .from('whatsapp_conversations')
+          .insert([conversationData]);
+
+        console.log('✅ Nova conversa salva no banco');
+      }
+
+    } catch (error) {
+      console.error('❌ Erro ao salvar conversa no banco:', error);
+    }
+  };
+
   const loadChats = async () => {
     try {
       console.log('📋 Carregando chats GREEN-API...');
@@ -306,6 +357,11 @@ export function useGreenAPI() {
       }));
 
       setChats(formattedChats);
+
+      // Salvar cada conversa no banco de dados para análise futura
+      for (const chat of formattedChats) {
+        await saveConversationToDatabase(chat);
+      }
       
     } catch (error) {
       console.error('❌ Erro ao carregar chats:', error);
@@ -326,7 +382,7 @@ export function useGreenAPI() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           chatId: chatId,
-          count: 50
+          count: 100 // Aumentar para 100 mensagens
         })
       });
 
@@ -351,6 +407,20 @@ export function useGreenAPI() {
         ...prev,
         [chatId]: formattedMessages
       }));
+
+      // Salvar mensagens no banco de dados
+      const chat = chats.find(c => c.chatId === chatId);
+      if (chat) {
+        for (const message of formattedMessages) {
+          await saveConversationToDatabase(chat, {
+            id: message.id,
+            text: message.text,
+            sender: message.sender,
+            timestamp: message.timestamp,
+            platform: 'greenapi'
+          });
+        }
+      }
       
     } catch (error) {
       console.error('❌ Erro ao carregar histórico:', error);
@@ -397,6 +467,18 @@ export function useGreenAPI() {
         ...prev,
         [chatId]: [...(prev[chatId] || []), newMessage]
       }));
+
+      // Salvar mensagem no banco de dados
+      const chat = chats.find(c => c.chatId === chatId);
+      if (chat) {
+        await saveConversationToDatabase(chat, {
+          id: newMessage.id,
+          text: newMessage.text,
+          sender: newMessage.sender,
+          timestamp: newMessage.timestamp,
+          platform: 'greenapi'
+        });
+      }
 
       return true;
       
