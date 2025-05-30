@@ -112,7 +112,22 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
 
       console.log('📊 INSIGHTS REAIS encontrados:', insightsData?.length || 0);
 
-      // 2. BUSCAR CONVERSAS WHATSAPP REAIS
+      // 2. BUSCAR HISTÓRICO DE CHAT REAIS
+      console.log('🔍 Buscando histórico de chat reais...');
+      const { data: chatHistoryData, error: chatHistoryError } = await supabase
+        .from('chat_history')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (chatHistoryError) {
+        console.error('❌ Erro ao buscar histórico de chat:', chatHistoryError);
+        throw chatHistoryError;
+      }
+
+      console.log('💬 HISTÓRICO DE CHAT REAL:', chatHistoryData?.length || 0);
+
+      // 3. BUSCAR CONVERSAS WHATSAPP REAIS
       console.log('🔍 Buscando conversas WhatsApp reais...');
       const { data: whatsappConversations, error: whatsappError } = await supabase
         .from('whatsapp_conversations')
@@ -130,7 +145,7 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
 
       console.log('📱 CONVERSAS WHATSAPP REAIS:', whatsappConversations?.length || 0);
 
-      // 3. BUSCAR CONVERSAS COMERCIAIS REAIS
+      // 4. BUSCAR CONVERSAS COMERCIAIS REAIS
       console.log('🔍 Buscando conversas comerciais reais...');
       const { data: commercialConversations, error: commercialError } = await supabase
         .from('commercial_conversations')
@@ -148,7 +163,7 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
 
       console.log('💼 CONVERSAS COMERCIAIS REAIS:', commercialConversations?.length || 0);
 
-      // 4. BUSCAR CONFIGURAÇÃO DOS ASSISTENTES REAIS
+      // 5. BUSCAR CONFIGURAÇÃO DOS ASSISTENTES REAIS
       console.log('🔍 Verificando assistentes reais...');
       const { data: assistantsConfig, error: assistantsError } = await supabase
         .from('client_configs')
@@ -200,14 +215,27 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
         }))
       ];
 
-      // ✅ MENSAGENS DE CHAT BASEADAS EM INSIGHTS REAIS
-      const chatMessages = processedInsights.map(insight => ({
-        id: `chat_${insight.id}`,
-        user_message: `Análise: ${insight.title}`,
-        assistant_response: insight.description,
-        timestamp: insight.created_at,
-        assistant_type: insight.insight_type
-      }));
+      // ✅ MENSAGENS DE CHAT BASEADAS EM DADOS REAIS
+      const chatMessages = [
+        // Insights processados como mensagens de chat
+        ...processedInsights.map(insight => ({
+          id: `chat_insight_${insight.id}`,
+          user_message: `Análise: ${insight.title}`,
+          assistant_response: insight.description,
+          timestamp: insight.created_at,
+          assistant_type: insight.insight_type,
+          source: 'insight'
+        })),
+        // Histórico de chat real dos assistentes
+        ...(chatHistoryData || []).map(chat => ({
+          id: `chat_history_${chat.id}`,
+          user_message: chat.user_message,
+          assistant_response: chat.assistant_response,
+          timestamp: chat.created_at,
+          assistant_id: chat.assistant_id,
+          source: 'chat_history'
+        }))
+      ];
 
       // ✅ ANÁLISES DE DOCUMENTOS BASEADAS EM INSIGHTS REAIS
       const documentAnalyses = processedInsights
@@ -230,6 +258,7 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
       // ✅ DETERMINAR SE HÁ DADOS REAIS
       const hasRealData = (
         (insightsData && insightsData.length > 0) || 
+        (chatHistoryData && chatHistoryData.length > 0) ||
         (allConversations.length > 0) ||
         (assistantsActive > 0)
       );
@@ -240,6 +269,7 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
       console.log('📈 RESUMO DOS DADOS REAIS:', {
         hasRealData,
         insights: insightsData?.length || 0,
+        chatHistory: chatHistoryData?.length || 0,
         whatsappConversations: whatsappConversations?.length || 0,
         commercialConversations: commercialConversations?.length || 0,
         chatMessages: chatMessages.length,
@@ -274,7 +304,7 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
           totalChatMessages: chatMessages.length,
           totalDocuments: documentAnalyses.length,
           totalInsights: insightsData?.length || 0,
-          lastAnalysis: insightsData?.[0]?.created_at || null,
+          lastAnalysis: insightsData?.[0]?.created_at || chatHistoryData?.[0]?.created_at || null,
           assistantsActive: assistantsActive
         }
       };
@@ -286,7 +316,8 @@ export function AnalysisDataProvider({ children }: { children: React.ReactNode }
         console.log('💡 Para gerar relatórios, você precisa de:');
         console.log('   1. Insights gerados por IA');
         console.log('   2. Conversas do WhatsApp ou comerciais');
-        console.log('   3. Assistentes configurados e ativos');
+        console.log('   3. Conversas com assistentes');
+        console.log('   4. Assistentes configurados e ativos');
       } else {
         console.log('✅ DADOS REAIS CARREGADOS COM SUCESSO');
       }
