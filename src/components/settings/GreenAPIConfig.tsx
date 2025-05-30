@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -87,7 +86,7 @@ export function GreenAPIConfig() {
       if (status.isConnected) {
         toast({
           title: "✅ Conectado!",
-          description: `WhatsApp conectado${status.phoneNumber ? `: ${status.phoneNumber}` : ''}`,
+          description: `WhatsApp conectado: ${status.phoneNumber}`,
         });
       } else {
         toast({
@@ -299,29 +298,43 @@ export function GreenAPIConfig() {
                       />
                     </div>
                   </div>
-                  <p className="text-sm text-gray-600 mb-4">
-                    Escaneie este QR Code com seu WhatsApp Business
-                  </p>
+                  
+                  <div className="space-y-2 text-sm text-gray-600 mb-4">
+                    <p className="font-medium text-blue-600">📱 Como conectar:</p>
+                    <p>1. Abra o WhatsApp Business no seu celular</p>
+                    <p>2. Vá em Menu (⋮) → Dispositivos conectados</p>
+                    <p>3. Toque em "Conectar um dispositivo"</p>
+                    <p>4. Escaneie este código QR</p>
+                  </div>
+                  
                   <Button onClick={handleGenerateQR} variant="outline" size="sm">
-                    <RefreshCw className="mr-2 h-4 w-4" />
+                    <QrCode className="mr-2 h-4 w-4" />
                     Gerar Novo QR Code
                   </Button>
+                </div>
+              ) : greenAPIState.isGenerating ? (
+                <div className="text-center py-8">
+                  <div className="w-64 h-64 mx-auto rounded-lg flex items-center justify-center bg-gray-50 border-2 border-dashed border-gray-300">
+                    <div className="text-center">
+                      <Loader2 className="h-16 w-16 text-blue-400 animate-spin mx-auto mb-4" />
+                      <p className="text-blue-600 font-medium">Gerando QR Code...</p>
+                      <p className="text-sm text-gray-500">Conectando com GREEN-API</p>
+                    </div>
+                  </div>
                 </div>
               ) : (
                 <div className="text-center py-8">
                   <QrCode className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-600 mb-4">
-                    Gere um QR Code para conectar seu WhatsApp Business
-                  </p>
+                  <p className="text-gray-500 mb-4">Configure as credenciais e gere o QR Code</p>
                   <Button 
                     onClick={handleGenerateQR} 
-                    disabled={isLoading || greenAPIState.isGenerating}
+                    disabled={!apiConfig.instanceId || !apiConfig.apiToken || isLoading}
                     className="bg-green-600 hover:bg-green-700"
                   >
-                    {isLoading || greenAPIState.isGenerating ? (
+                    {isLoading ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Gerando QR Code...
+                        Gerando...
                       </>
                     ) : (
                       <>
@@ -330,6 +343,15 @@ export function GreenAPIConfig() {
                       </>
                     )}
                   </Button>
+                  
+                  {!apiConfig.instanceId || !apiConfig.apiToken ? (
+                    <Alert className="mt-4">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>
+                        Configure suas credenciais na aba "Configuração" primeiro.
+                      </AlertDescription>
+                    </Alert>
+                  ) : null}
                 </div>
               )}
             </CardContent>
@@ -337,47 +359,96 @@ export function GreenAPIConfig() {
         </TabsContent>
 
         <TabsContent value="status">
-          <div className="space-y-4">
-            {/* Status da Conexão */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <MessageSquare className="h-5 w-5" />
-                  Status da Conexão
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <p className="font-medium">Estado da Instância</p>
-                    <p className="text-sm text-gray-600">
-                      {greenAPIState.isConnected ? 'Autorizada e conectada' : 'Não conectada'}
-                    </p>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <MessageSquare className="h-5 w-5 text-purple-600" />
+                Status da Integração
+              </CardTitle>
+              <CardDescription>
+                Monitor da integração GREEN-API
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-4">
+                <div className={`p-3 rounded-lg border ${
+                  apiConfig.instanceId && apiConfig.apiToken ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
+                }`}>
+                  <div className="flex items-center gap-2">
+                    {apiConfig.instanceId && apiConfig.apiToken ? (
+                      <CheckCircle className="h-5 w-5 text-green-600" />
+                    ) : (
+                      <QrCode className="h-5 w-5 text-red-600" />
+                    )}
+                    <span className={`font-medium ${
+                      apiConfig.instanceId && apiConfig.apiToken ? 'text-green-800' : 'text-red-800'
+                    }`}>
+                      Credenciais GREEN-API
+                    </span>
                   </div>
-                  <Badge variant={greenAPIState.isConnected ? 'default' : 'secondary'}>
-                    {greenAPIState.isConnected ? 'Conectado' : 'Desconectado'}
-                  </Badge>
+                  <p className={`text-sm ${
+                    apiConfig.instanceId && apiConfig.apiToken ? 'text-green-600' : 'text-red-600'
+                  }`}>
+                    {apiConfig.instanceId && apiConfig.apiToken ? 'Configuradas' : 'Não configuradas'}
+                  </p>
                 </div>
-                
-                {greenAPIState.phoneNumber && (
-                  <div className="text-sm text-gray-600">
-                    <strong>Número:</strong> {greenAPIState.phoneNumber}
-                  </div>
-                )}
-                
-                {greenAPIState.lastConnected && (
-                  <div className="text-sm text-gray-600">
-                    <strong>Última conexão:</strong> {new Date(greenAPIState.lastConnected).toLocaleString('pt-BR')}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
 
-            {/* Configuração do Webhook */}
-            <GreenAPIWebhookConfig />
-          </div>
+                <div className={`p-3 rounded-lg border ${
+                  greenAPIState.isConnected ? 'bg-green-50 border-green-200' : 'bg-yellow-50 border-yellow-200'
+                }`}>
+                  <div className="flex items-center gap-2">
+                    {greenAPIState.isConnected ? (
+                      <CheckCircle className="h-5 w-5 text-green-600" />
+                    ) : (
+                      <Loader2 className="h-5 w-5 text-yellow-600" />
+                    )}
+                    <span className={`font-medium ${
+                      greenAPIState.isConnected ? 'text-green-800' : 'text-yellow-800'
+                    }`}>
+                      Status WhatsApp
+                    </span>
+                  </div>
+                  <p className={`text-sm ${
+                    greenAPIState.isConnected ? 'text-green-600' : 'text-yellow-600'
+                  }`}>
+                    {greenAPIState.isConnected ? 'Conectado e ativo' : 'Aguardando conexão'}
+                  </p>
+                  {greenAPIState.phoneNumber && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      {greenAPIState.phoneNumber}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                <Button onClick={testConnection} variant="outline" size="sm">
+                  Testar Conexão
+                </Button>
+                <Button onClick={() => window.open('https://green-api.com', '_blank')} variant="outline" size="sm">
+                  <ExternalLink className="mr-2 h-4 w-4" />
+                  GREEN-API
+                </Button>
+              </div>
+
+              {greenAPIState.isConnected && (
+                <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                  <h4 className="font-medium text-green-900 mb-2">✅ Tudo funcionando!</h4>
+                  <ul className="text-sm text-green-700 space-y-1 list-disc list-inside">
+                    <li>WhatsApp Business conectado via GREEN-API</li>
+                    <li>Conversas sendo espelhadas em tempo real</li>
+                    <li>Envio e recebimento de mensagens ativo</li>
+                    <li>Acesse a aba "Chat" para ver as conversas</li>
+                  </ul>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Adicionar configuração do webhook após as outras configurações */}
+      <GreenAPIWebhookConfig />
     </div>
   );
 }

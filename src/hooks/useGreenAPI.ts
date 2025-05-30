@@ -1,430 +1,137 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useState, useEffect } from 'react';
+import { useToast } from "@/hooks/use-toast";
 import { useClientConfig } from '@/contexts/ClientConfigContext';
-import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-
-interface Chat {
-  chatId: string;
-  name: string;
-  lastMessage: string;
-  unreadCount: number;
-  isPinned: boolean;
-  isMonitored: boolean;
-  isGroup: boolean;
-  assignedAssistant?: string;
-}
-
-interface Message {
-  id: string;
-  text: string;
-  sender: 'user' | 'customer';
-  timestamp: string;
-  platform?: string;
-}
-
-interface GreenAPIState {
-  isConnected: boolean;
-  instanceId: string;
-  phoneNumber: string;
-  qrCode: string;
-  isGenerating: boolean;
-  lastConnected: string;
-}
 
 interface GreenAPIConfig {
   instanceId: string;
   apiToken: string;
-  phoneNumber?: string;
   webhookUrl?: string;
 }
 
-export function useGreenAPI() {
-  const { user } = useAuth();
-  const { config, updateConfig, saveConfig } = useClientConfig();
-  const { toast } = useToast();
+interface GreenAPIState {
+  isConnected: boolean;
+  qrCode: string;
+  phoneNumber: string;
+  isGenerating: boolean;
+  lastConnected: string;
+}
 
+interface GreenAPIMessage {
+  id: string;
+  text: string;
+  sender: 'user' | 'contact';
+  timestamp: string;
+  chatId: string;
+  messageId: string;
+  status?: 'sent' | 'delivered' | 'read';
+}
+
+interface GreenAPIChat {
+  chatId: string;
+  name: string;
+  lastMessage?: string;
+  lastMessageTime?: string;
+  unreadCount: number;
+  isGroup: boolean;
+  isPinned?: boolean;
+  isMonitored?: boolean; // Nova propriedade para análise
+}
+
+export function useGreenAPI() {
   const [greenAPIState, setGreenAPIState] = useState<GreenAPIState>({
     isConnected: false,
-    instanceId: '',
-    phoneNumber: '',
     qrCode: '',
+    phoneNumber: '',
     isGenerating: false,
     lastConnected: ''
   });
-
-  const [chats, setChats] = useState<Chat[]>([]);
-  const [messages, setMessages] = useState<Record<string, Message[]>>({});
-  const [selectedAssistant, setSelectedAssistant] = useState('');
+  
+  const [apiConfig, setApiConfig] = useState<GreenAPIConfig>({
+    instanceId: '',
+    apiToken: '',
+    webhookUrl: ''
+  });
+  
+  const [chats, setChats] = useState<GreenAPIChat[]>([]);
+  const [messages, setMessages] = useState<Record<string, GreenAPIMessage[]>>({});
   const [isLoading, setIsLoading] = useState(false);
-  const [lastFetchTime, setLastFetchTime] = useState<number>(0);
+  const [pinnedChats, setPinnedChats] = useState<string[]>([]);
+  const [monitoredChats, setMonitoredChats] = useState<string[]>([]);
+  const [selectedAssistant, setSelectedAssistant] = useState<string>('autoconhecimento');
 
-  // Memoizar configuração para evitar re-renders desnecessários
-  const apiConfig: GreenAPIConfig = useMemo(() => ({
-    instanceId: config?.whatsapp?.greenapi?.instanceId || '',
-    apiToken: config?.whatsapp?.greenapi?.apiToken || '',
-    phoneNumber: config?.whatsapp?.greenapi?.phoneNumber || '',
-    webhookUrl: config?.whatsapp?.greenapi?.webhookUrl || ''
-  }), [config?.whatsapp?.greenapi]);
+  const { toast } = useToast();
+  const { config, updateConfig, saveConfig } = useClientConfig();
 
-  // Otimizar carregamento inicial
+  // Carregar configuração do localStorage
   useEffect(() => {
-    if (apiConfig.instanceId && apiConfig.apiToken) {
-      setGreenAPIState(prev => ({
-        ...prev,
-        instanceId: apiConfig.instanceId,
-        phoneNumber: apiConfig.phoneNumber || prev.phoneNumber
-      }));
-      
-      // Verificar status apenas uma vez na inicialização
-      checkConnectionStatus();
-    }
-  }, [apiConfig.instanceId, apiConfig.apiToken]); // Removido checkConnectionStatus das dependências
-
-  const updateAPIConfig = useCallback(async (newConfig: Partial<GreenAPIConfig>) => {
-    console.log('🔧 Atualizando configuração GREEN-API:', newConfig);
+    const savedConfig = localStorage.getItem('greenapi_config');
+    const savedState = localStorage.getItem('greenapi_state');
+    const savedPinnedChats = localStorage.getItem('greenapi_pinned_chats');
+    const savedMonitoredChats = localStorage.getItem('greenapi_monitored_chats');
     
-    try {
-      const updatedWhatsAppConfig = {
-        ...config?.whatsapp,
-        greenapi: {
-          ...config?.whatsapp?.greenapi,
-          ...newConfig
-        }
-      };
-
-      updateConfig('whatsapp', updatedWhatsAppConfig);
-      await saveConfig();
-
-      if (newConfig.instanceId && newConfig.apiToken) {
-        setGreenAPIState(prev => ({
-          ...prev,
-          instanceId: newConfig.instanceId || prev.instanceId,
-          phoneNumber: newConfig.phoneNumber || prev.phoneNumber
-        }));
-      }
-
-      console.log('✅ Configuração GREEN-API salva com sucesso');
-    } catch (error) {
-      console.error('❌ Erro ao salvar configuração:', error);
-      toast({
-        title: "Erro ao salvar",
-        description: "Não foi possível salvar as configurações",
-        variant: "destructive"
-      });
+    if (savedConfig) {
+      const parsed = JSON.parse(savedConfig);
+      setApiConfig(parsed);
     }
-  }, [config, updateConfig, saveConfig, toast]);
-
-  const checkConnectionStatus = useCallback(async (): Promise<{ isConnected: boolean; phoneNumber?: string }> => {
-    if (!apiConfig.instanceId || !apiConfig.apiToken) {
-      console.log('❌ Credenciais GREEN-API não configuradas');
-      return { isConnected: false };
-    }
-
-    try {
-      console.log('🔍 Verificando status da conexão GREEN-API...');
+    
+    if (savedState) {
+      const parsed = JSON.parse(savedState);
+      setGreenAPIState(parsed);
       
-      const response = await fetch(
-        `https://api.green-api.com/waInstance${apiConfig.instanceId}/getStateInstance/${apiConfig.apiToken}`,
-        { method: 'GET' }
-      );
-
-      if (!response.ok) {
-        throw new Error(`Erro na API: ${response.status}`);
-      }
-
-      const data = await response.json();
-      console.log('📊 Status da instância:', data);
-
-      const isConnected = data.stateInstance === 'authorized';
-      
-      setGreenAPIState(prev => ({
-        ...prev,
-        isConnected,
-        lastConnected: isConnected ? new Date().toISOString() : prev.lastConnected
-      }));
-
-      const updatedWhatsAppConfig = {
-        ...config?.whatsapp,
-        isConnected,
-        authorizedNumber: isConnected ? data.wid || '' : ''
-      };
-
-      updateConfig('whatsapp', updatedWhatsAppConfig);
-
-      return { isConnected, phoneNumber: data.wid };
-
-    } catch (error) {
-      console.error('❌ Erro ao verificar status:', error);
-      setGreenAPIState(prev => ({
-        ...prev,
-        isConnected: false
-      }));
-      
-      const updatedWhatsAppConfig = {
-        ...config?.whatsapp,
-        isConnected: false
-      };
-      
-      updateConfig('whatsapp', updatedWhatsAppConfig);
-      
-      return { isConnected: false };
-    }
-  }, [apiConfig.instanceId, apiConfig.apiToken, config?.whatsapp, updateConfig]);
-
-  // Otimizar carregamento de chats com debounce
-  const loadChats = useCallback(async () => {
-    if (!apiConfig.instanceId || !apiConfig.apiToken) {
-      console.log('❌ GREEN-API não configurado para carregar chats');
-      return;
-    }
-
-    // Implementar debounce simples
-    const now = Date.now();
-    if (now - lastFetchTime < 5000) { // 5 segundos de debounce
-      console.log('⏳ Aguardando debounce para carregar chats');
-      return;
-    }
-    setLastFetchTime(now);
-
-    try {
-      console.log('📱 Carregando chats do GREEN-API...');
-      
-      const response = await fetch(
-        `https://api.green-api.com/waInstance${apiConfig.instanceId}/getChats/${apiConfig.apiToken}`,
-        { method: 'GET' }
-      );
-
-      if (!response.ok) {
-        throw new Error(`Erro ao carregar chats: ${response.status}`);
-      }
-
-      const data = await response.json();
-      console.log('📊 Chats carregados do GREEN-API:', data?.length || 0);
-
-      if (data && Array.isArray(data)) {
-        const formattedChats: Chat[] = data.map((chat: any) => ({
-          chatId: chat.id || chat.chatId,
-          name: chat.name || chat.chatId,
-          lastMessage: chat.lastMessage?.body || 'Sem mensagens',
-          unreadCount: chat.unreadCount || 0,
-          isPinned: false,
-          isMonitored: false,
-          isGroup: chat.id?.includes('@g.us') || false,
-          assignedAssistant: ''
-        }));
-
-        setChats(formattedChats);
-        console.log('✅ Chats formatados e salvos:', formattedChats.length);
-      }
-    } catch (error) {
-      console.error('❌ Erro ao carregar chats:', error);
-      toast({
-        title: "Erro ao carregar chats",
-        description: "Verifique suas credenciais GREEN-API",
-        variant: "destructive"
-      });
-    }
-  }, [apiConfig.instanceId, apiConfig.apiToken, lastFetchTime, toast]);
-
-  const loadChatHistory = useCallback(async (chatId: string) => {
-    if (!chatId) {
-      console.log('❌ Chat ID inválido');
-      return;
-    }
-
-    // Evitar recarregar histórico se já existe
-    if (messages[chatId] && messages[chatId].length > 0) {
-      console.log('📋 Histórico já carregado para', chatId);
-      return;
-    }
-
-    try {
-      console.log(`📖 Carregando histórico do chat: ${chatId}`);
-      
-      // Primeiro, tentar carregar do banco de dados
-      if (user?.id) {
-        const { data: dbMessages, error: dbError } = await supabase
-          .from('whatsapp_messages')
-          .select(`
-            *,
-            conversation:whatsapp_conversations!inner(*)
-          `)
-          .eq('conversation.contact_phone', chatId)
-          .order('timestamp', { ascending: true })
-          .limit(50);
-
-        if (!dbError && dbMessages && dbMessages.length > 0) {
-          console.log('📊 Mensagens carregadas do banco:', dbMessages.length);
-          
-          const formattedMessages: Message[] = dbMessages.map((msg: any) => ({
-            id: msg.id,
-            text: msg.message_text,
-            sender: msg.sender_type === 'customer' ? 'customer' : 'user',
-            timestamp: new Date(msg.timestamp).toLocaleTimeString(),
-            platform: 'database'
-          }));
-
-          setMessages(prev => ({ ...prev, [chatId]: formattedMessages }));
-          return;
-        }
-      }
-
-      // Se não tiver no banco, carregar do GREEN-API
-      if (!apiConfig.instanceId || !apiConfig.apiToken) {
-        console.log('⚠️ GREEN-API não configurado');
-        setMessages(prev => ({ ...prev, [chatId]: [] }));
-        return;
-      }
-
-      const response = await fetch(
-        `https://api.green-api.com/waInstance${apiConfig.instanceId}/getChatHistory/${apiConfig.apiToken}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            chatId: chatId,
-            count: 50 
-          })
-        }
-      );
-
-      if (!response.ok) {
-        console.log(`⚠️ Não foi possível carregar histórico do GREEN-API para ${chatId}`);
-        setMessages(prev => ({ ...prev, [chatId]: [] }));
-        return;
-      }
-
-      const data = await response.json();
-      console.log('📊 Histórico carregado do GREEN-API:', data?.length || 0);
-
-      if (data && Array.isArray(data)) {
-        const formattedMessages: Message[] = data.map((msg: any) => ({
-          id: msg.idMessage || Math.random().toString(),
-          text: msg.textMessage || msg.extendedTextMessage?.text || '[Mídia]',
-          sender: msg.type === 'outgoing' ? 'user' : 'customer',
-          timestamp: new Date(msg.timestamp * 1000).toLocaleTimeString(),
+      if (parsed.isConnected) {
+        updateConfig('whatsapp', {
+          isConnected: true,
+          authorizedNumber: parsed.phoneNumber,
           platform: 'greenapi'
-        }));
-
-        setMessages(prev => ({ ...prev, [chatId]: formattedMessages }));
-        console.log('✅ Histórico formatado e salvo:', formattedMessages.length);
-      } else {
-        setMessages(prev => ({ ...prev, [chatId]: [] }));
+        });
       }
-
-    } catch (error) {
-      console.error('❌ Erro ao carregar histórico:', error);
-      setMessages(prev => ({ ...prev, [chatId]: [] }));
-      toast({
-        title: "Erro ao carregar histórico",
-        description: "Não foi possível carregar o histórico do chat",
-        variant: "destructive"
-      });
-    }
-  }, [apiConfig.instanceId, apiConfig.apiToken, user?.id, messages, toast]);
-
-  const sendMessage = useCallback(async (chatId: string, message: string): Promise<boolean> => {
-    if (!apiConfig.instanceId || !apiConfig.apiToken) {
-      toast({
-        title: "Erro de configuração",
-        description: "GREEN-API não está configurado",
-        variant: "destructive"
-      });
-      return false;
     }
 
-    try {
-      console.log(`📤 Enviando mensagem para ${chatId}: ${message}`);
-      
-      const response = await fetch(
-        `https://api.green-api.com/waInstance${apiConfig.instanceId}/sendMessage/${apiConfig.apiToken}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            chatId: chatId,
-            message: message
-          })
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error(`Erro ao enviar mensagem: ${response.status}`);
-      }
-
-      const result = await response.json();
-      console.log('✅ Mensagem enviada:', result);
-
-      // Adicionar mensagem localmente
-      const newMessage: Message = {
-        id: result.idMessage || Math.random().toString(),
-        text: message,
-        sender: 'user',
-        timestamp: new Date().toLocaleTimeString(),
-        platform: 'greenapi'
-      };
-
-      setMessages(prev => ({
-        ...prev,
-        [chatId]: [...(prev[chatId] || []), newMessage]
-      }));
-
-      toast({
-        title: "Mensagem enviada",
-        description: "Mensagem enviada com sucesso"
-      });
-
-      return true;
-    } catch (error) {
-      console.error('❌ Erro ao enviar mensagem:', error);
-      toast({
-        title: "Erro ao enviar",
-        description: "Não foi possível enviar a mensagem",
-        variant: "destructive"
-      });
-      return false;
+    if (savedPinnedChats) {
+      const parsed = JSON.parse(savedPinnedChats);
+      setPinnedChats(parsed);
     }
-  }, [apiConfig, toast]);
 
-  const togglePinChat = useCallback((chatId: string) => {
-    setChats(prev => prev.map(chat => 
-      chat.chatId === chatId 
-        ? { ...chat, isPinned: !chat.isPinned }
-        : chat
-    ));
+    if (savedMonitoredChats) {
+      const parsed = JSON.parse(savedMonitoredChats);
+      setMonitoredChats(parsed);
+    }
   }, []);
 
-  const toggleMonitorChat = useCallback((chatId: string) => {
-    setChats(prev => prev.map(chat => 
-      chat.chatId === chatId 
-        ? { ...chat, isMonitored: !chat.isMonitored }
-        : chat
-    ));
-  }, []);
+  // Salvar estado no localStorage
+  useEffect(() => {
+    if (greenAPIState.qrCode || greenAPIState.isConnected) {
+      localStorage.setItem('greenapi_state', JSON.stringify(greenAPIState));
+    }
+  }, [greenAPIState]);
 
-  const assignAssistantToChat = useCallback((chatId: string, assistantId: string) => {
-    setChats(prev => prev.map(chat => 
-      chat.chatId === chatId 
-        ? { ...chat, assignedAssistant: assistantId }
-        : chat
-    ));
-    
-    toast({
-      title: "Assistente atribuído",
-      description: `Assistente configurado para este número`
-    });
-  }, [toast]);
+  useEffect(() => {
+    if (apiConfig.instanceId || apiConfig.apiToken) {
+      localStorage.setItem('greenapi_config', JSON.stringify(apiConfig));
+    }
+  }, [apiConfig]);
 
-  const refreshChats = useCallback(async () => {
-    console.log('🔄 Atualizando lista de conversas...');
-    await loadChats();
-  }, [loadChats]);
+  useEffect(() => {
+    localStorage.setItem('greenapi_pinned_chats', JSON.stringify(pinnedChats));
+  }, [pinnedChats]);
 
-  const getQRCode = useCallback(async (): Promise<string> => {
+  useEffect(() => {
+    localStorage.setItem('greenapi_monitored_chats', JSON.stringify(monitoredChats));
+  }, [monitoredChats]);
+
+  const getAPIUrl = (method: string) => {
+    return `https://api.green-api.com/waInstance${apiConfig.instanceId}/${method}/${apiConfig.apiToken}`;
+  };
+
+  const updateAPIConfig = (newConfig: Partial<GreenAPIConfig>) => {
+    setApiConfig(prev => ({ ...prev, ...newConfig }));
+  };
+
+  const getQRCode = async (): Promise<string> => {
     if (!apiConfig.instanceId || !apiConfig.apiToken) {
       toast({
-        title: "Erro de configuração",
+        title: "Configuração necessária",
         description: "Configure instanceId e apiToken primeiro",
         variant: "destructive"
       });
@@ -433,110 +140,721 @@ export function useGreenAPI() {
 
     setIsLoading(true);
     setGreenAPIState(prev => ({ ...prev, isGenerating: true }));
-    
-    try {
-      console.log('📱 Gerando QR Code GREEN-API...');
-      
-      const response = await fetch(
-        `https://api.green-api.com/waInstance${apiConfig.instanceId}/qr/${apiConfig.apiToken}`,
-        { method: 'GET' }
-      );
 
-      if (!response.ok) {
-        throw new Error(`Erro ao gerar QR Code: ${response.status}`);
+    try {
+      console.log('🔄 Gerando QR Code GREEN-API...');
+      console.log('📡 URL da API:', getAPIUrl('qr'));
+      
+      // Primeiro vamos verificar o status da instância
+      const statusResponse = await fetch(getAPIUrl('getStateInstance'), {
+        method: 'GET'
+      });
+
+      if (!statusResponse.ok) {
+        throw new Error(`Erro ao verificar status da instância: ${statusResponse.status} - ${statusResponse.statusText}`);
       }
 
-      const data = await response.json();
-      console.log('📊 QR Code gerado:', data);
+      const statusData = await statusResponse.json();
+      console.log('📊 Status da instância:', statusData);
 
-      if (data.type === 'qrCode') {
-        const qrCode = `data:image/png;base64,${data.message}`;
-        
-        setGreenAPIState(prev => ({
-          ...prev,
-          qrCode,
-          isGenerating: false
-        }));
-        
-        return qrCode;
-      } else if (data.type === 'alreadyLogged') {
+      // Se já estiver autorizado, não precisa de QR Code
+      if (statusData.stateInstance === 'authorized') {
         setGreenAPIState(prev => ({
           ...prev,
           isConnected: true,
+          phoneNumber: statusData.phoneNumber || 'Conectado',
+          lastConnected: new Date().toISOString(),
           isGenerating: false
         }));
-        
-        toast({
-          title: "Já conectado",
-          description: "WhatsApp já está conectado"
+
+        updateConfig('whatsapp', {
+          isConnected: true,
+          authorizedNumber: statusData.phoneNumber || 'Conectado',
+          platform: 'greenapi'
         });
-        
+
+        toast({
+          title: "✅ Já conectado!",
+          description: `WhatsApp já está conectado: ${statusData.phoneNumber || 'Número não disponível'}`
+        });
+
         return '';
       }
+
+      // Se não estiver conectado, gerar QR Code
+      const qrResponse = await fetch(getAPIUrl('qr'), {
+        method: 'GET'
+      });
+
+      console.log('📱 Status da resposta QR:', qrResponse.status);
+
+      if (!qrResponse.ok) {
+        const errorText = await qrResponse.text();
+        console.error('❌ Erro na resposta:', errorText);
+        throw new Error(`Erro GREEN-API (${qrResponse.status}): ${errorText}`);
+      }
+
+      const qrData = await qrResponse.json();
+      console.log('📱 Resposta QR Code:', qrData);
       
-      throw new Error('Tipo de resposta inesperado');
+      if (qrData.type === 'qrCode' && qrData.message) {
+        const qrCodeBase64 = qrData.message;
+        const qrCodeDataUrl = `data:image/png;base64,${qrCodeBase64}`;
+        
+        setGreenAPIState(prev => ({
+          ...prev,
+          qrCode: qrCodeDataUrl,
+          isGenerating: false
+        }));
+
+        toast({
+          title: "QR Code gerado!",
+          description: "Escaneie com seu WhatsApp Business para conectar"
+        });
+
+        // Iniciar polling para verificar conexão
+        startConnectionPolling();
+        
+        return qrCodeDataUrl;
+      } else if (qrData.type === 'error') {
+        throw new Error(qrData.message || 'Erro desconhecido ao gerar QR Code');
+      } else {
+        throw new Error('Formato de resposta inesperado da GREEN-API');
+      }
       
     } catch (error) {
       console.error('❌ Erro ao gerar QR Code:', error);
+      setGreenAPIState(prev => ({ ...prev, isGenerating: false }));
+      
+      let errorMessage = 'Erro desconhecido';
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      
       toast({
         title: "Erro ao gerar QR Code",
-        description: "Verifique suas credenciais GREEN-API",
+        description: errorMessage,
         variant: "destructive"
       });
       return '';
     } finally {
       setIsLoading(false);
-      setGreenAPIState(prev => ({ ...prev, isGenerating: false }));
     }
-  }, [apiConfig, toast]);
+  };
 
-  const disconnect = useCallback(async () => {
+  const startConnectionPolling = () => {
+    let attempts = 0;
+    const maxAttempts = 60; // 5 minutos
+    
+    const pollInterval = setInterval(async () => {
+      attempts++;
+      
+      if (attempts > maxAttempts) {
+        clearInterval(pollInterval);
+        setGreenAPIState(prev => ({ ...prev, qrCode: '' }));
+        toast({
+          title: "QR Code expirado",
+          description: "Gere um novo QR Code para conectar",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      try {
+        const status = await checkConnectionStatus();
+        if (status.isConnected) {
+          clearInterval(pollInterval);
+          setGreenAPIState(prev => ({
+            ...prev,
+            isConnected: true,
+            phoneNumber: status.phoneNumber,
+            lastConnected: new Date().toISOString(),
+            qrCode: '' // Limpar QR Code após conexão
+          }));
+
+          updateConfig('whatsapp', {
+            isConnected: true,
+            authorizedNumber: status.phoneNumber,
+            platform: 'greenapi'
+          });
+
+          await saveConfig();
+
+          toast({
+            title: "WhatsApp conectado!",
+            description: `Conectado ao número ${status.phoneNumber}`
+          });
+
+          // Carregar chats após conectar
+          loadChats();
+        }
+      } catch (error) {
+        console.error('Erro no polling:', error);
+      }
+    }, 5000);
+  };
+
+  const checkConnectionStatus = async () => {
+    const response = await fetch(getAPIUrl('getStateInstance'));
+    
+    if (!response.ok) {
+      throw new Error(`Erro ao verificar status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return {
+      isConnected: data.stateInstance === 'authorized',
+      phoneNumber: data.phoneNumber || ''
+    };
+  };
+
+  const saveConversationToDatabase = async (chat: GreenAPIChat, messageData?: any) => {
+    // Só salvar no banco se a conversa estiver sendo monitorada
+    if (!monitoredChats.includes(chat.chatId)) {
+      console.log('💾 Conversa não está sendo monitorada, não salvando no banco:', chat.chatId);
+      return;
+    }
+
     try {
+      console.log('💾 Salvando conversa monitorada no banco:', chat.chatId);
+      
+      const conversationData = {
+        contact_phone: chat.chatId,
+        contact_name: chat.name,
+        messages: messageData ? [messageData] : [],
+        session_id: `greenapi_${chat.chatId}`,
+        updated_at: new Date().toISOString()
+      };
+
+      const { data: existingConversation } = await supabase
+        .from('whatsapp_conversations')
+        .select('*')
+        .eq('contact_phone', chat.chatId)
+        .maybeSingle();
+
+      if (existingConversation) {
+        const existingMessages = Array.isArray(existingConversation.messages) ? existingConversation.messages : [];
+        const updatedMessages = [...existingMessages];
+        if (messageData) {
+          updatedMessages.push(messageData);
+        }
+
+        await supabase
+          .from('whatsapp_conversations')
+          .update({
+            contact_name: chat.name,
+            messages: updatedMessages,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existingConversation.id);
+
+        console.log('✅ Conversa monitorada atualizada no banco');
+      } else {
+        await supabase
+          .from('whatsapp_conversations')
+          .insert([conversationData]);
+
+        console.log('✅ Nova conversa monitorada salva no banco');
+      }
+
+    } catch (error) {
+      console.error('❌ Erro ao salvar conversa monitorada no banco:', error);
+    }
+  };
+
+  // Nova função para auto-resposta com IA usando assistente selecionado
+  const generateAIResponse = async (userMessage: string): Promise<string> => {
+    if (!config.openai?.apiKey) {
+      return "🤖 Para receber respostas inteligentes, configure sua API key da OpenAI nas configurações.";
+    }
+
+    try {
+      console.log(`🤖 Gerando resposta IA com assistente: ${selectedAssistant}...`);
+
+      // Buscar configuração do assistente selecionado dos assistentes da plataforma
+      const { data: assistantConfig } = await supabase
+        .from('assistants_config')
+        .select('assistant_name, prompt')
+        .eq('user_id', config.whatsapp?.authorizedNumber || 'default')
+        .eq('id', selectedAssistant)
+        .eq('is_active', true)
+        .single();
+
+      let systemPrompt = `Você é um assistente pessoal especializado em autoconhecimento e desenvolvimento pessoal. 
+      
+      Características:
+      - Responda de forma empática e reflexiva
+      - Faça perguntas que promovam autoconhecimento
+      - Ofereça insights sobre padrões de comportamento
+      - Seja conciso mas profundo (máximo 2 parágrafos)
+      - Use tom caloroso e encorajador
+      - Foque em ajudar a pessoa a se entender melhor
+      
+      Contexto: Esta é uma conversa de autoconhecimento onde a pessoa está refletindo consigo mesma.`;
+
+      // Se encontrou configuração do assistente da plataforma, usar o prompt dele
+      if (assistantConfig?.prompt) {
+        systemPrompt = assistantConfig.prompt;
+        console.log(`✅ Usando prompt do assistente da plataforma: ${assistantConfig.assistant_name}`);
+      }
+
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${config.openai.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userMessage }
+          ],
+          temperature: 0.8,
+          max_tokens: 300,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Erro OpenAI: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data.choices[0].message.content;
+
+    } catch (error) {
+      console.error('❌ Erro ao gerar resposta IA:', error);
+      return "🤖 Desculpe, não consegui processar sua mensagem no momento. Que tal reformular sua reflexão?";
+    }
+  };
+
+  const formatContactName = (chatId: string, rawName?: string) => {
+    // Se já tem um nome definido e não é igual ao chatId, usar ele
+    if (rawName && rawName !== chatId && rawName.trim() !== '') {
+      return rawName;
+    }
+
+    // Extrair número do chatId
+    const phoneNumber = chatId.replace('@c.us', '').replace('@g.us', '');
+    
+    // Se é um grupo, tentar usar o nome ou criar um padrão
+    if (chatId.includes('@g.us')) {
+      return rawName && rawName.trim() !== '' ? rawName : `Grupo ${phoneNumber.substring(0, 8)}...`;
+    }
+    
+    // Para contatos individuais, tentar formatar o número de forma mais amigável
+    if (phoneNumber.length >= 10) {
+      // Formato brasileiro: +55 (xx) xxxxx-xxxx
+      if (phoneNumber.startsWith('55') && phoneNumber.length === 13) {
+        const ddd = phoneNumber.substring(2, 4);
+        const firstPart = phoneNumber.substring(4, 9);
+        const secondPart = phoneNumber.substring(9);
+        return `+55 (${ddd}) ${firstPart}-${secondPart}`;
+      }
+      // Outros formatos internacionais - mostrar com formatação mais limpa
+      if (phoneNumber.length >= 11) {
+        const country = phoneNumber.substring(0, 2);
+        const area = phoneNumber.substring(2, 4);
+        const number = phoneNumber.substring(4);
+        return `+${country} (${area}) ${number}`;
+      }
+      // Números menores - formato simples
+      return `+${phoneNumber}`;
+    }
+    
+    return phoneNumber;
+  };
+
+  const loadChats = async () => {
+    try {
+      console.log('📋 Carregando chats GREEN-API...');
+      
+      const response = await fetch(getAPIUrl('getChats'));
+      
+      if (!response.ok) {
+        throw new Error(`Erro ao carregar chats: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('💬 Chats carregados:', data);
+      
+      const formattedChats: GreenAPIChat[] = data.map((chat: any) => {
+        // Tentar obter nome do contato de diferentes campos possíveis
+        let contactName = chat.name || chat.contact?.name || chat.contact?.pushname || chat.contact?.formattedName;
+        
+        // Para grupos, usar o nome do grupo
+        if (chat.id.includes('@g.us')) {
+          contactName = chat.name || chat.subject || contactName;
+        }
+        
+        // Se ainda não temos nome e é um contato individual, tentar usar pushname ou outros campos
+        if (!contactName && chat.id.includes('@c.us')) {
+          contactName = chat.contact?.pushname || chat.contact?.notify || chat.lastMessage?.author || null;
+        }
+        
+        return {
+          chatId: chat.id,
+          name: formatContactName(chat.id, contactName),
+          lastMessage: chat.lastMessage?.body || '',
+          lastMessageTime: chat.lastMessage?.timestamp ? new Date(chat.lastMessage.timestamp * 1000).toISOString() : new Date().toISOString(),
+          unreadCount: chat.unreadCount || 0,
+          isGroup: chat.id.includes('@g.us'),
+          isPinned: pinnedChats.includes(chat.id),
+          isMonitored: monitoredChats.includes(chat.id)
+        };
+      });
+
+      // Ordenar: fixados primeiro, depois por timestamp da última mensagem
+      const sortedChats = formattedChats.sort((a, b) => {
+        // Primeiro critério: chats fixados vêm primeiro
+        if (a.isPinned && !b.isPinned) return -1;
+        if (!a.isPinned && b.isPinned) return 1;
+        
+        // Segundo critério: ordenar por timestamp da última mensagem (mais recente primeiro)
+        const timeA = a.lastMessageTime ? new Date(a.lastMessageTime).getTime() : 0;
+        const timeB = b.lastMessageTime ? new Date(b.lastMessageTime).getTime() : 0;
+        return timeB - timeA;
+      });
+
+      setChats(sortedChats);
+
+      // Salvar apenas conversas monitoradas
+      for (const chat of sortedChats) {
+        if (chat.isMonitored) {
+          await saveConversationToDatabase(chat);
+        }
+      }
+      
+    } catch (error) {
+      console.error('❌ Erro ao carregar chats:', error);
+      toast({
+        title: "Erro ao carregar chats",
+        description: "Não foi possível carregar as conversas",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const togglePinChat = (chatId: string) => {
+    setPinnedChats(prev => {
+      const newPinnedChats = prev.includes(chatId) 
+        ? prev.filter(id => id !== chatId)
+        : [...prev, chatId];
+      
+      setChats(prevChats => 
+        prevChats.map(chat => ({
+          ...chat,
+          isPinned: newPinnedChats.includes(chat.chatId)
+        })).sort((a, b) => {
+          if (a.isPinned && !b.isPinned) return -1;
+          if (!a.isPinned && b.isPinned) return 1;
+          
+          const timeA = a.lastMessageTime ? new Date(a.lastMessageTime).getTime() : 0;
+          const timeB = b.lastMessageTime ? new Date(b.lastMessageTime).getTime() : 0;
+          return timeB - timeA;
+        })
+      );
+      
+      return newPinnedChats;
+    });
+
+    toast({
+      title: pinnedChats.includes(chatId) ? "Chat desfixado" : "Chat fixado",
+      description: pinnedChats.includes(chatId) ? "Chat removido dos fixos" : "Chat adicionado aos fixos"
+    });
+  };
+
+  // Nova função para monitorar conversas
+  const toggleMonitorChat = (chatId: string) => {
+    setMonitoredChats(prev => {
+      const newMonitoredChats = prev.includes(chatId) 
+        ? prev.filter(id => id !== chatId)
+        : [...prev, chatId];
+      
+      setChats(prevChats => 
+        prevChats.map(chat => ({
+          ...chat,
+          isMonitored: newMonitoredChats.includes(chat.chatId)
+        }))
+      );
+      
+      return newMonitoredChats;
+    });
+
+    const isCurrentlyMonitored = monitoredChats.includes(chatId);
+    toast({
+      title: isCurrentlyMonitored ? "Monitoramento desativado" : "Monitoramento ativado",
+      description: isCurrentlyMonitored 
+        ? "Esta conversa não será mais analisada para personalidade" 
+        : "Esta conversa será analisada para insights de personalidade"
+    });
+  };
+
+  const loadChatHistory = async (chatId: string) => {
+    try {
+      console.log('📜 Carregando histórico do chat:', chatId);
+      
+      const response = await fetch(getAPIUrl('getChatHistory'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chatId: chatId,
+          count: 100
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Erro ao carregar histórico: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('📜 Histórico carregado:', data);
+      
+      const formattedMessages: GreenAPIMessage[] = data.map((msg: any) => ({
+        id: msg.idMessage,
+        text: msg.textMessage || msg.extendedTextMessage?.text || '[Mídia]',
+        sender: msg.type === 'outgoing' ? 'user' : 'contact',
+        timestamp: new Date(msg.timestamp * 1000).toISOString(),
+        chatId: chatId,
+        messageId: msg.idMessage,
+        status: msg.status
+      }));
+
+      setMessages(prev => ({
+        ...prev,
+        [chatId]: formattedMessages
+      }));
+
+      // Salvar mensagens no banco de dados se a conversa estiver monitorada
+      const chat = chats.find(c => c.chatId === chatId);
+      if (chat && chat.isMonitored) {
+        for (const message of formattedMessages) {
+          await saveConversationToDatabase(chat, {
+            id: message.id,
+            text: message.text,
+            sender: message.sender,
+            timestamp: message.timestamp,
+            platform: 'greenapi'
+          });
+        }
+      }
+      
+    } catch (error) {
+      console.error('❌ Erro ao carregar histórico:', error);
+      toast({
+        title: "Erro ao carregar histórico",
+        description: "Não foi possível carregar as mensagens",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const sendMessage = async (chatId: string, message: string): Promise<boolean> => {
+    try {
+      console.log('📤 Enviando mensagem GREEN-API:', { chatId, message });
+      
+      const response = await fetch(getAPIUrl('sendMessage'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chatId: chatId,
+          message: message
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Erro ao enviar mensagem: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('✅ Mensagem enviada:', data);
+
+      // Adicionar mensagem ao estado local
+      const newMessage: GreenAPIMessage = {
+        id: data.idMessage,
+        text: message,
+        sender: 'user',
+        timestamp: new Date().toISOString(),
+        chatId: chatId,
+        messageId: data.idMessage,
+        status: 'sent'
+      };
+
+      setMessages(prev => ({
+        ...prev,
+        [chatId]: [...(prev[chatId] || []), newMessage]
+      }));
+
+      // Atualizar lista de chats com a nova mensagem
+      setChats(prevChats => 
+        prevChats.map(chat => 
+          chat.chatId === chatId 
+            ? { ...chat, lastMessage: message, lastMessageTime: new Date().toISOString() }
+            : chat
+        )
+      );
+
+      // Verificar se é auto-conversa (mesmo número)
+      const currentPhoneNumber = greenAPIState.phoneNumber.replace(/\D/g, '');
+      const targetPhoneNumber = chatId.replace('@c.us', '').replace('@g.us', '');
+      
+      if (currentPhoneNumber && targetPhoneNumber === currentPhoneNumber) {
+        console.log(`🤖 Auto-conversa detectada, gerando resposta com assistente: ${selectedAssistant}...`);
+        
+        setTimeout(async () => {
+          const aiResponse = await generateAIResponse(message);
+          
+          // Buscar nome do assistente para mostrar na resposta
+          const { data: assistantData } = await supabase
+            .from('assistants_config')
+            .select('assistant_name')
+            .eq('id', selectedAssistant)
+            .single();
+
+          let assistantName = selectedAssistant.toUpperCase();
+          if (assistantData?.assistant_name) {
+            assistantName = assistantData.assistant_name;
+          }
+          
+          // Simular resposta do assistente
+          const assistantMessage: GreenAPIMessage = {
+            id: `ai_${Date.now()}`,
+            text: `[${assistantName}] ${aiResponse}`,
+            sender: 'contact',
+            timestamp: new Date().toISOString(),
+            chatId: chatId,
+            messageId: `ai_${Date.now()}`,
+            status: 'read'
+          };
+
+          setMessages(prev => ({
+            ...prev,
+            [chatId]: [...(prev[chatId] || []), assistantMessage]
+          }));
+
+          // Atualizar lista de chats com a resposta do assistente
+          setChats(prevChats => 
+            prevChats.map(chat => 
+              chat.chatId === chatId 
+                ? { ...chat, lastMessage: assistantMessage.text, lastMessageTime: assistantMessage.timestamp }
+                : chat
+            )
+          );
+
+          const chat = chats.find(c => c.chatId === chatId);
+          if (chat && chat.isMonitored) {
+            await saveConversationToDatabase(chat, {
+              id: assistantMessage.id,
+              text: assistantMessage.text,
+              sender: 'assistant',
+              timestamp: assistantMessage.timestamp,
+              platform: 'greenapi',
+              assistant_used: selectedAssistant
+            });
+          }
+        }, 2000); // Delay de 2 segundos para simular resposta
+      }
+
+      const chat = chats.find(c => c.chatId === chatId);
+      if (chat && chat.isMonitored) {
+        await saveConversationToDatabase(chat, {
+          id: newMessage.id,
+          text: newMessage.text,
+          sender: newMessage.sender,
+          timestamp: newMessage.timestamp,
+          platform: 'greenapi'
+        });
+      }
+
+      return true;
+      
+    } catch (error) {
+      console.error('❌ Erro ao enviar mensagem:', error);
+      toast({
+        title: "Erro ao enviar mensagem",
+        description: `Erro: ${error.message}`,
+        variant: "destructive"
+      });
+      return false;
+    }
+  };
+
+  // Função para atualizar chats em tempo real (chamada pelo webhook)
+  const refreshChats = async () => {
+    console.log('🔄 Atualizando chats em tempo real...');
+    await loadChats();
+  };
+
+  // Polling para verificar mensagens recebidas a cada 10 segundos
+  useEffect(() => {
+    let pollInterval: NodeJS.Timeout;
+    
+    if (greenAPIState.isConnected) {
+      pollInterval = setInterval(() => {
+        refreshChats();
+      }, 10000); // A cada 10 segundos
+    }
+
+    return () => {
+      if (pollInterval) {
+        clearInterval(pollInterval);
+      }
+    };
+  }, [greenAPIState.isConnected]);
+
+  const disconnect = async () => {
+    try {
+      await fetch(getAPIUrl('logout'), { method: 'GET' });
+      
       setGreenAPIState({
         isConnected: false,
-        instanceId: '',
-        phoneNumber: '',
         qrCode: '',
+        phoneNumber: '',
         isGenerating: false,
         lastConnected: ''
       });
 
-      const updatedWhatsAppConfig = {
-        ...config?.whatsapp,
-        isConnected: false,
-        authorizedNumber: ''
-      };
+      setChats([]);
+      setMessages({});
 
-      updateConfig('whatsapp', updatedWhatsAppConfig);
+      updateConfig('whatsapp', {
+        isConnected: false,
+        authorizedNumber: '',
+        platform: 'greenapi'
+      });
+
       await saveConfig();
-      
+      localStorage.removeItem('greenapi_state');
+
       toast({
         title: "Desconectado",
-        description: "GREEN-API desconectado"
+        description: "WhatsApp desconectado com sucesso"
       });
+      
     } catch (error) {
       console.error('❌ Erro ao desconectar:', error);
     }
-  }, [config, updateConfig, saveConfig, toast]);
+  };
 
   return {
     greenAPIState,
+    apiConfig,
     chats,
     messages,
+    isLoading,
+    pinnedChats,
+    monitoredChats,
+    selectedAssistant,
+    updateAPIConfig,
+    getQRCode,
     loadChats,
     loadChatHistory,
     sendMessage,
+    disconnect,
+    checkConnectionStatus,
     togglePinChat,
     toggleMonitorChat,
-    assignAssistantToChat,
-    selectedAssistant,
     setSelectedAssistant,
-    updateAPIConfig,
-    refreshChats,
-    apiConfig,
-    isLoading,
-    getQRCode,
-    disconnect,
-    checkConnectionStatus
+    refreshChats
   };
 }
