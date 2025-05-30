@@ -1,10 +1,11 @@
 
 import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Smartphone, Settings, Zap } from 'lucide-react';
+import { Smartphone, Settings, Zap, Globe } from 'lucide-react';
 import { WhatsAppPlatformConfig } from './WhatsAppPlatformConfig';
 import { WhatsAppConnectionStatus } from './WhatsAppConnectionStatus';
 import { MakeConfig } from './MakeConfig';
+import { GreenAPIConfig } from './GreenAPIConfig';
 import { useClientConfig } from '@/contexts/ClientConfigContext';
 
 export function WhatsAppConfig() {
@@ -22,17 +23,25 @@ export function WhatsAppConfig() {
       {/* Status da Conexão */}
       <WhatsAppConnectionStatus />
 
-      <Tabs defaultValue="platform" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
+      <Tabs defaultValue="greenapi" className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="greenapi" className="flex items-center gap-2">
+            <Globe className="h-4 w-4" />
+            GREEN-API
+          </TabsTrigger>
           <TabsTrigger value="platform" className="flex items-center gap-2">
             <Smartphone className="h-4 w-4" />
-            Plataforma
+            Outras Plataformas
           </TabsTrigger>
           <TabsTrigger value="make" className="flex items-center gap-2">
             <Zap className="h-4 w-4" />
-            Make.com
+            Make.com (Legado)
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="greenapi">
+          <GreenAPIConfig />
+        </TabsContent>
 
         <TabsContent value="platform">
           <WhatsAppPlatformConfig />
