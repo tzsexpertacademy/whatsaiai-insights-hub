@@ -175,7 +175,7 @@ export function useCacheManager() {
         // Atualizar registro existente
         const updates = {
           total_analyses: (existing.total_analyses || 0) + (stats.total_analyses || 0),
-          total_cost_estimate: parseFloat(existing.total_cost_estimate || '0') + (stats.total_cost_estimate || 0),
+          total_cost_estimate: (parseFloat(existing.total_cost_estimate?.toString() || '0') + (stats.total_cost_estimate || 0)).toString(),
           conversations_processed: (existing.conversations_processed || 0) + (stats.conversations_processed || 0),
           insights_generated: (existing.insights_generated || 0) + (stats.insights_generated || 0),
           cache_hits: (existing.cache_hits || 0) + (stats.cache_hits || 0),
@@ -197,7 +197,12 @@ export function useCacheManager() {
           .insert({
             user_id: userId,
             analysis_date: today,
-            ...stats
+            total_analyses: stats.total_analyses || 0,
+            total_cost_estimate: (stats.total_cost_estimate || 0).toString(),
+            conversations_processed: stats.conversations_processed || 0,
+            insights_generated: stats.insights_generated || 0,
+            cache_hits: stats.cache_hits || 0,
+            cache_miss: stats.cache_miss || 0
           });
 
         if (insertError) {
@@ -257,7 +262,7 @@ export function useCacheManager() {
       // Calcular totais
       const totals = (data || []).reduce((acc, day) => ({
         totalAnalyses: acc.totalAnalyses + (day.total_analyses || 0),
-        totalCost: acc.totalCost + parseFloat(day.total_cost_estimate || '0'),
+        totalCost: acc.totalCost + parseFloat(day.total_cost_estimate?.toString() || '0'),
         totalConversations: acc.totalConversations + (day.conversations_processed || 0),
         totalInsights: acc.totalInsights + (day.insights_generated || 0),
         cacheHits: acc.cacheHits + (day.cache_hits || 0),
