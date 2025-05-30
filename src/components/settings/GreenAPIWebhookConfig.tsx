@@ -35,12 +35,7 @@ export function GreenAPIWebhookConfig() {
       
       const response = await fetch(
         `https://api.green-api.com/waInstance${apiConfig.instanceId}/getSettings/${apiConfig.apiToken}`,
-        { 
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        }
+        { method: 'GET' }
       );
 
       if (response.ok) {
@@ -55,14 +50,9 @@ export function GreenAPIWebhookConfig() {
         } else {
           setWebhookStatus('inactive');
           console.log('❌ Webhook não configurado ou incorreto');
-          console.log('❌ URL esperada:', webhookUrl);
-          console.log('❌ URL atual:', data.webhookUrl);
-          console.log('❌ incomingWebhook:', data.incomingWebhook);
         }
       } else {
         console.error('❌ Erro ao verificar configurações:', response.status);
-        const errorText = await response.text();
-        console.error('❌ Erro detalhes:', errorText);
         setWebhookStatus('unknown');
       }
     } catch (error) {
@@ -85,8 +75,6 @@ export function GreenAPIWebhookConfig() {
 
     try {
       console.log('🔗 Configurando webhook GREEN-API...');
-      console.log('🔗 Instance ID:', apiConfig.instanceId);
-      console.log('🔗 Webhook URL:', webhookUrl);
       
       const response = await fetch(
         `https://api.green-api.com/waInstance${apiConfig.instanceId}/setSettings/${apiConfig.apiToken}`,
@@ -161,9 +149,9 @@ export function GreenAPIWebhookConfig() {
     setIsTesting(true);
 
     try {
-      console.log('🧪 Testando webhook... URL:', webhookUrl);
+      console.log('🧪 Testando webhook direto... URL:', webhookUrl);
       
-      // Teste simples enviando dados mockados
+      // Teste direto sem autenticação
       const testPayload = {
         typeWebhook: 'test',
         instanceData: { 
@@ -203,15 +191,15 @@ export function GreenAPIWebhookConfig() {
         
         toast({
           title: "Webhook funcionando!",
-          description: "O webhook está respondendo corretamente aos testes"
+          description: "O webhook respondeu corretamente ao teste"
         });
       } else {
         const errorText = await testResponse.text();
         console.error('❌ Erro no teste:', testResponse.status, errorText);
         
         toast({
-          title: "Erro no teste",
-          description: `Webhook retornou erro ${testResponse.status}. Verifique os logs do Supabase.`,
+          title: "Problema no webhook",
+          description: `Status ${testResponse.status}. Verifique os logs do Supabase.`,
           variant: "destructive"
         });
       }
@@ -295,7 +283,7 @@ export function GreenAPIWebhookConfig() {
           <Alert>
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              O webhook não está configurado corretamente. Configure-o para receber mensagens automaticamente.
+              Configure o webhook para receber mensagens automaticamente.
             </AlertDescription>
           </Alert>
         )}
@@ -317,7 +305,7 @@ export function GreenAPIWebhookConfig() {
             disabled={isConfiguring || !apiConfig.instanceId || !apiConfig.apiToken}
             className="flex-1"
           >
-            {isConfiguring ? 'Configurando...' : 'Configurar Webhook Automaticamente'}
+            {isConfiguring ? 'Configurando...' : 'Configurar Webhook'}
           </Button>
           
           <Button 
@@ -325,7 +313,7 @@ export function GreenAPIWebhookConfig() {
             variant="outline"
             disabled={isTesting || !apiConfig.instanceId || !apiConfig.apiToken}
           >
-            {isTesting ? 'Testando...' : 'Testar Webhook'}
+            {isTesting ? 'Testando...' : 'Testar'}
           </Button>
         </div>
 
@@ -335,7 +323,6 @@ export function GreenAPIWebhookConfig() {
             <li>• O webhook recebe mensagens do WhatsApp em tempo real</li>
             <li>• Mensagens são salvas automaticamente no banco de dados</li>
             <li>• Sistema processa mensagens para todos os usuários configurados</li>
-            <li>• Status de conexão é atualizado automaticamente</li>
           </ul>
         </div>
 
