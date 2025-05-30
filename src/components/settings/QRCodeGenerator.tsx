@@ -2,7 +2,7 @@
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { QrCode, Loader2, CheckCircle, Clock, Wifi, WifiOff } from 'lucide-react';
+import { QrCode, Loader2, CheckCircle, Clock, Wifi, WifiOff, RefreshCw } from 'lucide-react';
 import { useWhatsAppQRCode } from "@/hooks/useWhatsAppQRCode";
 
 export function QRCodeGenerator() {
@@ -33,6 +33,11 @@ export function QRCodeGenerator() {
   };
 
   const statusInfo = getStatusInfo();
+
+  const handleGenerateQR = () => {
+    console.log('🖱️ Botão clicado - Gerando QR Code...');
+    generateQRCode();
+  };
 
   return (
     <Card className="bg-white/70 backdrop-blur-sm border-white/50">
@@ -65,7 +70,11 @@ export function QRCodeGenerator() {
           <div className="text-center py-8">
             <QrCode className="h-16 w-16 text-gray-400 mx-auto mb-4" />
             <p className="text-gray-500 mb-4">Clique no botão abaixo para gerar o QR Code</p>
-            <Button onClick={generateQRCode} disabled={isLoading}>
+            <Button 
+              onClick={handleGenerateQR} 
+              disabled={isLoading}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -84,7 +93,7 @@ export function QRCodeGenerator() {
             <div className="flex items-center justify-center mb-4">
               <Wifi className="h-16 w-16 text-green-500" />
             </div>
-            <p className="text-green-600 font-medium mb-2">WhatsApp Business Conectado!</p>
+            <p className="text-green-600 font-medium mb-2">WhatsApp Business Conectado! 🎉</p>
             <p className="text-sm text-gray-600 mb-4">
               Conectado ao: {qrState.phoneNumber}
             </p>
@@ -95,45 +104,58 @@ export function QRCodeGenerator() {
               <Button onClick={disconnectWhatsApp} variant="outline" size="sm">
                 Desconectar
               </Button>
-              <Button onClick={generateQRCode} variant="outline" size="sm">
+              <Button onClick={handleGenerateQR} variant="outline" size="sm">
+                <RefreshCw className="mr-2 h-4 w-4" />
                 Gerar Novo QR Code
               </Button>
             </div>
           </div>
         ) : (
           <div className="text-center">
-            <div className="bg-white p-4 rounded-lg border-2 border-dashed border-gray-300 mb-4">
+            <div className="bg-white p-4 rounded-lg border-2 border-dashed border-blue-200 mb-4">
               {isLoading ? (
                 <div className="w-64 h-64 mx-auto rounded-lg flex items-center justify-center">
                   <div className="text-center">
                     <Loader2 className="h-16 w-16 text-blue-400 animate-spin mx-auto mb-4" />
-                    <p className="text-blue-600">Gerando QR Code...</p>
+                    <p className="text-blue-600 font-medium">Gerando QR Code...</p>
+                    <p className="text-sm text-gray-500">Aguarde alguns segundos</p>
                   </div>
                 </div>
               ) : (
-                <div className="w-64 h-64 mx-auto rounded-lg flex items-center justify-center overflow-hidden">
+                <div className="w-64 h-64 mx-auto rounded-lg flex items-center justify-center overflow-hidden bg-white">
                   <img 
                     src={qrState.qrCode} 
                     alt="QR Code para WhatsApp Business" 
-                    className="max-w-full max-h-full"
+                    className="max-w-full max-h-full rounded"
+                    onError={(e) => {
+                      console.error('❌ Erro ao carregar QR Code');
+                      e.currentTarget.style.display = 'none';
+                    }}
                   />
                 </div>
               )}
             </div>
-            <div className="space-y-2 text-sm text-gray-600">
-              <p className="font-medium text-blue-600">📱 Como conectar:</p>
-              <p>1. Abra o WhatsApp Business no seu celular</p>
-              <p>2. Vá em Menu (⋮) → Dispositivos conectados</p>
-              <p>3. Toque em "Conectar um dispositivo"</p>
-              <p>4. Escaneie este código QR</p>
-            </div>
-            <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-              <p className="text-xs text-blue-700">
-                💡 <strong>Dica:</strong> Aguarde alguns segundos após escanear. A conexão será detectada automaticamente!
-              </p>
-            </div>
+            
+            {!isLoading && qrState.qrCode && (
+              <>
+                <div className="space-y-2 text-sm text-gray-600 mb-4">
+                  <p className="font-medium text-blue-600">📱 Como conectar:</p>
+                  <p>1. Abra o WhatsApp Business no seu celular</p>
+                  <p>2. Vá em Menu (⋮) → Dispositivos conectados</p>
+                  <p>3. Toque em "Conectar um dispositivo"</p>
+                  <p>4. Escaneie este código QR</p>
+                </div>
+                
+                <div className="p-3 bg-blue-50 rounded-lg mb-4">
+                  <p className="text-xs text-blue-700">
+                    ⏱️ <strong>Aguardando conexão...</strong> O sistema detectará automaticamente quando você escanear o QR Code (em ~15 segundos para teste).
+                  </p>
+                </div>
+              </>
+            )}
+            
             <Button 
-              onClick={generateQRCode} 
+              onClick={handleGenerateQR} 
               variant="outline" 
               size="sm"
               disabled={isLoading}
@@ -145,7 +167,10 @@ export function QRCodeGenerator() {
                   Gerando...
                 </>
               ) : (
-                'Gerar Novo QR Code'
+                <>
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Gerar Novo QR Code
+                </>
               )}
             </Button>
           </div>
