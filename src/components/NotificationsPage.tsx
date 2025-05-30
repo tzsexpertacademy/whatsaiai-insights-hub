@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useNotifications } from '@/hooks/useNotifications';
 import { Button } from '@/components/ui/button';
@@ -12,6 +13,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Separator } from '@/components/ui/separator';
 import { Bell, BellOff, Plus, Trash2, Clock, Info, Settings, AlertCircle, CheckCircle, TestTube, RefreshCw, HelpCircle } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { PageLayout } from '@/components/layout/PageLayout';
 
 export function NotificationsPage() {
   const { 
@@ -251,244 +253,242 @@ export function NotificationsPage() {
     </Card>
   );
 
-  return (
-    <div className="min-h-screen bg-gray-50 p-4 sm:p-6">
-      <div className="max-w-4xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+  const headerActions = (
+    <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+      <DialogTrigger asChild>
+        <Button className="flex items-center gap-2 w-full sm:w-auto">
+          <Plus className="w-4 h-4" />
+          Nova Notificação
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md mx-4">
+        <DialogHeader>
+          <DialogTitle>Criar Nova Notificação</DialogTitle>
+          <DialogDescription>
+            Configure um novo lembrete personalizado
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Gerenciar Notificações</h1>
-            <p className="text-gray-600 mt-1">Configure seus lembretes personalizados</p>
+            <Label htmlFor="title">Título</Label>
+            <Input
+              id="title"
+              value={newNotification.title}
+              onChange={(e) => setNewNotification(prev => ({ ...prev, title: e.target.value }))}
+              placeholder="Ex: Lembrete de exercício"
+            />
           </div>
-          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="flex items-center gap-2 w-full sm:w-auto">
-                <Plus className="w-4 h-4" />
-                Nova Notificação
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-md mx-4">
-              <DialogHeader>
-                <DialogTitle>Criar Nova Notificação</DialogTitle>
-                <DialogDescription>
-                  Configure um novo lembrete personalizado
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="title">Título</Label>
-                  <Input
-                    id="title"
-                    value={newNotification.title}
-                    onChange={(e) => setNewNotification(prev => ({ ...prev, title: e.target.value }))}
-                    placeholder="Ex: Lembrete de exercício"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="message">Mensagem</Label>
-                  <Textarea
-                    id="message"
-                    value={newNotification.message}
-                    onChange={(e) => setNewNotification(prev => ({ ...prev, message: e.target.value }))}
-                    placeholder="Ex: Hora de fazer seus exercícios diários!"
-                    rows={3}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="time">Horário (GMT-3)</Label>
-                  <Input
-                    id="time"
-                    type="time"
-                    value={newNotification.time}
-                    onChange={(e) => setNewNotification(prev => ({ ...prev, time: e.target.value }))}
-                  />
-                </div>
-              </div>
-              <DialogFooter className="flex-col sm:flex-row gap-2">
-                <Button variant="outline" onClick={() => setIsAddDialogOpen(false)} className="w-full sm:w-auto">
-                  Cancelar
-                </Button>
-                <Button onClick={handleAddNotification} className="w-full sm:w-auto">
-                  Criar Notificação
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          <div>
+            <Label htmlFor="message">Mensagem</Label>
+            <Textarea
+              id="message"
+              value={newNotification.message}
+              onChange={(e) => setNewNotification(prev => ({ ...prev, message: e.target.value }))}
+              placeholder="Ex: Hora de fazer seus exercícios diários!"
+              rows={3}
+            />
+          </div>
+          <div>
+            <Label htmlFor="time">Horário (GMT-3)</Label>
+            <Input
+              id="time"
+              type="time"
+              value={newNotification.time}
+              onChange={(e) => setNewNotification(prev => ({ ...prev, time: e.target.value }))}
+            />
+          </div>
         </div>
+        <DialogFooter className="flex-col sm:flex-row gap-2">
+          <Button variant="outline" onClick={() => setIsAddDialogOpen(false)} className="w-full sm:w-auto">
+            Cancelar
+          </Button>
+          <Button onClick={handleAddNotification} className="w-full sm:w-auto">
+            Criar Notificação
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
 
-        {/* Status das Notificações */}
-        <Card>
-          <CardHeader>
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <Bell className="w-5 h-5" />
-                  Status das Notificações
-                </CardTitle>
-                <CardDescription>
-                  Permissões e configurações do navegador
-                </CardDescription>
-              </div>
-              <div className="flex items-center gap-2">
-                {getPermissionBadge()}
-                <Button 
-                  size="sm" 
-                  variant="outline"
-                  onClick={handleTestNotification}
-                  className="flex items-center gap-1"
-                >
-                  <TestTube className="w-3 h-3" />
-                  Testar
-                </Button>
-              </div>
+  return (
+    <PageLayout
+      title="Gerenciar Notificações"
+      description="Configure seus lembretes personalizados"
+      showBackButton={true}
+      headerActions={headerActions}
+    >
+      {/* Status das Notificações */}
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Bell className="w-5 h-5" />
+                Status das Notificações
+              </CardTitle>
+              <CardDescription>
+                Permissões e configurações do navegador
+              </CardDescription>
             </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {permission === 'default' && (
-              <Alert>
-                <Info className="h-4 w-4" />
-                <AlertDescription>
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <span>Para receber notificações, você precisa conceder permissão.</span>
-                    <Button size="sm" onClick={handleRequestPermission} className="w-full sm:w-auto">
-                      <Bell className="w-4 h-4 mr-2" />
-                      Permitir Notificações
-                    </Button>
-                  </div>
-                </AlertDescription>
-              </Alert>
-            )}
-            
-            {permission === 'denied' && (
-              <div className="space-y-4">
-                <Alert variant="destructive">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>
-                    <div className="space-y-3">
-                      <p className="font-medium">Notificações bloqueadas pelo navegador</p>
-                      <p className="text-sm">
-                        As notificações foram bloqueadas. Siga as instruções abaixo para habilitar.
-                      </p>
-                    </div>
-                  </AlertDescription>
-                </Alert>
-              </div>
-            )}
-            
-            {permission === 'granted' && (
-              <Alert>
-                <CheckCircle className="h-4 w-4" />
-                <AlertDescription className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <span>✅ Notificações ativadas! Você receberá lembretes conforme configurado.</span>
-                  <Badge className="bg-green-100 text-green-800 w-fit">
-                    Sistema Funcionando
-                  </Badge>
-                </AlertDescription>
-              </Alert>
-            )}
-
-            {/* Seção de troubleshooting sempre visível */}
-            {renderTroubleshootingSection()}
-          </CardContent>
-        </Card>
-
-        {/* Lista de Notificações */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Suas Notificações ({notifications.length})</CardTitle>
-            <CardDescription>
-              Gerencie seus lembretes diários e personalizados
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {notifications.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  <Bell className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <p>Nenhuma notificação configurada</p>
-                  <p className="text-sm">Clique em "Nova Notificação" para começar</p>
+            <div className="flex items-center gap-2">
+              {getPermissionBadge()}
+              <Button 
+                size="sm" 
+                variant="outline"
+                onClick={handleTestNotification}
+                className="flex items-center gap-1"
+              >
+                <TestTube className="w-3 h-3" />
+                Testar
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {permission === 'default' && (
+            <Alert>
+              <Info className="h-4 w-4" />
+              <AlertDescription>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <span>Para receber notificações, você precisa conceder permissão.</span>
+                  <Button size="sm" onClick={handleRequestPermission} className="w-full sm:w-auto">
+                    <Bell className="w-4 h-4 mr-2" />
+                    Permitir Notificações
+                  </Button>
                 </div>
-              ) : (
-                notifications.map((notification) => (
-                  <div key={notification.id} className="border rounded-lg p-4 space-y-3">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                        <div className="flex items-center gap-2">
-                          <Clock className="w-4 h-4 text-gray-500" />
-                          <span className="font-mono text-sm bg-gray-100 px-2 py-1 rounded">
-                            {formatTime(notification.time)}
-                          </span>
-                        </div>
-                        <Badge variant={notification.type === 'daily' ? 'default' : 'secondary'}>
-                          {notification.type === 'daily' ? 'Padrão' : 'Personalizada'}
-                        </Badge>
-                      </div>
+              </AlertDescription>
+            </Alert>
+          )}
+          
+          {permission === 'denied' && (
+            <div className="space-y-4">
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  <div className="space-y-3">
+                    <p className="font-medium">Notificações bloqueadas pelo navegador</p>
+                    <p className="text-sm">
+                      As notificações foram bloqueadas. Siga as instruções abaixo para habilitar.
+                    </p>
+                  </div>
+                </AlertDescription>
+              </Alert>
+            </div>
+          )}
+          
+          {permission === 'granted' && (
+            <Alert>
+              <CheckCircle className="h-4 w-4" />
+              <AlertDescription className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <span>✅ Notificações ativadas! Você receberá lembretes conforme configurado.</span>
+                <Badge className="bg-green-100 text-green-800 w-fit">
+                  Sistema Funcionando
+                </Badge>
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {/* Seção de troubleshooting sempre visível */}
+          {renderTroubleshootingSection()}
+        </CardContent>
+      </Card>
+
+      {/* Lista de Notificações */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Suas Notificações ({notifications.length})</CardTitle>
+          <CardDescription>
+            Gerencie seus lembretes diários e personalizados
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {notifications.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <Bell className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                <p>Nenhuma notificação configurada</p>
+                <p className="text-sm">Clique em "Nova Notificação" para começar</p>
+              </div>
+            ) : (
+              notifications.map((notification) => (
+                <div key={notification.id} className="border rounded-lg p-4 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                       <div className="flex items-center gap-2">
-                        <Switch
-                          checked={notification.enabled}
-                          onCheckedChange={() => toggleNotification(notification.id)}
-                        />
-                        {notification.type === 'custom' && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDeleteNotification(notification.id, notification.title)}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        )}
+                        <Clock className="w-4 h-4 text-gray-500" />
+                        <span className="font-mono text-sm bg-gray-100 px-2 py-1 rounded">
+                          {formatTime(notification.time)}
+                        </span>
                       </div>
+                      <Badge variant={notification.type === 'daily' ? 'default' : 'secondary'}>
+                        {notification.type === 'daily' ? 'Padrão' : 'Personalizada'}
+                      </Badge>
                     </div>
-                    <div>
-                      <h3 className="font-medium text-gray-900">{notification.title}</h3>
-                      <p className="text-sm text-gray-600 mt-1">{notification.message}</p>
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        checked={notification.enabled}
+                        onCheckedChange={() => toggleNotification(notification.id)}
+                      />
+                      {notification.type === 'custom' && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteNotification(notification.id, notification.title)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      )}
                     </div>
                   </div>
-                ))
-              )}
-            </div>
-          </CardContent>
-        </Card>
+                  <div>
+                    <h3 className="font-medium text-gray-900">{notification.title}</h3>
+                    <p className="text-sm text-gray-600 mt-1">{notification.message}</p>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
-        {/* Informações Adicionais */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Como funciona?</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <div>
-                <h4 className="font-medium mb-2">🕰️ Horários</h4>
-                <p className="text-sm text-gray-600">
-                  Os horários estão configurados para GMT-3 (horário de Brasília). 
-                  As notificações são verificadas a cada minuto.
-                </p>
-              </div>
-              <div>
-                <h4 className="font-medium mb-2">🔔 Tipos de Notificação</h4>
-                <p className="text-sm text-gray-600">
-                  Você receberá tanto notificações do navegador quanto toasts na tela, 
-                  garantindo que não perca nenhum lembrete.
-                </p>
-              </div>
-              <div>
-                <h4 className="font-medium mb-2">⚙️ Personalizações</h4>
-                <p className="text-sm text-gray-600">
-                  Crie quantas notificações quiser, configure horários específicos 
-                  e ative/desative conforme necessário.
-                </p>
-              </div>
-              <div>
-                <h4 className="font-medium mb-2">🧪 Teste</h4>
-                <p className="text-sm text-gray-600">
-                  Use o botão "Testar" para verificar se as notificações estão funcionando 
-                  corretamente no seu dispositivo.
-                </p>
-              </div>
+      {/* Informações Adicionais */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Como funciona?</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <h4 className="font-medium mb-2">🕰️ Horários</h4>
+              <p className="text-sm text-gray-600">
+                Os horários estão configurados para GMT-3 (horário de Brasília). 
+                As notificações são verificadas a cada minuto.
+              </p>
             </div>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+            <div>
+              <h4 className="font-medium mb-2">🔔 Tipos de Notificação</h4>
+              <p className="text-sm text-gray-600">
+                Você receberá tanto notificações do navegador quanto toasts na tela, 
+                garantindo que não perca nenhum lembrete.
+              </p>
+            </div>
+            <div>
+              <h4 className="font-medium mb-2">⚙️ Personalizações</h4>
+              <p className="text-sm text-gray-600">
+                Crie quantas notificações quiser, configure horários específicos 
+                e ative/desative conforme necessário.
+              </p>
+            </div>
+            <div>
+              <h4 className="font-medium mb-2">🧪 Teste</h4>
+              <p className="text-sm text-gray-600">
+                Use o botão "Testar" para verificar se as notificações estão funcionando 
+                corretamente no seu dispositivo.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </PageLayout>
   );
 }

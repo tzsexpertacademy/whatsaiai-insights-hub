@@ -23,6 +23,7 @@ import { useVoiceTranscription } from '@/hooks/useVoiceTranscription';
 import { VoiceRecordButton } from '@/components/VoiceRecordButton';
 import { useToast } from "@/hooks/use-toast";
 import { useClientConfig } from '@/contexts/ClientConfigContext';
+import { PageLayout } from '@/components/layout/PageLayout';
 
 interface Message {
   id: number;
@@ -31,6 +32,15 @@ interface Message {
   timestamp: Date;
   assistantId?: string;
   isVoice?: boolean;
+}
+
+interface Assistant {
+  id: string;
+  name: string;
+  prompt: string;
+  model: string;
+  area: string;
+  isActive: boolean;
 }
 
 export function VoiceChatInterface() {
@@ -48,6 +58,12 @@ export function VoiceChatInterface() {
 
   // Verificar se OpenAI está configurada
   const isOpenAIConfigured = config.openai?.apiKey && config.openai.apiKey.startsWith('sk-');
+
+  const headerActions = (
+    <Badge className="bg-purple-100 text-purple-800 text-xs sm:text-sm">
+      🤖 Chat com Assistentes
+    </Badge>
+  );
 
   // Mensagem inicial
   useEffect(() => {
@@ -248,20 +264,12 @@ INSTRUÇÕES PARA CHAT REAL:
   const selectedAssistantData = assistants.find(a => a.id === selectedAssistant);
 
   return (
-    <div className="w-full max-w-7xl mx-auto p-6 space-y-6">
-      {/* Header */}
-      <div className="text-center space-y-4">
-        <div className="flex justify-center">
-          <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-blue-600 rounded-full flex items-center justify-center">
-            <MessageSquare className="w-8 h-8 text-white" />
-          </div>
-        </div>
-        <h1 className="text-3xl font-bold text-gray-900">Chat com Assistentes IA</h1>
-        <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-          Converse por voz ou texto com seus assistentes especializados
-        </p>
-      </div>
-
+    <PageLayout
+      title="Chat com Assistentes IA"
+      description="Converse por voz ou texto com seus assistentes especializados"
+      showBackButton={true}
+      headerActions={headerActions}
+    >
       {/* Status da Conexão */}
       {!isOpenAIConfigured ? (
         <Alert className="border-red-200 bg-red-50">
@@ -560,6 +568,6 @@ INSTRUÇÕES PARA CHAT REAL:
           </CardContent>
         </Card>
       )}
-    </div>
+    </PageLayout>
   );
 }
