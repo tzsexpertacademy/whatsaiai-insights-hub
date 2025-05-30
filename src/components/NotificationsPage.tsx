@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNotifications } from '@/hooks/useNotifications';
 import { Button } from '@/components/ui/button';
@@ -11,9 +10,10 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
-import { Bell, BellOff, Plus, Trash2, Clock, Info, Settings, AlertCircle, CheckCircle, TestTube, RefreshCw, HelpCircle } from 'lucide-react';
+import { Bell, BellOff, Plus, Trash2, Clock, Info, Settings, AlertCircle, CheckCircle, TestTube, RefreshCw, HelpCircle, CreditCard } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { PageLayout } from '@/components/layout/PageLayout';
+import { useAuth } from '@/contexts/AuthContext';
 
 export function NotificationsPage() {
   const { 
@@ -25,9 +25,13 @@ export function NotificationsPage() {
     deleteNotification, 
     toggleNotification,
     testNotification,
-    checkPermissionStatus
+    checkPermissionStatus,
+    isInTrialPeriod,
+    trialDaysRemaining
   } = useNotifications();
 
+  const { user, createCheckout } = useAuth();
+  
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingNotification, setEditingNotification] = useState<string | null>(null);
   const [newNotification, setNewNotification] = useState({
@@ -253,6 +257,29 @@ export function NotificationsPage() {
     </Card>
   );
 
+  const getNotificationBadge = (notification: any) => {
+    if (notification.type === 'trial') {
+      return <Badge className="bg-orange-100 text-orange-800">Trial</Badge>;
+    } else if (notification.type === 'daily') {
+      return <Badge variant="default">Padrão</Badge>;
+    } else {
+      return <Badge variant="secondary">Personalizada</Badge>;
+    }
+  };
+
+  const handleTrialCheckout = async () => {
+    try {
+      await createCheckout();
+    } catch (error) {
+      console.error('Error creating checkout:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível abrir o checkout. Tente novamente.",
+        variant: "destructive"
+      });
+    }
+  };
+
   const headerActions = (
     <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
       <DialogTrigger asChild>
@@ -317,6 +344,47 @@ export function NotificationsPage() {
       showBackButton={true}
       headerActions={headerActions}
     >
+      {/* Status do Trial */}
+      {isInTrialPeriod && (
+        <Card className="bg-gradient-to-r from-orange-50 to-yellow-50 border-orange-200">
+          <CardHeader>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <CardTitle className="flex items-center gap-2 text-orange-800">
+                  <Clock className="w-5 h-5" />
+                  Período de Trial Ativo
+                </CardTitle>
+                <CardDescription className="text-orange-700">
+                  Você tem {trialDaysRemaining} dias restantes no seu trial gratuito
+                </CardDescription>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge className="bg-orange-100 text-orange-800">
+                  {trialDaysRemaining} dias restantes
+                </Badge>
+                <Button 
+                  size="sm"
+                  onClick={handleTrialCheckout}
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                >
+                  <CreditCard className="w-3 h-3 mr-1" />
+                  Assinar
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <Alert className="bg-white border-orange-200">
+              <Info className="h-4 w-4 text-orange-600" />
+              <AlertDescription className="text-orange-700">
+                <strong>💡 Notificação automática ativada:</strong> Você receberá lembretes diários sobre seu trial para não perder acesso às suas análises. 
+                Assine agora por apenas <strong>R$ 47/mês</strong> e mantenha todas as funcionalidades!
+              </AlertDescription>
+            </Alert>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Status das Notificações */}
       <Card>
         <CardHeader>
@@ -411,7 +479,9 @@ export function NotificationsPage() {
               </div>
             ) : (
               notifications.map((notification) => (
-                <div key={notification.id} className="border rounded-lg p-4 space-y-3">
+                <div key={notification.id} className={`border rounded-lg p-4 space-y-3 ${
+                  notification.type === 'trial' ? 'bg-gradient-to-r from-orange-50 to-yellow-50 border-orange-200' : ''
+                }`}>
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                       <div className="flex items-center gap-2">
@@ -420,14 +490,19 @@ export function NotificationsPage() {
                           {formatTime(notification.time)}
                         </span>
                       </div>
-                      <Badge variant={notification.type === 'daily' ? 'default' : 'secondary'}>
-                        {notification.type === 'daily' ? 'Padrão' : 'Personalizada'}
-                      </Badge>
+                      {getNotificationBadge(notification)}
+                      {notification.type === 'trial' && (
+                        <Badge className="bg-orange-100 text-orange-800">
+                          <CreditCard className="w-3 h-3 mr-1" />
+                          Checkout
+                        </Badge>
+                      )}
                     </div>
                     <div className="flex items-center gap-2">
                       <Switch
                         checked={notification.enabled}
                         onCheckedChange={() => toggleNotification(notification.id)}
+                        disabled={notification.type === 'trial'} // Não permitir desabilitar notificação de trial
                       />
                       {notification.type === 'custom' && (
                         <Button
@@ -441,8 +516,24 @@ export function NotificationsPage() {
                     </div>
                   </div>
                   <div>
-                    <h3 className="font-medium text-gray-900">{notification.title}</h3>
-                    <p className="text-sm text-gray-600 mt-1">{notification.message}</p>
+                    <h3 className={`font-medium ${notification.type === 'trial' ? 'text-orange-900' : 'text-gray-900'}`}>
+                      {notification.title}
+                    </h3>
+                    <p className={`text-sm mt-1 ${notification.type === 'trial' ? 'text-orange-700' : 'text-gray-600'}`}>
+                      {notification.message}
+                    </p>
+                    {notification.type === 'trial' && (
+                      <div className="mt-2">
+                        <Button 
+                          size="sm"
+                          onClick={handleTrialCheckout}
+                          className="bg-green-600 hover:bg-green-700 text-white"
+                        >
+                          <CreditCard className="w-3 h-3 mr-1" />
+                          Assinar Agora - R$ 47/mês
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))
@@ -480,10 +571,10 @@ export function NotificationsPage() {
               </p>
             </div>
             <div>
-              <h4 className="font-medium mb-2">🧪 Teste</h4>
+              <h4 className="font-medium mb-2">💳 Notificações de Trial</h4>
               <p className="text-sm text-gray-600">
-                Use o botão "Testar" para verificar se as notificações estão funcionando 
-                corretamente no seu dispositivo.
+                Durante seu período de teste, você receberá lembretes para assinar 
+                e manter acesso às suas análises.
               </p>
             </div>
           </div>

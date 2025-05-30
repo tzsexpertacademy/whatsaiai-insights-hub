@@ -1,6 +1,6 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 
 export interface NotificationConfig {
   id: string;
@@ -8,7 +8,7 @@ export interface NotificationConfig {
   message: string;
   time: string; // formato HH:MM
   enabled: boolean;
-  type: 'daily' | 'custom';
+  type: 'daily' | 'custom' | 'trial';
   createdAt: Date;
 }
 
@@ -54,29 +54,84 @@ const defaultNotifications: NotificationConfig[] = [
 export function useNotifications() {
   const [notifications, setNotifications] = useState<NotificationConfig[]>([]);
   const [permission, setPermission] = useState<NotificationPermission>('default');
+  const { user } = useAuth();
+
+  // Função para verificar se o usuário está em período de trial
+  const isInTrialPeriod = useCallback(() => {
+    if (!user?.subscribed || !user?.subscriptionEnd) return false;
+    
+    const trialEnd = new Date(user.subscriptionEnd);
+    const now = new Date();
+    return now <= trialEnd;
+  }, [user]);
+
+  // Função para calcular dias restantes do trial
+  const getTrialDaysRemaining = useCallback(() => {
+    if (!user?.subscriptionEnd) return 0;
+    
+    const trialEnd = new Date(user.subscriptionEnd);
+    const now = new Date();
+    const diffTime = trialEnd.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return Math.max(0, diffDays);
+  }, [user]);
+
+  // Criar notificação de trial
+  const createTrialNotification = useCallback(() => {
+    const daysRemaining = getTrialDaysRemaining();
+    
+    if (daysRemaining <= 0) return null;
+
+    return {
+      id: 'trial-reminder',
+      title: `⏰ Trial: ${daysRemaining} dias restantes`,
+      message: `Você tem ${daysRemaining} dias restantes do seu trial gratuito! Garante acesso contínuo às suas análises assinando agora por apenas R$ 47/mês.`,
+      time: '10:00',
+      enabled: true,
+      type: 'trial' as const,
+      createdAt: new Date()
+    };
+  }, [getTrialDaysRemaining]);
 
   // Carregar notificações do localStorage
   useEffect(() => {
     console.log('🔔 Carregando notificações do localStorage...');
     const saved = localStorage.getItem('user-notifications');
+    let loadedNotifications = defaultNotifications;
+    
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        const loadedNotifications = parsed.map((n: any) => ({
+        loadedNotifications = parsed.map((n: any) => ({
           ...n,
           createdAt: new Date(n.createdAt)
         }));
         console.log('📋 Notificações carregadas:', loadedNotifications);
-        setNotifications(loadedNotifications);
       } catch (error) {
         console.error('❌ Erro ao carregar notificações:', error);
-        setNotifications(defaultNotifications);
+        loadedNotifications = defaultNotifications;
       }
     } else {
       console.log('📝 Usando notificações padrão');
-      setNotifications(defaultNotifications);
     }
-  }, []);
+
+    // Adicionar notificação de trial se o usuário estiver em período de teste
+    if (isInTrialPeriod()) {
+      const trialNotification = createTrialNotification();
+      if (trialNotification) {
+        // Remover notificação de trial existente
+        loadedNotifications = loadedNotifications.filter(n => n.type !== 'trial');
+        // Adicionar nova notificação de trial
+        loadedNotifications.push(trialNotification);
+        console.log('📅 Adicionada notificação de trial:', trialNotification);
+      }
+    } else {
+      // Remover notificações de trial se não estiver mais em trial
+      loadedNotifications = loadedNotifications.filter(n => n.type !== 'trial');
+    }
+
+    setNotifications(loadedNotifications);
+  }, [isInTrialPeriod, createTrialNotification]);
 
   // Salvar notificações no localStorage
   const saveNotifications = useCallback((newNotifications: NotificationConfig[]) => {
@@ -204,20 +259,47 @@ export function useNotifications() {
   const showNotification = useCallback((notification: NotificationConfig) => {
     console.log('🔔 Tentando mostrar notificação:', notification);
     
-    // Sempre mostrar toast primeiro
-    console.log('🍞 Mostrando toast de notificação');
-    toast({
-      title: notification.title,
-      description: notification.message,
-      duration: 12000,
-      action: {
-        altText: "Ir para o Chat",
-        onClick: () => {
-          console.log('🖱️ Clique no botão do toast - redirecionando para chat');
-          window.location.href = '/dashboard/chat';
+    // Toast especial para notificações de trial
+    if (notification.type === 'trial') {
+      console.log('💳 Mostrando toast de trial com ação de checkout');
+      toast({
+        title: notification.title,
+        description: notification.message,
+        duration: 15000, // 15 segundos para trial
+        action: {
+          altText: "Assinar Agora",
+          onClick: async () => {
+            console.log('💳 Clique no botão de assinatura - redirecionando para checkout');
+            try {
+              if (user && typeof user.createCheckout === 'function') {
+                await user.createCheckout();
+              } else {
+                // Fallback se createCheckout não estiver disponível
+                window.location.href = '/dashboard/profile';
+              }
+            } catch (error) {
+              console.error('❌ Erro ao criar checkout:', error);
+              window.location.href = '/dashboard/profile';
+            }
+          }
         }
-      }
-    });
+      });
+    } else {
+      // Toast normal para outras notificações
+      console.log('🍞 Mostrando toast de notificação normal');
+      toast({
+        title: notification.title,
+        description: notification.message,
+        duration: 12000,
+        action: {
+          altText: "Ir para o Chat",
+          onClick: () => {
+            console.log('🖱️ Clique no botão do toast - redirecionando para chat');
+            window.location.href = '/dashboard/chat';
+          }
+        }
+      });
+    }
     
     // Tentar notificação do navegador se tivermos permissão
     if (permission === 'granted' && 'Notification' in window) {
@@ -228,7 +310,7 @@ export function useNotifications() {
           icon: '/favicon.ico',
           badge: '/favicon.ico',
           tag: notification.id,
-          requireInteraction: false,
+          requireInteraction: notification.type === 'trial', // Notificações de trial requerem interação
           silent: false
         });
 
@@ -238,31 +320,32 @@ export function useNotifications() {
         browserNotification.onclick = () => {
           console.log('🖱️ Clique na notificação do navegador - redirecionando');
           window.focus();
-          window.location.href = '/dashboard/chat';
+          
+          if (notification.type === 'trial') {
+            // Para notificações de trial, ir para o perfil/checkout
+            window.location.href = '/dashboard/profile';
+          } else {
+            // Para outras notificações, ir para o chat
+            window.location.href = '/dashboard/chat';
+          }
+          
           browserNotification.close();
         };
 
-        // Auto-fechar após 10 segundos
+        // Auto-fechar após tempo específico
+        const autoCloseTime = notification.type === 'trial' ? 20000 : 10000; // 20s para trial, 10s para outras
         setTimeout(() => {
           console.log('⏰ Auto-fechando notificação após timeout');
           browserNotification.close();
-        }, 10000);
+        }, autoCloseTime);
         
       } catch (error) {
         console.error('❌ Erro ao criar notificação do navegador:', error);
-        toast({
-          title: "Erro na notificação",
-          description: "Não foi possível mostrar a notificação do navegador, mas o toast foi exibido.",
-          variant: "destructive"
-        });
       }
     } else {
       console.log(`⚠️ Notificação do navegador não disponível. Permissão: ${permission}`);
-      if (permission !== 'granted') {
-        console.log('ℹ️ Apenas toast será exibido pois não há permissão para notificações do navegador');
-      }
     }
-  }, [permission]);
+  }, [permission, user]);
 
   // Verificar e disparar notificações
   const checkNotifications = useCallback(() => {
@@ -381,6 +464,8 @@ export function useNotifications() {
     toggleNotification,
     showNotification,
     testNotification,
-    checkPermissionStatus
+    checkPermissionStatus,
+    isInTrialPeriod: isInTrialPeriod(),
+    trialDaysRemaining: getTrialDaysRemaining()
   };
 }
