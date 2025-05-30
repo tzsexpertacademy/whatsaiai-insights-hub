@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { Send, Bot, User, Phone, Wifi, WifiOff, AlertCircle, Shield, RefreshCw } from 'lucide-react';
+import { Send, Bot, User, Phone, Wifi, WifiOff, AlertCircle, Shield, RefreshCw, Search, MoreVertical } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { useGreenAPI } from "@/hooks/useGreenAPI";
 import { useAdmin } from "@/contexts/AdminContext";
@@ -26,7 +26,7 @@ export function ChatInterface() {
   const [newMessage, setNewMessage] = useState('');
   const [activeChat, setActiveChat] = useState<string>('');
   const [isTyping, setIsTyping] = useState(false);
-  const [adminMessage, setAdminMessage] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
@@ -51,6 +51,18 @@ export function ChatInterface() {
   useEffect(() => {
     scrollToBottom();
   }, [messages, activeChat]);
+
+  // Ordenar chats por data da última mensagem
+  const sortedChats = chats
+    .filter(chat => 
+      searchQuery === '' || 
+      chat.name.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+    .sort((a, b) => {
+      const timeA = a.lastMessageTime ? new Date(a.lastMessageTime).getTime() : 0;
+      const timeB = b.lastMessageTime ? new Date(b.lastMessageTime).getTime() : 0;
+      return timeB - timeA; // Mais recente primeiro
+    });
 
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !activeChat) return;
@@ -105,6 +117,22 @@ export function ChatInterface() {
     });
   };
 
+  const formatTime = (timestamp: string) => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffInDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (diffInDays === 0) {
+      return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    } else if (diffInDays === 1) {
+      return 'Ontem';
+    } else if (diffInDays < 7) {
+      return date.toLocaleDateString('pt-BR', { weekday: 'short' });
+    } else {
+      return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+    }
+  };
+
   const headerActions = (
     <div className="flex flex-wrap items-center gap-2 sm:gap-3">
       <Badge className="bg-green-100 text-green-800 text-xs sm:text-sm">
@@ -154,179 +182,244 @@ export function ChatInterface() {
 
   return (
     <PageLayout
-      title="Chat WhatsApp"
-      description={`Conversas espelhadas via GREEN-API - ${greenAPIState.phoneNumber}`}
+      title="WhatsApp Business"
+      description={`${sortedChats.length} conversas • ${greenAPIState.phoneNumber}`}
       showBackButton={true}
       headerActions={headerActions}
     >
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Lista de conversas */}
-        <Card className="lg:col-span-1 bg-white/70 backdrop-blur-sm border-white/50">
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
+      <div className="flex h-[calc(100vh-200px)] bg-white rounded-lg shadow-lg overflow-hidden">
+        {/* Lista de conversas - Estilo WhatsApp */}
+        <div className="w-80 bg-gray-50 border-r border-gray-200 flex flex-col">
+          {/* Header da lista */}
+          <div className="p-4 bg-green-600 text-white">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-semibold">Conversas</h2>
               <div className="flex items-center gap-2">
-                <Phone className="h-5 w-5 text-blue-600" />
-                Conversas ({chats.length})
+                <Button 
+                  onClick={handleRefreshChats} 
+                  variant="ghost" 
+                  size="sm"
+                  className="text-white hover:bg-green-700"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  className="text-white hover:bg-green-700"
+                >
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
               </div>
-              <Button onClick={handleRefreshChats} variant="outline" size="sm">
-                <RefreshCw className="h-4 w-4" />
-              </Button>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {chats.map((chat) => (
+            </div>
+            
+            {/* Busca */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Input
+                placeholder="Buscar conversas..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 bg-white/20 border-white/30 text-white placeholder-white/70"
+              />
+            </div>
+          </div>
+
+          {/* Lista de conversas */}
+          <ScrollArea className="flex-1">
+            <div className="divide-y divide-gray-200">
+              {sortedChats.map((chat) => (
                 <div
                   key={chat.chatId}
                   onClick={() => handleChatSelect(chat.chatId)}
-                  className={`p-3 rounded-lg cursor-pointer transition-all ${
-                    activeChat === chat.chatId 
-                      ? 'bg-blue-100 border border-blue-300' 
-                      : 'bg-gray-50 hover:bg-gray-100'
+                  className={`p-4 cursor-pointer transition-colors hover:bg-gray-100 ${
+                    activeChat === chat.chatId ? 'bg-green-50 border-r-4 border-green-500' : ''
                   }`}
                 >
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="flex items-center gap-2">
-                      <div className={`w-2 h-2 rounded-full ${
-                        chat.isGroup ? 'bg-purple-500' : 'bg-green-500'
-                      }`}></div>
-                      <span className="text-sm font-medium truncate">{chat.name}</span>
+                  <div className="flex items-start gap-3">
+                    {/* Avatar */}
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold ${
+                      chat.isGroup ? 'bg-blue-500' : 'bg-green-500'
+                    }`}>
+                      {chat.isGroup ? '👥' : chat.name.charAt(0).toUpperCase()}
                     </div>
-                    {chat.unreadCount > 0 && (
-                      <span className="bg-red-500 text-white text-xs rounded-full px-2 py-1 min-w-[20px] text-center">
-                        {chat.unreadCount}
-                      </span>
-                    )}
+                    
+                    {/* Conteúdo */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-1">
+                        <h3 className="font-semibold text-gray-900 truncate">{chat.name}</h3>
+                        <div className="flex items-center gap-2">
+                          {chat.lastMessageTime && (
+                            <span className="text-xs text-gray-500">
+                              {formatTime(chat.lastMessageTime)}
+                            </span>
+                          )}
+                          {chat.unreadCount > 0 && (
+                            <div className="bg-green-500 text-white text-xs rounded-full px-2 py-1 min-w-[20px] text-center">
+                              {chat.unreadCount}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm text-gray-600 truncate flex-1">
+                          {chat.lastMessage || 'Nenhuma mensagem'}
+                        </p>
+                        {chat.isGroup && (
+                          <Badge variant="outline" className="text-xs">
+                            Grupo
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  <p className="text-xs text-gray-500 truncate">{chat.lastMessage}</p>
-                  {chat.lastMessageTime && (
-                    <p className="text-xs text-gray-400 mt-1">
-                      {new Date(chat.lastMessageTime).toLocaleTimeString('pt-BR')}
-                    </p>
-                  )}
                 </div>
               ))}
               
-              {chats.length === 0 && (
-                <div className="text-center py-8">
-                  <Phone className="h-12 w-12 text-gray-400 mx-auto mb-2" />
-                  <p className="text-gray-500 text-sm">Nenhuma conversa encontrada</p>
-                  <Button onClick={handleRefreshChats} variant="outline" size="sm" className="mt-2">
-                    <RefreshCw className="mr-2 h-4 w-4" />
-                    Atualizar
-                  </Button>
+              {sortedChats.length === 0 && (
+                <div className="text-center py-12 px-4">
+                  <Phone className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+                  <h3 className="text-gray-600 font-medium mb-2">
+                    {searchQuery ? 'Nenhuma conversa encontrada' : 'Nenhuma conversa'}
+                  </h3>
+                  <p className="text-gray-500 text-sm mb-4">
+                    {searchQuery ? 'Tente buscar por outro termo' : 'Aguardando mensagens do WhatsApp'}
+                  </p>
+                  {!searchQuery && (
+                    <Button onClick={handleRefreshChats} variant="outline" size="sm">
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                      Atualizar
+                    </Button>
+                  )}
                 </div>
               )}
             </div>
-          </CardContent>
-        </Card>
+          </ScrollArea>
+        </div>
 
-        {/* Chat principal */}
-        <Card className="lg:col-span-3 bg-white/70 backdrop-blur-sm border-white/50">
+        {/* Área do chat */}
+        <div className="flex-1 flex flex-col">
           {activeChatInfo ? (
             <>
-              <CardHeader className="border-b border-gray-200">
-                <CardTitle className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className={`w-3 h-3 rounded-full ${
-                      activeChatInfo.isGroup ? 'bg-purple-500' : 'bg-green-500'
-                    }`}></div>
-                    <div>
-                      <span className="font-medium">{activeChatInfo.name}</span>
-                      <p className="text-sm text-gray-500 font-normal">
-                        {activeChatInfo.isGroup ? 'Grupo' : 'Contato individual'}
-                      </p>
-                    </div>
+              {/* Header do chat */}
+              <div className="p-4 border-b border-gray-200 bg-gray-50">
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold ${
+                    activeChatInfo.isGroup ? 'bg-blue-500' : 'bg-green-500'
+                  }`}>
+                    {activeChatInfo.isGroup ? '👥' : activeChatInfo.name.charAt(0).toUpperCase()}
                   </div>
-                  <Badge variant="outline">
-                    GREEN-API
-                  </Badge>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-0">
-                <ScrollArea className="h-96 p-4">
-                  <div className="space-y-4">
-                    {chatMessages.map((message) => (
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-gray-900">{activeChatInfo.name}</h3>
+                    <p className="text-sm text-gray-600">
+                      {activeChatInfo.isGroup ? 'Grupo' : 'Contato'} • GREEN-API
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <span className="text-xs text-green-600">Online</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Mensagens */}
+              <ScrollArea className="flex-1 p-4 bg-gray-100">
+                <div className="space-y-4">
+                  {chatMessages.map((message) => (
+                    <div
+                      key={message.id}
+                      className={`flex ${
+                        message.sender === 'user' ? 'justify-end' : 'justify-start'
+                      }`}
+                    >
                       <div
-                        key={message.id}
-                        className={`flex ${
-                          message.sender === 'user' 
-                            ? 'justify-end' 
-                            : 'justify-start'
+                        className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg shadow-sm ${
+                          message.sender === 'user'
+                            ? 'bg-green-500 text-white rounded-br-none'
+                            : 'bg-white text-gray-800 rounded-bl-none border'
                         }`}
                       >
-                        <div
-                          className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                            message.sender === 'user'
-                              ? 'bg-blue-500 text-white'
-                              : 'bg-gray-200 text-gray-800'
-                          }`}
-                        >
-                          <p className="text-sm">{message.text}</p>
-                          <div className="flex items-center justify-between mt-1">
-                            <p className="text-xs opacity-70">
-                              {new Date(message.timestamp).toLocaleTimeString('pt-BR')}
-                            </p>
-                            {message.sender === 'user' && (
-                              <span className="text-xs opacity-70">
-                                {message.status === 'sent' && '✓'}
-                                {message.status === 'delivered' && '✓✓'}
-                                {message.status === 'read' && '✓✓'}
-                              </span>
-                            )}
-                          </div>
+                        <p className="text-sm whitespace-pre-wrap">{message.text}</p>
+                        <div className="flex items-center justify-between mt-1">
+                          <p className={`text-xs ${
+                            message.sender === 'user' ? 'text-green-100' : 'text-gray-500'
+                          }`}>
+                            {new Date(message.timestamp).toLocaleTimeString('pt-BR', {
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </p>
+                          {message.sender === 'user' && (
+                            <span className="text-xs text-green-100 ml-2">
+                              {message.status === 'sent' && '✓'}
+                              {message.status === 'delivered' && '✓✓'}
+                              {message.status === 'read' && '✓✓'}
+                            </span>
+                          )}
                         </div>
                       </div>
-                    ))}
-                    
-                    {isTyping && (
-                      <div className="flex justify-start">
-                        <div className="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg">
-                          <div className="flex space-x-1">
-                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                          </div>
+                    </div>
+                  ))}
+                  
+                  {isTyping && (
+                    <div className="flex justify-start">
+                      <div className="bg-white text-gray-800 px-4 py-2 rounded-lg border shadow-sm">
+                        <div className="flex space-x-1">
+                          <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                          <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                          <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                         </div>
                       </div>
-                    )}
-                    
-                    <div ref={messagesEndRef} />
-                  </div>
-                </ScrollArea>
-                
-                <div className="p-4 border-t border-gray-200 space-y-2">
-                  {/* Campo de mensagem */}
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder={`Responder para ${activeChatInfo.name}...`}
-                      value={newMessage}
-                      onChange={(e) => setNewMessage(e.target.value)}
-                      onKeyPress={handleKeyPress}
-                      className="flex-1"
-                    />
-                    <Button onClick={handleSendMessage} disabled={!newMessage.trim()}>
-                      <Send className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  <p className="text-xs text-gray-500">
-                    Mensagens enviadas via GREEN-API • {greenAPIState.phoneNumber}
-                  </p>
+                    </div>
+                  )}
+                  
+                  <div ref={messagesEndRef} />
                 </div>
-              </CardContent>
-            </>
-          ) : (
-            <CardContent className="flex items-center justify-center h-96">
-              <div className="text-center">
-                <Phone className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-500">Selecione uma conversa para começar</p>
-                <p className="text-sm text-gray-400 mt-2">
-                  {chats.length === 0 ? 'Clique em "Atualizar" para carregar conversas' : `${chats.length} conversas disponíveis`}
+              </ScrollArea>
+              
+              {/* Input de mensagem */}
+              <div className="p-4 border-t border-gray-200 bg-white">
+                <div className="flex gap-3 items-end">
+                  <Input
+                    placeholder={`Mensagem para ${activeChatInfo.name}...`}
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                    className="flex-1 rounded-full border-gray-300"
+                  />
+                  <Button 
+                    onClick={handleSendMessage} 
+                    disabled={!newMessage.trim()}
+                    className="rounded-full bg-green-500 hover:bg-green-600"
+                    size="sm"
+                  >
+                    <Send className="h-4 w-4" />
+                  </Button>
+                </div>
+                <p className="text-xs text-gray-500 mt-2 text-center">
+                  Mensagens enviadas via GREEN-API • {greenAPIState.phoneNumber}
                 </p>
               </div>
-            </CardContent>
+            </>
+          ) : (
+            <div className="flex-1 flex items-center justify-center bg-gray-100">
+              <div className="text-center">
+                <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Phone className="h-12 w-12 text-green-500" />
+                </div>
+                <h3 className="text-xl font-semibold text-gray-700 mb-2">WhatsApp Business</h3>
+                <p className="text-gray-500 mb-1">Selecione uma conversa para começar</p>
+                <p className="text-sm text-gray-400">
+                  {sortedChats.length === 0 
+                    ? 'Aguardando mensagens...' 
+                    : `${sortedChats.length} conversas disponíveis`
+                  }
+                </p>
+              </div>
+            </div>
           )}
-        </Card>
+        </div>
       </div>
     </PageLayout>
   );
