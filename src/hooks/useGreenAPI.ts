@@ -147,112 +147,51 @@ export function useGreenAPI() {
       return;
     }
 
-    console.log('🔄 Iniciando geração do QR Code GREEN-API...');
-    console.log('📋 Credenciais:', { instanceId: apiConfig.instanceId, token: apiConfig.apiToken.substring(0, 10) + '...' });
-
     setIsLoading(true);
-    setGreenAPIState(prev => ({ ...prev, isGenerating: true, qrCode: '' }));
+    setGreenAPIState(prev => ({ ...prev, isGenerating: true }));
 
     try {
-      const qrUrl = `https://api.green-api.com/waInstance${apiConfig.instanceId}/qr/${apiConfig.apiToken}`;
-      console.log('🌐 URL da requisição:', qrUrl);
+      console.log('📱 Gerando QR Code GREEN-API...');
       
-      const response = await fetch(qrUrl, { 
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        }
-      });
-
-      console.log('📡 Status da resposta:', response.status);
-      console.log('📋 Headers da resposta:', Object.fromEntries(response.headers.entries()));
+      const response = await fetch(
+        `https://api.green-api.com/waInstance${apiConfig.instanceId}/qr/${apiConfig.apiToken}`,
+        { method: 'GET' }
+      );
 
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ Erro HTTP:', response.status, errorText);
-        throw new Error(`Erro HTTP ${response.status}: ${errorText}`);
+        throw new Error(`Erro ao gerar QR Code: ${response.status}`);
       }
 
       const data = await response.json();
-      console.log('📊 Dados recebidos da API:', data);
+      console.log('✅ QR Code recebido:', data);
 
-      // Verificar diferentes formatos de resposta da GREEN-API
-      let qrCodeData = null;
-      
       if (data.type === 'qrCode' && data.message) {
-        qrCodeData = data.message;
-        console.log('✅ QR Code encontrado no formato padrão');
-      } else if (data.qrCode) {
-        qrCodeData = data.qrCode;
-        console.log('✅ QR Code encontrado no campo qrCode');
-      } else if (typeof data === 'string' && data.startsWith('data:image')) {
-        qrCodeData = data;
-        console.log('✅ QR Code encontrado como string base64');
-      } else if (data.message && data.message.startsWith('data:image')) {
-        qrCodeData = data.message;
-        console.log('✅ QR Code encontrado em message como base64');
-      }
-
-      if (qrCodeData) {
-        console.log('🎉 QR Code processado com sucesso!');
-        
         setGreenAPIState(prev => ({
           ...prev,
-          qrCode: qrCodeData,
+          qrCode: data.message,
           isGenerating: false
         }));
 
-        // Atualizar configuração
-        updateConfig('whatsapp', {
-          ...config.whatsapp,
-          qrCode: qrCodeData
-        });
-
         toast({
-          title: "✅ QR Code gerado!",
-          description: "Escaneie com seu WhatsApp Business para conectar"
+          title: "QR Code gerado!",
+          description: "Escaneie com seu WhatsApp Business"
         });
-
-        // Verificar conexão periodicamente
-        const checkInterval = setInterval(async () => {
-          const status = await checkConnection(apiConfig.instanceId, apiConfig.apiToken);
-          if (status.isConnected) {
-            clearInterval(checkInterval);
-            toast({
-              title: "🎉 WhatsApp conectado!",
-              description: `Conectado com sucesso: ${status.phoneNumber}`
-            });
-          }
-        }, 5000);
-
-        // Limpar interval após 2 minutos
-        setTimeout(() => clearInterval(checkInterval), 120000);
-
       } else {
-        console.error('❌ QR Code não encontrado na resposta:', data);
-        throw new Error('QR Code não disponível na resposta da API');
+        throw new Error('QR Code não disponível ou WhatsApp já conectado');
       }
 
     } catch (error) {
-      console.error('❌ Erro completo ao gerar QR Code:', error);
-      
+      console.error('❌ Erro ao gerar QR Code:', error);
       setGreenAPIState(prev => ({ ...prev, isGenerating: false }));
-      
-      let errorMessage = 'Erro desconhecido';
-      if (error instanceof Error) {
-        errorMessage = error.message;
-      }
-      
       toast({
-        title: "❌ Erro ao gerar QR Code",
-        description: `Verifique suas credenciais: ${errorMessage}`,
+        title: "Erro ao gerar QR Code",
+        description: `${error.message}`,
         variant: "destructive"
       });
     } finally {
       setIsLoading(false);
     }
-  }, [apiConfig.instanceId, apiConfig.apiToken, toast, config, updateConfig, checkConnection]);
+  }, [apiConfig.instanceId, apiConfig.apiToken, toast]);
 
   const disconnect = useCallback(async () => {
     if (!apiConfig.instanceId || !apiConfig.apiToken) return;

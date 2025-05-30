@@ -67,7 +67,6 @@ export function GreenAPIConfig() {
       return;
     }
 
-    console.log('🖱️ Botão QR Code clicado - iniciando geração...');
     await getQRCode();
   };
 
@@ -263,11 +262,6 @@ export function GreenAPIConfig() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Debug Info */}
-              <div className="text-xs text-gray-500 bg-gray-100 p-2 rounded">
-                🔍 Debug: QR={greenAPIState.qrCode ? '✅' : '❌'} | Generating={greenAPIState.isGenerating ? '🔄' : '⏹️'} | Connected={greenAPIState.isConnected ? '✅' : '❌'} | Loading={isLoading ? '🔄' : '⏹️'}
-              </div>
-
               {greenAPIState.isConnected ? (
                 <div className="text-center py-8">
                   <div className="flex items-center justify-center mb-4">
@@ -304,11 +298,6 @@ export function GreenAPIConfig() {
                         src={greenAPIState.qrCode} 
                         alt="QR Code GREEN-API" 
                         className="max-w-full max-h-full rounded"
-                        onLoad={() => console.log('✅ QR Code imagem carregada com sucesso!')}
-                        onError={(e) => {
-                          console.error('❌ Erro ao carregar QR Code:', e);
-                          console.error('URL:', greenAPIState.qrCode);
-                        }}
                       />
                     </div>
                   </div>
@@ -326,7 +315,7 @@ export function GreenAPIConfig() {
                     Gerar Novo QR Code
                   </Button>
                 </div>
-              ) : greenAPIState.isGenerating || isLoading ? (
+              ) : greenAPIState.isGenerating ? (
                 <div className="text-center py-8">
                   <div className="w-64 h-64 mx-auto rounded-lg flex items-center justify-center bg-gray-50 border-2 border-dashed border-gray-300">
                     <div className="text-center">
@@ -342,10 +331,10 @@ export function GreenAPIConfig() {
                   <p className="text-gray-500 mb-4">Configure as credenciais e gere o QR Code</p>
                   <Button 
                     onClick={handleGenerateQR} 
-                    disabled={!apiConfig.instanceId || !apiConfig.apiToken || isLoading || greenAPIState.isGenerating}
+                    disabled={!apiConfig.instanceId || !apiConfig.apiToken || isLoading}
                     className="bg-green-600 hover:bg-green-700"
                   >
-                    {isLoading || greenAPIState.isGenerating ? (
+                    {isLoading ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         Gerando...
