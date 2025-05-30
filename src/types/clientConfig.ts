@@ -1,3 +1,11 @@
+
+export interface GreenAPIConfig {
+  instanceId: string;
+  apiToken: string;
+  phoneNumber?: string;
+  webhookUrl?: string;
+}
+
 export interface WhatsAppConfig {
   isConnected: boolean;
   authorizedNumber: string;
@@ -10,6 +18,7 @@ export interface WhatsAppConfig {
   atendechatApiKey?: string;
   atendechatWebhookUrl?: string;
   makeWebhookUrl?: string;
+  greenapi?: GreenAPIConfig;
 }
 
 export interface OpenAIConfig {
@@ -40,14 +49,20 @@ export const defaultConfig: ClientConfig = {
     isConnected: false,
     authorizedNumber: '',
     qrCode: '',
-    platform: 'atendechat',
+    platform: 'greenapi',
     autoSync: false,
     syncInterval: 'daily',
     autoReply: false,
     lastImport: '',
     atendechatApiKey: '',
     atendechatWebhookUrl: '',
-    makeWebhookUrl: ''
+    makeWebhookUrl: '',
+    greenapi: {
+      instanceId: '',
+      apiToken: '',
+      phoneNumber: '',
+      webhookUrl: ''
+    }
   },
   openai: {
     apiKey: '',

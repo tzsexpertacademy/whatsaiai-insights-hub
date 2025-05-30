@@ -1,4 +1,3 @@
-
 import { useState, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useClientConfig } from '@/contexts/ClientConfigContext';
@@ -42,7 +41,7 @@ interface GreenAPIConfig {
 
 export function useGreenAPI() {
   const { user } = useAuth();
-  const { config } = useClientConfig();
+  const { config, updateConfig } = useClientConfig();
   const { toast } = useToast();
 
   const [greenAPIState, setGreenAPIState] = useState<GreenAPIState>({
@@ -60,28 +59,112 @@ export function useGreenAPI() {
   const [isLoading, setIsLoading] = useState(false);
 
   const apiConfig: GreenAPIConfig = {
-    instanceId: config.whatsapp?.greenapi?.instanceId || '',
-    apiToken: config.whatsapp?.greenapi?.apiToken || '',
-    phoneNumber: config.whatsapp?.greenapi?.phoneNumber || '',
-    webhookUrl: config.whatsapp?.greenapi?.webhookUrl || ''
+    instanceId: config?.whatsapp?.greenapi?.instanceId || '',
+    apiToken: config?.whatsapp?.greenapi?.apiToken || '',
+    phoneNumber: config?.whatsapp?.greenapi?.phoneNumber || '',
+    webhookUrl: config?.whatsapp?.greenapi?.webhookUrl || ''
   };
 
-  const updateAPIConfig = useCallback((newConfig: any) => {
+  const updateAPIConfig = useCallback((newConfig: Partial<GreenAPIConfig>) => {
     console.log('🔧 Atualizando configuração GREEN-API:', newConfig);
     
+    // Atualizar configuração no contexto
+    updateConfig('whatsapp', {
+      ...config.whatsapp,
+      greenapi: {
+        ...config.whatsapp.greenapi,
+        ...newConfig
+      }
+    });
+
+    // Atualizar estado local se conectado
     if (newConfig.instanceId && newConfig.apiToken) {
       setGreenAPIState(prev => ({
         ...prev,
         isConnected: true,
-        instanceId: newConfig.instanceId,
+        instanceId: newConfig.instanceId || prev.instanceId,
         phoneNumber: newConfig.phoneNumber || prev.phoneNumber
       }));
     }
-  }, []);
+  }, [config, updateConfig]);
+
+  const checkConnectionStatus = useCallback(async (): Promise<{ isConnected: boolean; phoneNumber?: string }> => {
+    if (!apiConfig.instanceId || !apiConfig.apiToken) {
+      console.log('❌ Credenciais GREEN-API não configuradas');
+      return { isConnected: false };
+    }
+
+    try {
+      console.log('🔍 Verificando status da conexão GREEN-API...');
+      
+      const response = await fetch(
+        `https://api.green-api.com/waInstance${apiConfig.instanceId}/getStateInstance/${apiConfig.apiToken}`,
+        { method: 'GET' }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Erro na API: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('📊 Status da instância:', data);
+
+      const isConnected = data.stateInstance === 'authorized';
+      
+      if (isConnected) {
+        // Buscar informações do número
+        try {
+          const settingsResponse = await fetch(
+            `https://api.green-api.com/waInstance${apiConfig.instanceId}/getSettings/${apiConfig.apiToken}`,
+            { method: 'GET' }
+          );
+          
+          if (settingsResponse.ok) {
+            const settingsData = await settingsResponse.json();
+            const phoneNumber = settingsData.wid || '';
+            
+            setGreenAPIState(prev => ({
+              ...prev,
+              isConnected: true,
+              phoneNumber: phoneNumber,
+              lastConnected: new Date().toISOString()
+            }));
+
+            return { isConnected: true, phoneNumber };
+          }
+        } catch (error) {
+          console.error('⚠️ Erro ao buscar configurações:', error);
+        }
+
+        setGreenAPIState(prev => ({
+          ...prev,
+          isConnected: true,
+          lastConnected: new Date().toISOString()
+        }));
+
+        return { isConnected: true };
+      } else {
+        setGreenAPIState(prev => ({
+          ...prev,
+          isConnected: false
+        }));
+
+        return { isConnected: false };
+      }
+
+    } catch (error) {
+      console.error('❌ Erro ao verificar status:', error);
+      setGreenAPIState(prev => ({
+        ...prev,
+        isConnected: false
+      }));
+      return { isConnected: false };
+    }
+  }, [apiConfig]);
 
   const loadChats = useCallback(async () => {
-    if (!greenAPIState.isConnected || !apiConfig.instanceId) {
-      console.log('❌ GREEN-API não conectado para carregar chats');
+    if (!apiConfig.instanceId || !apiConfig.apiToken) {
+      console.log('❌ GREEN-API não configurado para carregar chats');
       return;
     }
 
@@ -117,12 +200,17 @@ export function useGreenAPI() {
       }
     } catch (error) {
       console.error('❌ Erro ao carregar chats:', error);
+      toast({
+        title: "Erro ao carregar chats",
+        description: "Verifique suas credenciais GREEN-API",
+        variant: "destructive"
+      });
     }
-  }, [greenAPIState.isConnected, apiConfig]);
+  }, [apiConfig, toast]);
 
   const loadChatHistory = useCallback(async (chatId: string) => {
-    if (!chatId || !greenAPIState.isConnected) {
-      console.log('❌ Chat ID inválido ou GREEN-API não conectado');
+    if (!chatId) {
+      console.log('❌ Chat ID inválido');
       return;
     }
 
@@ -135,7 +223,7 @@ export function useGreenAPI() {
           .from('whatsapp_messages')
           .select(`
             *,
-            conversation:whatsapp_conversations(*)
+            conversation:whatsapp_conversations!inner(*)
           `)
           .eq('conversation.contact_phone', chatId)
           .order('timestamp', { ascending: true });
@@ -156,7 +244,13 @@ export function useGreenAPI() {
         }
       }
 
-      // Se não tiver no banco, carregar do GREEN-API
+      // Se não tiver no banco, tentar carregar do GREEN-API
+      if (!apiConfig.instanceId || !apiConfig.apiToken) {
+        console.log('⚠️ GREEN-API não configurado');
+        setMessages(prev => ({ ...prev, [chatId]: [] }));
+        return;
+      }
+
       const response = await fetch(
         `https://api.green-api.com/waInstance${apiConfig.instanceId}/getChatHistory/${apiConfig.apiToken}`,
         {
@@ -196,14 +290,19 @@ export function useGreenAPI() {
     } catch (error) {
       console.error('❌ Erro ao carregar histórico:', error);
       setMessages(prev => ({ ...prev, [chatId]: [] }));
+      toast({
+        title: "Erro ao carregar histórico",
+        description: "Não foi possível carregar o histórico do chat",
+        variant: "destructive"
+      });
     }
-  }, [greenAPIState.isConnected, apiConfig, user?.id]);
+  }, [apiConfig, user?.id, toast]);
 
   const sendMessage = useCallback(async (chatId: string, message: string): Promise<boolean> => {
-    if (!greenAPIState.isConnected || !apiConfig.instanceId) {
+    if (!apiConfig.instanceId || !apiConfig.apiToken) {
       toast({
-        title: "Erro de conexão",
-        description: "GREEN-API não está conectado",
+        title: "Erro de configuração",
+        description: "GREEN-API não está configurado",
         variant: "destructive"
       });
       return false;
@@ -260,7 +359,7 @@ export function useGreenAPI() {
       });
       return false;
     }
-  }, [greenAPIState.isConnected, apiConfig, toast]);
+  }, [apiConfig, toast]);
 
   const togglePinChat = useCallback((chatId: string) => {
     setChats(prev => prev.map(chat => 
@@ -297,27 +396,74 @@ export function useGreenAPI() {
   }, [loadChats]);
 
   const getQRCode = useCallback(async (): Promise<string> => {
+    if (!apiConfig.instanceId || !apiConfig.apiToken) {
+      toast({
+        title: "Erro de configuração",
+        description: "Configure instanceId e apiToken primeiro",
+        variant: "destructive"
+      });
+      return '';
+    }
+
     setIsLoading(true);
     setGreenAPIState(prev => ({ ...prev, isGenerating: true }));
     
     try {
-      // Simular geração de QR Code
-      const qrCode = `data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==`;
+      console.log('📱 Gerando QR Code GREEN-API...');
       
-      setGreenAPIState(prev => ({
-        ...prev,
-        qrCode,
-        isGenerating: false
-      }));
+      const response = await fetch(
+        `https://api.green-api.com/waInstance${apiConfig.instanceId}/qr/${apiConfig.apiToken}`,
+        { method: 'GET' }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Erro ao gerar QR Code: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('📊 QR Code gerado:', data);
+
+      if (data.type === 'qrCode') {
+        const qrCode = `data:image/png;base64,${data.message}`;
+        
+        setGreenAPIState(prev => ({
+          ...prev,
+          qrCode,
+          isGenerating: false
+        }));
+        
+        return qrCode;
+      } else if (data.type === 'alreadyLogged') {
+        // Já está conectado
+        setGreenAPIState(prev => ({
+          ...prev,
+          isConnected: true,
+          isGenerating: false
+        }));
+        
+        toast({
+          title: "Já conectado",
+          description: "WhatsApp já está conectado"
+        });
+        
+        return '';
+      }
       
-      return qrCode;
+      throw new Error('Tipo de resposta inesperado');
+      
     } catch (error) {
-      console.error('Erro ao gerar QR Code:', error);
+      console.error('❌ Erro ao gerar QR Code:', error);
+      toast({
+        title: "Erro ao gerar QR Code",
+        description: "Verifique suas credenciais GREEN-API",
+        variant: "destructive"
+      });
       return '';
     } finally {
       setIsLoading(false);
+      setGreenAPIState(prev => ({ ...prev, isGenerating: false }));
     }
-  }, []);
+  }, [apiConfig, toast]);
 
   const disconnect = useCallback(() => {
     setGreenAPIState({
@@ -334,11 +480,6 @@ export function useGreenAPI() {
       description: "GREEN-API desconectado"
     });
   }, [toast]);
-
-  const checkConnectionStatus = useCallback(async () => {
-    // Implementar verificação de status
-    return greenAPIState.isConnected;
-  }, [greenAPIState.isConnected]);
 
   return {
     greenAPIState,
