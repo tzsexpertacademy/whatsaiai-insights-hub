@@ -5,12 +5,9 @@ import { Smartphone, Settings, Zap, Globe } from 'lucide-react';
 import { WhatsAppPlatformConfig } from './WhatsAppPlatformConfig';
 import { WhatsAppConnectionStatus } from './WhatsAppConnectionStatus';
 import { MakeConfig } from './MakeConfig';
-import { GreenAPIConfig } from './GreenAPIConfig';
-import { useClientConfig } from '@/contexts/ClientConfigContext';
+import { GreenAPISettings } from './GreenAPISettings';
 
 export function WhatsAppConfig() {
-  const { config } = useClientConfig();
-
   return (
     <div className="space-y-6">
       <div>
@@ -40,7 +37,7 @@ export function WhatsAppConfig() {
         </TabsList>
 
         <TabsContent value="greenapi">
-          <GreenAPIConfig />
+          <GreenAPISettings />
         </TabsContent>
 
         <TabsContent value="platform">

@@ -14,7 +14,7 @@ export interface WhatsAppConfig {
   greenapi?: {
     instanceId: string;
     apiToken: string;
-    webhookUrl: string;
+    webhookUrl?: string;
   };
 }
 
