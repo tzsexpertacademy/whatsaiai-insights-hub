@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CheckCircle, ExternalLink, Copy, Smartphone, Zap, Globe, QrCode, Loader2, MessageSquare, Phone } from 'lucide-react';
+import { CheckCircle, ExternalLink, Copy, Smartphone, Zap, Globe, QrCode, Loader2, MessageSquare, Phone, AlertCircle, RefreshCw } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { useGreenAPI } from '@/hooks/useGreenAPI';
 
@@ -25,6 +25,7 @@ export function GreenAPIConfig() {
 
   const [instanceId, setInstanceId] = useState(apiConfig.instanceId);
   const [apiToken, setApiToken] = useState(apiConfig.apiToken);
+  const [isTestingConnection, setIsTestingConnection] = useState(false);
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -69,6 +70,16 @@ export function GreenAPIConfig() {
   };
 
   const testConnection = async () => {
+    if (!apiConfig.instanceId || !apiConfig.apiToken) {
+      toast({
+        title: "Configure primeiro",
+        description: "Salve as configurações antes de testar",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsTestingConnection(true);
     try {
       const status = await checkConnectionStatus();
       
@@ -90,6 +101,8 @@ export function GreenAPIConfig() {
         description: "Verifique suas credenciais GREEN-API",
         variant: "destructive"
       });
+    } finally {
+      setIsTestingConnection(false);
     }
   };
 
@@ -120,11 +133,11 @@ export function GreenAPIConfig() {
             </div>
             
             <div className={`text-center p-2 rounded-lg border ${
-              greenAPIState.qrCode ? 'bg-green-100 border-green-300' : 'bg-gray-50 border-gray-200'
+              greenAPIState.qrCode ? 'bg-blue-100 border-blue-300' : 'bg-gray-50 border-gray-200'
             }`}>
               <div className="text-lg mb-1">📱</div>
               <div className={`text-xs font-medium ${
-                greenAPIState.qrCode ? 'text-green-800' : 'text-gray-600'
+                greenAPIState.qrCode ? 'text-blue-800' : 'text-gray-600'
               }`}>
                 QR Code
               </div>
@@ -205,10 +218,23 @@ export function GreenAPIConfig() {
                 </div>
               </div>
 
-              <Button onClick={saveConfig} className="w-full" disabled={!instanceId.trim() || !apiToken.trim()}>
-                <CheckCircle className="mr-2 h-4 w-4" />
-                Salvar Configuração
-              </Button>
+              <div className="flex gap-2">
+                <Button onClick={saveConfig} className="flex-1" disabled={!instanceId.trim() || !apiToken.trim()}>
+                  <CheckCircle className="mr-2 h-4 w-4" />
+                  Salvar Configuração
+                </Button>
+                <Button 
+                  onClick={testConnection} 
+                  variant="outline" 
+                  disabled={!apiConfig.instanceId || !apiConfig.apiToken || isTestingConnection}
+                >
+                  {isTestingConnection ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
 
               <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
                 <h4 className="font-medium text-blue-900 mb-2">🔗 Como obter suas credenciais:</h4>
@@ -251,7 +277,12 @@ export function GreenAPIConfig() {
                     <Button onClick={disconnect} variant="outline" size="sm">
                       Desconectar
                     </Button>
-                    <Button onClick={testConnection} variant="outline" size="sm">
+                    <Button onClick={testConnection} variant="outline" size="sm" disabled={isTestingConnection}>
+                      {isTestingConnection ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                      )}
                       Testar Conexão
                     </Button>
                   </div>
@@ -312,6 +343,15 @@ export function GreenAPIConfig() {
                       </>
                     )}
                   </Button>
+                  
+                  {!apiConfig.instanceId || !apiConfig.apiToken ? (
+                    <Alert className="mt-4">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>
+                        Configure suas credenciais na aba "Configuração" primeiro.
+                      </AlertDescription>
+                    </Alert>
+                  ) : null}
                 </div>
               )}
             </CardContent>

@@ -118,22 +118,67 @@ export function useGreenAPI() {
 
     try {
       console.log('🔄 Gerando QR Code GREEN-API...');
+      console.log('📡 URL da API:', getAPIUrl('qr'));
       
-      const response = await fetch(getAPIUrl('qr'), {
+      // Primeiro vamos verificar o status da instância
+      const statusResponse = await fetch(getAPIUrl('getStateInstance'), {
         method: 'GET'
       });
 
-      if (!response.ok) {
-        throw new Error(`Erro GREEN-API: ${response.status}`);
+      if (!statusResponse.ok) {
+        throw new Error(`Erro ao verificar status da instância: ${statusResponse.status} - ${statusResponse.statusText}`);
       }
 
-      const data = await response.json();
-      console.log('📱 Resposta QR Code:', data);
-      
-      if (data.qrCode) {
+      const statusData = await statusResponse.json();
+      console.log('📊 Status da instância:', statusData);
+
+      // Se já estiver autorizado, não precisa de QR Code
+      if (statusData.stateInstance === 'authorized') {
         setGreenAPIState(prev => ({
           ...prev,
-          qrCode: data.qrCode,
+          isConnected: true,
+          phoneNumber: statusData.phoneNumber || 'Conectado',
+          lastConnected: new Date().toISOString(),
+          isGenerating: false
+        }));
+
+        updateConfig('whatsapp', {
+          isConnected: true,
+          authorizedNumber: statusData.phoneNumber || 'Conectado',
+          platform: 'greenapi'
+        });
+
+        toast({
+          title: "✅ Já conectado!",
+          description: `WhatsApp já está conectado: ${statusData.phoneNumber || 'Número não disponível'}`
+        });
+
+        return '';
+      }
+
+      // Se não estiver conectado, gerar QR Code
+      const qrResponse = await fetch(getAPIUrl('qr'), {
+        method: 'GET'
+      });
+
+      console.log('📱 Status da resposta QR:', qrResponse.status);
+
+      if (!qrResponse.ok) {
+        const errorText = await qrResponse.text();
+        console.error('❌ Erro na resposta:', errorText);
+        throw new Error(`Erro GREEN-API (${qrResponse.status}): ${errorText}`);
+      }
+
+      const qrData = await qrResponse.json();
+      console.log('📱 Resposta QR Code:', qrData);
+      
+      if (qrData.type === 'qrCode' && qrData.message) {
+        const qrCodeBase64 = qrData.message;
+        const qrCodeDataUrl = `data:image/png;base64,${qrCodeBase64}`;
+        
+        setGreenAPIState(prev => ({
+          ...prev,
+          qrCode: qrCodeDataUrl,
           isGenerating: false
         }));
 
@@ -145,18 +190,25 @@ export function useGreenAPI() {
         // Iniciar polling para verificar conexão
         startConnectionPolling();
         
-        return data.qrCode;
+        return qrCodeDataUrl;
+      } else if (qrData.type === 'error') {
+        throw new Error(qrData.message || 'Erro desconhecido ao gerar QR Code');
       } else {
-        throw new Error('QR Code não retornado pela API');
+        throw new Error('Formato de resposta inesperado da GREEN-API');
       }
       
     } catch (error) {
       console.error('❌ Erro ao gerar QR Code:', error);
       setGreenAPIState(prev => ({ ...prev, isGenerating: false }));
       
+      let errorMessage = 'Erro desconhecido';
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      
       toast({
         title: "Erro ao gerar QR Code",
-        description: `Erro: ${error.message}`,
+        description: errorMessage,
         variant: "destructive"
       });
       return '';
@@ -174,6 +226,7 @@ export function useGreenAPI() {
       
       if (attempts > maxAttempts) {
         clearInterval(pollInterval);
+        setGreenAPIState(prev => ({ ...prev, qrCode: '' }));
         toast({
           title: "QR Code expirado",
           description: "Gere um novo QR Code para conectar",
@@ -190,7 +243,8 @@ export function useGreenAPI() {
             ...prev,
             isConnected: true,
             phoneNumber: status.phoneNumber,
-            lastConnected: new Date().toISOString()
+            lastConnected: new Date().toISOString(),
+            qrCode: '' // Limpar QR Code após conexão
           }));
 
           updateConfig('whatsapp', {
