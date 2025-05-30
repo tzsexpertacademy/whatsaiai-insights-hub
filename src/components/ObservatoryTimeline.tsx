@@ -13,13 +13,13 @@ export function ObservatoryTimeline() {
   const headerActions = (
     <div className="flex flex-wrap items-center gap-2 sm:gap-3">
       <Badge className="bg-blue-100 text-blue-800 text-xs sm:text-sm">
-        ⏰ {data.insightsWithAssistant?.length || 0} Eventos
+        ⏰ {data.insightsWithAssistant?.length || 0} Eventos Reais
       </Badge>
       <AIAnalysisButton />
     </div>
   );
 
-  if (!data.hasRealData) {
+  if (!data.hasRealData || !data.insightsWithAssistant?.length) {
     return (
       <PageLayout
         title="Linha do Tempo"
@@ -34,7 +34,7 @@ export function ObservatoryTimeline() {
               Linha do Tempo Vazia
             </CardTitle>
             <CardDescription>
-              Para visualizar sua linha do tempo, os assistentes precisam gerar insights.
+              Para visualizar sua linha do tempo, os assistentes precisam gerar insights reais.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -42,8 +42,8 @@ export function ObservatoryTimeline() {
               <Clock className="h-16 w-16 text-gray-300 mx-auto mb-4" />
               <div className="space-y-2">
                 <p className="text-sm text-gray-600">• Execute a análise por IA no dashboard</p>
-                <p className="text-sm text-gray-600">• Os assistentes irão gerar insights históricos</p>
-                <p className="text-sm text-gray-600">• Timeline será construída automaticamente</p>
+                <p className="text-sm text-gray-600">• Os assistentes irão gerar insights históricos reais</p>
+                <p className="text-sm text-gray-600">• Timeline será construída com dados reais</p>
               </div>
             </div>
           </CardContent>
@@ -60,7 +60,7 @@ export function ObservatoryTimeline() {
       headerActions={headerActions}
     >
       <div className="space-y-6">
-        {data.insightsWithAssistant?.map((insight, index) => (
+        {data.insightsWithAssistant.map((insight, index) => (
           <Card key={insight.id} className="relative">
             {/* Linha conectora */}
             {index < data.insightsWithAssistant.length - 1 && (
@@ -70,18 +70,14 @@ export function ObservatoryTimeline() {
             <CardHeader className="pb-3">
               <div className="flex items-start gap-4">
                 <div className="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                  {insight.assistant_type === 'psychologist' ? (
-                    <Bot className="h-4 w-4 text-blue-600" />
-                  ) : (
-                    <MessageSquare className="h-4 w-4 text-blue-600" />
-                  )}
+                  <Bot className="h-4 w-4 text-blue-600" />
                 </div>
                 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-lg">{insight.title}</CardTitle>
                     <Badge variant="outline" className="text-xs">
-                      {insight.assistant_name}
+                      {insight.assistantName}
                     </Badge>
                   </div>
                   
@@ -103,33 +99,19 @@ export function ObservatoryTimeline() {
                 {insight.description}
               </p>
               
-              {insight.metadata && (
+              {insight.metadata && typeof insight.metadata === 'object' && (
                 <div className="mt-4 p-3 bg-gray-50 rounded-lg">
                   <div className="text-sm text-gray-600">
-                    <strong>Contexto:</strong> {insight.metadata.context || 'Análise geral'}
+                    <strong>Área:</strong> {insight.assistantArea || 'Geral'}
                   </div>
-                  {insight.metadata.confidence && (
-                    <div className="text-sm text-gray-600 mt-1">
-                      <strong>Confiança:</strong> {insight.metadata.confidence}%
-                    </div>
-                  )}
+                  <div className="text-sm text-gray-600 mt-1">
+                    <strong>Tipo:</strong> {insight.insight_type}
+                  </div>
                 </div>
               )}
             </CardContent>
           </Card>
-        )) || (
-          <Card>
-            <CardContent className="text-center py-8">
-              <Clock className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                Nenhum evento na linha do tempo
-              </h3>
-              <p className="text-gray-600">
-                Execute análises para popular sua linha do tempo histórica
-              </p>
-            </CardContent>
-          </Card>
-        )}
+        ))}
       </div>
     </PageLayout>
   );
