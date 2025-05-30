@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -75,11 +74,6 @@ export function ChatInterface() {
         true; // Mostrar chats sem mensagens também
       
       return matchesSearch && matchesPeriod;
-    })
-    .sort((a, b) => {
-      const timeA = a.lastMessageTime ? new Date(a.lastMessageTime).getTime() : 0;
-      const timeB = b.lastMessageTime ? new Date(b.lastMessageTime).getTime() : 0;
-      return timeB - timeA; // Mais recente primeiro
     });
 
   const handleSendMessage = async () => {
@@ -216,7 +210,7 @@ export function ChatInterface() {
       headerActions={headerActions}
     >
       <div className="flex h-[calc(100vh-200px)] bg-white rounded-lg shadow-lg overflow-hidden">
-        {/* Lista de conversas - Estilo WhatsApp */}
+        {/* Lista de conversas */}
         <div className="w-80 bg-gray-50 border-r border-gray-200 flex flex-col">
           {/* Header da lista */}
           <div className="p-4 bg-green-600 text-white">
@@ -276,8 +270,11 @@ export function ChatInterface() {
           </div>
 
           {/* Stats do filtro */}
-          <div className="px-4 py-2 bg-green-500 text-white text-sm">
-            {filteredChats.length} conversas • {getPeriodLabel(periodFilter)}
+          <div className="px-4 py-2 bg-green-500 text-white text-sm flex justify-between items-center">
+            <span>{filteredChats.length} conversas • {getPeriodLabel(periodFilter)}</span>
+            <span className="text-xs">
+              {filteredChats.filter(c => c.unreadCount > 0).length} não lidas
+            </span>
           </div>
 
           {/* Lista de conversas */}
@@ -289,40 +286,46 @@ export function ChatInterface() {
                   onClick={() => handleChatSelect(chat.chatId)}
                   className={`p-4 cursor-pointer transition-colors hover:bg-gray-100 ${
                     activeChat === chat.chatId ? 'bg-green-50 border-r-4 border-green-500' : ''
-                  }`}
+                  } ${chat.unreadCount > 0 ? 'bg-blue-50' : ''}`}
                 >
                   <div className="flex items-start gap-3">
                     {/* Avatar */}
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold ${
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold relative ${
                       chat.isGroup ? 'bg-blue-500' : 'bg-green-500'
                     }`}>
                       {chat.isGroup ? '👥' : chat.name.charAt(0).toUpperCase()}
+                      {chat.unreadCount > 0 && (
+                        <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                          {chat.unreadCount > 9 ? '9+' : chat.unreadCount}
+                        </div>
+                      )}
                     </div>
                     
                     {/* Conteúdo */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-1">
-                        <h3 className="font-semibold text-gray-900 truncate">{chat.name}</h3>
+                        <h3 className={`truncate ${
+                          chat.unreadCount > 0 ? 'font-bold text-gray-900' : 'font-semibold text-gray-900'
+                        }`}>
+                          {chat.name}
+                        </h3>
                         <div className="flex items-center gap-2">
                           {chat.lastMessageTime && (
                             <span className="text-xs text-gray-500">
                               {formatTime(chat.lastMessageTime)}
                             </span>
                           )}
-                          {chat.unreadCount > 0 && (
-                            <div className="bg-green-500 text-white text-xs rounded-full px-2 py-1 min-w-[20px] text-center">
-                              {chat.unreadCount}
-                            </div>
-                          )}
                         </div>
                       </div>
                       
                       <div className="flex items-center justify-between">
-                        <p className="text-sm text-gray-600 truncate flex-1">
+                        <p className={`text-sm truncate flex-1 ${
+                          chat.unreadCount > 0 ? 'font-medium text-gray-800' : 'text-gray-600'
+                        }`}>
                           {chat.lastMessage || 'Nenhuma mensagem'}
                         </p>
                         {chat.isGroup && (
-                          <Badge variant="outline" className="text-xs">
+                          <Badge variant="outline" className="text-xs ml-2">
                             Grupo
                           </Badge>
                         )}
@@ -371,6 +374,11 @@ export function ChatInterface() {
                       {activeChatInfo.isGroup ? 'Grupo' : 'Contato'} • GREEN-API
                       {chatMessages.length > 0 && (
                         <span className="ml-2">• {chatMessages.length} mensagens</span>
+                      )}
+                      {activeChatInfo.unreadCount > 0 && (
+                        <span className="ml-2 text-red-600 font-medium">
+                          • {activeChatInfo.unreadCount} não lidas
+                        </span>
                       )}
                     </p>
                   </div>

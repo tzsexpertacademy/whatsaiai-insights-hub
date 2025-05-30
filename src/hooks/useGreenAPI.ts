@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { useClientConfig } from '@/contexts/ClientConfigContext';
@@ -305,7 +306,8 @@ export function useGreenAPI() {
 
       if (existingConversation) {
         // Atualizar conversa existente
-        const updatedMessages = [...(existingConversation.messages || [])];
+        const existingMessages = Array.isArray(existingConversation.messages) ? existingConversation.messages : [];
+        const updatedMessages = [...existingMessages];
         if (messageData) {
           updatedMessages.push(messageData);
         }
@@ -349,12 +351,17 @@ export function useGreenAPI() {
       
       const formattedChats: GreenAPIChat[] = data.map((chat: any) => ({
         chatId: chat.id,
-        name: chat.name || chat.id.replace('@c.us', ''),
+        name: chat.name || chat.id.replace('@c.us', '').replace('@g.us', ''),
         lastMessage: chat.lastMessage?.body || '',
-        lastMessageTime: chat.lastMessage?.timestamp,
+        lastMessageTime: chat.lastMessage?.timestamp ? new Date(chat.lastMessage.timestamp * 1000).toISOString() : new Date().toISOString(),
         unreadCount: chat.unreadCount || 0,
         isGroup: chat.id.includes('@g.us')
-      }));
+      })).sort((a, b) => {
+        // Ordenar por timestamp da última mensagem (mais recente primeiro)
+        const timeA = a.lastMessageTime ? new Date(a.lastMessageTime).getTime() : 0;
+        const timeB = b.lastMessageTime ? new Date(b.lastMessageTime).getTime() : 0;
+        return timeB - timeA;
+      });
 
       setChats(formattedChats);
 
