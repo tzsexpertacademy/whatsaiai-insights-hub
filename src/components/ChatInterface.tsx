@@ -10,6 +10,7 @@ import { useClientConfig } from "@/contexts/ClientConfigContext";
 import { useWhatsAppConnection } from "@/hooks/useWhatsAppConnection";
 import { useAdmin } from "@/contexts/AdminContext";
 import { supabase } from '@/integrations/supabase/client';
+import { PageLayout } from '@/components/layout/PageLayout';
 
 interface Message {
   id: string;
@@ -243,14 +244,32 @@ export function ChatInterface() {
     ));
   };
 
+  const headerActions = (
+    <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+      <Badge className="bg-green-100 text-green-800 text-xs sm:text-sm">
+        📱 WhatsApp Chat
+      </Badge>
+      {isAdmin && (
+        <Badge variant="outline" className="flex items-center gap-1">
+          <Shield className="h-3 w-3" />
+          Admin
+        </Badge>
+      )}
+      <div className="flex items-center gap-2 px-3 py-1 bg-green-100 rounded-full">
+        <Wifi className="h-4 w-4 text-green-600" />
+        <span className="text-sm text-green-700 font-medium">Conectado</span>
+      </div>
+    </div>
+  );
+
   if (!whatsappConfig.isConnected) {
     return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-800 mb-2">Chat WhatsApp</h1>
-          <p className="text-slate-600">Converse com seus contatos em tempo real</p>
-        </div>
-
+      <PageLayout
+        title="Chat WhatsApp"
+        description="Converse com seus contatos em tempo real"
+        showBackButton={true}
+        headerActions={headerActions}
+      >
         <Card className="bg-white/70 backdrop-blur-sm border-white/50">
           <CardContent className="flex flex-col items-center justify-center py-12">
             <WifiOff className="h-16 w-16 text-red-500 mb-4" />
@@ -263,33 +282,19 @@ export function ChatInterface() {
             </Button>
           </CardContent>
         </Card>
-      </div>
+      </PageLayout>
     );
   }
 
   const activeContactInfo = contacts.find(c => c.phoneNumber === activeContact);
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-800 mb-2">Chat WhatsApp</h1>
-          <p className="text-slate-600">Conversas espelhadas do {whatsappConfig.authorizedNumber}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          {isAdmin && (
-            <Badge variant="outline" className="flex items-center gap-1">
-              <Shield className="h-3 w-3" />
-              Admin
-            </Badge>
-          )}
-          <div className="flex items-center gap-2 px-3 py-1 bg-green-100 rounded-full">
-            <Wifi className="h-4 w-4 text-green-600" />
-            <span className="text-sm text-green-700 font-medium">Conectado</span>
-          </div>
-        </div>
-      </div>
-
+    <PageLayout
+      title="Chat WhatsApp"
+      description={`Conversas espelhadas do ${whatsappConfig.authorizedNumber}`}
+      showBackButton={true}
+      headerActions={headerActions}
+    >
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Lista de contatos */}
         <Card className="lg:col-span-1 bg-white/70 backdrop-blur-sm border-white/50">
@@ -478,6 +483,6 @@ export function ChatInterface() {
           )}
         </Card>
       </div>
-    </div>
+    </PageLayout>
   );
 }
