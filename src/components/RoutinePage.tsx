@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,6 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, Clock, Target, TrendingUp, Edit2, Trash2, Lightbulb, Star } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { PageLayout } from '@/components/layout/PageLayout';
 
 interface RoutineActivity {
   id: string;
@@ -127,6 +127,115 @@ export function RoutinePage() {
     frequency: 'daily' as const
   });
 
+  const headerActions = (
+    <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+      <DialogTrigger asChild>
+        <Button className="flex items-center gap-2 w-full sm:w-auto">
+          <Plus className="w-4 h-4" />
+          Nova Atividade
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md mx-4">
+        <DialogHeader>
+          <DialogTitle>Adicionar Nova Atividade</DialogTitle>
+          <DialogDescription>
+            Configure uma nova atividade para sua rotina
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="title">Título *</Label>
+            <Input
+              id="title"
+              value={newActivity.title}
+              onChange={(e) => setNewActivity(prev => ({ ...prev, title: e.target.value }))}
+              placeholder="Ex: Exercício matinal"
+            />
+          </div>
+          <div>
+            <Label htmlFor="description">Descrição</Label>
+            <Textarea
+              id="description"
+              value={newActivity.description}
+              onChange={(e) => setNewActivity(prev => ({ ...prev, description: e.target.value }))}
+              placeholder="Descreva a atividade..."
+              rows={2}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label htmlFor="startTime">Início *</Label>
+              <Input
+                id="startTime"
+                type="time"
+                value={newActivity.startTime}
+                onChange={(e) => setNewActivity(prev => ({ ...prev, startTime: e.target.value }))}
+              />
+            </div>
+            <div>
+              <Label htmlFor="endTime">Fim *</Label>
+              <Input
+                id="endTime"
+                type="time"
+                value={newActivity.endTime}
+                onChange={(e) => setNewActivity(prev => ({ ...prev, endTime: e.target.value }))}
+              />
+            </div>
+          </div>
+          <div>
+            <Label htmlFor="category">Categoria</Label>
+            <Select value={newActivity.category} onValueChange={(value: any) => setNewActivity(prev => ({ ...prev, category: value }))}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(categoryLabels).map(([key, label]) => (
+                  <SelectItem key={key} value={key}>{label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label htmlFor="priority">Prioridade</Label>
+              <Select value={newActivity.priority} onValueChange={(value: any) => setNewActivity(prev => ({ ...prev, priority: value }))}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(priorityLabels).map(([key, label]) => (
+                    <SelectItem key={key} value={key}>{label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="frequency">Frequência</Label>
+              <Select value={newActivity.frequency} onValueChange={(value: any) => setNewActivity(prev => ({ ...prev, frequency: value }))}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(frequencyLabels).map(([key, label]) => (
+                    <SelectItem key={key} value={key}>{label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
+        <DialogFooter className="flex-col sm:flex-row gap-2">
+          <Button variant="outline" onClick={() => setIsAddDialogOpen(false)} className="w-full sm:w-auto">
+            Cancelar
+          </Button>
+          <Button onClick={handleAddActivity} className="w-full sm:w-auto">
+            Adicionar Atividade
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+
   // Carregar dados do localStorage
   useEffect(() => {
     const savedActivities = localStorage.getItem('user-routine-activities');
@@ -239,255 +348,144 @@ export function RoutinePage() {
   });
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 sm:p-6">
-      <div className="max-w-6xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Minha Rotina</h1>
-            <p className="text-gray-600 mt-1">Gerencie suas atividades diárias e receba insights personalizados</p>
-          </div>
-          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="flex items-center gap-2 w-full sm:w-auto">
-                <Plus className="w-4 h-4" />
-                Nova Atividade
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-md mx-4">
-              <DialogHeader>
-                <DialogTitle>Adicionar Nova Atividade</DialogTitle>
-                <DialogDescription>
-                  Configure uma nova atividade para sua rotina
-                </DialogDescription>
-              </DialogHeader>
+    <PageLayout
+      title="Minha Rotina"
+      description="Gerencie suas atividades diárias e receba insights personalizados"
+      showBackButton={true}
+      headerActions={headerActions}
+    >
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* Lista de Atividades */}
+        <div className="lg:col-span-2">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Clock className="w-5 h-5" />
+                Cronograma Diário ({activities.length} atividades)
+              </CardTitle>
+              <CardDescription>
+                Suas atividades organizadas por horário
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
               <div className="space-y-4">
-                <div>
-                  <Label htmlFor="title">Título *</Label>
-                  <Input
-                    id="title"
-                    value={newActivity.title}
-                    onChange={(e) => setNewActivity(prev => ({ ...prev, title: e.target.value }))}
-                    placeholder="Ex: Exercício matinal"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="description">Descrição</Label>
-                  <Textarea
-                    id="description"
-                    value={newActivity.description}
-                    onChange={(e) => setNewActivity(prev => ({ ...prev, description: e.target.value }))}
-                    placeholder="Descreva a atividade..."
-                    rows={2}
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label htmlFor="startTime">Início *</Label>
-                    <Input
-                      id="startTime"
-                      type="time"
-                      value={newActivity.startTime}
-                      onChange={(e) => setNewActivity(prev => ({ ...prev, startTime: e.target.value }))}
-                    />
+                {sortedActivities.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <Clock className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                    <p>Nenhuma atividade configurada</p>
+                    <p className="text-sm">Clique em "Nova Atividade" para começar</p>
                   </div>
-                  <div>
-                    <Label htmlFor="endTime">Fim *</Label>
-                    <Input
-                      id="endTime"
-                      type="time"
-                      value={newActivity.endTime}
-                      onChange={(e) => setNewActivity(prev => ({ ...prev, endTime: e.target.value }))}
-                    />
+                ) : (
+                  sortedActivities.map((activity) => (
+                    <div key={activity.id} className="border rounded-lg p-4 space-y-3">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <div className="text-sm font-mono bg-gray-100 px-2 py-1 rounded">
+                            {activity.startTime} - {activity.endTime}
+                          </div>
+                          <Badge className={getCategoryColor(activity.category)}>
+                            {categoryLabels[activity.category]}
+                          </Badge>
+                          <Badge variant="outline" className={getPriorityColor(activity.priority)}>
+                            {priorityLabels[activity.priority]}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="secondary">
+                            {frequencyLabels[activity.frequency]}
+                          </Badge>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteActivity(activity.id)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                      <div>
+                        <h3 className="font-medium text-gray-900">{activity.title}</h3>
+                        {activity.description && (
+                          <p className="text-sm text-gray-600 mt-1">{activity.description}</p>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Insights e Recomendações */}
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Lightbulb className="w-5 h-5" />
+                Insights IA ({insights.length})
+              </CardTitle>
+              <CardDescription>
+                Recomendações baseadas em sua rotina
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {insights.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <Lightbulb className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                    <p className="text-sm">Adicione atividades para receber insights personalizados</p>
                   </div>
+                ) : (
+                  insights.map((insight) => (
+                    <div key={insight.id} className={`border rounded-lg p-4 space-y-2 ${getInsightColor(insight.type)}`}>
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-medium text-sm">{insight.title}</h4>
+                        <div className="flex items-center gap-1">
+                          <Star className="w-3 h-3 text-yellow-500" />
+                          <span className="text-xs text-gray-600 capitalize">{insight.impact}</span>
+                        </div>
+                      </div>
+                      <p className="text-xs text-gray-600">{insight.description}</p>
+                      <p className="text-xs font-medium text-gray-800">{insight.suggestion}</p>
+                    </div>
+                  ))
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Estatísticas Rápidas */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="w-5 h-5" />
+                Resumo da Rotina
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3 text-sm">
+                <div className="flex justify-between">
+                  <span>Atividades de Trabalho:</span>
+                  <span className="font-medium">{activities.filter(a => a.category === 'work').length}</span>
                 </div>
-                <div>
-                  <Label htmlFor="category">Categoria</Label>
-                  <Select value={newActivity.category} onValueChange={(value: any) => setNewActivity(prev => ({ ...prev, category: value }))}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Object.entries(categoryLabels).map(([key, label]) => (
-                        <SelectItem key={key} value={key}>{label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <div className="flex justify-between">
+                  <span>Atividades de Saúde:</span>
+                  <span className="font-medium">{activities.filter(a => a.category === 'health').length}</span>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label htmlFor="priority">Prioridade</Label>
-                    <Select value={newActivity.priority} onValueChange={(value: any) => setNewActivity(prev => ({ ...prev, priority: value }))}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Object.entries(priorityLabels).map(([key, label]) => (
-                          <SelectItem key={key} value={key}>{label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label htmlFor="frequency">Frequência</Label>
-                    <Select value={newActivity.frequency} onValueChange={(value: any) => setNewActivity(prev => ({ ...prev, frequency: value }))}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Object.entries(frequencyLabels).map(([key, label]) => (
-                          <SelectItem key={key} value={key}>{label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                <div className="flex justify-between">
+                  <span>Atividades de Lazer:</span>
+                  <span className="font-medium">{activities.filter(a => a.category === 'leisure').length}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Alta Prioridade:</span>
+                  <span className="font-medium">{activities.filter(a => a.priority === 'high').length}</span>
                 </div>
               </div>
-              <DialogFooter className="flex-col sm:flex-row gap-2">
-                <Button variant="outline" onClick={() => setIsAddDialogOpen(false)} className="w-full sm:w-auto">
-                  Cancelar
-                </Button>
-                <Button onClick={handleAddActivity} className="w-full sm:w-auto">
-                  Adicionar Atividade
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </div>
-
-        <div className="grid gap-6 lg:grid-cols-3">
-          {/* Lista de Atividades */}
-          <div className="lg:col-span-2">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Clock className="w-5 h-5" />
-                  Cronograma Diário ({activities.length} atividades)
-                </CardTitle>
-                <CardDescription>
-                  Suas atividades organizadas por horário
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {sortedActivities.length === 0 ? (
-                    <div className="text-center py-8 text-gray-500">
-                      <Clock className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                      <p>Nenhuma atividade configurada</p>
-                      <p className="text-sm">Clique em "Nova Atividade" para começar</p>
-                    </div>
-                  ) : (
-                    sortedActivities.map((activity) => (
-                      <div key={activity.id} className="border rounded-lg p-4 space-y-3">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                          <div className="flex items-center gap-3">
-                            <div className="text-sm font-mono bg-gray-100 px-2 py-1 rounded">
-                              {activity.startTime} - {activity.endTime}
-                            </div>
-                            <Badge className={getCategoryColor(activity.category)}>
-                              {categoryLabels[activity.category]}
-                            </Badge>
-                            <Badge variant="outline" className={getPriorityColor(activity.priority)}>
-                              {priorityLabels[activity.priority]}
-                            </Badge>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Badge variant="secondary">
-                              {frequencyLabels[activity.frequency]}
-                            </Badge>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDeleteActivity(activity.id)}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </div>
-                        <div>
-                          <h3 className="font-medium text-gray-900">{activity.title}</h3>
-                          {activity.description && (
-                            <p className="text-sm text-gray-600 mt-1">{activity.description}</p>
-                          )}
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Insights e Recomendações */}
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Lightbulb className="w-5 h-5" />
-                  Insights IA ({insights.length})
-                </CardTitle>
-                <CardDescription>
-                  Recomendações baseadas em sua rotina
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {insights.length === 0 ? (
-                    <div className="text-center py-8 text-gray-500">
-                      <Lightbulb className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                      <p className="text-sm">Adicione atividades para receber insights personalizados</p>
-                    </div>
-                  ) : (
-                    insights.map((insight) => (
-                      <div key={insight.id} className={`border rounded-lg p-4 space-y-2 ${getInsightColor(insight.type)}`}>
-                        <div className="flex items-center justify-between">
-                          <h4 className="font-medium text-sm">{insight.title}</h4>
-                          <div className="flex items-center gap-1">
-                            <Star className="w-3 h-3 text-yellow-500" />
-                            <span className="text-xs text-gray-600 capitalize">{insight.impact}</span>
-                          </div>
-                        </div>
-                        <p className="text-xs text-gray-600">{insight.description}</p>
-                        <p className="text-xs font-medium text-gray-800">{insight.suggestion}</p>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Estatísticas Rápidas */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <TrendingUp className="w-5 h-5" />
-                  Resumo da Rotina
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3 text-sm">
-                  <div className="flex justify-between">
-                    <span>Atividades de Trabalho:</span>
-                    <span className="font-medium">{activities.filter(a => a.category === 'work').length}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Atividades de Saúde:</span>
-                    <span className="font-medium">{activities.filter(a => a.category === 'health').length}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Atividades de Lazer:</span>
-                    <span className="font-medium">{activities.filter(a => a.category === 'leisure').length}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Alta Prioridade:</span>
-                    <span className="font-medium">{activities.filter(a => a.priority === 'high').length}</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
-    </div>
+    </PageLayout>
   );
 }
