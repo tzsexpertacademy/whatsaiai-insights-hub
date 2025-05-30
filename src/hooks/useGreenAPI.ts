@@ -67,7 +67,7 @@ export function useGreenAPI() {
     webhookUrl: config?.whatsapp?.greenapi?.webhookUrl || ''
   }), [config?.whatsapp?.greenapi]);
 
-  // Carregar estado inicial
+  // Carregar estado inicial e verificar conexão
   useEffect(() => {
     if (apiConfig.instanceId && apiConfig.apiToken) {
       setGreenAPIState(prev => ({
@@ -76,8 +76,12 @@ export function useGreenAPI() {
         phoneNumber: apiConfig.phoneNumber || prev.phoneNumber
       }));
       
-      checkConnectionStatus();
-      loadChats(); // Carregar chats imediatamente
+      // Verificar status da conexão imediatamente
+      checkConnectionStatus().then((status) => {
+        if (status.isConnected) {
+          loadChats(); // Só carregar chats se conectado
+        }
+      });
     }
   }, [apiConfig.instanceId, apiConfig.apiToken]);
 
@@ -118,6 +122,19 @@ export function useGreenAPI() {
   const checkConnectionStatus = useCallback(async (): Promise<{ isConnected: boolean; phoneNumber?: string }> => {
     if (!apiConfig.instanceId || !apiConfig.apiToken) {
       console.log('❌ Credenciais GREEN-API não configuradas');
+      setGreenAPIState(prev => ({
+        ...prev,
+        isConnected: false
+      }));
+      
+      // Atualizar config também
+      const updatedWhatsAppConfig = {
+        ...config?.whatsapp,
+        isConnected: false,
+        authorizedNumber: ''
+      };
+      updateConfig('whatsapp', updatedWhatsAppConfig);
+      
       return { isConnected: false };
     }
 
@@ -137,22 +154,36 @@ export function useGreenAPI() {
       console.log('📊 Status da instância:', data);
 
       const isConnected = data.stateInstance === 'authorized';
+      const phoneNumber = data.wid || '';
       
       setGreenAPIState(prev => ({
         ...prev,
         isConnected,
+        phoneNumber: phoneNumber,
         lastConnected: isConnected ? new Date().toISOString() : prev.lastConnected
       }));
 
+      // Atualizar configuração do WhatsApp no contexto
       const updatedWhatsAppConfig = {
         ...config?.whatsapp,
         isConnected,
-        authorizedNumber: isConnected ? data.wid || '' : ''
+        authorizedNumber: phoneNumber,
+        greenapi: {
+          ...config?.whatsapp?.greenapi,
+          phoneNumber: phoneNumber
+        }
       };
 
       updateConfig('whatsapp', updatedWhatsAppConfig);
+      await saveConfig();
 
-      return { isConnected, phoneNumber: data.wid };
+      if (isConnected) {
+        console.log('✅ WhatsApp conectado:', phoneNumber);
+      } else {
+        console.log('❌ WhatsApp não conectado');
+      }
+
+      return { isConnected, phoneNumber };
 
     } catch (error) {
       console.error('❌ Erro ao verificar status:', error);
@@ -161,11 +192,19 @@ export function useGreenAPI() {
         isConnected: false
       }));
       
+      // Atualizar config com erro
+      const updatedWhatsAppConfig = {
+        ...config?.whatsapp,
+        isConnected: false,
+        authorizedNumber: ''
+      };
+      updateConfig('whatsapp', updatedWhatsAppConfig);
+      
       return { isConnected: false };
     }
-  }, [apiConfig.instanceId, apiConfig.apiToken, config?.whatsapp, updateConfig]);
+  }, [apiConfig.instanceId, apiConfig.apiToken, config, updateConfig, saveConfig]);
 
-  // Função otimizada para carregar chats dos últimos 3 dias
+  // Função para carregar chats - simplificada e com foco no banco primeiro
   const loadChats = useCallback(async () => {
     if (!user?.id) {
       console.log('❌ Usuário não autenticado');
@@ -174,36 +213,34 @@ export function useGreenAPI() {
 
     // Debounce simples
     const now = Date.now();
-    if (now - lastFetchTime < 2000) { // Reduzido para 2 segundos
+    if (now - lastFetchTime < 1000) {
       console.log('⏳ Aguardando debounce para carregar chats');
       return;
     }
     setLastFetchTime(now);
 
     try {
-      console.log('📱 Carregando chats do banco de dados (últimos 3 dias)...');
-      
-      // Data de 3 dias atrás
-      const threeDaysAgo = new Date();
-      threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+      console.log('📱 Carregando conversas do banco de dados...');
       
       // Buscar conversas do banco de dados (mensagens recebidas via webhook)
       const { data: conversations, error: dbError } = await supabase
         .from('whatsapp_conversations')
         .select(`
           *,
-          whatsapp_messages!inner(
+          whatsapp_messages(
             message_text,
             timestamp,
             sender_type
           )
         `)
         .eq('user_id', user.id)
-        .gte('updated_at', threeDaysAgo.toISOString())
-        .order('updated_at', { ascending: false });
+        .order('updated_at', { ascending: false })
+        .limit(50);
 
       if (dbError) {
         console.error('❌ Erro ao buscar conversas do banco:', dbError);
+        setChats([]);
+        return;
       }
 
       let dbChats: Chat[] = [];
@@ -219,7 +256,7 @@ export function useGreenAPI() {
           return {
             chatId: conv.contact_phone,
             name: conv.contact_name || conv.contact_phone.split('@')[0],
-            lastMessage: lastMessage?.message_text || 'Sem mensagens recentes',
+            lastMessage: lastMessage?.message_text || 'Conversa iniciada',
             unreadCount: 0,
             isPinned: false,
             isMonitored: false,
@@ -228,77 +265,21 @@ export function useGreenAPI() {
           };
         });
         
-        console.log(`✅ ${dbChats.length} conversas dos últimos 3 dias carregadas do banco`);
+        console.log(`✅ ${dbChats.length} conversas carregadas do banco`);
       }
 
-      // Se tiver GREEN-API configurado, buscar chats da API também (apenas recentes)
-      if (apiConfig.instanceId && apiConfig.apiToken) {
-        try {
-          console.log('📱 Buscando chats recentes do GREEN-API...');
-          
-          const response = await fetch(
-            `https://api.green-api.com/waInstance${apiConfig.instanceId}/getChats/${apiConfig.apiToken}`,
-            { method: 'GET' }
-          );
-
-          if (response.ok) {
-            const data = await response.json();
-            console.log('📊 Chats do GREEN-API:', data?.length || 0);
-
-            if (data && Array.isArray(data)) {
-              // Filtrar apenas chats com atividade recente (últimos 3 dias)
-              const recentChats = data.filter((chat: any) => {
-                const lastMessageTime = chat.lastMessage?.timestamp;
-                if (!lastMessageTime) return false;
-                
-                const messageDate = new Date(lastMessageTime * 1000);
-                return messageDate >= threeDaysAgo;
-              });
-
-              const apiChats: Chat[] = recentChats.map((chat: any) => ({
-                chatId: chat.id || chat.chatId,
-                name: chat.name || chat.id?.split('@')[0] || chat.chatId?.split('@')[0],
-                lastMessage: chat.lastMessage?.body || 'Sem mensagens',
-                unreadCount: chat.unreadCount || 0,
-                isPinned: false,
-                isMonitored: false,
-                isGroup: (chat.id || chat.chatId)?.includes('@g.us') || false,
-                assignedAssistant: ''
-              }));
-
-              // Combinar chats do banco com chats da API, priorizando dados do banco
-              const combinedChats = [...dbChats];
-              
-              apiChats.forEach(apiChat => {
-                const existsInDb = dbChats.find(dbChat => dbChat.chatId === apiChat.chatId);
-                if (!existsInDb) {
-                  combinedChats.push(apiChat);
-                }
-              });
-
-              setChats(combinedChats);
-              console.log(`✅ ${combinedChats.length} chats combinados salvos (últimos 3 dias)`);
-            }
-          } else {
-            setChats(dbChats);
-          }
-        } catch (apiError) {
-          console.error('❌ Erro ao buscar chats da API:', apiError);
-          setChats(dbChats);
-        }
-      } else {
-        setChats(dbChats);
-      }
+      setChats(dbChats);
 
     } catch (error) {
       console.error('❌ Erro ao carregar chats:', error);
+      setChats([]);
       toast({
         title: "Erro ao carregar chats",
         description: "Não foi possível carregar as conversas",
         variant: "destructive"
       });
     }
-  }, [user?.id, apiConfig.instanceId, apiConfig.apiToken, lastFetchTime, toast]);
+  }, [user?.id, lastFetchTime, toast]);
 
   const loadChatHistory = useCallback(async (chatId: string) => {
     if (!chatId || !user?.id) {
@@ -306,20 +287,10 @@ export function useGreenAPI() {
       return;
     }
 
-    // Evitar recarregar se já existe
-    if (messages[chatId] && messages[chatId].length > 0) {
-      console.log('📋 Histórico já carregado para', chatId);
-      return;
-    }
-
     try {
       console.log(`📖 Carregando histórico do chat: ${chatId}`);
       
-      // Data de 3 dias atrás para limitar busca
-      const threeDaysAgo = new Date();
-      threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
-      
-      // Buscar mensagens do banco de dados primeiro (últimos 3 dias)
+      // Buscar mensagens do banco de dados
       const { data: dbMessages, error: dbError } = await supabase
         .from('whatsapp_messages')
         .select(`
@@ -328,12 +299,11 @@ export function useGreenAPI() {
         `)
         .eq('conversation.contact_phone', chatId)
         .eq('conversation.user_id', user.id)
-        .gte('timestamp', threeDaysAgo.toISOString())
         .order('timestamp', { ascending: true })
         .limit(100);
 
       if (!dbError && dbMessages && dbMessages.length > 0) {
-        console.log(`📊 ${dbMessages.length} mensagens carregadas do banco (últimos 3 dias)`);
+        console.log(`📊 ${dbMessages.length} mensagens carregadas do banco`);
         
         const formattedMessages: Message[] = dbMessages.map((msg: any) => ({
           id: msg.id,
@@ -350,57 +320,9 @@ export function useGreenAPI() {
         return;
       }
 
-      // Se não tiver no banco, tentar buscar do GREEN-API (últimas 50 mensagens)
-      if (!apiConfig.instanceId || !apiConfig.apiToken) {
-        console.log('⚠️ GREEN-API não configurado');
-        setMessages(prev => ({ ...prev, [chatId]: [] }));
-        return;
-      }
-
-      const response = await fetch(
-        `https://api.green-api.com/waInstance${apiConfig.instanceId}/getChatHistory/${apiConfig.apiToken}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            chatId: chatId,
-            count: 50 
-          })
-        }
-      );
-
-      if (!response.ok) {
-        console.log(`⚠️ Não foi possível carregar histórico do GREEN-API para ${chatId}`);
-        setMessages(prev => ({ ...prev, [chatId]: [] }));
-        return;
-      }
-
-      const data = await response.json();
-      console.log('📊 Histórico carregado do GREEN-API:', data?.length || 0);
-
-      if (data && Array.isArray(data)) {
-        // Filtrar apenas mensagens dos últimos 3 dias
-        const recentMessages = data.filter((msg: any) => {
-          const messageDate = new Date(msg.timestamp * 1000);
-          return messageDate >= threeDaysAgo;
-        });
-
-        const formattedMessages: Message[] = recentMessages.map((msg: any) => ({
-          id: msg.idMessage || Math.random().toString(),
-          text: msg.textMessage || msg.extendedTextMessage?.text || '[Mídia]',
-          sender: msg.type === 'outgoing' ? 'user' : 'customer',
-          timestamp: new Date(msg.timestamp * 1000).toLocaleTimeString('pt-BR', {
-            hour: '2-digit',
-            minute: '2-digit'
-          }),
-          platform: 'greenapi'
-        }));
-
-        setMessages(prev => ({ ...prev, [chatId]: formattedMessages }));
-        console.log(`✅ ${formattedMessages.length} mensagens recentes formatadas e salvas`);
-      } else {
-        setMessages(prev => ({ ...prev, [chatId]: [] }));
-      }
+      // Se não tiver no banco, inicializar vazio
+      console.log('⚠️ Nenhuma mensagem encontrada no banco para este chat');
+      setMessages(prev => ({ ...prev, [chatId]: [] }));
 
     } catch (error) {
       console.error('❌ Erro ao carregar histórico:', error);
@@ -411,7 +333,7 @@ export function useGreenAPI() {
         variant: "destructive"
       });
     }
-  }, [apiConfig.instanceId, apiConfig.apiToken, user?.id, messages, toast]);
+  }, [user?.id, toast]);
 
   const sendMessage = useCallback(async (chatId: string, message: string): Promise<boolean> => {
     if (!apiConfig.instanceId || !apiConfig.apiToken) {
@@ -445,7 +367,7 @@ export function useGreenAPI() {
       const result = await response.json();
       console.log('✅ Mensagem enviada:', result);
 
-      // Adicionar mensagem localmente
+      // Adicionar mensagem localmente e salvar no banco
       const newMessage: Message = {
         id: result.idMessage || Math.random().toString(),
         text: message,
@@ -459,10 +381,53 @@ export function useGreenAPI() {
         [chatId]: [...(prev[chatId] || []), newMessage]
       }));
 
+      // Salvar no banco também
+      try {
+        // Buscar ou criar conversa
+        let { data: conversation, error: convError } = await supabase
+          .from('whatsapp_conversations')
+          .select('*')
+          .eq('user_id', user?.id)
+          .eq('contact_phone', chatId)
+          .maybeSingle();
+
+        if (!conversation && user?.id) {
+          const { data: newConv, error: createError } = await supabase
+            .from('whatsapp_conversations')
+            .insert({
+              user_id: user.id,
+              contact_phone: chatId,
+              contact_name: chatId.split('@')[0],
+              messages: []
+            })
+            .select()
+            .single();
+
+          if (!createError) {
+            conversation = newConv;
+          }
+        }
+
+        if (conversation && user?.id) {
+          await supabase
+            .from('whatsapp_messages')
+            .insert({
+              user_id: user.id,
+              conversation_id: conversation.id,
+              message_text: message,
+              sender_type: 'user',
+              timestamp: new Date().toISOString(),
+              ai_generated: false
+            });
+        }
+      } catch (dbError) {
+        console.error('❌ Erro ao salvar mensagem no banco:', dbError);
+      }
+
       // Atualizar lista de chats
       setTimeout(() => {
         loadChats();
-      }, 1000);
+      }, 500);
 
       toast({
         title: "Mensagem enviada",
@@ -479,7 +444,7 @@ export function useGreenAPI() {
       });
       return false;
     }
-  }, [apiConfig, toast, loadChats]);
+  }, [apiConfig, toast, loadChats, user?.id]);
 
   const togglePinChat = useCallback((chatId: string) => {
     setChats(prev => prev.map(chat => 
@@ -513,8 +478,9 @@ export function useGreenAPI() {
   const refreshChats = useCallback(async () => {
     console.log('🔄 Atualizando lista de conversas...');
     setLastFetchTime(0); // Reset debounce
+    await checkConnectionStatus(); // Verificar conexão primeiro
     await loadChats();
-  }, [loadChats]);
+  }, [loadChats, checkConnectionStatus]);
 
   const getQRCode = useCallback(async (): Promise<string> => {
     if (!apiConfig.instanceId || !apiConfig.apiToken) {
@@ -561,6 +527,9 @@ export function useGreenAPI() {
           isGenerating: false
         }));
         
+        // Verificar status novamente para pegar o número
+        await checkConnectionStatus();
+        
         toast({
           title: "Já conectado",
           description: "WhatsApp já está conectado"
@@ -583,7 +552,7 @@ export function useGreenAPI() {
       setIsLoading(false);
       setGreenAPIState(prev => ({ ...prev, isGenerating: false }));
     }
-  }, [apiConfig, toast]);
+  }, [apiConfig, toast, checkConnectionStatus]);
 
   const disconnect = useCallback(async () => {
     try {

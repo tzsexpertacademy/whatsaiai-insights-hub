@@ -8,12 +8,14 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
+  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
     console.log('🔔 GREEN-API Webhook recebido - Method:', req.method)
+    console.log('🔔 URL:', req.url)
     console.log('🔔 Headers:', Object.fromEntries(req.headers.entries()))
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
@@ -47,7 +49,7 @@ serve(async (req) => {
       const senderData = body.senderData
       const instanceData = body.instanceData
       
-      console.log('📋 Dados da mensagem:', {
+      console.log('📋 Dados extraídos:', {
         messageData: messageData,
         senderData: senderData,
         instanceData: instanceData
@@ -77,7 +79,7 @@ serve(async (req) => {
       const messageType = messageData?.typeMessage || 'unknown'
       const timestamp = new Date().toISOString()
       
-      console.log('📝 Dados extraídos:', {
+      console.log('📝 Dados finais extraídos:', {
         chatId,
         messageText,
         messageType,
@@ -86,7 +88,14 @@ serve(async (req) => {
       
       if (!chatId) {
         console.log('⚠️ ChatId não encontrado na mensagem')
-        return new Response('OK', { headers: corsHeaders })
+        return new Response(JSON.stringify({ 
+          success: false, 
+          message: 'ChatId não encontrado',
+          timestamp: new Date().toISOString()
+        }), { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400
+        })
       }
 
       // Encontrar TODOS os usuários com GREEN-API configurado
@@ -99,18 +108,35 @@ serve(async (req) => {
 
       if (configError) {
         console.error('❌ Erro ao buscar configurações:', configError)
-        return new Response('OK', { headers: corsHeaders })
+        return new Response(JSON.stringify({ 
+          success: false, 
+          message: 'Erro ao buscar configurações',
+          error: configError.message,
+          timestamp: new Date().toISOString()
+        }), { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 500
+        })
       }
 
       console.log(`📋 Encontradas ${configs?.length || 0} configurações`)
       
       if (!configs || configs.length === 0) {
         console.log('⚠️ Nenhuma configuração encontrada')
-        return new Response('OK', { headers: corsHeaders })
+        return new Response(JSON.stringify({ 
+          success: true, 
+          message: 'Nenhuma configuração encontrada',
+          timestamp: new Date().toISOString()
+        }), { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200
+        })
       }
 
       // Processar para TODOS os usuários com GREEN-API
       let processedCount = 0
+      const errors = []
+      
       for (const config of configs) {
         const whatsappConfig = config.whatsapp_config as any
         
@@ -122,7 +148,7 @@ serve(async (req) => {
           
           try {
             // Buscar ou criar conversa para este usuário
-            console.log(`📞 Buscando conversa para ${config.user_id} e contato ${chatId}`)
+            console.log(`📞 Buscando/criando conversa para ${config.user_id} e contato ${chatId}`)
             
             let { data: conversation, error: convError } = await supabase
               .from('whatsapp_conversations')
@@ -133,6 +159,7 @@ serve(async (req) => {
 
             if (convError) {
               console.error(`❌ Erro ao buscar conversa para usuário ${config.user_id}:`, convError)
+              errors.push(`Erro ao buscar conversa: ${convError.message}`)
               continue
             }
 
@@ -155,6 +182,7 @@ serve(async (req) => {
 
               if (createError) {
                 console.error(`❌ Erro ao criar conversa para usuário ${config.user_id}:`, createError)
+                errors.push(`Erro ao criar conversa: ${createError.message}`)
                 continue
               }
 
@@ -178,6 +206,7 @@ serve(async (req) => {
 
             if (msgError) {
               console.error(`❌ Erro ao salvar mensagem para usuário ${config.user_id}:`, msgError)
+              errors.push(`Erro ao salvar mensagem: ${msgError.message}`)
             } else {
               console.log(`✅ Mensagem salva para usuário ${config.user_id}`)
               processedCount++
@@ -199,13 +228,18 @@ serve(async (req) => {
 
           } catch (userError) {
             console.error(`❌ Erro ao processar usuário ${config.user_id}:`, userError)
+            errors.push(`Erro no usuário ${config.user_id}: ${userError.message}`)
           }
         } else {
           console.log(`⚠️ Usuário ${config.user_id} não tem GREEN-API configurado adequadamente`)
         }
       }
 
-      console.log(`✅ Webhook processado com sucesso. ${processedCount} mensagens salvas.`)
+      console.log(`✅ Webhook processado. ${processedCount} mensagens salvas.`)
+      
+      if (errors.length > 0) {
+        console.log('⚠️ Erros encontrados:', errors)
+      }
       
     } else if (body.typeWebhook === 'outgoingMessageReceived') {
       console.log(`📤 Mensagem enviada recebida - ignorando`)
@@ -217,7 +251,7 @@ serve(async (req) => {
 
     return new Response(JSON.stringify({ 
       success: true, 
-      message: 'Webhook processado',
+      message: 'Webhook processado com sucesso',
       timestamp: new Date().toISOString()
     }), { 
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -230,6 +264,7 @@ serve(async (req) => {
     
     return new Response(
       JSON.stringify({ 
+        success: false,
         error: 'Erro interno do servidor',
         message: error.message,
         timestamp: new Date().toISOString()
