@@ -18,7 +18,6 @@ serve(async (req) => {
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
     
     const supabase = createClient(supabaseUrl, supabaseKey);
     
@@ -52,14 +51,14 @@ serve(async (req) => {
         });
       }
 
-      // Se for auto-conversa (mesmo número), gerar resposta automática
+      // Se for auto-conversa (mesmo número), processar resposta automática
       if (await isAutoConversation(supabase, chatId)) {
-        console.log('🤖 Auto-conversa detectada, enviando para processamento...');
-        
-        // Aqui você pode implementar a lógica de resposta automática
-        // Por enquanto, apenas registramos que é uma auto-conversa
+        console.log('🤖 Auto-conversa detectada, processando...');
         await markAsAutoConversation(supabase, chatId, messageText);
       }
+
+      // Notificar frontend sobre nova mensagem (pode ser usado para atualização em tempo real)
+      console.log('✅ Mensagem processada com sucesso');
     }
 
     // Processar status de mensagem (entregue, lida, etc.)
@@ -67,7 +66,6 @@ serve(async (req) => {
       const statusData = webhookData.statusData;
       console.log('📊 Status da mensagem:', statusData);
       
-      // Atualizar status da mensagem no banco se necessário
       await updateMessageStatus(supabase, statusData);
     }
 
@@ -102,7 +100,12 @@ async function checkIfChatIsMonitored(supabase: any, chatId: string): Promise<bo
       .eq('contact_phone', chatId)
       .maybeSingle();
 
-    return !error && data !== null;
+    if (error) {
+      console.error('Erro ao verificar monitoramento:', error);
+      return false;
+    }
+
+    return data !== null;
   } catch (error) {
     console.error('Erro ao verificar monitoramento:', error);
     return false;
@@ -110,9 +113,15 @@ async function checkIfChatIsMonitored(supabase: any, chatId: string): Promise<bo
 }
 
 async function isAutoConversation(supabase: any, chatId: string): Promise<boolean> {
-  // Aqui você pode implementar a lógica para detectar auto-conversas
-  // Por exemplo, verificar se o chatId corresponde ao número do usuário
-  return chatId.includes('auto') || chatId.includes('self'); // Placeholder
+  // Implementar lógica para detectar auto-conversas
+  // Por enquanto, verificamos se o chatId contém padrões específicos
+  const phoneNumber = chatId.replace('@c.us', '').replace('@g.us', '');
+  
+  // Aqui você pode implementar lógica mais sofisticada para detectar auto-conversas
+  // Por exemplo, comparar com o número da instância GREEN-API
+  console.log('🔍 Verificando auto-conversa para:', phoneNumber);
+  
+  return false; // Por enquanto retorna false, implemente a lógica específica
 }
 
 async function saveConversationToDatabase(supabase: any, messageInfo: any) {
@@ -180,8 +189,8 @@ async function saveConversationToDatabase(supabase: any, messageInfo: any) {
       console.log('✅ Conversa atualizada:', conversationId);
     }
 
-    // Salvar mensagem individual
-    await supabase
+    // Salvar mensagem individual também
+    const { error: messageError } = await supabase
       .from('whatsapp_messages')
       .insert({
         conversation_id: conversationId,
@@ -195,6 +204,10 @@ async function saveConversationToDatabase(supabase: any, messageInfo: any) {
         }
       });
 
+    if (messageError) {
+      console.error('❌ Erro ao salvar mensagem individual:', messageError);
+    }
+
     console.log('✅ Mensagem GREEN-API processada e salva');
 
   } catch (dbError) {
@@ -204,11 +217,11 @@ async function saveConversationToDatabase(supabase: any, messageInfo: any) {
 }
 
 async function markAsAutoConversation(supabase: any, chatId: string, messageText: string) {
-  // Implementar lógica para marcar como auto-conversa
   console.log('🔄 Processando auto-conversa:', chatId, messageText);
+  // Implementar lógica específica para auto-conversas se necessário
 }
 
 async function updateMessageStatus(supabase: any, statusData: any) {
-  // Implementar atualização de status de mensagem
   console.log('📋 Atualizando status:', statusData);
+  // Implementar atualização de status de mensagem se necessário
 }

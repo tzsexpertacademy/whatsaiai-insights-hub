@@ -93,6 +93,39 @@ export type Database = {
         }
         Relationships: []
       }
+      assistants_config: {
+        Row: {
+          assistant_name: string
+          assistant_role: string
+          created_at: string
+          id: string
+          is_active: boolean
+          prompt: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          assistant_name: string
+          assistant_role: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          prompt: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          assistant_name?: string
+          assistant_role?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          prompt?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       chat_history: {
         Row: {
           assistant_id: string

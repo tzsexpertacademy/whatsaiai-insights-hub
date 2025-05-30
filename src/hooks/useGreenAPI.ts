@@ -371,14 +371,12 @@ export function useGreenAPI() {
     try {
       console.log(`🤖 Gerando resposta IA com assistente: ${selectedAssistant}...`);
 
-      // Buscar configuração do assistente selecionado
-      const { data: assistants } = await supabase
-        .from('assistants_config')
-        .select('*')
+      // Buscar configuração do assistente selecionado dos assistentes da plataforma
+      const { data: assistantConfig } = await supabase
+        .from('client_configs')
+        .select('openai_config')
         .eq('user_id', config.whatsapp?.authorizedNumber || 'default')
-        .eq('assistant_name', selectedAssistant)
-        .eq('is_active', true)
-        .maybeSingle();
+        .single();
 
       let systemPrompt = `Você é um assistente pessoal especializado em autoconhecimento e desenvolvimento pessoal. 
       
@@ -392,10 +390,16 @@ export function useGreenAPI() {
       
       Contexto: Esta é uma conversa de autoconhecimento onde a pessoa está refletindo consigo mesma.`;
 
-      // Se encontrou configuração personalizada do assistente, usar ela
-      if (assistants && assistants.prompt) {
-        systemPrompt = assistants.prompt;
-        console.log(`✅ Usando prompt personalizado do assistente: ${assistants.assistant_name}`);
+      // Se encontrou configuração dos assistentes da plataforma, buscar o assistente selecionado
+      if (assistantConfig?.openai_config?.assistants) {
+        const selectedAssistantConfig = assistantConfig.openai_config.assistants.find(
+          (assistant: any) => assistant.id === selectedAssistant
+        );
+        
+        if (selectedAssistantConfig && selectedAssistantConfig.prompt) {
+          systemPrompt = selectedAssistantConfig.prompt;
+          console.log(`✅ Usando prompt do assistente da plataforma: ${selectedAssistantConfig.name}`);
+        }
       }
 
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -599,7 +603,7 @@ export function useGreenAPI() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           chatId: chatId,
-          count: 100 // Aumentar para 100 mensagens
+          count: 100
         })
       });
 
@@ -625,9 +629,9 @@ export function useGreenAPI() {
         [chatId]: formattedMessages
       }));
 
-      // Salvar mensagens no banco de dados
+      // Salvar mensagens no banco de dados se a conversa estiver monitorada
       const chat = chats.find(c => c.chatId === chatId);
-      if (chat) {
+      if (chat && chat.isMonitored) {
         for (const message of formattedMessages) {
           await saveConversationToDatabase(chat, {
             id: message.id,
@@ -685,6 +689,15 @@ export function useGreenAPI() {
         [chatId]: [...(prev[chatId] || []), newMessage]
       }));
 
+      // Atualizar lista de chats com a nova mensagem
+      setChats(prevChats => 
+        prevChats.map(chat => 
+          chat.chatId === chatId 
+            ? { ...chat, lastMessage: message, lastMessageTime: new Date().toISOString() }
+            : chat
+        )
+      );
+
       // Verificar se é auto-conversa (mesmo número)
       const currentPhoneNumber = greenAPIState.phoneNumber.replace(/\D/g, '');
       const targetPhoneNumber = chatId.replace('@c.us', '').replace('@g.us', '');
@@ -695,10 +708,27 @@ export function useGreenAPI() {
         setTimeout(async () => {
           const aiResponse = await generateAIResponse(message);
           
+          // Buscar nome do assistente para mostrar na resposta
+          const { data: assistantConfig } = await supabase
+            .from('client_configs')
+            .select('openai_config')
+            .eq('user_id', config.whatsapp?.authorizedNumber || 'default')
+            .single();
+
+          let assistantName = selectedAssistant.toUpperCase();
+          if (assistantConfig?.openai_config?.assistants) {
+            const selectedAssistantConfig = assistantConfig.openai_config.assistants.find(
+              (assistant: any) => assistant.id === selectedAssistant
+            );
+            if (selectedAssistantConfig) {
+              assistantName = selectedAssistantConfig.name;
+            }
+          }
+          
           // Simular resposta do assistente
           const assistantMessage: GreenAPIMessage = {
             id: `ai_${Date.now()}`,
-            text: `[${selectedAssistant.toUpperCase()}] ${aiResponse}`,
+            text: `[${assistantName}] ${aiResponse}`,
             sender: 'contact',
             timestamp: new Date().toISOString(),
             chatId: chatId,
@@ -710,6 +740,15 @@ export function useGreenAPI() {
             ...prev,
             [chatId]: [...(prev[chatId] || []), assistantMessage]
           }));
+
+          // Atualizar lista de chats com a resposta do assistente
+          setChats(prevChats => 
+            prevChats.map(chat => 
+              chat.chatId === chatId 
+                ? { ...chat, lastMessage: assistantMessage.text, lastMessageTime: assistantMessage.timestamp }
+                : chat
+            )
+          );
 
           const chat = chats.find(c => c.chatId === chatId);
           if (chat && chat.isMonitored) {
@@ -748,6 +787,29 @@ export function useGreenAPI() {
       return false;
     }
   };
+
+  // Função para atualizar chats em tempo real (chamada pelo webhook)
+  const refreshChats = async () => {
+    console.log('🔄 Atualizando chats em tempo real...');
+    await loadChats();
+  };
+
+  // Polling para verificar mensagens recebidas a cada 10 segundos
+  useEffect(() => {
+    let pollInterval: NodeJS.Timeout;
+    
+    if (greenAPIState.isConnected) {
+      pollInterval = setInterval(() => {
+        refreshChats();
+      }, 10000); // A cada 10 segundos
+    }
+
+    return () => {
+      if (pollInterval) {
+        clearInterval(pollInterval);
+      }
+    };
+  }, [greenAPIState.isConnected]);
 
   const disconnect = async () => {
     try {
@@ -801,6 +863,7 @@ export function useGreenAPI() {
     checkConnectionStatus,
     togglePinChat,
     toggleMonitorChat,
-    setSelectedAssistant
+    setSelectedAssistant,
+    refreshChats
   };
 }
