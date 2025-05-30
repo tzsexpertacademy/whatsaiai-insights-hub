@@ -55,19 +55,17 @@ export function useVoiceRecording(): UseVoiceRecordingReturn {
     try {
       console.log('🎤 Iniciando gravação de áudio...');
       
-      // Verificar se já está gravando
       if (isRecording) {
         console.warn('⚠️ Já está gravando');
         return;
       }
 
-      // Limpar estado anterior
       cleanup();
 
-      // Solicitar permissão do microfone
+      // Solicitar permissão do microfone com configurações otimizadas
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
-          sampleRate: 44100,
+          sampleRate: 16000, // Mudança para 16kHz que é o padrão do Whisper
           channelCount: 1,
           echoCancellation: true,
           noiseSuppression: true,
@@ -78,18 +76,20 @@ export function useVoiceRecording(): UseVoiceRecordingReturn {
       streamRef.current = stream;
       console.log('📺 Stream de áudio obtido');
 
-      // Verificar se o MediaRecorder suporta o formato
+      // Verificar formatos suportados em ordem de preferência
       const mimeTypes = [
         'audio/webm;codecs=opus',
         'audio/webm',
+        'audio/mp4;codecs=mp4a.40.2',
         'audio/mp4',
-        'audio/mpeg'
+        'audio/wav'
       ];
 
       let selectedMimeType = '';
       for (const mimeType of mimeTypes) {
         if (MediaRecorder.isTypeSupported(mimeType)) {
           selectedMimeType = mimeType;
+          console.log('🎵 Formato selecionado:', mimeType);
           break;
         }
       }
@@ -98,11 +98,10 @@ export function useVoiceRecording(): UseVoiceRecordingReturn {
         throw new Error('Nenhum formato de áudio suportado pelo navegador');
       }
 
-      console.log('🎵 Formato selecionado:', selectedMimeType);
-
-      // Setup MediaRecorder
+      // Configurar MediaRecorder
       mediaRecorderRef.current = new MediaRecorder(stream, {
-        mimeType: selectedMimeType
+        mimeType: selectedMimeType,
+        audioBitsPerSecond: 128000 // Qualidade adequada para transcrição
       });
 
       audioChunksRef.current = [];
@@ -135,12 +134,11 @@ export function useVoiceRecording(): UseVoiceRecordingReturn {
         const bufferLength = analyserRef.current.frequencyBinCount;
         const dataArray = new Uint8Array(bufferLength);
 
-        // Loop de análise de áudio
         const updateAudioLevel = () => {
           if (analyserRef.current && isRecording) {
             analyserRef.current.getByteFrequencyData(dataArray);
             const average = dataArray.reduce((sum, value) => sum + value, 0) / bufferLength;
-            const normalizedLevel = Math.min(average / 128, 1); // Normalizar para 0-1
+            const normalizedLevel = Math.min(average / 128, 1);
             setAudioLevel(normalizedLevel);
             animationFrameRef.current = requestAnimationFrame(updateAudioLevel);
           }
@@ -149,11 +147,10 @@ export function useVoiceRecording(): UseVoiceRecordingReturn {
         updateAudioLevel();
       } catch (audioContextError) {
         console.warn('⚠️ Não foi possível criar contexto de áudio para feedback visual:', audioContextError);
-        // Continuar sem feedback visual
       }
 
       // Iniciar gravação
-      mediaRecorderRef.current.start(100); // Coletar dados a cada 100ms
+      mediaRecorderRef.current.start(1000); // Coletar dados a cada segundo
       setIsRecording(true);
 
       console.log('✅ Gravação iniciada com sucesso');
@@ -205,9 +202,9 @@ export function useVoiceRecording(): UseVoiceRecordingReturn {
             throw new Error('Nenhum dado de áudio foi capturado');
           }
 
-          const audioBlob = new Blob(audioChunksRef.current, { 
-            type: mediaRecorderRef.current?.mimeType || 'audio/webm' 
-          });
+          // Criar blob com o tipo MIME correto
+          const mimeType = mediaRecorderRef.current?.mimeType || 'audio/webm';
+          const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
           
           console.log('📄 Áudio gravado:', {
             size: audioBlob.size,
@@ -219,24 +216,47 @@ export function useVoiceRecording(): UseVoiceRecordingReturn {
             throw new Error('Arquivo de áudio vazio');
           }
 
+          // Verificar tamanho mínimo (pelo menos 1KB)
+          if (audioBlob.size < 1024) {
+            throw new Error('Áudio muito curto. Grave por pelo menos 1 segundo.');
+          }
+
           // Converter blob para base64
           const reader = new FileReader();
           reader.onloadend = () => {
-            const base64String = reader.result as string;
-            const base64Audio = base64String.split(',')[1]; // Remove o prefixo data:audio/...;base64,
-            
-            console.log('✅ Áudio convertido para base64, tamanho:', base64Audio.length);
-            
-            toast({
-              title: "✅ Gravação concluída",
-              description: "Áudio processado com sucesso",
-            });
-            
-            resolve(base64Audio);
+            try {
+              const result = reader.result as string;
+              if (!result || !result.includes(',')) {
+                throw new Error('Erro na conversão do áudio');
+              }
+              
+              const base64Audio = result.split(',')[1]; // Remove o prefixo data:audio/...;base64,
+              
+              if (!base64Audio || base64Audio.length === 0) {
+                throw new Error('Áudio vazio após conversão');
+              }
+              
+              console.log('✅ Áudio convertido para base64, tamanho:', base64Audio.length);
+              
+              toast({
+                title: "✅ Gravação concluída",
+                description: "Áudio processado com sucesso",
+              });
+              
+              resolve(base64Audio);
+            } catch (conversionError) {
+              console.error('❌ Erro na conversão:', conversionError);
+              toast({
+                title: "❌ Erro no processamento",
+                description: "Erro ao converter áudio",
+                variant: "destructive",
+              });
+              resolve(null);
+            }
           };
           
           reader.onerror = () => {
-            console.error('❌ Erro ao converter áudio para base64');
+            console.error('❌ Erro ao ler arquivo de áudio');
             toast({
               title: "❌ Erro no processamento",
               description: "Não foi possível processar o áudio gravado",
