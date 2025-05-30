@@ -1,3 +1,4 @@
+
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useClientConfig } from '@/contexts/ClientConfigContext';
@@ -57,7 +58,6 @@ export function useGreenAPI() {
   const [messages, setMessages] = useState<Record<string, Message[]>>({});
   const [selectedAssistant, setSelectedAssistant] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [lastFetchTime, setLastFetchTime] = useState<number>(0);
 
   // Memoizar configuração
   const apiConfig: GreenAPIConfig = useMemo(() => ({
@@ -67,21 +67,19 @@ export function useGreenAPI() {
     webhookUrl: config?.whatsapp?.greenapi?.webhookUrl || ''
   }), [config?.whatsapp?.greenapi]);
 
-  // Carregar estado inicial e verificar conexão
+  // Verificar conexão quando as credenciais mudarem
   useEffect(() => {
     if (apiConfig.instanceId && apiConfig.apiToken) {
+      console.log('🔄 Credenciais GREEN-API detectadas, verificando conexão...');
+      checkConnectionStatus();
+    } else {
+      console.log('❌ Credenciais GREEN-API não configuradas');
       setGreenAPIState(prev => ({
         ...prev,
-        instanceId: apiConfig.instanceId,
-        phoneNumber: apiConfig.phoneNumber || prev.phoneNumber
+        isConnected: false,
+        phoneNumber: '',
+        instanceId: apiConfig.instanceId || ''
       }));
-      
-      // Verificar status da conexão imediatamente
-      checkConnectionStatus().then((status) => {
-        if (status.isConnected) {
-          loadChats(); // Só carregar chats se conectado
-        }
-      });
     }
   }, [apiConfig.instanceId, apiConfig.apiToken]);
 
@@ -100,15 +98,7 @@ export function useGreenAPI() {
       updateConfig('whatsapp', updatedWhatsAppConfig);
       await saveConfig();
 
-      if (newConfig.instanceId && newConfig.apiToken) {
-        setGreenAPIState(prev => ({
-          ...prev,
-          instanceId: newConfig.instanceId || prev.instanceId,
-          phoneNumber: newConfig.phoneNumber || prev.phoneNumber
-        }));
-      }
-
-      console.log('✅ Configuração GREEN-API salva com sucesso');
+      console.log('✅ Configuração GREEN-API salva');
     } catch (error) {
       console.error('❌ Erro ao salvar configuração:', error);
       toast({
@@ -121,108 +111,142 @@ export function useGreenAPI() {
 
   const checkConnectionStatus = useCallback(async (): Promise<{ isConnected: boolean; phoneNumber?: string }> => {
     if (!apiConfig.instanceId || !apiConfig.apiToken) {
-      console.log('❌ Credenciais GREEN-API não configuradas');
+      console.log('❌ Credenciais não configuradas');
       setGreenAPIState(prev => ({
         ...prev,
-        isConnected: false
-      }));
-      
-      // Atualizar config também
-      const updatedWhatsAppConfig = {
-        ...config?.whatsapp,
         isConnected: false,
-        authorizedNumber: ''
-      };
-      updateConfig('whatsapp', updatedWhatsAppConfig);
-      
+        phoneNumber: ''
+      }));
       return { isConnected: false };
     }
 
     try {
-      console.log('🔍 Verificando status da conexão GREEN-API...');
+      console.log('🔍 Verificando status da instância GREEN-API...');
       
       const response = await fetch(
         `https://api.green-api.com/waInstance${apiConfig.instanceId}/getStateInstance/${apiConfig.apiToken}`,
-        { method: 'GET' }
+        { 
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        }
       );
 
+      console.log('📊 Response status:', response.status);
+
       if (!response.ok) {
-        throw new Error(`Erro na API: ${response.status}`);
+        const errorText = await response.text();
+        console.error('❌ Erro na API GREEN-API:', response.status, errorText);
+        throw new Error(`Erro na API: ${response.status} - ${errorText}`);
       }
 
       const data = await response.json();
-      console.log('📊 Status da instância:', data);
+      console.log('📋 Dados da instância:', data);
 
       const isConnected = data.stateInstance === 'authorized';
-      const phoneNumber = data.wid || '';
+      let phoneNumber = '';
+
+      if (isConnected) {
+        // Buscar informações da conta para pegar o número
+        try {
+          const accountResponse = await fetch(
+            `https://api.green-api.com/waInstance${apiConfig.instanceId}/getWaSettings/${apiConfig.apiToken}`,
+            { method: 'GET' }
+          );
+          
+          if (accountResponse.ok) {
+            const accountData = await accountResponse.json();
+            console.log('📱 Dados da conta:', accountData);
+            phoneNumber = accountData.wid || data.wid || '';
+          }
+        } catch (error) {
+          console.error('⚠️ Erro ao buscar dados da conta:', error);
+          phoneNumber = data.wid || '';
+        }
+      }
+      
+      const now = new Date().toISOString();
       
       setGreenAPIState(prev => ({
         ...prev,
         isConnected,
         phoneNumber: phoneNumber,
-        lastConnected: isConnected ? new Date().toISOString() : prev.lastConnected
+        instanceId: apiConfig.instanceId,
+        lastConnected: isConnected ? now : prev.lastConnected
       }));
 
-      // Atualizar configuração do WhatsApp no contexto
+      // Atualizar configuração
+      await updateAPIConfig({
+        phoneNumber: phoneNumber
+      });
+
       const updatedWhatsAppConfig = {
         ...config?.whatsapp,
         isConnected,
-        authorizedNumber: phoneNumber,
-        greenapi: {
-          ...config?.whatsapp?.greenapi,
-          phoneNumber: phoneNumber
-        }
+        authorizedNumber: phoneNumber
       };
 
       updateConfig('whatsapp', updatedWhatsAppConfig);
-      await saveConfig();
 
       if (isConnected) {
         console.log('✅ WhatsApp conectado:', phoneNumber);
+        toast({
+          title: "WhatsApp conectado!",
+          description: `Conectado ao número: ${phoneNumber}`,
+        });
+        
+        // Carregar chats após confirmar conexão
+        setTimeout(() => {
+          loadChats();
+        }, 1000);
       } else {
-        console.log('❌ WhatsApp não conectado');
+        console.log('❌ WhatsApp não conectado. Estado:', data.stateInstance);
+        toast({
+          title: "WhatsApp não conectado",
+          description: `Estado atual: ${data.stateInstance}`,
+          variant: "destructive"
+        });
       }
 
       return { isConnected, phoneNumber };
 
     } catch (error) {
       console.error('❌ Erro ao verificar status:', error);
+      
       setGreenAPIState(prev => ({
         ...prev,
-        isConnected: false
+        isConnected: false,
+        phoneNumber: ''
       }));
       
-      // Atualizar config com erro
-      const updatedWhatsAppConfig = {
-        ...config?.whatsapp,
-        isConnected: false,
-        authorizedNumber: ''
-      };
-      updateConfig('whatsapp', updatedWhatsAppConfig);
+      toast({
+        title: "Erro de conexão",
+        description: `Verifique suas credenciais GREEN-API: ${error.message}`,
+        variant: "destructive"
+      });
       
       return { isConnected: false };
     }
-  }, [apiConfig.instanceId, apiConfig.apiToken, config, updateConfig, saveConfig]);
+  }, [apiConfig.instanceId, apiConfig.apiToken, config, updateConfig, updateAPIConfig, toast]);
 
-  // Função para carregar chats - simplificada e com foco no banco primeiro
   const loadChats = useCallback(async () => {
     if (!user?.id) {
       console.log('❌ Usuário não autenticado');
       return;
     }
 
-    // Debounce simples
-    const now = Date.now();
-    if (now - lastFetchTime < 1000) {
-      console.log('⏳ Aguardando debounce para carregar chats');
+    if (!greenAPIState.isConnected) {
+      console.log('❌ GREEN-API não conectado');
       return;
     }
-    setLastFetchTime(now);
 
     try {
       console.log('📱 Carregando conversas do banco de dados...');
       
-      // Buscar conversas do banco de dados (mensagens recebidas via webhook)
+      const threeDaysAgo = new Date();
+      threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+      
       const { data: conversations, error: dbError } = await supabase
         .from('whatsapp_conversations')
         .select(`
@@ -234,11 +258,12 @@ export function useGreenAPI() {
           )
         `)
         .eq('user_id', user.id)
+        .gte('updated_at', threeDaysAgo.toISOString())
         .order('updated_at', { ascending: false })
-        .limit(50);
+        .limit(20);
 
       if (dbError) {
-        console.error('❌ Erro ao buscar conversas do banco:', dbError);
+        console.error('❌ Erro ao buscar conversas:', dbError);
         setChats([]);
         return;
       }
@@ -247,7 +272,6 @@ export function useGreenAPI() {
       
       if (conversations && conversations.length > 0) {
         dbChats = conversations.map((conv: any) => {
-          // Pegar a última mensagem
           const messages = conv.whatsapp_messages || [];
           const lastMessage = messages.length > 0 
             ? messages[messages.length - 1]
@@ -266,6 +290,8 @@ export function useGreenAPI() {
         });
         
         console.log(`✅ ${dbChats.length} conversas carregadas do banco`);
+      } else {
+        console.log('📭 Nenhuma conversa encontrada no banco dos últimos 3 dias');
       }
 
       setChats(dbChats);
@@ -279,7 +305,7 @@ export function useGreenAPI() {
         variant: "destructive"
       });
     }
-  }, [user?.id, lastFetchTime, toast]);
+  }, [user?.id, greenAPIState.isConnected, toast]);
 
   const loadChatHistory = useCallback(async (chatId: string) => {
     if (!chatId || !user?.id) {
@@ -290,7 +316,9 @@ export function useGreenAPI() {
     try {
       console.log(`📖 Carregando histórico do chat: ${chatId}`);
       
-      // Buscar mensagens do banco de dados
+      const threeDaysAgo = new Date();
+      threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+      
       const { data: dbMessages, error: dbError } = await supabase
         .from('whatsapp_messages')
         .select(`
@@ -299,8 +327,9 @@ export function useGreenAPI() {
         `)
         .eq('conversation.contact_phone', chatId)
         .eq('conversation.user_id', user.id)
+        .gte('timestamp', threeDaysAgo.toISOString())
         .order('timestamp', { ascending: true })
-        .limit(100);
+        .limit(50);
 
       if (!dbError && dbMessages && dbMessages.length > 0) {
         console.log(`📊 ${dbMessages.length} mensagens carregadas do banco`);
@@ -320,20 +349,14 @@ export function useGreenAPI() {
         return;
       }
 
-      // Se não tiver no banco, inicializar vazio
       console.log('⚠️ Nenhuma mensagem encontrada no banco para este chat');
       setMessages(prev => ({ ...prev, [chatId]: [] }));
 
     } catch (error) {
       console.error('❌ Erro ao carregar histórico:', error);
       setMessages(prev => ({ ...prev, [chatId]: [] }));
-      toast({
-        title: "Erro ao carregar histórico",
-        description: "Não foi possível carregar o histórico do chat",
-        variant: "destructive"
-      });
     }
-  }, [user?.id, toast]);
+  }, [user?.id]);
 
   const sendMessage = useCallback(async (chatId: string, message: string): Promise<boolean> => {
     if (!apiConfig.instanceId || !apiConfig.apiToken) {
@@ -361,13 +384,14 @@ export function useGreenAPI() {
       );
 
       if (!response.ok) {
-        throw new Error(`Erro ao enviar mensagem: ${response.status}`);
+        const errorText = await response.text();
+        throw new Error(`Erro ao enviar mensagem: ${response.status} - ${errorText}`);
       }
 
       const result = await response.json();
       console.log('✅ Mensagem enviada:', result);
 
-      // Adicionar mensagem localmente e salvar no banco
+      // Adicionar mensagem localmente
       const newMessage: Message = {
         id: result.idMessage || Math.random().toString(),
         text: message,
@@ -381,9 +405,8 @@ export function useGreenAPI() {
         [chatId]: [...(prev[chatId] || []), newMessage]
       }));
 
-      // Salvar no banco também
+      // Salvar no banco
       try {
-        // Buscar ou criar conversa
         let { data: conversation, error: convError } = await supabase
           .from('whatsapp_conversations')
           .select('*')
@@ -424,11 +447,6 @@ export function useGreenAPI() {
         console.error('❌ Erro ao salvar mensagem no banco:', dbError);
       }
 
-      // Atualizar lista de chats
-      setTimeout(() => {
-        loadChats();
-      }, 500);
-
       toast({
         title: "Mensagem enviada",
         description: "Mensagem enviada com sucesso"
@@ -439,12 +457,12 @@ export function useGreenAPI() {
       console.error('❌ Erro ao enviar mensagem:', error);
       toast({
         title: "Erro ao enviar",
-        description: "Não foi possível enviar a mensagem",
+        description: `Não foi possível enviar a mensagem: ${error.message}`,
         variant: "destructive"
       });
       return false;
     }
-  }, [apiConfig, toast, loadChats, user?.id]);
+  }, [apiConfig, toast, user?.id]);
 
   const togglePinChat = useCallback((chatId: string) => {
     setChats(prev => prev.map(chat => 
@@ -477,10 +495,11 @@ export function useGreenAPI() {
 
   const refreshChats = useCallback(async () => {
     console.log('🔄 Atualizando lista de conversas...');
-    setLastFetchTime(0); // Reset debounce
-    await checkConnectionStatus(); // Verificar conexão primeiro
-    await loadChats();
-  }, [loadChats, checkConnectionStatus]);
+    await checkConnectionStatus();
+    if (greenAPIState.isConnected) {
+      await loadChats();
+    }
+  }, [loadChats, checkConnectionStatus, greenAPIState.isConnected]);
 
   const getQRCode = useCallback(async (): Promise<string> => {
     if (!apiConfig.instanceId || !apiConfig.apiToken) {
@@ -504,11 +523,12 @@ export function useGreenAPI() {
       );
 
       if (!response.ok) {
-        throw new Error(`Erro ao gerar QR Code: ${response.status}`);
+        const errorText = await response.text();
+        throw new Error(`Erro ao gerar QR Code: ${response.status} - ${errorText}`);
       }
 
       const data = await response.json();
-      console.log('📊 QR Code gerado:', data);
+      console.log('📊 QR Code response:', data);
 
       if (data.type === 'qrCode') {
         const qrCode = `data:image/png;base64,${data.message}`;
@@ -519,6 +539,11 @@ export function useGreenAPI() {
           isGenerating: false
         }));
         
+        toast({
+          title: "QR Code gerado!",
+          description: "Escaneie com seu WhatsApp Business"
+        });
+        
         return qrCode;
       } else if (data.type === 'alreadyLogged') {
         setGreenAPIState(prev => ({
@@ -527,7 +552,6 @@ export function useGreenAPI() {
           isGenerating: false
         }));
         
-        // Verificar status novamente para pegar o número
         await checkConnectionStatus();
         
         toast({
@@ -538,13 +562,13 @@ export function useGreenAPI() {
         return '';
       }
       
-      throw new Error('Tipo de resposta inesperado');
+      throw new Error(`Tipo de resposta inesperado: ${data.type}`);
       
     } catch (error) {
       console.error('❌ Erro ao gerar QR Code:', error);
       toast({
         title: "Erro ao gerar QR Code",
-        description: "Verifique suas credenciais GREEN-API",
+        description: `Verifique suas credenciais: ${error.message}`,
         variant: "destructive"
       });
       return '';

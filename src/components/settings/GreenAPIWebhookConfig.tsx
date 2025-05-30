@@ -14,6 +14,7 @@ export function GreenAPIWebhookConfig() {
   const { apiConfig, updateAPIConfig } = useGreenAPI();
   const { toast } = useToast();
   const [isConfiguring, setIsConfiguring] = useState(false);
+  const [isTesting, setIsTesting] = useState(false);
   const [webhookStatus, setWebhookStatus] = useState<'unknown' | 'active' | 'inactive'>('unknown');
 
   // URL do webhook para este projeto
@@ -30,20 +31,34 @@ export function GreenAPIWebhookConfig() {
     if (!apiConfig.instanceId || !apiConfig.apiToken) return;
 
     try {
+      console.log('🔍 Verificando status do webhook...');
+      
       const response = await fetch(
         `https://api.green-api.com/waInstance${apiConfig.instanceId}/getSettings/${apiConfig.apiToken}`,
-        { method: 'GET' }
+        { 
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        }
       );
 
       if (response.ok) {
         const data = await response.json();
         console.log('📊 Configurações atuais:', data);
         
-        if (data.webhookUrl === webhookUrl) {
+        const isWebhookConfigured = data.webhookUrl === webhookUrl && data.incomingWebhook === true;
+        
+        if (isWebhookConfigured) {
           setWebhookStatus('active');
+          console.log('✅ Webhook configurado corretamente');
         } else {
           setWebhookStatus('inactive');
+          console.log('❌ Webhook não configurado ou incorreto');
         }
+      } else {
+        console.error('❌ Erro ao verificar configurações:', response.status);
+        setWebhookStatus('unknown');
       }
     } catch (error) {
       console.error('❌ Erro ao verificar status do webhook:', error);
@@ -88,7 +103,8 @@ export function GreenAPIWebhookConfig() {
       );
 
       if (!response.ok) {
-        throw new Error(`Erro ao configurar webhook: ${response.status}`);
+        const errorText = await response.text();
+        throw new Error(`Erro ${response.status}: ${errorText}`);
       }
 
       const data = await response.json();
@@ -125,20 +141,50 @@ export function GreenAPIWebhookConfig() {
   };
 
   const testWebhook = async () => {
+    if (!apiConfig.instanceId || !apiConfig.apiToken) {
+      toast({
+        title: "Configuração incompleta",
+        description: "Configure instanceId e apiToken primeiro",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsTesting(true);
+
     try {
       console.log('🧪 Testando webhook...');
       
+      // Teste direto na URL do webhook
       const response = await fetch(webhookUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiConfig.apiToken}`
+        },
         body: JSON.stringify({
           typeWebhook: 'test',
-          instanceData: { wid: 'test' },
-          timestamp: Date.now()
+          instanceData: { 
+            idInstance: apiConfig.instanceId,
+            wid: 'test@webhook.test',
+            typeInstance: 'whatsapp'
+          },
+          timestamp: Date.now(),
+          messageData: {
+            typeMessage: 'textMessage',
+            textMessageData: {
+              textMessage: 'Teste do webhook GREEN-API'
+            }
+          },
+          senderData: {
+            chatId: 'test@c.us',
+            chatName: 'Teste Webhook',
+            sender: 'test@c.us'
+          }
         })
       });
 
-      console.log('📊 Resposta do teste:', response.status);
+      console.log('📊 Status da resposta do teste:', response.status);
 
       if (response.ok) {
         const result = await response.json();
@@ -146,18 +192,27 @@ export function GreenAPIWebhookConfig() {
         
         toast({
           title: "Webhook funcionando!",
-          description: "O webhook está respondendo corretamente"
+          description: "O webhook está respondendo corretamente aos testes"
         });
       } else {
-        throw new Error(`Webhook retornou status ${response.status}`);
+        const errorText = await response.text();
+        console.error('❌ Erro no teste:', response.status, errorText);
+        
+        toast({
+          title: "Erro no teste",
+          description: `Webhook retornou erro ${response.status}: ${errorText}`,
+          variant: "destructive"
+        });
       }
     } catch (error) {
       console.error('❌ Erro no teste do webhook:', error);
       toast({
         title: "Erro no teste",
-        description: "O webhook não está funcionando corretamente",
+        description: `Erro ao testar webhook: ${error.message}`,
         variant: "destructive"
       });
+    } finally {
+      setIsTesting(false);
     }
   };
 
@@ -243,8 +298,12 @@ export function GreenAPIWebhookConfig() {
             {isConfiguring ? 'Configurando...' : 'Configurar Webhook Automaticamente'}
           </Button>
           
-          <Button onClick={testWebhook} variant="outline">
-            Testar Webhook
+          <Button 
+            onClick={testWebhook} 
+            variant="outline"
+            disabled={isTesting || !apiConfig.instanceId || !apiConfig.apiToken}
+          >
+            {isTesting ? 'Testando...' : 'Testar Webhook'}
           </Button>
         </div>
 
@@ -252,9 +311,9 @@ export function GreenAPIWebhookConfig() {
           <h4 className="font-medium text-blue-900 mb-2">Como funciona:</h4>
           <ul className="text-sm text-blue-800 space-y-1">
             <li>• O webhook recebe mensagens do WhatsApp em tempo real</li>
-            <li>• Mensagens de conversas monitoradas são salvas no banco</li>
-            <li>• Assistentes geram respostas automáticas quando configurados</li>
-            <li>• Status de mensagens são atualizados automaticamente</li>
+            <li>• Mensagens são salvas automaticamente no banco de dados</li>
+            <li>• Sistema processa mensagens para todos os usuários configurados</li>
+            <li>• Status de conexão é atualizado automaticamente</li>
           </ul>
         </div>
 
