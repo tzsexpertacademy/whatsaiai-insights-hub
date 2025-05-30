@@ -89,20 +89,20 @@ export function ObservatoryLanding() {
     }
   }, [isMobile, audioInitialized, initMobileAudio]);
 
-  // Sequência de entrada refinada - ajustada para 6 segundos
+  // Sequência de entrada refinada - 6 segundos total
   useEffect(() => {
     console.log('🚀 Iniciando sequência de entrada do YumerMind');
     
     // Mostrar logo imediatamente
     setShowLogo(true);
     
-    // Mostrar texto "ativando" após 6 segundos
+    // Mostrar texto "ativando" após 3 segundos
     setTimeout(() => {
       setShowActivatingText(true);
       console.log('⚡ Mostrando texto de ativação');
-    }, 6000);
+    }, 3000);
     
-    // Após 8 segundos total, começar transição para conteúdo
+    // Após 6 segundos total, começar transição para conteúdo
     setTimeout(() => {
       setShowLogo(false);
       setShowActivatingText(false);
@@ -113,7 +113,7 @@ export function ObservatoryLanding() {
         setTimeout(() => setShowSecondPhrase(true), 1400);
         console.log('✅ Conteúdo da página exibido');
       }, 600);
-    }, 8000);
+    }, 6000);
   }, []);
 
   // Sistema de áudio neural otimizado
