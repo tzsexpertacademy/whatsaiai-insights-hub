@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -5,8 +6,10 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useGreenAPI, MessagePeriod } from '@/hooks/useGreenAPI';
+import { useClientConfig } from '@/contexts/ClientConfigContext';
 import { 
   Send, 
   MessageSquare,
@@ -18,11 +21,14 @@ import {
   Loader2,
   AlertCircle,
   Calendar,
-  History
+  History,
+  Filter,
+  Settings
 } from 'lucide-react';
 
 export function WhatsAppMirror() {
   const { toast } = useToast();
+  const { config, updateConfig } = useClientConfig();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
   const {
@@ -42,6 +48,8 @@ export function WhatsAppMirror() {
   const [isSending, setIsSending] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [specificContact, setSpecificContact] = useState(config?.whatsapp?.specificContactFilter || '');
+  const [showContactFilter, setShowContactFilter] = useState(false);
 
   // Verificar conexão e carregar conversas quando componente montar
   useEffect(() => {
@@ -84,16 +92,33 @@ export function WhatsAppMirror() {
 
   const handleSelectChat = async (chat: any) => {
     console.log('📱 Selecionando conversa:', chat.name);
+    console.log('🔍 ChatId original:', chat.chatId);
+    
+    // Verificar se o chatId está no formato correto
+    if (!chat.chatId.includes('@')) {
+      console.log('⚠️ ChatId sem formato @, tentando corrigir...');
+      let correctedChatId = chat.chatId;
+      
+      // Se for apenas números, adicionar @c.us
+      if (/^\d+$/.test(chat.chatId)) {
+        correctedChatId = chat.chatId + '@c.us';
+        console.log('🔧 ChatId corrigido para:', correctedChatId);
+      }
+      
+      // Atualizar o chat com o ID corrigido
+      chat.chatId = correctedChatId;
+    }
+    
     setSelectedChat(chat);
     
     try {
-      await loadChatMessages(chat.chatId, 'today'); // Carregar apenas mensagens de hoje por padrão
+      await loadChatMessages(chat.chatId, 'today');
       console.log('✅ Mensagens carregadas para:', chat.name);
     } catch (error) {
       console.error('❌ Erro ao carregar mensagens:', error);
       toast({
         title: "Erro ao carregar mensagens",
-        description: "Tente novamente em alguns instantes",
+        description: "Formato de ID de chat inválido ou problema na API",
         variant: "destructive"
       });
     }
@@ -147,6 +172,32 @@ export function WhatsAppMirror() {
     } finally {
       setIsRefreshing(false);
     }
+  };
+
+  const handleSaveContactFilter = async () => {
+    if (!config?.whatsapp) return;
+    
+    updateConfig('whatsapp', {
+      ...config.whatsapp,
+      specificContactFilter: specificContact
+    });
+    
+    toast({
+      title: "Filtro configurado",
+      description: specificContact 
+        ? `Carregando apenas conversas de: ${specificContact}` 
+        : "Filtro removido - carregando todas as conversas",
+    });
+
+    // Recarregar conversas com o novo filtro
+    setIsRefreshing(true);
+    try {
+      await loadChats();
+    } finally {
+      setIsRefreshing(false);
+    }
+    
+    setShowContactFilter(false);
   };
 
   const formatTime = (timestamp: string) => {
@@ -218,6 +269,13 @@ export function WhatsAppMirror() {
               <Button
                 variant="outline"
                 size="sm"
+                onClick={() => setShowContactFilter(!showContactFilter)}
+              >
+                <Filter className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={handleRefreshChats}
                 disabled={isRefreshing}
               >
@@ -226,6 +284,48 @@ export function WhatsAppMirror() {
               <Badge variant="secondary">{chats.length}</Badge>
             </div>
           </div>
+          
+          {/* Filtro de Contato Específico */}
+          {showContactFilter && (
+            <div className="space-y-3 p-3 bg-gray-50 rounded-lg border">
+              <div className="flex items-center gap-2">
+                <Filter className="h-4 w-4 text-gray-500" />
+                <Label className="text-sm font-medium">Filtro por Contato</Label>
+              </div>
+              <div className="space-y-2">
+                <Input
+                  placeholder="Ex: 5511999999999 ou nome"
+                  value={specificContact}
+                  onChange={(e) => setSpecificContact(e.target.value)}
+                  className="text-sm"
+                />
+                <div className="flex gap-2">
+                  <Button 
+                    onClick={handleSaveContactFilter}
+                    size="sm"
+                    disabled={isRefreshing}
+                  >
+                    {isRefreshing ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Aplicar'}
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => {
+                      setSpecificContact('');
+                      setShowContactFilter(false);
+                    }}
+                  >
+                    Limpar
+                  </Button>
+                </div>
+              </div>
+              {config?.whatsapp?.specificContactFilter && (
+                <div className="text-xs text-blue-600 bg-blue-50 p-2 rounded">
+                  <strong>Filtro ativo:</strong> {config.whatsapp.specificContactFilter}
+                </div>
+              )}
+            </div>
+          )}
           
           <div className="flex items-center gap-2 text-sm text-green-600">
             <Smartphone className="h-4 w-4" />
@@ -270,6 +370,9 @@ export function WhatsAppMirror() {
                       <p className="text-sm text-gray-500 truncate mt-1">
                         {chat.lastMessage}
                       </p>
+                      <p className="text-xs text-gray-400 mt-1">
+                        ID: {chat.chatId}
+                      </p>
                     </div>
                     
                     <div className="flex flex-col items-end">
@@ -305,7 +408,7 @@ export function WhatsAppMirror() {
                   <div>
                     <CardTitle>{selectedChat.name}</CardTitle>
                     <p className="text-sm text-gray-500">
-                      {selectedChat.isGroup ? 'Grupo' : 'Conversa individual'}
+                      {selectedChat.isGroup ? 'Grupo' : 'Conversa individual'} • ID: {selectedChat.chatId}
                     </p>
                   </div>
                 </div>
