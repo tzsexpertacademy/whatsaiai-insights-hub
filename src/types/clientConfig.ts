@@ -11,6 +11,7 @@ export interface WhatsAppConfig {
   atendechatApiKey?: string;
   atendechatWebhookUrl?: string;
   makeWebhookUrl?: string;
+  specificContactFilter?: string; // Novo campo para filtrar contato específico
   greenapi?: {
     instanceId: string;
     apiToken: string;
@@ -54,6 +55,7 @@ export const defaultConfig: ClientConfig = {
     atendechatApiKey: '',
     atendechatWebhookUrl: '',
     makeWebhookUrl: '',
+    specificContactFilter: '', // Novo campo
     greenapi: {
       instanceId: '',
       apiToken: '',

@@ -1,4 +1,3 @@
-
 import { useState, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useClientConfig } from '@/contexts/ClientConfigContext';
@@ -255,7 +254,7 @@ export function useGreenAPI() {
     }
   }, [getAPIConfig, toast]);
 
-  // Carregar conversas
+  // Carregar conversas com filtro opcional por contato específico
   const loadChats = useCallback(async () => {
     const { instanceId, apiToken } = getAPIConfig();
     
@@ -266,7 +265,61 @@ export function useGreenAPI() {
       return;
     }
 
+    // Verificar se há filtro por contato específico
+    const specificContact = config?.whatsapp?.specificContactFilter;
+    console.log('🎯 Filtro de contato específico:', specificContact || 'Nenhum');
+
     try {
+      if (specificContact && specificContact.trim()) {
+        // Carregar apenas conversa específica
+        console.log('📞 Carregando conversa específica para:', specificContact);
+        
+        // Formatar número para chatId (adicionar @c.us se não for grupo)
+        let chatId = specificContact.trim();
+        if (!chatId.includes('@')) {
+          chatId = chatId.replace(/\D/g, '') + '@c.us'; // Remove caracteres não numéricos e adiciona @c.us
+        }
+        
+        console.log('💬 ChatId formatado:', chatId);
+        
+        // Verificar se o chat existe
+        const checkChatUrl = `https://api.green-api.com/waInstance${instanceId}/checkWhatsapp/${apiToken}`;
+        const checkResponse = await fetch(checkChatUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phoneNumber: chatId.replace('@c.us', '') })
+        });
+        
+        if (checkResponse.ok) {
+          const checkData = await checkResponse.json();
+          console.log('✅ Verificação do contato:', checkData);
+          
+          if (checkData.existsWhatsapp) {
+            const formattedChats = [{
+              chatId: chatId,
+              name: specificContact,
+              lastMessage: 'Toque para carregar mensagens',
+              timestamp: new Date().toISOString(),
+              unreadCount: 0,
+              isGroup: chatId.includes('@g.us')
+            }];
+            
+            setChats(formattedChats);
+            console.log('✅ Conversa específica carregada:', formattedChats[0].name);
+            return;
+          } else {
+            console.log('❌ Contato não encontrado no WhatsApp:', specificContact);
+            toast({
+              title: "Contato não encontrado",
+              description: `O número ${specificContact} não foi encontrado no WhatsApp`,
+              variant: "destructive"
+            });
+            return;
+          }
+        }
+      }
+
+      // Carregar todas as conversas (comportamento padrão)
       const url = `https://api.green-api.com/waInstance${instanceId}/getChats/${apiToken}`;
       console.log('📡 Fazendo requisição para conversas:', url);
       
@@ -305,7 +358,7 @@ export function useGreenAPI() {
         variant: "destructive"
       });
     }
-  }, [getAPIConfig, connectionState.isConnected, toast]);
+  }, [getAPIConfig, connectionState.isConnected, config, toast]);
 
   // Carregar mensagens com filtro de período
   const loadChatMessages = useCallback(async (chatId: string, period: MessagePeriod = currentPeriod) => {

@@ -1,13 +1,13 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Users, Plus, Search, Phone, Calendar, BarChart3 } from 'lucide-react';
+import { Users, Plus, Search, Phone, Calendar, BarChart3, Filter } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { useAnalysisData } from '@/contexts/AnalysisDataContext';
+import { useClientConfig } from '@/contexts/ClientConfigContext';
 
 interface Client {
   id: string;
@@ -21,9 +21,11 @@ interface Client {
 
 export function ClientConfig() {
   const { data: analysisData } = useAnalysisData();
+  const { config, updateConfig } = useClientConfig();
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
   const [newClient, setNewClient] = useState({ name: '', phone: '' });
+  const [specificContact, setSpecificContact] = useState(config?.whatsapp?.specificContactFilter || '');
   const { toast } = useToast();
 
   // Use empty clients array when no real data exists
@@ -51,6 +53,22 @@ export function ClientConfig() {
     });
     setNewClient({ name: '', phone: '' });
     setShowAddForm(false);
+  };
+
+  const handleSaveContactFilter = () => {
+    if (!config?.whatsapp) return;
+    
+    updateConfig('whatsapp', {
+      ...config.whatsapp,
+      specificContactFilter: specificContact
+    });
+    
+    toast({
+      title: "Filtro salvo",
+      description: specificContact 
+        ? `Filtro configurado para: ${specificContact}` 
+        : "Filtro removido - todas as conversas serão carregadas",
+    });
   };
 
   const getStatusColor = (status: Client['status']) => {
@@ -83,6 +101,47 @@ export function ClientConfig() {
           Adicionar Cliente
         </Button>
       </div>
+
+      {/* Filtro por Contato Específico */}
+      <Card className="bg-white/70 backdrop-blur-sm border-white/50">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Filter className="h-5 w-5" />
+            Filtro de Contato WhatsApp
+          </CardTitle>
+          <CardDescription>
+            Configure um número específico para carregar apenas suas conversas (deixe vazio para carregar todas)
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex gap-2">
+            <div className="flex-1">
+              <Label htmlFor="specific-contact">Número do WhatsApp</Label>
+              <Input
+                id="specific-contact"
+                value={specificContact}
+                onChange={(e) => setSpecificContact(e.target.value)}
+                placeholder="Ex: 5511999999999 ou nome do contato"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Use o número completo com código do país (sem + ou espaços) ou nome do contato
+              </p>
+            </div>
+            <div className="flex items-end">
+              <Button onClick={handleSaveContactFilter}>
+                Salvar Filtro
+              </Button>
+            </div>
+          </div>
+          {config?.whatsapp?.specificContactFilter && (
+            <div className="p-2 bg-blue-50 rounded-lg">
+              <p className="text-sm text-blue-700">
+                <strong>Filtro ativo:</strong> {config.whatsapp.specificContactFilter}
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Estatísticas */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
