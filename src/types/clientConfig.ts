@@ -11,10 +11,15 @@ export interface WhatsAppConfig {
   atendechatApiKey?: string;
   atendechatWebhookUrl?: string;
   makeWebhookUrl?: string;
-  specificContactFilter?: string; // Novo campo para filtrar contato específico
+  specificContactFilter?: string;
   greenapi?: {
     instanceId: string;
     apiToken: string;
+    webhookUrl?: string;
+  };
+  wppconnect?: {
+    serverUrl: string;
+    sessionName: string;
     webhookUrl?: string;
   };
 }
@@ -47,7 +52,7 @@ export const defaultConfig: ClientConfig = {
     isConnected: false,
     authorizedNumber: '',
     qrCode: '',
-    platform: 'atendechat',
+    platform: 'wppconnect', // Mudando padrão para WPPConnect
     autoSync: false,
     syncInterval: 'daily',
     autoReply: false,
@@ -55,10 +60,15 @@ export const defaultConfig: ClientConfig = {
     atendechatApiKey: '',
     atendechatWebhookUrl: '',
     makeWebhookUrl: '',
-    specificContactFilter: '', // Novo campo
+    specificContactFilter: '',
     greenapi: {
       instanceId: '',
       apiToken: '',
+      webhookUrl: ''
+    },
+    wppconnect: {
+      serverUrl: 'http://localhost:21465',
+      sessionName: 'crm-session',
       webhookUrl: ''
     }
   },
