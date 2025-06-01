@@ -245,7 +245,7 @@ export function useWPPConnect() {
         const formattedMessages: Message[] = data.map((msg: any) => ({
           id: msg.id._serialized || Math.random().toString(),
           text: msg.body || '[Mídia]',
-          sender: msg.fromMe ? 'user' : 'contact',
+          sender: msg.fromMe ? 'user' : 'contact' as 'user' | 'contact',
           timestamp: new Date(msg.timestamp * 1000).toISOString(),
           chatId: chatId
         }));
@@ -367,7 +367,7 @@ export function useWPPConnect() {
             .map((msg: any) => ({
               id: msg.id._serialized,
               text: msg.body || '[Mídia]',
-              sender: msg.fromMe ? 'user' : 'contact',
+              sender: msg.fromMe ? 'user' : 'contact' as 'user' | 'contact',
               timestamp: new Date(msg.timestamp * 1000).toISOString(),
               chatId: currentChatId
             }));
