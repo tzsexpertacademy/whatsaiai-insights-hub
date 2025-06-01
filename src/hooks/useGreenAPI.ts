@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useClientConfig } from '@/contexts/ClientConfigContext';
 
@@ -48,6 +48,12 @@ export function useGreenAPI() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentPeriod, setCurrentPeriod] = useState<MessagePeriod>('today');
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+  
+  // Estados para tempo real
+  const [isLiveMode, setIsLiveMode] = useState(false);
+  const [currentChatId, setCurrentChatId] = useState<string>('');
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const lastMessageTimestampRef = useRef<number>(0);
 
   // Obter configuração atual da GREEN-API
   const getAPIConfig = useCallback((): GreenAPIConfig => {
@@ -82,13 +88,12 @@ export function useGreenAPI() {
     });
   }, [config, updateConfig]);
 
-  // Calcular data de início baseada no período - MELHORADO
+  // Calcular data de início baseada no período
   const getStartDate = useCallback((period: MessagePeriod): Date => {
     const now = new Date();
     
     switch (period) {
       case 'today':
-        // Para "hoje", pegar desde a meia-noite de ontem para garantir que pega todas as mensagens recentes
         const yesterday = new Date(now);
         yesterday.setDate(yesterday.getDate() - 1);
         yesterday.setHours(0, 0, 0, 0);
@@ -256,6 +261,7 @@ export function useGreenAPI() {
       
       setChats([]);
       setMessages([]);
+      stopLiveMode();
       
       toast({
         title: "Desconectado",
@@ -266,7 +272,7 @@ export function useGreenAPI() {
     }
   }, [getAPIConfig, toast]);
 
-  // Carregar conversas com filtro opcional por contato específico
+  // Carregar conversas
   const loadChats = useCallback(async (specificContactOverride?: string) => {
     const { instanceId, apiToken } = getAPIConfig();
     
@@ -277,24 +283,20 @@ export function useGreenAPI() {
       return;
     }
 
-    // Usar o override se fornecido, senão usar o da config
     const specificContact = specificContactOverride || config?.whatsapp?.specificContactFilter;
     console.log('🎯 Filtro de contato específico:', specificContact || 'Nenhum');
 
     try {
       if (specificContact && specificContact.trim()) {
-        // Carregar apenas conversa específica
         console.log('📞 Carregando conversa específica para:', specificContact);
         
-        // Formatar número para chatId (adicionar @c.us se não for grupo)
         let chatId = specificContact.trim();
         if (!chatId.includes('@')) {
-          chatId = chatId.replace(/\D/g, '') + '@c.us'; // Remove caracteres não numéricos e adiciona @c.us
+          chatId = chatId.replace(/\D/g, '') + '@c.us';
         }
         
         console.log('💬 ChatId formatado:', chatId);
         
-        // Verificar se o chat existe
         const checkChatUrl = `https://api.green-api.com/waInstance${instanceId}/checkWhatsapp/${apiToken}`;
         const checkResponse = await fetch(checkChatUrl, {
           method: 'POST',
@@ -331,7 +333,6 @@ export function useGreenAPI() {
         }
       }
 
-      // Carregar todas as conversas (comportamento padrão) - REMOVIDO O LIMITE DE 20
       const url = `https://api.green-api.com/waInstance${instanceId}/getChats/${apiToken}`;
       console.log('📡 Fazendo requisição para conversas:', url);
       
@@ -349,7 +350,6 @@ export function useGreenAPI() {
       console.log(`📊 Total de conversas disponíveis: ${data.length}`);
       
       if (Array.isArray(data)) {
-        // REMOVIDO o .slice(0, 20) para carregar TODAS as conversas
         const formattedChats: Chat[] = data.map((chat: any) => ({
           chatId: chat.id,
           name: chat.name || chat.id.split('@')[0],
@@ -374,7 +374,7 @@ export function useGreenAPI() {
     }
   }, [getAPIConfig, connectionState.isConnected, config, toast]);
 
-  // Carregar mensagens com filtro de período - MELHORADO COM DELAY E MAIS DEBUG
+  // Carregar mensagens (função principal)
   const loadChatMessages = useCallback(async (chatId: string, period: MessagePeriod = currentPeriod) => {
     const { instanceId, apiToken } = getAPIConfig();
     
@@ -385,7 +385,6 @@ export function useGreenAPI() {
       return;
     }
 
-    // DELAY PARA EVITAR RATE LIMIT
     await new Promise(resolve => setTimeout(resolve, 1000));
 
     setIsLoadingMessages(true);
@@ -404,7 +403,7 @@ export function useGreenAPI() {
       const url = `https://api.green-api.com/waInstance${instanceId}/getChatHistory/${apiToken}`;
       const requestBody = {
         chatId: chatId,
-        count: period === 'today' ? 100 : period === '7days' ? 200 : 500 // Aumentei os limites
+        count: period === 'today' ? 100 : period === '7days' ? 200 : 500
       };
       
       console.log('📡 Fazendo requisição para mensagens:', url);
@@ -431,7 +430,6 @@ export function useGreenAPI() {
       if (Array.isArray(data)) {
         console.log(`📨 Total de mensagens brutas recebidas: ${data.length}`);
         
-        // Log das primeiras mensagens para debug
         if (data.length > 0) {
           console.log('📋 Primeiras 3 mensagens brutas:', data.slice(0, 3).map(msg => ({
             timestamp: msg.timestamp,
@@ -439,11 +437,16 @@ export function useGreenAPI() {
             type: msg.type,
             text: msg.textMessage?.substring(0, 50) + '...'
           })));
+          
+          // Armazenar timestamp da última mensagem para o modo ao vivo
+          if (data.length > 0) {
+            lastMessageTimestampRef.current = Math.max(...data.map(msg => msg.timestamp || 0));
+            console.log('📅 Última mensagem timestamp:', lastMessageTimestampRef.current);
+          }
         }
         
         let filteredData = data;
         
-        // Filtrar por período se não for 'all'
         if (period !== 'all') {
           const originalLength = filteredData.length;
           filteredData = data.filter((msg: any) => {
@@ -481,7 +484,6 @@ export function useGreenAPI() {
           };
         });
 
-        // Atualizar apenas as mensagens do chat atual
         setMessages(prev => [
           ...prev.filter(m => m.chatId !== chatId),
           ...formattedMessages
@@ -491,7 +493,6 @@ export function useGreenAPI() {
         
         console.log(`✅ Processadas ${formattedMessages.length} mensagens (${period}) para ${chatId}`);
         
-        // Log detalhado das mensagens processadas
         if (formattedMessages.length > 0) {
           console.log('📋 Mensagens processadas (primeiras 3):', formattedMessages.slice(0, 3).map(msg => ({
             text: msg.text.substring(0, 30) + '...',
@@ -500,7 +501,6 @@ export function useGreenAPI() {
             isToday: new Date(msg.timestamp).toDateString() === new Date().toDateString()
           })));
           
-          // Contar mensagens de hoje especificamente
           const todayMessages = formattedMessages.filter(msg => 
             new Date(msg.timestamp).toDateString() === new Date().toDateString()
           );
@@ -508,7 +508,6 @@ export function useGreenAPI() {
         } else {
           console.log('⚠️ Nenhuma mensagem foi processada!');
           
-          // Se não há mensagens, vamos tentar carregar um período maior automaticamente
           if (period === 'today') {
             console.log('🔄 Tentando carregar mensagens dos últimos 7 dias...');
             setTimeout(() => loadChatMessages(chatId, '7days'), 2000);
@@ -521,7 +520,6 @@ export function useGreenAPI() {
     } catch (error) {
       console.error('❌ Erro ao carregar mensagens:', error);
       
-      // Log específico para erro 429
       if (error instanceof Error && error.message.includes('429')) {
         console.error('🚫 ERRO 429 - Rate limit atingido! Aguarde alguns minutos antes de tentar novamente.');
         toast({
@@ -540,6 +538,121 @@ export function useGreenAPI() {
       setIsLoadingMessages(false);
     }
   }, [getAPIConfig, currentPeriod, getStartDate, toast]);
+
+  // NOVA FUNÇÃO: Carregar apenas novas mensagens (para modo ao vivo)
+  const loadNewMessages = useCallback(async (chatId: string) => {
+    const { instanceId, apiToken } = getAPIConfig();
+    
+    if (!instanceId || !apiToken || !chatId || !lastMessageTimestampRef.current) return;
+
+    try {
+      console.log('🔴 [LIVE] Verificando novas mensagens...');
+      
+      const url = `https://api.green-api.com/waInstance${instanceId}/getChatHistory/${apiToken}`;
+      const requestBody = {
+        chatId: chatId,
+        count: 20 // Apenas as 20 mais recentes
+      };
+      
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody)
+      });
+
+      if (!response.ok) return;
+
+      const data = await response.json();
+      
+      if (Array.isArray(data) && data.length > 0) {
+        // Filtrar apenas mensagens mais novas que a última conhecida
+        const newMessages = data.filter((msg: any) => 
+          msg.timestamp > lastMessageTimestampRef.current
+        );
+        
+        if (newMessages.length > 0) {
+          console.log(`🔴 [LIVE] ${newMessages.length} novas mensagens encontradas!`);
+          
+          const formattedNewMessages: Message[] = newMessages.map((msg: any) => ({
+            id: msg.idMessage || Math.random().toString(),
+            text: msg.textMessage || '[Mídia ou mensagem especial]',
+            sender: msg.type === 'outgoing' ? 'user' : 'contact',
+            timestamp: new Date(msg.timestamp * 1000).toISOString(),
+            chatId: chatId
+          }));
+
+          // Adicionar novas mensagens ao estado
+          setMessages(prev => [...prev, ...formattedNewMessages]);
+          
+          // Atualizar último timestamp
+          lastMessageTimestampRef.current = Math.max(...newMessages.map(msg => msg.timestamp));
+          
+          // Mostrar notificação para novas mensagens recebidas
+          const newIncomingMessages = formattedNewMessages.filter(msg => msg.sender === 'contact');
+          if (newIncomingMessages.length > 0) {
+            toast({
+              title: "Nova mensagem!",
+              description: `${newIncomingMessages.length} nova(s) mensagem(ns) recebida(s)`,
+            });
+          }
+        } else {
+          console.log('🔴 [LIVE] Nenhuma mensagem nova');
+        }
+      }
+    } catch (error) {
+      console.error('❌ [LIVE] Erro ao verificar novas mensagens:', error);
+    }
+  }, [getAPIConfig, toast]);
+
+  // NOVA FUNÇÃO: Iniciar modo ao vivo
+  const startLiveMode = useCallback((chatId: string) => {
+    console.log('🔴 [LIVE] Iniciando modo ao vivo para:', chatId);
+    
+    // Parar polling anterior se existir
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+    }
+    
+    setIsLiveMode(true);
+    setCurrentChatId(chatId);
+    
+    // Iniciar polling a cada 3 segundos
+    pollingIntervalRef.current = setInterval(() => {
+      loadNewMessages(chatId);
+    }, 3000);
+    
+    toast({
+      title: "Modo ao vivo ativado",
+      description: "Conversas serão atualizadas automaticamente",
+    });
+  }, [loadNewMessages, toast]);
+
+  // NOVA FUNÇÃO: Parar modo ao vivo
+  const stopLiveMode = useCallback(() => {
+    console.log('🔴 [LIVE] Parando modo ao vivo');
+    
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+    }
+    
+    setIsLiveMode(false);
+    setCurrentChatId('');
+    
+    toast({
+      title: "Modo ao vivo desativado",
+      description: "Atualizações automáticas foram interrompidas",
+    });
+  }, [toast]);
+
+  // Cleanup no unmount
+  useEffect(() => {
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+      }
+    };
+  }, []);
 
   // Enviar mensagem
   const sendMessage = useCallback(async (chatId: string, text: string) => {
@@ -568,7 +681,6 @@ export function useGreenAPI() {
 
       const data = await response.json();
       
-      // Adicionar mensagem enviada à lista local
       const newMessage: Message = {
         id: data.idMessage || Math.random().toString(),
         text: text.trim(),
@@ -578,6 +690,9 @@ export function useGreenAPI() {
       };
       
       setMessages(prev => [...prev, newMessage]);
+      
+      // Atualizar timestamp da última mensagem
+      lastMessageTimestampRef.current = Math.floor(Date.now() / 1000);
       
       toast({
         title: "Mensagem enviada",
@@ -604,6 +719,10 @@ export function useGreenAPI() {
     currentPeriod,
     isLoadingMessages,
     
+    // Estados do modo ao vivo
+    isLiveMode,
+    currentChatId,
+    
     // Configuração
     getAPIConfig,
     saveAPIConfig,
@@ -614,6 +733,11 @@ export function useGreenAPI() {
     disconnect,
     loadChats,
     loadChatMessages,
-    sendMessage
+    sendMessage,
+    
+    // Ações do modo ao vivo
+    startLiveMode,
+    stopLiveMode,
+    loadNewMessages
   };
 }

@@ -22,7 +22,9 @@ import {
   Calendar,
   History,
   Filter,
-  Settings
+  Settings,
+  Play,
+  Square
 } from 'lucide-react';
 
 export function WhatsAppMirror() {
@@ -36,10 +38,14 @@ export function WhatsAppMirror() {
     messages,
     currentPeriod,
     isLoadingMessages,
+    isLiveMode,
+    currentChatId,
     checkInstanceStatus,
     loadChats,
     loadChatMessages,
-    sendMessage
+    sendMessage,
+    startLiveMode,
+    stopLiveMode
   } = useGreenAPI();
 
   const [selectedChat, setSelectedChat] = useState<any>(null);
@@ -93,18 +99,20 @@ export function WhatsAppMirror() {
     console.log('📱 Selecionando conversa:', chat.name);
     console.log('🔍 ChatId original:', chat.chatId);
     
-    // Verificar se o chatId está no formato correto
+    // Parar modo ao vivo anterior se existir
+    if (isLiveMode && currentChatId !== chat.chatId) {
+      stopLiveMode();
+    }
+    
     if (!chat.chatId.includes('@')) {
       console.log('⚠️ ChatId sem formato @, tentando corrigir...');
       let correctedChatId = chat.chatId;
       
-      // Se for apenas números, adicionar @c.us
       if (/^\d+$/.test(chat.chatId)) {
         correctedChatId = chat.chatId + '@c.us';
         console.log('🔧 ChatId corrigido para:', correctedChatId);
       }
       
-      // Atualizar o chat com o ID corrigido
       chat.chatId = correctedChatId;
     }
     
@@ -128,6 +136,23 @@ export function WhatsAppMirror() {
     
     console.log(`📅 Carregando mensagens do período: ${period}`);
     await loadChatMessages(selectedChat.chatId, period);
+  };
+
+  const handleToggleLiveMode = () => {
+    if (!selectedChat) {
+      toast({
+        title: "Selecione uma conversa",
+        description: "Escolha uma conversa primeiro para ativar o modo ao vivo",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (isLiveMode && currentChatId === selectedChat.chatId) {
+      stopLiveMode();
+    } else {
+      startLiveMode(selectedChat.chatId);
+    }
   };
 
   const handleSendMessage = async () => {
@@ -155,7 +180,6 @@ export function WhatsAppMirror() {
     setIsRefreshing(true);
     
     try {
-      // Usar filtro específico se configurado
       await loadChats(specificContact || undefined);
       
       toast({
@@ -181,7 +205,6 @@ export function WhatsAppMirror() {
     setIsRefreshing(true);
     
     try {
-      // Carregar apenas o contato específico
       await loadChats(specificContact || undefined);
       
       toast({
@@ -288,7 +311,7 @@ export function WhatsAppMirror() {
             </div>
           </div>
           
-          {/* Filtro de Contato Específico - MELHORADO */}
+          {/* Filtro de Contato Específico */}
           {showContactFilter && (
             <div className="space-y-3 p-3 bg-gray-50 rounded-lg border">
               <div className="flex items-center gap-2">
@@ -370,6 +393,13 @@ export function WhatsAppMirror() {
                           <MessageSquare className="h-4 w-4 text-gray-400" />
                         )}
                         <span className="font-medium truncate">{chat.name}</span>
+                        {/* Indicador de modo ao vivo */}
+                        {isLiveMode && currentChatId === chat.chatId && (
+                          <div className="flex items-center gap-1">
+                            <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                            <span className="text-xs text-red-600 font-medium">LIVE</span>
+                          </div>
+                        )}
                       </div>
                       <p className="text-sm text-gray-500 truncate mt-1">
                         {chat.lastMessage}
@@ -410,9 +440,36 @@ export function WhatsAppMirror() {
                     <MessageSquare className="h-5 w-5" />
                   )}
                   <div>
-                    <CardTitle>{selectedChat.name}</CardTitle>
+                    <CardTitle className="flex items-center gap-2">
+                      {selectedChat.name}
+                      {/* Botão de Modo Ao Vivo */}
+                      <Button
+                        variant={isLiveMode && currentChatId === selectedChat.chatId ? "destructive" : "default"}
+                        size="sm"
+                        onClick={handleToggleLiveMode}
+                        className="ml-2"
+                      >
+                        {isLiveMode && currentChatId === selectedChat.chatId ? (
+                          <>
+                            <Square className="h-4 w-4 mr-1" />
+                            Parar Live
+                          </>
+                        ) : (
+                          <>
+                            <Play className="h-4 w-4 mr-1" />
+                            Modo Live
+                          </>
+                        )}
+                      </Button>
+                    </CardTitle>
                     <p className="text-sm text-gray-500">
                       {selectedChat.isGroup ? 'Grupo' : 'Conversa individual'} • ID: {selectedChat.chatId}
+                      {/* Status do modo ao vivo */}
+                      {isLiveMode && currentChatId === selectedChat.chatId && (
+                        <span className="ml-2 text-red-600 font-medium">
+                          🔴 AO VIVO - Atualizando automaticamente
+                        </span>
+                      )}
                     </p>
                   </div>
                 </div>
@@ -449,7 +506,7 @@ export function WhatsAppMirror() {
                   <div className="text-center text-gray-500 py-8">
                     <History className="h-8 w-8 mx-auto mb-2" />
                     <p>Nenhuma mensagem encontrada para este período</p>
-                    <p className="text-xs mt-1">Experimente carregar um período maior</p>
+                    <p className="text-xs mt-1">Experimente carregar um período maior ou ativar o modo ao vivo</p>
                   </div>
                 ) : (
                   messages
@@ -513,6 +570,7 @@ export function WhatsAppMirror() {
             <div className="text-center text-gray-500">
               <MessageSquare className="h-12 w-12 mx-auto mb-4" />
               <p>Selecione uma conversa para começar</p>
+              <p className="text-sm mt-2">💡 Use o botão "Modo Live" para ver mensagens em tempo real</p>
             </div>
           </CardContent>
         )}
