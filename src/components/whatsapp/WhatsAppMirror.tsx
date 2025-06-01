@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -48,7 +47,7 @@ export function WhatsAppMirror() {
   const [isSending, setIsSending] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
-  const [specificContact, setSpecificContact] = useState(config?.whatsapp?.specificContactFilter || '');
+  const [specificContact, setSpecificContact] = useState('');
   const [showContactFilter, setShowContactFilter] = useState(false);
 
   // Verificar conexão e carregar conversas quando componente montar
@@ -156,11 +155,14 @@ export function WhatsAppMirror() {
     setIsRefreshing(true);
     
     try {
-      await loadChats();
+      // Usar filtro específico se configurado
+      await loadChats(specificContact || undefined);
       
       toast({
         title: "Conversas atualizadas",
-        description: "Lista de conversas foi recarregada"
+        description: specificContact 
+          ? `Carregando conversa de: ${specificContact}`
+          : "Lista de conversas foi recarregada"
       });
     } catch (error) {
       console.error('❌ Erro ao atualizar conversas:', error);
@@ -174,30 +176,31 @@ export function WhatsAppMirror() {
     }
   };
 
-  const handleSaveContactFilter = async () => {
-    if (!config?.whatsapp) return;
-    
-    updateConfig('whatsapp', {
-      ...config.whatsapp,
-      specificContactFilter: specificContact
-    });
-    
-    toast({
-      title: "Filtro configurado",
-      description: specificContact 
-        ? `Carregando apenas conversas de: ${specificContact}` 
-        : "Filtro removido - carregando todas as conversas",
-    });
-
-    // Recarregar conversas com o novo filtro
+  const handleApplyContactFilter = async () => {
+    console.log('🎯 Aplicando filtro para contato:', specificContact);
     setIsRefreshing(true);
+    
     try {
-      await loadChats();
+      // Carregar apenas o contato específico
+      await loadChats(specificContact || undefined);
+      
+      toast({
+        title: "Filtro aplicado",
+        description: specificContact 
+          ? `Carregando apenas conversas de: ${specificContact}` 
+          : "Filtro removido - carregando todas as conversas",
+      });
+    } catch (error) {
+      console.error('❌ Erro ao aplicar filtro:', error);
+      toast({
+        title: "Erro ao aplicar filtro",
+        description: "Não foi possível filtrar as conversas",
+        variant: "destructive"
+      });
     } finally {
       setIsRefreshing(false);
+      setShowContactFilter(false);
     }
-    
-    setShowContactFilter(false);
   };
 
   const formatTime = (timestamp: string) => {
@@ -285,7 +288,7 @@ export function WhatsAppMirror() {
             </div>
           </div>
           
-          {/* Filtro de Contato Específico */}
+          {/* Filtro de Contato Específico - MELHORADO */}
           {showContactFilter && (
             <div className="space-y-3 p-3 bg-gray-50 rounded-lg border">
               <div className="flex items-center gap-2">
@@ -294,34 +297,35 @@ export function WhatsAppMirror() {
               </div>
               <div className="space-y-2">
                 <Input
-                  placeholder="Ex: 5511999999999 ou nome"
+                  placeholder="Ex: 5511999999999 ou nome do contato"
                   value={specificContact}
                   onChange={(e) => setSpecificContact(e.target.value)}
                   className="text-sm"
                 />
                 <div className="flex gap-2">
                   <Button 
-                    onClick={handleSaveContactFilter}
+                    onClick={handleApplyContactFilter}
                     size="sm"
                     disabled={isRefreshing}
                   >
-                    {isRefreshing ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Aplicar'}
+                    {isRefreshing ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Aplicar Filtro'}
                   </Button>
                   <Button 
                     variant="outline" 
                     size="sm"
                     onClick={() => {
                       setSpecificContact('');
-                      setShowContactFilter(false);
+                      handleApplyContactFilter();
                     }}
+                    disabled={isRefreshing}
                   >
-                    Limpar
+                    Todas as Conversas
                   </Button>
                 </div>
               </div>
-              {config?.whatsapp?.specificContactFilter && (
+              {specificContact && (
                 <div className="text-xs text-blue-600 bg-blue-50 p-2 rounded">
-                  <strong>Filtro ativo:</strong> {config.whatsapp.specificContactFilter}
+                  <strong>Filtro aplicado:</strong> {specificContact}
                 </div>
               )}
             </div>

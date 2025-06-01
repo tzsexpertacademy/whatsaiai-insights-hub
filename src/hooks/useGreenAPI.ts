@@ -1,3 +1,4 @@
+
 import { useState, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useClientConfig } from '@/contexts/ClientConfigContext';
@@ -255,7 +256,7 @@ export function useGreenAPI() {
   }, [getAPIConfig, toast]);
 
   // Carregar conversas com filtro opcional por contato específico
-  const loadChats = useCallback(async () => {
+  const loadChats = useCallback(async (specificContactOverride?: string) => {
     const { instanceId, apiToken } = getAPIConfig();
     
     console.log('📱 Iniciando carregamento de conversas...');
@@ -265,8 +266,8 @@ export function useGreenAPI() {
       return;
     }
 
-    // Verificar se há filtro por contato específico
-    const specificContact = config?.whatsapp?.specificContactFilter;
+    // Usar o override se fornecido, senão usar o da config
+    const specificContact = specificContactOverride || config?.whatsapp?.specificContactFilter;
     console.log('🎯 Filtro de contato específico:', specificContact || 'Nenhum');
 
     try {
@@ -319,7 +320,7 @@ export function useGreenAPI() {
         }
       }
 
-      // Carregar todas as conversas (comportamento padrão)
+      // Carregar todas as conversas (comportamento padrão) - REMOVIDO O LIMITE DE 20
       const url = `https://api.green-api.com/waInstance${instanceId}/getChats/${apiToken}`;
       console.log('📡 Fazendo requisição para conversas:', url);
       
@@ -334,9 +335,11 @@ export function useGreenAPI() {
 
       const data = await response.json();
       console.log('📋 Dados de conversas recebidos:', data);
+      console.log(`📊 Total de conversas disponíveis: ${data.length}`);
       
       if (Array.isArray(data)) {
-        const formattedChats: Chat[] = data.slice(0, 20).map((chat: any) => ({
+        // REMOVIDO o .slice(0, 20) para carregar TODAS as conversas
+        const formattedChats: Chat[] = data.map((chat: any) => ({
           chatId: chat.id,
           name: chat.name || chat.id.split('@')[0],
           lastMessage: 'Toque para carregar mensagens',
@@ -346,7 +349,7 @@ export function useGreenAPI() {
         }));
 
         setChats(formattedChats);
-        console.log(`✅ Carregadas ${formattedChats.length} conversas:`, formattedChats.map(c => c.name));
+        console.log(`✅ Carregadas ${formattedChats.length} conversas (TODAS):`, formattedChats.slice(0, 5).map(c => c.name));
       } else {
         console.error('❌ Resposta de conversas não é um array:', data);
       }
