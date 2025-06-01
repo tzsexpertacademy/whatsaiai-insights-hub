@@ -1,4 +1,3 @@
-
 import { useState, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useClientConfig } from '@/contexts/ClientConfigContext';
@@ -83,24 +82,36 @@ export function useGreenAPI() {
     });
   }, [config, updateConfig]);
 
-  // Calcular data de início baseada no período
+  // Calcular data de início baseada no período - MELHORADO
   const getStartDate = useCallback((period: MessagePeriod): Date => {
     const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     
     switch (period) {
       case 'today':
-        return today;
+        // Para "hoje", pegar desde a meia-noite de ontem para garantir que pega todas as mensagens recentes
+        const yesterday = new Date(now);
+        yesterday.setDate(yesterday.getDate() - 1);
+        yesterday.setHours(0, 0, 0, 0);
+        console.log(`📅 Período "hoje": desde ${yesterday.toISOString()}`);
+        return yesterday;
       case '7days':
-        return new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+        const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        console.log(`📅 Período "7 dias": desde ${sevenDaysAgo.toISOString()}`);
+        return sevenDaysAgo;
       case '1month':
-        return new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+        const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        console.log(`📅 Período "1 mês": desde ${oneMonthAgo.toISOString()}`);
+        return oneMonthAgo;
       case '3months':
-        return new Date(today.getTime() - 90 * 24 * 60 * 60 * 1000);
+        const threeMonthsAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+        console.log(`📅 Período "3 meses": desde ${threeMonthsAgo.toISOString()}`);
+        return threeMonthsAgo;
       case 'all':
-        return new Date(0); // Data muito antiga para pegar todas
+        const allTime = new Date(0);
+        console.log(`📅 Período "todas": desde ${allTime.toISOString()}`);
+        return allTime;
       default:
-        return today;
+        return new Date(now.getTime() - 24 * 60 * 60 * 1000);
     }
   }, []);
 
@@ -363,7 +374,7 @@ export function useGreenAPI() {
     }
   }, [getAPIConfig, connectionState.isConnected, config, toast]);
 
-  // Carregar mensagens com filtro de período
+  // Carregar mensagens com filtro de período - MELHORADO COM DELAY E MAIS DEBUG
   const loadChatMessages = useCallback(async (chatId: string, period: MessagePeriod = currentPeriod) => {
     const { instanceId, apiToken } = getAPIConfig();
     
@@ -374,17 +385,26 @@ export function useGreenAPI() {
       return;
     }
 
+    // DELAY PARA EVITAR RATE LIMIT
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
     setIsLoadingMessages(true);
     
     try {
       const startDate = getStartDate(period);
       const startTimestamp = Math.floor(startDate.getTime() / 1000);
-      console.log(`📅 Período: ${period}, data de início: ${startDate.toISOString()}, timestamp: ${startTimestamp}`);
+      const nowTimestamp = Math.floor(Date.now() / 1000);
+      
+      console.log(`📅 Período: ${period}`);
+      console.log(`📅 Data de início: ${startDate.toISOString()}`);
+      console.log(`📅 Timestamp início: ${startTimestamp}`);
+      console.log(`📅 Timestamp agora: ${nowTimestamp}`);
+      console.log(`📅 Diferença em horas: ${(nowTimestamp - startTimestamp) / 3600}`);
       
       const url = `https://api.green-api.com/waInstance${instanceId}/getChatHistory/${apiToken}`;
       const requestBody = {
         chatId: chatId,
-        count: period === 'today' ? 50 : period === '7days' ? 100 : 200
+        count: period === 'today' ? 100 : period === '7days' ? 200 : 500 // Aumentei os limites
       };
       
       console.log('📡 Fazendo requisição para mensagens:', url);
@@ -409,36 +429,54 @@ export function useGreenAPI() {
       console.log('📊 Tipo dos dados:', typeof data, 'É array:', Array.isArray(data));
       
       if (Array.isArray(data)) {
-        console.log(`📨 Total de mensagens brutas: ${data.length}`);
+        console.log(`📨 Total de mensagens brutas recebidas: ${data.length}`);
+        
+        // Log das primeiras mensagens para debug
+        if (data.length > 0) {
+          console.log('📋 Primeiras 3 mensagens brutas:', data.slice(0, 3).map(msg => ({
+            timestamp: msg.timestamp,
+            timestampFormatted: new Date(msg.timestamp * 1000).toISOString(),
+            type: msg.type,
+            text: msg.textMessage?.substring(0, 50) + '...'
+          })));
+        }
         
         let filteredData = data;
         
         // Filtrar por período se não for 'all'
         if (period !== 'all') {
+          const originalLength = filteredData.length;
           filteredData = data.filter((msg: any) => {
             const msgTimestamp = msg.timestamp || 0;
             const isInPeriod = msgTimestamp >= startTimestamp;
+            
             if (!isInPeriod) {
-              console.log(`🔄 Mensagem filtrada (fora do período): timestamp ${msgTimestamp}, limite ${startTimestamp}`);
+              console.log(`🔄 Mensagem filtrada (fora do período): timestamp ${msgTimestamp} (${new Date(msgTimestamp * 1000).toISOString()}), limite ${startTimestamp} (${startDate.toISOString()})`);
             }
+            
             return isInPeriod;
           });
+          
+          console.log(`📊 Mensagens antes do filtro: ${originalLength}`);
           console.log(`📊 Mensagens após filtro de período: ${filteredData.length}`);
         }
         
         const formattedMessages: Message[] = filteredData.map((msg: any, index: number) => {
+          const messageDate = new Date(msg.timestamp * 1000);
           console.log(`📝 Formatando mensagem ${index + 1}:`, {
             id: msg.idMessage,
             type: msg.type,
-            text: msg.textMessage,
-            timestamp: msg.timestamp
+            text: msg.textMessage?.substring(0, 30) + '...',
+            timestamp: msg.timestamp,
+            date: messageDate.toISOString(),
+            isToday: messageDate.toDateString() === new Date().toDateString()
           });
           
           return {
             id: msg.idMessage || Math.random().toString(),
-            text: msg.textMessage || '[Mídia]',
+            text: msg.textMessage || '[Mídia ou mensagem especial]',
             sender: msg.type === 'outgoing' ? 'user' : 'contact',
-            timestamp: new Date(msg.timestamp * 1000).toISOString(),
+            timestamp: messageDate.toISOString(),
             chatId: chatId
           };
         });
@@ -453,9 +491,28 @@ export function useGreenAPI() {
         
         console.log(`✅ Processadas ${formattedMessages.length} mensagens (${period}) para ${chatId}`);
         
-        // Log das primeiras mensagens para debug
+        // Log detalhado das mensagens processadas
         if (formattedMessages.length > 0) {
-          console.log('📋 Primeiras mensagens formatadas:', formattedMessages.slice(0, 3));
+          console.log('📋 Mensagens processadas (primeiras 3):', formattedMessages.slice(0, 3).map(msg => ({
+            text: msg.text.substring(0, 30) + '...',
+            sender: msg.sender,
+            timestamp: msg.timestamp,
+            isToday: new Date(msg.timestamp).toDateString() === new Date().toDateString()
+          })));
+          
+          // Contar mensagens de hoje especificamente
+          const todayMessages = formattedMessages.filter(msg => 
+            new Date(msg.timestamp).toDateString() === new Date().toDateString()
+          );
+          console.log(`📅 Mensagens especificamente de HOJE: ${todayMessages.length}`);
+        } else {
+          console.log('⚠️ Nenhuma mensagem foi processada!');
+          
+          // Se não há mensagens, vamos tentar carregar um período maior automaticamente
+          if (period === 'today') {
+            console.log('🔄 Tentando carregar mensagens dos últimos 7 dias...');
+            setTimeout(() => loadChatMessages(chatId, '7days'), 2000);
+          }
         }
       } else {
         console.error('❌ Resposta de mensagens não é um array:', data);
@@ -463,11 +520,22 @@ export function useGreenAPI() {
       }
     } catch (error) {
       console.error('❌ Erro ao carregar mensagens:', error);
-      toast({
-        title: "Erro ao carregar mensagens",
-        description: `${error instanceof Error ? error.message : 'Erro desconhecido'}`,
-        variant: "destructive"
-      });
+      
+      // Log específico para erro 429
+      if (error instanceof Error && error.message.includes('429')) {
+        console.error('🚫 ERRO 429 - Rate limit atingido! Aguarde alguns minutos antes de tentar novamente.');
+        toast({
+          title: "Rate limit atingido",
+          description: "Muitas requisições seguidas. Aguarde alguns minutos e tente novamente.",
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "Erro ao carregar mensagens",
+          description: `${error instanceof Error ? error.message : 'Erro desconhecido'}`,
+          variant: "destructive"
+        });
+      }
     } finally {
       setIsLoadingMessages(false);
     }
