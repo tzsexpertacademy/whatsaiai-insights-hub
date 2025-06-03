@@ -53,7 +53,7 @@ export const defaultConfig: ClientConfig = {
     isConnected: false,
     authorizedNumber: '',
     qrCode: '',
-    platform: 'wppconnect', // Mudando padrão para WPPConnect
+    platform: 'wppconnect',
     autoSync: false,
     syncInterval: 'daily',
     autoReply: false,

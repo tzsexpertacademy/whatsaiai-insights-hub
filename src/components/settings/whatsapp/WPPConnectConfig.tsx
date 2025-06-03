@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -33,7 +32,25 @@ export function WPPConnectConfig() {
     disconnect
   } = useWPPConnect();
 
-  const [config, setConfig] = useState(() => getWPPConfig());
+  const [config, setConfig] = useState(() => {
+    const defaultConfig = {
+      serverUrl: 'http://localhost:21465',
+      sessionName: 'crm-session',
+      secretKey: 'MySecretKeyToGenerateToken',
+      webhookUrl: ''
+    };
+    
+    try {
+      const savedConfig = getWPPConfig();
+      // Força localhost se estiver usando IP local
+      if (savedConfig.serverUrl.includes('192.168.')) {
+        savedConfig.serverUrl = 'http://localhost:21465';
+      }
+      return savedConfig;
+    } catch (error) {
+      return defaultConfig;
+    }
+  });
   const [isCheckingServer, setIsCheckingServer] = useState(false);
 
   const handleConfigChange = (field: keyof typeof config, value: string) => {
@@ -41,18 +58,30 @@ export function WPPConnectConfig() {
   };
 
   const handleSaveConfig = () => {
-    saveWPPConfig(config);
+    // Garante que usa localhost
+    const configToSave = {
+      ...config,
+      serverUrl: config.serverUrl.includes('192.168.') ? 'http://localhost:21465' : config.serverUrl
+    };
+    
+    saveWPPConfig(configToSave);
+    setConfig(configToSave);
+    
     toast({
       title: "Configuração salva",
-      description: "Configurações do WPPConnect foram salvas"
+      description: "Configurações do WPPConnect foram salvas com localhost"
     });
   };
 
   const handleCheckServer = async () => {
     setIsCheckingServer(true);
     try {
-      // Testar se o servidor está respondendo usando um endpoint simples
-      const response = await fetch(`${config.serverUrl}/api/status`, {
+      const testUrl = config.serverUrl.includes('192.168.') 
+        ? 'http://localhost:21465' 
+        : config.serverUrl;
+      
+      // Testar endpoint simples primeiro
+      const response = await fetch(`${testUrl}/api/status`, {
         headers: {
           'Authorization': `Bearer ${config.secretKey}`
         }
@@ -65,7 +94,7 @@ export function WPPConnectConfig() {
         });
       } else {
         // Tentar endpoint alternativo
-        const altResponse = await fetch(`${config.serverUrl}/health`);
+        const altResponse = await fetch(`${testUrl}/health`);
         if (altResponse.ok) {
           toast({
             title: "Servidor online!",
@@ -78,7 +107,7 @@ export function WPPConnectConfig() {
     } catch (error) {
       toast({
         title: "Servidor offline",
-        description: "Verifique se o WPPConnect Server está rodando na porta 21465",
+        description: "Verifique se o WPPConnect Server está rodando em localhost:21465",
         variant: "destructive"
       });
     } finally {
@@ -109,7 +138,7 @@ export function WPPConnectConfig() {
               onChange={(e) => handleConfigChange('serverUrl', e.target.value)}
             />
             <p className="text-sm text-gray-600">
-              URL onde o WPPConnect Server está rodando
+              URL onde o WPPConnect Server está rodando (use localhost, não IP local)
             </p>
           </div>
 
@@ -284,34 +313,24 @@ export function WPPConnectConfig() {
       {/* Instruções de Instalação */}
       <Card className="border-gray-200 bg-gray-50">
         <CardHeader>
-          <CardTitle>📋 Versão instalada: WPPConnect Server v2.8.6</CardTitle>
+          <CardTitle>📋 Configuração corrigida para localhost</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-            <h4 className="font-semibold text-green-900 mb-2">✅ Servidor detectado!</h4>
+            <h4 className="font-semibold text-green-900 mb-2">✅ URL atualizada!</h4>
             <p className="text-sm text-green-700">
-              Sua versão v2.8.6 está funcionando corretamente. 
-              Esta versão usa Bearer Token para autenticação.
+              Agora usando localhost:21465 em vez do IP 192.168.x.x 
+              para evitar problemas de CORS e conectividade.
             </p>
           </div>
           
           <div>
-            <h4 className="font-semibold mb-2">🔑 Secret Key padrão:</h4>
-            <div className="bg-black text-green-400 p-3 rounded font-mono text-sm">
-              MySecretKeyToGenerateToken
-            </div>
-            <p className="text-sm text-gray-600 mt-2">
-              ℹ️ Você pode alterar esta chave no arquivo de configuração do servidor
-            </p>
-          </div>
-
-          <div>
-            <h4 className="font-semibold mb-2">🔧 Endpoints corrigidos:</h4>
+            <h4 className="font-semibold mb-2">🔧 Endpoints localhost:</h4>
             <div className="text-sm text-gray-600 space-y-1">
-              <p>• Criar sessão: <code>/api/{'{session}'}/start-session</code></p>
-              <p>• QR Code: <code>/api/{'{session}'}/qr-code</code></p>
-              <p>• Status: <code>/api/{'{session}'}/status</code></p>
-              <p>• Autenticação: <code>Authorization: Bearer {'{secretKey}'}</code></p>
+              <p>• Servidor: <code>http://localhost:21465</code></p>
+              <p>• Criar sessão: <code>/api/crm-session/start-session</code></p>
+              <p>• QR Code: <code>/api/crm-session/qr-code</code></p>
+              <p>• Status: <code>/api/crm-session/status</code></p>
             </div>
           </div>
         </CardContent>
