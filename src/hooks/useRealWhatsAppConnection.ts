@@ -38,10 +38,10 @@ export function useRealWhatsAppConnection() {
     };
   });
 
-  // Configuração WPPConnect local
+  // Configuração WPPConnect local REAL
   const wppConfig = {
     serverUrl: 'http://localhost:21465',
-    sessionName: 'MySecretKeyToGenerateToken', // Usando como session name
+    sessionName: 'default',
     secretKey: 'MySecretKeyToGenerateToken'
   };
 
@@ -52,7 +52,7 @@ export function useRealWhatsAppConnection() {
   }, [webhooks]);
 
   const generateQRCode = useCallback(async () => {
-    console.log('🚀 Gerando QR Code WPPConnect...');
+    console.log('🚀 Gerando QR Code WPPConnect REAL...');
     setIsLoading(true);
     
     try {
@@ -73,7 +73,9 @@ export function useRealWhatsAppConnection() {
       console.log('📥 Start session response:', startResponse.status);
 
       if (!startResponse.ok) {
-        throw new Error(`Erro ao iniciar sessão: ${startResponse.status}`);
+        const errorText = await startResponse.text();
+        console.error('❌ Erro start session:', errorText);
+        throw new Error(`Erro ao iniciar sessão: ${startResponse.status} - ${errorText}`);
       }
 
       // 2. Aguardar um pouco e obter o QR Code
@@ -90,7 +92,7 @@ export function useRealWhatsAppConnection() {
       
       if (qrResponse.ok) {
         const qrData = await qrResponse.json();
-        console.log('📱 QR Code recebido:', !!qrData.qrcode);
+        console.log('📱 QR Code recebido:', qrData);
         
         if (qrData.qrcode) {
           setConnectionState(prev => ({
@@ -103,10 +105,14 @@ export function useRealWhatsAppConnection() {
             description: "Escaneie com seu WhatsApp para conectar"
           });
           
-          // Verificar status periodicamente
+          // Verificar status a cada 3 segundos
           startStatusPolling();
           return qrData.qrcode;
         }
+      } else {
+        const errorText = await qrResponse.text();
+        console.error('❌ Erro QR:', errorText);
+        throw new Error(`Erro ao obter QR Code: ${qrResponse.status}`);
       }
       
       throw new Error('QR Code não foi gerado');
@@ -127,6 +133,7 @@ export function useRealWhatsAppConnection() {
   const startStatusPolling = useCallback(() => {
     const pollInterval = setInterval(async () => {
       try {
+        console.log('🔍 Verificando status...');
         const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/status`, {
           headers: {
             'Authorization': `Bearer ${wppConfig.secretKey}`
@@ -135,26 +142,31 @@ export function useRealWhatsAppConnection() {
         
         if (response.ok) {
           const data = await response.json();
-          console.log('📱 Status polling:', data);
+          console.log('📱 Status atual:', data);
           
-          const isConnected = data.state === 'CONNECTED' || data.status === 'inChat';
+          // Verificar se está conectado baseado no status real da API
+          const isConnected = data.state === 'CONNECTED' || data.status === 'inChat' || data.connected === true;
           
           if (isConnected) {
+            console.log('✅ WhatsApp conectado!');
+            
             setConnectionState(prev => ({
               ...prev,
               isConnected: true,
-              phoneNumber: data.phone || data.number || 'Conectado',
+              phoneNumber: data.phone || data.number || data.wid || 'Conectado',
               qrCode: '',
               lastConnected: new Date().toISOString()
             }));
             
             toast({
-              title: "WhatsApp conectado! ✅",
-              description: `Número: ${data.phone || data.number || 'Conectado'}`
+              title: "🎉 WhatsApp conectado!",
+              description: `Conectado com sucesso!`
             });
             
             clearInterval(pollInterval);
           }
+        } else {
+          console.log('❌ Erro no status:', response.status);
         }
       } catch (error) {
         console.error('❌ Erro no polling:', error);
@@ -164,17 +176,22 @@ export function useRealWhatsAppConnection() {
     // Parar polling após 2 minutos
     setTimeout(() => {
       clearInterval(pollInterval);
+      console.log('⏰ Polling timeout');
     }, 120000);
   }, [toast]);
 
   const disconnectWhatsApp = useCallback(async () => {
+    console.log('🔌 Desconectando WhatsApp...');
+    
     try {
-      await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/logout`, {
+      const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/logout`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${wppConfig.secretKey}`
         }
       });
+      
+      console.log('📤 Logout response:', response.status);
       
       setConnectionState({
         isConnected: false,
@@ -184,15 +201,30 @@ export function useRealWhatsAppConnection() {
       });
       
       toast({
-        title: "Desconectado",
+        title: "🔌 Desconectado",
         description: "WhatsApp desconectado com sucesso"
       });
     } catch (error) {
       console.error('❌ Erro ao desconectar:', error);
+      
+      // Mesmo com erro, limpar o estado local
+      setConnectionState({
+        isConnected: false,
+        phoneNumber: '',
+        qrCode: '',
+        lastConnected: ''
+      });
+      
+      toast({
+        title: "⚠️ Desconectado localmente",
+        description: "Estado local limpo"
+      });
     }
   }, [toast]);
 
   const sendMessage = useCallback(async (phone: string, message: string) => {
+    console.log('📤 Enviando mensagem real via WPPConnect...');
+    
     try {
       const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/send-message`, {
         method: 'POST',
@@ -206,17 +238,36 @@ export function useRealWhatsAppConnection() {
         })
       });
 
+      console.log('📤 Send message response:', response.status);
+
       if (response.ok) {
+        const result = await response.json();
+        console.log('✅ Mensagem enviada:', result);
+        
         toast({
-          title: "Mensagem enviada! ✅",
+          title: "✅ Mensagem enviada!",
           description: "Mensagem enviada via WPPConnect"
         });
         return true;
+      } else {
+        const errorText = await response.text();
+        console.error('❌ Erro ao enviar:', errorText);
+        
+        toast({
+          title: "❌ Erro ao enviar",
+          description: `Erro: ${response.status}`,
+          variant: "destructive"
+        });
+        return false;
       }
-      
-      return false;
     } catch (error) {
       console.error('❌ Erro ao enviar mensagem:', error);
+      
+      toast({
+        title: "❌ Erro de conexão",
+        description: "Não foi possível enviar a mensagem",
+        variant: "destructive"
+      });
       return false;
     }
   }, [toast]);
