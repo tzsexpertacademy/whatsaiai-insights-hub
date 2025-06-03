@@ -1,97 +1,85 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { useWPPConnect } from '@/hooks/useWPPConnect';
+import { useWPPConnect } from "@/hooks/useWPPConnect";
 import { 
-  Send, 
-  MessageSquare,
-  Users,
+  QrCode, 
+  Smartphone, 
+  CheckCircle, 
+  MessageSquare, 
+  Send,
+  Wifi,
   Clock,
-  RefreshCw,
-  Smartphone,
-  Loader2,
+  User,
   AlertCircle,
+  RefreshCw,
   Play,
-  Square
+  Square,
+  Settings
 } from 'lucide-react';
 
 export function WPPConnectMirror() {
   const { toast } = useToast();
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  
-  const {
-    sessionStatus,
-    chats,
-    messages,
+  const { 
+    sessionStatus, 
+    chats, 
+    messages, 
     isLoadingMessages,
     isLiveMode,
     currentChatId,
-    createSession,
+    createSession, 
     checkSessionStatus,
     loadChats,
     loadChatMessages,
     sendMessage,
     startLiveMode,
-    stopLiveMode
+    stopLiveMode,
+    disconnect
   } = useWPPConnect();
-
-  const [selectedChat, setSelectedChat] = useState<any>(null);
+  
+  const [selectedContact, setSelectedContact] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState('');
-  const [isSending, setIsSending] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-
-  // Verificar conexão ao montar componente
-  useEffect(() => {
-    const initializeConnection = async () => {
-      console.log('🔄 Verificando conexão WPPConnect...');
-      
-      const isConnected = await checkSessionStatus();
-      
-      if (isConnected) {
-        console.log('✅ WPPConnect conectado, carregando conversas...');
-        await loadChats();
-      }
-    };
-
-    initializeConnection();
-  }, [checkSessionStatus, loadChats]);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll para última mensagem
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const handleSelectChat = async (chat: any) => {
-    console.log('📱 Selecionando conversa:', chat.name);
+  // Verificar status ao montar
+  useEffect(() => {
+    checkSessionStatus();
+  }, [checkSessionStatus]);
+
+  const handleCreateSession = async () => {
+    toast({
+      title: "Criando sessão WPPConnect...",
+      description: "Aguarde enquanto geramos o QR Code"
+    });
     
-    // Parar modo ao vivo anterior se existir
-    if (isLiveMode && currentChatId !== chat.chatId) {
-      stopLiveMode();
-    }
-    
-    setSelectedChat(chat);
-    
-    try {
-      await loadChatMessages(chat.chatId, 50);
-      console.log('✅ Mensagens carregadas para:', chat.name);
-    } catch (error) {
-      console.error('❌ Erro ao carregar mensagens:', error);
-      toast({
-        title: "Erro ao carregar mensagens",
-        description: "Não foi possível carregar as mensagens",
-        variant: "destructive"
-      });
+    await createSession();
+  };
+
+  const selectContact = (contact: any) => {
+    setSelectedContact(contact.chatId);
+    loadChatMessages(contact.chatId);
+  };
+
+  const handleSendMessage = async () => {
+    if (!newMessage.trim() || !selectedContact) return;
+
+    const success = await sendMessage(selectedContact, newMessage);
+    if (success) {
+      setNewMessage('');
     }
   };
 
-  const handleToggleLiveMode = () => {
-    if (!selectedChat) {
+  const toggleLiveMode = () => {
+    if (!selectedContact) {
       toast({
         title: "Selecione uma conversa",
         description: "Escolha uma conversa primeiro para ativar o modo ao vivo",
@@ -100,53 +88,10 @@ export function WPPConnectMirror() {
       return;
     }
 
-    if (isLiveMode && currentChatId === selectedChat.chatId) {
+    if (isLiveMode && currentChatId === selectedContact) {
       stopLiveMode();
     } else {
-      startLiveMode(selectedChat.chatId);
-    }
-  };
-
-  const handleSendMessage = async () => {
-    if (!newMessage.trim() || !selectedChat || isSending) return;
-
-    console.log('📤 Enviando mensagem para:', selectedChat.name);
-    setIsSending(true);
-    
-    try {
-      const success = await sendMessage(selectedChat.chatId, newMessage);
-      
-      if (success) {
-        setNewMessage('');
-        console.log('✅ Mensagem enviada com sucesso');
-      }
-    } catch (error) {
-      console.error('❌ Erro ao enviar mensagem:', error);
-    } finally {
-      setIsSending(false);
-    }
-  };
-
-  const handleRefreshChats = async () => {
-    console.log('🔄 Atualizando lista de conversas...');
-    setIsRefreshing(true);
-    
-    try {
-      await loadChats();
-      
-      toast({
-        title: "Conversas atualizadas",
-        description: "Lista de conversas foi recarregada"
-      });
-    } catch (error) {
-      console.error('❌ Erro ao atualizar conversas:', error);
-      toast({
-        title: "Erro ao atualizar",
-        description: "Não foi possível recarregar as conversas",
-        variant: "destructive"
-      });
-    } finally {
-      setIsRefreshing(false);
+      startLiveMode(selectedContact);
     }
   };
 
@@ -157,256 +102,293 @@ export function WPPConnectMirror() {
     });
   };
 
-  // WhatsApp não conectado
-  if (!sessionStatus.isConnected) {
-    return (
-      <Card>
-        <CardContent className="p-8 text-center">
-          <AlertCircle className="h-12 w-12 text-red-400 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">
-            WhatsApp não conectado
-          </h3>
-          <p className="text-gray-600 mb-4">
-            Conecte seu WhatsApp através do WPPConnect Server
-          </p>
-          <div className="space-y-2">
-            <Button onClick={createSession} disabled={sessionStatus.isLoading}>
-              {sessionStatus.isLoading ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Play className="h-4 w-4 mr-2" />
-              )}
-              Criar Nova Sessão
-            </Button>
-            <Button variant="outline" onClick={() => window.location.href = '/dashboard/settings'}>
-              Ir para Configurações
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
+  const getStatusIcon = () => {
+    if (sessionStatus.isConnected) {
+      return <CheckCircle className="h-6 w-6 text-green-500" />;
+    }
+    return <AlertCircle className="h-6 w-6 text-gray-400" />;
+  };
+
+  const getStatusText = () => {
+    if (sessionStatus.isConnected) {
+      return 'Conectado e Ativo';
+    }
+    return 'Desconectado';
+  };
 
   return (
-    <div className="h-full flex flex-col lg:flex-row gap-4">
-      {/* Lista de Conversas */}
-      <Card className="lg:w-1/3 flex flex-col">
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <MessageSquare className="h-5 w-5" />
-              Conversas
-            </CardTitle>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleRefreshChats}
-                disabled={isRefreshing}
-              >
-                <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-              </Button>
-              <Badge variant="secondary">{chats.length}</Badge>
+    <div className="space-y-6">
+      {/* Header com Status */}
+      <Card className="bg-green-50 border-green-200">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-green-900">
+            <Smartphone className="h-5 w-5" />
+            WPPConnect - WhatsApp Local
+            {sessionStatus.isConnected && <CheckCircle className="h-5 w-5 text-green-500" />}
+          </CardTitle>
+          <CardDescription className="text-green-700">
+            Conecta com WPPConnect rodando em localhost:21465
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              {getStatusIcon()}
+              <div>
+                <span className="font-medium text-green-600">{getStatusText()}</span>
+                {sessionStatus.phoneNumber && (
+                  <p className="text-sm text-gray-500">{sessionStatus.phoneNumber}</p>
+                )}
+              </div>
+            </div>
+            
+            <div className="flex gap-2">
+              {sessionStatus.isConnected && (
+                <>
+                  <Button onClick={disconnect} variant="outline" size="sm">
+                    Desconectar
+                  </Button>
+                  <Button onClick={() => loadChats()} variant="outline" size="sm">
+                    <RefreshCw className="h-4 w-4 mr-1" />
+                    Atualizar
+                  </Button>
+                </>
+              )}
             </div>
           </div>
-          
-          <div className="flex items-center gap-2 text-sm text-green-600">
-            <Smartphone className="h-4 w-4" />
-            <span>WPPConnect: {sessionStatus.phoneNumber}</span>
-          </div>
-        </CardHeader>
-        
-        <CardContent className="flex-1 p-0">
-          <ScrollArea className="h-[500px]">
-            {chats.length === 0 ? (
-              <div className="p-4 text-center text-gray-500">
-                <MessageSquare className="h-8 w-8 mx-auto mb-2" />
-                <p>Nenhuma conversa encontrada</p>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={handleRefreshChats}
-                  className="mt-2"
-                >
-                  Carregar Conversas
-                </Button>
-              </div>
-            ) : (
-              chats.map((chat) => (
-                <div
-                  key={chat.chatId}
-                  className={`p-3 border-b cursor-pointer hover:bg-gray-50 transition-colors ${
-                    selectedChat?.chatId === chat.chatId ? 'bg-blue-50 border-blue-200' : ''
-                  }`}
-                  onClick={() => handleSelectChat(chat)}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        {chat.isGroup ? (
-                          <Users className="h-4 w-4 text-gray-400" />
-                        ) : (
-                          <MessageSquare className="h-4 w-4 text-gray-400" />
-                        )}
-                        <span className="font-medium truncate">{chat.name}</span>
-                        {/* Indicador de modo ao vivo */}
-                        {isLiveMode && currentChatId === chat.chatId && (
-                          <div className="flex items-center gap-1">
-                            <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-                            <span className="text-xs text-red-600 font-medium">LIVE</span>
-                          </div>
-                        )}
-                      </div>
-                      <p className="text-sm text-gray-500 truncate mt-1">
-                        {chat.lastMessage}
-                      </p>
-                    </div>
-                    
-                    <div className="flex flex-col items-end">
-                      <span className="text-xs text-gray-400">
-                        {formatTime(chat.timestamp)}
-                      </span>
-                      {chat.unreadCount > 0 && (
-                        <Badge className="mt-1" variant="secondary">
-                          {chat.unreadCount}
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
-          </ScrollArea>
+
+          {!sessionStatus.isConnected && !sessionStatus.qrCode && (
+            <Button 
+              onClick={handleCreateSession} 
+              className="w-full bg-green-600 hover:bg-green-700"
+              disabled={sessionStatus.isLoading}
+            >
+              {sessionStatus.isLoading ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  Conectando...
+                </>
+              ) : (
+                <>
+                  <QrCode className="h-4 w-4 mr-2" />
+                  Conectar WPPConnect
+                </>
+              )}
+            </Button>
+          )}
         </CardContent>
       </Card>
 
-      {/* Área de Chat */}
-      <Card className="lg:w-2/3 flex flex-col">
-        {selectedChat ? (
-          <>
+      {/* QR Code para Conexão */}
+      {sessionStatus.qrCode && !sessionStatus.isConnected && (
+        <Card className="border-blue-200 bg-blue-50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-blue-900">
+              <QrCode className="h-5 w-5" />
+              Escaneie com WhatsApp
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="text-center">
+            <div className="bg-white p-6 rounded-lg inline-block mb-4 shadow-lg">
+              <img 
+                src={sessionStatus.qrCode} 
+                alt="QR Code WPPConnect" 
+                className="w-80 h-80 mx-auto"
+              />
+            </div>
+            <div className="space-y-3">
+              <div className="text-sm text-blue-700 space-y-2">
+                <p><strong>1.</strong> Abra o WhatsApp no seu celular</p>
+                <p><strong>2.</strong> Toque em <strong>Menu (⋮) → Dispositivos conectados</strong></p>
+                <p><strong>3.</strong> Toque em <strong>"Conectar um dispositivo"</strong></p>
+                <p><strong>4.</strong> Escaneie este código QR</p>
+              </div>
+              <div className="mt-4 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                <p className="text-yellow-700 text-sm font-medium">
+                  🔄 Aguardando você escanear o QR Code...
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Interface de Conversas */}
+      {sessionStatus.isConnected && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 h-[600px]">
+          {/* Lista de Contatos */}
+          <Card className="lg:col-span-1">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <MessageSquare className="h-5 w-5" />
+                  Conversas
+                </CardTitle>
                 <div className="flex items-center gap-2">
-                  {selectedChat.isGroup ? (
-                    <Users className="h-5 w-5" />
-                  ) : (
-                    <MessageSquare className="h-5 w-5" />
+                  {isLiveMode && (
+                    <div className="flex items-center gap-1">
+                      <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                      <span className="text-xs text-red-600 font-medium">LIVE</span>
+                    </div>
                   )}
-                  <div>
-                    <CardTitle className="flex items-center gap-2">
-                      {selectedChat.name}
-                      {/* Botão de Modo Ao Vivo */}
-                      <Button
-                        variant={isLiveMode && currentChatId === selectedChat.chatId ? "destructive" : "default"}
-                        size="sm"
-                        onClick={handleToggleLiveMode}
-                        className="ml-2"
-                      >
-                        {isLiveMode && currentChatId === selectedChat.chatId ? (
-                          <>
-                            <Square className="h-4 w-4 mr-1" />
-                            Parar Live
-                          </>
-                        ) : (
-                          <>
-                            <Play className="h-4 w-4 mr-1" />
-                            Modo Live
-                          </>
-                        )}
-                      </Button>
-                    </CardTitle>
-                    <p className="text-sm text-gray-500">
-                      {selectedChat.isGroup ? 'Grupo' : 'Conversa individual'}
-                      {/* Status do modo ao vivo */}
-                      {isLiveMode && currentChatId === selectedChat.chatId && (
-                        <span className="ml-2 text-red-600 font-medium">
-                          🔴 AO VIVO - Atualizando automaticamente
-                        </span>
-                      )}
-                    </p>
-                  </div>
+                  <Badge variant="secondary">{chats.length}</Badge>
                 </div>
               </div>
             </CardHeader>
             
-            <CardContent className="flex-1 flex flex-col p-0">
-              <ScrollArea className="flex-1 p-4 min-h-[400px]">
-                {isLoadingMessages ? (
-                  <div className="text-center text-gray-500 py-8">
-                    <Loader2 className="h-8 w-8 mx-auto mb-2 animate-spin" />
-                    <p>Carregando mensagens...</p>
-                  </div>
-                ) : messages.length === 0 ? (
-                  <div className="text-center text-gray-500 py-8">
-                    <MessageSquare className="h-8 w-8 mx-auto mb-2" />
-                    <p>Nenhuma mensagem encontrada</p>
-                  </div>
-                ) : (
-                  messages
-                    .filter(msg => msg.chatId === selectedChat.chatId)
-                    .map((msg) => (
-                      <div
-                        key={msg.id}
-                        className={`mb-3 flex ${
-                          msg.sender === 'user' ? 'justify-end' : 'justify-start'
-                        }`}
-                      >
-                        <div
-                          className={`rounded-lg px-3 py-2 max-w-[75%] ${
-                            msg.sender === 'user'
-                              ? 'bg-blue-500 text-white'
-                              : 'bg-gray-100 text-gray-800'
-                          }`}
-                        >
-                          <p className="text-sm">{msg.text}</p>
-                          <div className={`text-xs mt-1 flex items-center gap-1 ${
-                            msg.sender === 'user' ? 'text-blue-100' : 'text-gray-500'
-                          }`}>
-                            <Clock className="h-3 w-3" />
-                            {formatTime(msg.timestamp)}
-                          </div>
-                        </div>
-                      </div>
-                    ))
-                )}
-                <div ref={messagesEndRef} />
-              </ScrollArea>
-              
-              <Separator />
-              
-              <div className="p-4">
-                <div className="flex gap-2">
-                  <Input
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    placeholder="Digite uma mensagem..."
-                    onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                    disabled={isSending}
-                  />
-                  <Button 
-                    onClick={handleSendMessage}
-                    disabled={!newMessage.trim() || isSending}
-                    size="sm"
+            <CardContent className="p-0">
+              <div className="space-y-1 max-h-[500px] overflow-y-auto">
+                {chats.map((chat) => (
+                  <div 
+                    key={chat.chatId}
+                    onClick={() => selectContact(chat)}
+                    className={`p-3 border-b cursor-pointer hover:bg-gray-50 transition-colors ${
+                      selectedContact === chat.chatId ? 'bg-blue-50 border-blue-200' : ''
+                    }`}
                   >
-                    {isSending ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Send className="h-4 w-4" />
-                    )}
-                  </Button>
-                </div>
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                        <User className="h-6 w-6 text-green-600" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium text-sm">{chat.name}</span>
+                          <span className="text-xs text-gray-400">{formatTime(chat.timestamp)}</span>
+                        </div>
+                        <p className="text-sm text-gray-500 truncate mt-1">{chat.lastMessage}</p>
+                      </div>
+                      {chat.unreadCount > 0 && (
+                        <Badge className="bg-green-500 text-white">{chat.unreadCount}</Badge>
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
             </CardContent>
-          </>
-        ) : (
-          <CardContent className="flex-1 flex items-center justify-center">
-            <div className="text-center text-gray-500">
-              <MessageSquare className="h-12 w-12 mx-auto mb-4" />
-              <p>Selecione uma conversa para começar</p>
-              <p className="text-sm mt-2">💡 Use o botão "Modo Live" para ver mensagens em tempo real</p>
-            </div>
-          </CardContent>
-        )}
+          </Card>
+
+          {/* Área de Chat */}
+          <Card className="lg:col-span-2">
+            {selectedContact ? (
+              <>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                      <User className="h-5 w-5 text-green-600" />
+                    </div>
+                    <div className="flex-1">
+                      <CardTitle className="text-lg">
+                        {chats.find(c => c.chatId === selectedContact)?.name}
+                      </CardTitle>
+                    </div>
+                    <Button
+                      variant={isLiveMode && currentChatId === selectedContact ? "destructive" : "default"}
+                      size="sm"
+                      onClick={toggleLiveMode}
+                    >
+                      {isLiveMode && currentChatId === selectedContact ? (
+                        <>
+                          <Square className="h-4 w-4 mr-1" />
+                          Parar Live
+                        </>
+                      ) : (
+                        <>
+                          <Play className="h-4 w-4 mr-1" />
+                          Modo Live
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </CardHeader>
+                
+                <CardContent className="flex flex-col h-[500px]">
+                  {/* Mensagens */}
+                  <div className="flex-1 overflow-y-auto space-y-3 mb-4">
+                    {isLoadingMessages ? (
+                      <div className="text-center text-gray-500 py-8">
+                        <RefreshCw className="h-8 w-8 mx-auto mb-2 animate-spin" />
+                        <p>Carregando mensagens...</p>
+                      </div>
+                    ) : (
+                      messages
+                        .filter(msg => msg.chatId === selectedContact)
+                        .map((msg) => (
+                          <div
+                            key={msg.id}
+                            className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                          >
+                            <div
+                              className={`rounded-lg px-4 py-2 max-w-[75%] ${
+                                msg.sender === 'user'
+                                  ? 'bg-green-500 text-white'
+                                  : 'bg-gray-100 text-gray-800'
+                              }`}
+                            >
+                              <p className="text-sm">{msg.text}</p>
+                              <div className={`text-xs mt-1 ${
+                                msg.sender === 'user' ? 'text-green-100' : 'text-gray-500'
+                              }`}>
+                                {formatTime(msg.timestamp)}
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                    )}
+                    <div ref={messagesEndRef} />
+                  </div>
+
+                  {/* Enviar Mensagem */}
+                  <div className="border-t pt-4">
+                    <div className="flex gap-3">
+                      <Input 
+                        placeholder="Digite uma mensagem..."
+                        value={newMessage}
+                        onChange={(e) => setNewMessage(e.target.value)}
+                        onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                        className="flex-1"
+                      />
+                      <Button 
+                        onClick={handleSendMessage}
+                        disabled={!newMessage.trim()}
+                        className="bg-green-600 hover:bg-green-700"
+                      >
+                        <Send className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </>
+            ) : (
+              <CardContent className="flex items-center justify-center h-full">
+                <div className="text-center text-gray-500">
+                  <MessageSquare className="h-16 w-16 mx-auto mb-4 text-gray-300" />
+                  <h3 className="text-lg font-medium mb-2">Selecione uma conversa</h3>
+                  <p className="text-sm">Escolha um contato para ver as mensagens</p>
+                </div>
+              </CardContent>
+            )}
+          </Card>
+        </div>
+      )}
+
+      {/* Instruções */}
+      <Card className="bg-blue-50 border-blue-200">
+        <CardHeader>
+          <CardTitle className="text-blue-900">WPPConnect localhost:21465</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-sm text-blue-700">
+            <p className="mb-2">
+              <strong>✅ Funcionando:</strong> Sistema conectado com sua API WPPConnect local
+            </p>
+            <p className="mb-2">
+              <strong>🔧 Configuração:</strong> localhost:21465 com token "MySecretKeyToGenerateToken"
+            </p>
+            <p>
+              <strong>📱 Status:</strong> {sessionStatus.isConnected ? 'Conectado e funcionando' : 'Pronto para conectar'}
+            </p>
+          </div>
+        </CardContent>
       </Card>
     </div>
   );

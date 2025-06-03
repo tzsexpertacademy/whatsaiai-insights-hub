@@ -1,354 +1,232 @@
 
-import { useState, useEffect } from 'react';
-import { useToast } from "@/hooks/use-toast";
-import { useClientConfig } from '@/contexts/ClientConfigContext';
+import { useState, useCallback } from 'react';
+import { useToast } from '@/hooks/use-toast';
 
-interface WhatsAppConnectionState {
+interface ConnectionState {
   isConnected: boolean;
-  qrCode: string;
   phoneNumber: string;
-  sessionId: string;
+  qrCode: string;
   lastConnected: string;
-  autoReplyEnabled: boolean;
 }
 
-interface MakeWebhooks {
+interface WebhookConfig {
   qrWebhook: string;
   statusWebhook: string;
   sendMessageWebhook: string;
-  disconnectWebhook: string;
-  receiveMessageWebhook: string;
   autoReplyWebhook: string;
 }
 
 export function useRealWhatsAppConnection() {
-  const [connectionState, setConnectionState] = useState<WhatsAppConnectionState>({
+  const { toast } = useToast();
+  
+  const [connectionState, setConnectionState] = useState<ConnectionState>({
     isConnected: false,
-    qrCode: '',
     phoneNumber: '',
-    sessionId: '',
-    lastConnected: '',
-    autoReplyEnabled: false
+    qrCode: '',
+    lastConnected: ''
   });
   
   const [isLoading, setIsLoading] = useState(false);
-  const [webhooks, setWebhooks] = useState<MakeWebhooks>({
-    qrWebhook: localStorage.getItem('make_qr_webhook') || '',
-    statusWebhook: localStorage.getItem('make_status_webhook') || '',
-    sendMessageWebhook: localStorage.getItem('make_send_webhook') || '',
-    disconnectWebhook: localStorage.getItem('make_disconnect_webhook') || '',
-    receiveMessageWebhook: localStorage.getItem('make_receive_webhook') || '',
-    autoReplyWebhook: localStorage.getItem('make_autoreply_webhook') || ''
-  });
   
-  const { toast } = useToast();
-  const { updateConfig, saveConfig } = useClientConfig();
+  const [webhooks, setWebhooks] = useState<WebhookConfig>(() => {
+    const saved = localStorage.getItem('whatsapp_webhooks');
+    return saved ? JSON.parse(saved) : {
+      qrWebhook: '',
+      statusWebhook: '',
+      sendMessageWebhook: '',
+      autoReplyWebhook: ''
+    };
+  });
 
-  // Carregar estado do localStorage
-  useEffect(() => {
-    const savedState = localStorage.getItem('whatsapp_real_connection');
-    if (savedState) {
-      const parsed = JSON.parse(savedState);
-      setConnectionState(parsed);
-      
-      if (parsed.isConnected) {
-        updateConfig('whatsapp', {
-          isConnected: true,
-          authorizedNumber: parsed.phoneNumber,
-          qrCode: parsed.qrCode
-        });
-      }
-    }
-  }, []);
-
-  // Salvar estado no localStorage
-  useEffect(() => {
-    localStorage.setItem('whatsapp_real_connection', JSON.stringify(connectionState));
-  }, [connectionState]);
-
-  const updateWebhooks = (newWebhooks: Partial<MakeWebhooks>) => {
-    const updated = { ...webhooks, ...newWebhooks };
-    setWebhooks(updated);
-    
-    // Salvar no localStorage
-    Object.entries(updated).forEach(([key, value]) => {
-      const storageKey = `make_${key.replace('Webhook', '_webhook')}`;
-      localStorage.setItem(storageKey, value);
-    });
+  // Configuração WPPConnect local
+  const wppConfig = {
+    serverUrl: 'http://localhost:21465',
+    sessionName: 'MySecretKeyToGenerateToken', // Usando como session name
+    secretKey: 'MySecretKeyToGenerateToken'
   };
 
-  const generateQRCode = async (): Promise<string> => {
-    if (!webhooks.qrWebhook) {
-      toast({
-        title: "Webhook necessário",
-        description: "Configure o webhook do Make.com primeiro",
-        variant: "destructive"
-      });
-      return '';
-    }
+  const updateWebhooks = useCallback((newWebhooks: Partial<WebhookConfig>) => {
+    const updated = { ...webhooks, ...newWebhooks };
+    setWebhooks(updated);
+    localStorage.setItem('whatsapp_webhooks', JSON.stringify(updated));
+  }, [webhooks]);
 
+  const generateQRCode = useCallback(async () => {
+    console.log('🚀 Gerando QR Code WPPConnect...');
     setIsLoading(true);
     
     try {
-      const sessionId = `session_${Date.now()}`;
-      
-      console.log('Enviando requisição para gerar QR Code:', {
-        webhook: webhooks.qrWebhook,
-        sessionId
-      });
-      
-      const response = await fetch(webhooks.qrWebhook, {
+      // 1. Primeiro, criar/iniciar a sessão
+      console.log('📡 Criando sessão WPPConnect...');
+      const startResponse = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/start-session`, {
         method: 'POST',
-        headers: {
+        headers: { 
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${wppConfig.secretKey}`
         },
         body: JSON.stringify({
-          action: 'generate_qr',
-          sessionId: sessionId,
-          timestamp: new Date().toISOString(),
-          clientUrl: window.location.origin,
-          autoReply: true
+          webhook: '',
+          waitQrCode: true
         })
       });
 
-      if (!response.ok) {
-        throw new Error(`Erro HTTP: ${response.status}`);
+      console.log('📥 Start session response:', startResponse.status);
+
+      if (!startResponse.ok) {
+        throw new Error(`Erro ao iniciar sessão: ${startResponse.status}`);
       }
 
-      const data = await response.json();
-      console.log('Resposta do webhook:', data);
+      // 2. Aguardar um pouco e obter o QR Code
+      await new Promise(resolve => setTimeout(resolve, 3000));
       
-      const qrCodeUrl = data.qrCode || data.qr_code || data.qr || '';
-      
-      setConnectionState(prev => ({
-        ...prev,
-        qrCode: qrCodeUrl,
-        sessionId: sessionId
-      }));
-
-      updateConfig('whatsapp', { qrCode: qrCodeUrl });
-
-      toast({
-        title: "QR Code gerado!",
-        description: "Escaneie com seu WhatsApp Business para conectar"
+      console.log('📱 Obtendo QR Code...');
+      const qrResponse = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/qr-code`, {
+        headers: {
+          'Authorization': `Bearer ${wppConfig.secretKey}`
+        }
       });
-
-      // Iniciar polling para verificar conexão
-      startConnectionPolling(sessionId);
       
-      return qrCodeUrl;
+      console.log('📥 QR Response status:', qrResponse.status);
+      
+      if (qrResponse.ok) {
+        const qrData = await qrResponse.json();
+        console.log('📱 QR Code recebido:', !!qrData.qrcode);
+        
+        if (qrData.qrcode) {
+          setConnectionState(prev => ({
+            ...prev,
+            qrCode: qrData.qrcode
+          }));
+          
+          toast({
+            title: "QR Code gerado! 📱",
+            description: "Escaneie com seu WhatsApp para conectar"
+          });
+          
+          // Verificar status periodicamente
+          startStatusPolling();
+          return qrData.qrcode;
+        }
+      }
+      
+      throw new Error('QR Code não foi gerado');
       
     } catch (error) {
-      console.error('Erro ao gerar QR Code:', error);
+      console.error('❌ Erro ao gerar QR Code:', error);
       toast({
         title: "Erro ao gerar QR Code",
-        description: `Erro: ${error.message}`,
+        description: error instanceof Error ? error.message : 'Erro desconhecido',
         variant: "destructive"
       });
-      return '';
+      return null;
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [toast]);
 
-  const startConnectionPolling = (sessionId: string) => {
-    if (!webhooks.statusWebhook) return;
-    
-    let attempts = 0;
-    const maxAttempts = 60; // 5 minutos
-    
+  const startStatusPolling = useCallback(() => {
     const pollInterval = setInterval(async () => {
-      attempts++;
-      
-      if (attempts > maxAttempts) {
-        clearInterval(pollInterval);
-        toast({
-          title: "QR Code expirado",
-          description: "Gere um novo QR Code para conectar",
-          variant: "destructive"
-        });
-        return;
-      }
-
       try {
-        const response = await fetch(webhooks.statusWebhook, {
-          method: 'POST',
+        const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/status`, {
           headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            action: 'check_connection',
-            sessionId: sessionId,
-            timestamp: new Date().toISOString()
-          })
+            'Authorization': `Bearer ${wppConfig.secretKey}`
+          }
         });
-
+        
         if (response.ok) {
           const data = await response.json();
-          console.log('Status da conexão:', data);
+          console.log('📱 Status polling:', data);
           
-          if (data.isConnected || data.connected) {
+          const isConnected = data.state === 'CONNECTED' || data.status === 'inChat';
+          
+          if (isConnected) {
+            setConnectionState(prev => ({
+              ...prev,
+              isConnected: true,
+              phoneNumber: data.phone || data.number || 'Conectado',
+              qrCode: '',
+              lastConnected: new Date().toISOString()
+            }));
+            
+            toast({
+              title: "WhatsApp conectado! ✅",
+              description: `Número: ${data.phone || data.number || 'Conectado'}`
+            });
+            
             clearInterval(pollInterval);
-            connectWhatsApp(sessionId, data.phoneNumber || data.phone);
-            setupAutoReply(sessionId);
           }
         }
       } catch (error) {
-        console.error('Erro no polling:', error);
+        console.error('❌ Erro no polling:', error);
       }
-    }, 5000);
-  };
-
-  const connectWhatsApp = async (sessionId: string, phoneNumber?: string) => {
-    const phone = phoneNumber || `+55 11 9${Math.floor(Math.random() * 9000) + 1000}-${Math.floor(Math.random() * 9000) + 1000}`;
-    const now = new Date().toISOString();
+    }, 3000);
     
-    setConnectionState(prev => ({
-      ...prev,
-      isConnected: true,
-      phoneNumber: phone,
-      sessionId: sessionId,
-      lastConnected: now,
-      autoReplyEnabled: true
-    }));
+    // Parar polling após 2 minutos
+    setTimeout(() => {
+      clearInterval(pollInterval);
+    }, 120000);
+  }, [toast]);
 
-    updateConfig('whatsapp', {
-      isConnected: true,
-      authorizedNumber: phone,
-      autoReply: true
-    });
-
+  const disconnectWhatsApp = useCallback(async () => {
     try {
-      await saveConfig();
-      
-      toast({
-        title: "WhatsApp Business Conectado!",
-        description: `Respostas automáticas ativadas para ${phone}`
-      });
-    } catch (error) {
-      console.error('Erro ao salvar configuração:', error);
-    }
-  };
-
-  const setupAutoReply = async (sessionId: string) => {
-    if (!webhooks.autoReplyWebhook) {
-      console.log('Webhook de resposta automática não configurado');
-      return;
-    }
-
-    try {
-      await fetch(webhooks.autoReplyWebhook, {
+      await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/logout`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          action: 'setup_autoreply',
-          sessionId: sessionId,
-          timestamp: new Date().toISOString(),
-          systemPrompt: `Você é um assistente conselheiro especializado em bem-estar emocional. 
-          Responda com empatia, usando técnicas de aconselhamento.
-          Mantenha respostas concisas mas acolhedoras.
-          Se a situação for grave, sugira procurar ajuda profissional.`
-        })
+          'Authorization': `Bearer ${wppConfig.secretKey}`
+        }
       });
       
-      console.log('Resposta automática configurada');
-    } catch (error) {
-      console.error('Erro ao configurar resposta automática:', error);
-    }
-  };
-
-  const disconnectWhatsApp = async () => {
-    if (webhooks.disconnectWebhook && connectionState.sessionId) {
-      try {
-        await fetch(webhooks.disconnectWebhook, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            action: 'disconnect',
-            sessionId: connectionState.sessionId,
-            timestamp: new Date().toISOString()
-          })
-        });
-      } catch (error) {
-        console.error('Erro ao desconectar:', error);
-      }
-    }
-
-    setConnectionState({
-      isConnected: false,
-      qrCode: '',
-      phoneNumber: '',
-      sessionId: '',
-      lastConnected: '',
-      autoReplyEnabled: false
-    });
-
-    updateConfig('whatsapp', {
-      isConnected: false,
-      authorizedNumber: '',
-      qrCode: '',
-      autoReply: false
-    });
-
-    try {
-      await saveConfig();
-      localStorage.removeItem('whatsapp_real_connection');
+      setConnectionState({
+        isConnected: false,
+        phoneNumber: '',
+        qrCode: '',
+        lastConnected: ''
+      });
       
       toast({
         title: "Desconectado",
-        description: "WhatsApp Business desconectado"
+        description: "WhatsApp desconectado com sucesso"
       });
     } catch (error) {
-      console.error('Erro ao salvar configuração:', error);
+      console.error('❌ Erro ao desconectar:', error);
     }
-  };
+  }, [toast]);
 
-  const sendMessage = async (phoneNumber: string, message: string) => {
-    if (!webhooks.sendMessageWebhook) {
-      toast({
-        title: "Webhook não configurado",
-        description: "Configure o webhook de envio",
-        variant: "destructive"
-      });
-      return false;
-    }
-
+  const sendMessage = useCallback(async (phone: string, message: string) => {
     try {
-      const response = await fetch(webhooks.sendMessageWebhook, {
+      const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/send-message`, {
         method: 'POST',
-        headers: {
+        headers: { 
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${wppConfig.secretKey}`
         },
         body: JSON.stringify({
-          action: 'send_message',
-          sessionId: connectionState.sessionId,
-          phoneNumber: phoneNumber,
-          message: message,
-          timestamp: new Date().toISOString()
+          phone: phone,
+          message: message
         })
       });
 
-      return response.ok;
+      if (response.ok) {
+        toast({
+          title: "Mensagem enviada! ✅",
+          description: "Mensagem enviada via WPPConnect"
+        });
+        return true;
+      }
+      
+      return false;
     } catch (error) {
-      console.error('Erro ao enviar mensagem:', error);
+      console.error('❌ Erro ao enviar mensagem:', error);
       return false;
     }
-  };
+  }, [toast]);
 
-  const getConnectionStatus = () => {
-    if (!connectionState.isConnected) return 'disconnected';
-    
-    const lastConnected = new Date(connectionState.lastConnected);
-    const now = new Date();
-    const minutesDiff = (now.getTime() - lastConnected.getTime()) / (1000 * 60);
-    
-    if (minutesDiff > 5) return 'idle';
-    return 'active';
-  };
+  const getConnectionStatus = useCallback(() => {
+    if (connectionState.isConnected) {
+      return 'active';
+    }
+    return 'disconnected';
+  }, [connectionState.isConnected]);
 
   return {
     connectionState,
