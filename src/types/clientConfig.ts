@@ -20,6 +20,7 @@ export interface WhatsAppConfig {
   wppconnect?: {
     serverUrl: string;
     sessionName: string;
+    secretKey: string;
     webhookUrl?: string;
   };
 }
@@ -69,6 +70,7 @@ export const defaultConfig: ClientConfig = {
     wppconnect: {
       serverUrl: 'http://localhost:21465',
       sessionName: 'crm-session',
+      secretKey: 'MySecretKeyToGenerateToken',
       webhookUrl: ''
     }
   },

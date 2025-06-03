@@ -18,7 +18,8 @@ import {
   Settings,
   Play,
   Square,
-  RefreshCw
+  RefreshCw,
+  Key
 } from 'lucide-react';
 
 export function WPPConnectConfig() {
@@ -54,7 +55,7 @@ export function WPPConnectConfig() {
       if (response.ok) {
         toast({
           title: "Servidor online!",
-          description: "WPPConnect Server está funcionando corretamente"
+          description: "WPPConnect Server v2.8.6 está funcionando corretamente"
         });
       } else {
         throw new Error('Servidor não respondeu');
@@ -77,7 +78,7 @@ export function WPPConnectConfig() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Server className="h-5 w-5" />
-            Configuração do WPPConnect Server
+            Configuração do WPPConnect Server v2.8.6
           </CardTitle>
           <CardDescription>
             Configure a conexão com seu servidor WPPConnect
@@ -107,6 +108,22 @@ export function WPPConnectConfig() {
             />
             <p className="text-sm text-gray-600">
               Identificador único para sua sessão WhatsApp
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="secretKey" className="flex items-center gap-2">
+              <Key className="h-4 w-4" />
+              Secret Key
+            </Label>
+            <Input
+              id="secretKey"
+              placeholder="MySecretKeyToGenerateToken"
+              value={config.secretKey}
+              onChange={(e) => handleConfigChange('secretKey', e.target.value)}
+            />
+            <p className="text-sm text-gray-600">
+              Chave secreta para autenticação (padrão: MySecretKeyToGenerateToken)
             </p>
           </div>
 
@@ -252,32 +269,26 @@ export function WPPConnectConfig() {
       {/* Instruções de Instalação */}
       <Card className="border-gray-200 bg-gray-50">
         <CardHeader>
-          <CardTitle>📋 Como instalar o WPPConnect Server</CardTitle>
+          <CardTitle>📋 Versão instalada: WPPConnect Server v2.8.6</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div>
-            <h4 className="font-semibold mb-2">Opção 1 - Docker (Recomendado):</h4>
-            <div className="bg-black text-green-400 p-3 rounded font-mono text-sm">
-              <div>git clone https://github.com/wppconnect-team/wppconnect-server.git</div>
-              <div>cd wppconnect-server</div>
-              <div>docker-compose up -d</div>
-            </div>
+          <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+            <h4 className="font-semibold text-green-900 mb-2">✅ Servidor detectado!</h4>
+            <p className="text-sm text-green-700">
+              Sua versão v2.8.6 está funcionando corretamente. 
+              Esta versão usa Secret Key para autenticação.
+            </p>
           </div>
           
           <div>
-            <h4 className="font-semibold mb-2">Opção 2 - Node.js:</h4>
+            <h4 className="font-semibold mb-2">🔑 Secret Key padrão:</h4>
             <div className="bg-black text-green-400 p-3 rounded font-mono text-sm">
-              <div>git clone https://github.com/wppconnect-team/wppconnect-server.git</div>
-              <div>cd wppconnect-server</div>
-              <div>cp .env.example .env</div>
-              <div>npm install</div>
-              <div>npm run dev</div>
+              MySecretKeyToGenerateToken
             </div>
+            <p className="text-sm text-gray-600 mt-2">
+              ℹ️ Você pode alterar esta chave no arquivo de configuração do servidor
+            </p>
           </div>
-          
-          <p className="text-sm text-gray-600">
-            ℹ️ O servidor será executado na porta 21465 por padrão
-          </p>
         </CardContent>
       </Card>
     </div>

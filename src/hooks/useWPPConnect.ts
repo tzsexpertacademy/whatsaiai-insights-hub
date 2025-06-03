@@ -6,6 +6,7 @@ import { useClientConfig } from '@/contexts/ClientConfigContext';
 interface WPPConnectConfig {
   serverUrl: string;
   sessionName: string;
+  secretKey: string;
   webhookUrl?: string;
 }
 
@@ -60,6 +61,7 @@ export function useWPPConnect() {
       return { 
         serverUrl: 'http://localhost:21465', 
         sessionName: 'crm-session',
+        secretKey: 'MySecretKeyToGenerateToken',
         webhookUrl: ''
       };
     }
@@ -67,6 +69,7 @@ export function useWPPConnect() {
     return {
       serverUrl: config.whatsapp.wppconnect.serverUrl || 'http://localhost:21465',
       sessionName: config.whatsapp.wppconnect.sessionName || 'crm-session',
+      secretKey: config.whatsapp.wppconnect.secretKey || 'MySecretKeyToGenerateToken',
       webhookUrl: config.whatsapp.wppconnect.webhookUrl || ''
     };
   }, [config]);
@@ -79,6 +82,7 @@ export function useWPPConnect() {
     const currentWPP = currentWhatsapp.wppconnect || { 
       serverUrl: 'http://localhost:21465', 
       sessionName: 'crm-session',
+      secretKey: 'MySecretKeyToGenerateToken',
       webhookUrl: ''
     };
     
@@ -93,19 +97,21 @@ export function useWPPConnect() {
 
   // Criar nova sessão
   const createSession = useCallback(async () => {
-    const { serverUrl, sessionName } = getWPPConfig();
+    const { serverUrl, sessionName, secretKey } = getWPPConfig();
     
-    console.log('🚀 Criando nova sessão WPPConnect:', sessionName);
+    console.log('🚀 Criando nova sessão WPPConnect v2.8.6:', sessionName);
     
     try {
       setSessionStatus(prev => ({ ...prev, isLoading: true }));
       
-      const response = await fetch(`${serverUrl}/api/${sessionName}/start-session`, {
+      // URL correta para WPPConnect Server v2.8.6
+      const response = await fetch(`${serverUrl}/api/${sessionName}/${secretKey}/generate-token`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          webhook: '', // Webhook será configurado depois
-          waitQrCode: true
+          session: sessionName,
+          qrcode: true,
+          webhookUrl: ''
         })
       });
 
@@ -116,10 +122,10 @@ export function useWPPConnect() {
       const data = await response.json();
       console.log('✅ Sessão criada:', data);
       
-      if (data.qrcode) {
+      if (data.qrcode || data.qr) {
         setSessionStatus(prev => ({
           ...prev,
-          qrCode: data.qrcode,
+          qrCode: data.qrcode || data.qr,
           sessionName,
           isLoading: false
         }));
@@ -146,10 +152,10 @@ export function useWPPConnect() {
 
   // Verificar status da sessão
   const checkSessionStatus = useCallback(async () => {
-    const { serverUrl, sessionName } = getWPPConfig();
+    const { serverUrl, sessionName, secretKey } = getWPPConfig();
     
     try {
-      const response = await fetch(`${serverUrl}/api/${sessionName}/status`);
+      const response = await fetch(`${serverUrl}/api/${sessionName}/${secretKey}/check-connection-session`);
       
       if (!response.ok) {
         throw new Error(`Erro HTTP: ${response.status}`);
@@ -158,12 +164,12 @@ export function useWPPConnect() {
       const data = await response.json();
       console.log('📱 Status da sessão:', data);
       
-      const isConnected = data.status === 'inChat' || data.status === 'isLogged';
+      const isConnected = data.result === 'connected' || data.connected || data.status === 'inChat';
       
       setSessionStatus(prev => ({
         ...prev,
         isConnected,
-        phoneNumber: data.phone || '',
+        phoneNumber: data.phone || data.number || '',
         qrCode: isConnected ? '' : prev.qrCode,
         sessionName
       }));
@@ -171,7 +177,7 @@ export function useWPPConnect() {
       if (isConnected) {
         toast({
           title: "WhatsApp conectado!",
-          description: `Número: ${data.phone || 'Conectado'}`
+          description: `Número: ${data.phone || data.number || 'Conectado'}`
         });
         
         // Carregar chats após conectar
@@ -187,12 +193,12 @@ export function useWPPConnect() {
 
   // Carregar conversas
   const loadChats = useCallback(async () => {
-    const { serverUrl, sessionName } = getWPPConfig();
+    const { serverUrl, sessionName, secretKey } = getWPPConfig();
     
     console.log('💬 Carregando conversas...');
     
     try {
-      const response = await fetch(`${serverUrl}/api/${sessionName}/all-chats`);
+      const response = await fetch(`${serverUrl}/api/${sessionName}/${secretKey}/all-chats`);
       
       if (!response.ok) {
         throw new Error(`Erro HTTP: ${response.status}`);
@@ -201,8 +207,11 @@ export function useWPPConnect() {
       const data = await response.json();
       console.log('📋 Conversas recebidas:', data);
       
-      if (Array.isArray(data)) {
-        const formattedChats: Chat[] = data.map((chat: any) => ({
+      // Para WPPConnect v2.8.6, os dados podem estar em data.result ou direto em data
+      const chatsData = data.result || data;
+      
+      if (Array.isArray(chatsData)) {
+        const formattedChats: Chat[] = chatsData.map((chat: any) => ({
           chatId: chat.id._serialized || chat.id,
           name: chat.name || chat.contact?.name || chat.id.split('@')[0],
           lastMessage: chat.lastMessage?.body || 'Sem mensagens',
@@ -226,13 +235,13 @@ export function useWPPConnect() {
 
   // Carregar mensagens de uma conversa
   const loadChatMessages = useCallback(async (chatId: string, limit: number = 50) => {
-    const { serverUrl, sessionName } = getWPPConfig();
+    const { serverUrl, sessionName, secretKey } = getWPPConfig();
     
     console.log(`📨 Carregando mensagens do chat: ${chatId}`);
     setIsLoadingMessages(true);
     
     try {
-      const response = await fetch(`${serverUrl}/api/${sessionName}/get-messages/${chatId}?limit=${limit}`);
+      const response = await fetch(`${serverUrl}/api/${sessionName}/${secretKey}/get-messages/${chatId}?limit=${limit}`);
       
       if (!response.ok) {
         throw new Error(`Erro HTTP: ${response.status}`);
@@ -241,8 +250,11 @@ export function useWPPConnect() {
       const data = await response.json();
       console.log('📋 Mensagens recebidas:', data);
       
-      if (Array.isArray(data)) {
-        const formattedMessages: Message[] = data.map((msg: any) => ({
+      // Para WPPConnect v2.8.6, os dados podem estar em data.result ou direto em data
+      const messagesData = data.result || data;
+      
+      if (Array.isArray(messagesData)) {
+        const formattedMessages: Message[] = messagesData.map((msg: any) => ({
           id: msg.id._serialized || Math.random().toString(),
           text: msg.body || '[Mídia]',
           sender: msg.fromMe ? 'user' : 'contact' as 'user' | 'contact',
@@ -271,12 +283,12 @@ export function useWPPConnect() {
 
   // Enviar mensagem
   const sendMessage = useCallback(async (chatId: string, text: string) => {
-    const { serverUrl, sessionName } = getWPPConfig();
+    const { serverUrl, sessionName, secretKey } = getWPPConfig();
     
     console.log(`📤 Enviando mensagem para: ${chatId}`);
     
     try {
-      const response = await fetch(`${serverUrl}/api/${sessionName}/send-message`, {
+      const response = await fetch(`${serverUrl}/api/${sessionName}/${secretKey}/send-message`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -322,10 +334,10 @@ export function useWPPConnect() {
 
   // Desconectar sessão
   const disconnect = useCallback(async () => {
-    const { serverUrl, sessionName } = getWPPConfig();
+    const { serverUrl, sessionName, secretKey } = getWPPConfig();
     
     try {
-      await fetch(`${serverUrl}/api/${sessionName}/logout`, { method: 'POST' });
+      await fetch(`${serverUrl}/api/${sessionName}/${secretKey}/logout-session`, { method: 'POST' });
       
       setSessionStatus({
         isConnected: false,
@@ -352,17 +364,18 @@ export function useWPPConnect() {
   const checkNewMessages = useCallback(async () => {
     if (!currentChatId) return;
     
-    const { serverUrl, sessionName } = getWPPConfig();
+    const { serverUrl, sessionName, secretKey } = getWPPConfig();
     
     try {
-      const response = await fetch(`${serverUrl}/api/${sessionName}/get-messages/${currentChatId}?limit=5`);
+      const response = await fetch(`${serverUrl}/api/${sessionName}/${secretKey}/get-messages/${currentChatId}?limit=5`);
       
       if (response.ok) {
         const data = await response.json();
+        const messagesData = data.result || data;
         
-        if (Array.isArray(data) && data.length > 0) {
+        if (Array.isArray(messagesData) && messagesData.length > 0) {
           const existingIds = new Set(messages.map(m => m.id));
-          const newMessages = data
+          const newMessages = messagesData
             .filter((msg: any) => !existingIds.has(msg.id._serialized))
             .map((msg: any) => ({
               id: msg.id._serialized,
