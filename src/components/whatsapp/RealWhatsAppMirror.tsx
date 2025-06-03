@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,8 +17,6 @@ import {
   User,
   AlertCircle,
   RefreshCw,
-  Play,
-  Square,
   Settings
 } from 'lucide-react';
 
@@ -28,7 +27,6 @@ interface Contact {
   lastMessage: string;
   timestamp: string;
   unread: number;
-  avatar?: string;
 }
 
 interface Message {
@@ -55,11 +53,10 @@ export function RealWhatsAppMirror() {
   
   const [selectedContact, setSelectedContact] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState('');
-  const [isLiveMode, setIsLiveMode] = useState(false);
   const [showWebhookConfig, setShowWebhookConfig] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
-  // Dados das conversas em tempo real (simuladas por enquanto)
+  // Estados reais da API WPPConnect - SEM SIMULAÇÃO
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
 
@@ -71,36 +68,99 @@ export function RealWhatsAppMirror() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Simular recebimento de mensagens em tempo real quando conectado
+  // Carregar conversas reais da API quando conectar
   useEffect(() => {
-    if (!isConnected || !isLiveMode) return;
-
-    const interval = setInterval(() => {
-      if (Math.random() > 0.8) {
-        simulateIncomingMessage();
-      }
-    }, 8000);
-
-    return () => clearInterval(interval);
-  }, [isConnected, isLiveMode, contacts]);
-
-  // Carregar conversas quando conectar
-  useEffect(() => {
-    if (isConnected && contacts.length === 0) {
-      loadInitialChats();
+    if (isConnected) {
+      loadRealChats();
     }
   }, [isConnected]);
 
-  const handleGenerateQR = async () => {
-    if (!webhooks.qrWebhook) {
-      setShowWebhookConfig(true);
-      toast({
-        title: "Configure primeiro! ⚙️",
-        description: "Adicione os webhooks do Make.com para conectar"
+  const loadRealChats = async () => {
+    console.log('📱 Carregando conversas reais da API WPPConnect...');
+    
+    try {
+      const response = await fetch('http://localhost:21465/api/default/chats', {
+        headers: {
+          'Authorization': 'Bearer MySecretKeyToGenerateToken'
+        }
       });
-      return;
-    }
 
+      if (response.ok) {
+        const chatsData = await response.json();
+        console.log('✅ Conversas carregadas:', chatsData);
+        
+        // Converter dados da API para o formato do componente
+        const realContacts: Contact[] = chatsData.map((chat: any, index: number) => ({
+          id: chat.id || `chat_${index}`,
+          name: chat.name || chat.contact?.name || 'Contato sem nome',
+          phone: chat.phone || chat.contact?.phone || 'Número não disponível',
+          lastMessage: chat.lastMessage?.body || 'Sem mensagens',
+          timestamp: chat.lastMessage?.timestamp || new Date().toISOString(),
+          unread: chat.unreadCount || 0
+        }));
+        
+        setContacts(realContacts);
+        
+        toast({
+          title: "Conversas carregadas! 📱",
+          description: `${realContacts.length} conversas encontradas`
+        });
+      } else {
+        console.error('❌ Erro ao carregar conversas:', response.status);
+        toast({
+          title: "Erro ao carregar conversas",
+          description: "Verifique se o WPPConnect está rodando",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('❌ Erro de conexão:', error);
+      toast({
+        title: "Erro de conexão",
+        description: "Não foi possível conectar com a API",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const loadRealMessages = async (contactId: string) => {
+    console.log('📤 Carregando mensagens reais para:', contactId);
+    
+    try {
+      const response = await fetch(`http://localhost:21465/api/default/messages/${contactId}`, {
+        headers: {
+          'Authorization': 'Bearer MySecretKeyToGenerateToken'
+        }
+      });
+
+      if (response.ok) {
+        const messagesData = await response.json();
+        console.log('✅ Mensagens carregadas:', messagesData);
+        
+        // Converter mensagens da API para o formato do componente
+        const realMessages: Message[] = messagesData.map((msg: any, index: number) => ({
+          id: msg.id || `msg_${index}`,
+          contactId: contactId,
+          text: msg.body || msg.text || 'Mensagem sem texto',
+          sent: msg.fromMe || false,
+          timestamp: msg.timestamp || new Date().toISOString(),
+          status: msg.ack ? 'delivered' : 'sent'
+        }));
+        
+        setMessages(prev => [
+          ...prev.filter(m => m.contactId !== contactId),
+          ...realMessages
+        ]);
+        
+      } else {
+        console.error('❌ Erro ao carregar mensagens:', response.status);
+      }
+    } catch (error) {
+      console.error('❌ Erro ao carregar mensagens:', error);
+    }
+  };
+
+  const handleGenerateQR = async () => {
     const qrUrl = await generateQRCode();
     if (qrUrl) {
       toast({
@@ -110,104 +170,14 @@ export function RealWhatsAppMirror() {
     }
   };
 
-  const loadInitialChats = () => {
-    const initialChats: Contact[] = [
-      {
-        id: '1',
-        name: 'Maria Silva',
-        phone: '+55 11 98765-4321',
-        lastMessage: 'Oi! Você pode me ajudar?',
-        timestamp: new Date().toISOString(),
-        unread: 2
-      },
-      {
-        id: '2', 
-        name: 'João Santos',
-        phone: '+55 11 91234-5678',
-        lastMessage: 'Obrigado pelo atendimento!',
-        timestamp: new Date(Date.now() - 600000).toISOString(),
-        unread: 0
-      },
-      {
-        id: '3',
-        name: 'Ana Costa',
-        phone: '+55 11 95555-1234',
-        lastMessage: 'Qual o horário de funcionamento?',
-        timestamp: new Date(Date.now() - 1200000).toISOString(),
-        unread: 1
-      }
-    ];
-
-    setContacts(initialChats);
-
-    const initialMessages: Message[] = [
-      {
-        id: '1',
-        contactId: '1',
-        text: 'Oi! Você pode me ajudar?',
-        sent: false,
-        timestamp: new Date().toISOString(),
-        status: 'delivered'
-      },
-      {
-        id: '2',
-        contactId: '1', 
-        text: 'Preciso de informações sobre seus produtos',
-        sent: false,
-        timestamp: new Date(Date.now() - 60000).toISOString(),
-        status: 'delivered'
-      }
-    ];
-
-    setMessages(initialMessages);
-  };
-
-  const simulateIncomingMessage = () => {
-    if (contacts.length === 0) return;
-    
-    const randomContact = contacts[Math.floor(Math.random() * contacts.length)];
-    const possibleMessages = [
-      'Oi, tudo bem?',
-      'Você pode me ajudar?',
-      'Qual o preço?',
-      'Obrigado!',
-      'Estou interessado',
-      'Pode me enviar mais informações?'
-    ];
-    
-    const newMsg: Message = {
-      id: Date.now().toString(),
-      contactId: randomContact.id,
-      text: possibleMessages[Math.floor(Math.random() * possibleMessages.length)],
-      sent: false,
-      timestamp: new Date().toISOString(),
-      status: 'delivered'
-    };
-
-    setMessages(prev => [...prev, newMsg]);
-    
-    setContacts(prev => prev.map(contact => 
-      contact.id === randomContact.id 
-        ? { 
-            ...contact, 
-            unread: contact.unread + 1, 
-            lastMessage: newMsg.text,
-            timestamp: newMsg.timestamp
-          }
-        : contact
-    ));
-
-    if (selectedContact === randomContact.id) {
-      toast({
-        title: `Nova mensagem de ${randomContact.name}`,
-        description: newMsg.text
-      });
-    }
-  };
-
   const selectContact = (contact: Contact) => {
+    console.log('📱 Selecionando contato:', contact.name);
     setSelectedContact(contact.id);
     
+    // Carregar mensagens reais deste contato
+    loadRealMessages(contact.id);
+    
+    // Marcar como lido
     setContacts(prev => prev.map(c => 
       c.id === contact.id ? { ...c, unread: 0 } : c
     ));
@@ -219,6 +189,8 @@ export function RealWhatsAppMirror() {
     const contact = contacts.find(c => c.id === selectedContact);
     if (!contact) return;
 
+    console.log('📤 Enviando mensagem real via WPPConnect...');
+
     const message: Message = {
       id: Date.now().toString(),
       contactId: selectedContact,
@@ -229,63 +201,31 @@ export function RealWhatsAppMirror() {
     };
 
     setMessages(prev => [...prev, message]);
+    const messageText = newMessage;
     setNewMessage('');
 
-    // Tentar enviar via webhook
-    if (webhooks.sendMessageWebhook) {
-      const success = await sendWhatsAppMessage(contact.phone, newMessage);
+    // Enviar via API WPPConnect REAL
+    try {
+      const success = await sendWhatsAppMessage(contact.phone, messageText);
       
       if (success) {
-        setTimeout(() => {
-          setMessages(prev => prev.map(msg => 
-            msg.id === message.id ? { ...msg, status: 'sent' } : msg
-          ));
-        }, 1000);
-
-        setTimeout(() => {
-          setMessages(prev => prev.map(msg => 
-            msg.id === message.id ? { ...msg, status: 'delivered' } : msg
-          ));
-        }, 2000);
-
-        toast({
-          title: "Mensagem enviada! ✅",
-          description: "Mensagem enviada via WhatsApp Business"
-        });
-      } else {
-        setMessages(prev => prev.map(msg => 
-          msg.id === message.id ? { ...msg, status: 'sent' } : msg
-        ));
-        
-        toast({
-          title: "Mensagem simulada",
-          description: "Configure webhook de envio para envio real",
-          variant: "destructive"
-        });
-      }
-    } else {
-      // Simular envio
-      setTimeout(() => {
+        // Atualizar status da mensagem
         setMessages(prev => prev.map(msg => 
           msg.id === message.id ? { ...msg, status: 'delivered' } : msg
         ));
-      }, 1500);
-    }
-  };
-
-  const toggleLiveMode = () => {
-    setIsLiveMode(!isLiveMode);
-    
-    if (!isLiveMode) {
-      toast({
-        title: "Modo ao vivo ativado! 🔴",
-        description: "Mensagens serão atualizadas automaticamente"
-      });
-    } else {
-      toast({
-        title: "Modo ao vivo desativado",
-        description: "Atualizações automáticas pausadas"
-      });
+        
+        toast({
+          title: "Mensagem enviada! ✅",
+          description: "Mensagem enviada via WPPConnect"
+        });
+      } else {
+        // Falha no envio
+        setMessages(prev => prev.map(msg => 
+          msg.id === message.id ? { ...msg, status: 'sent' } : msg
+        ));
+      }
+    } catch (error) {
+      console.error('❌ Erro ao enviar:', error);
     }
   };
 
@@ -307,20 +247,18 @@ export function RealWhatsAppMirror() {
   };
 
   const getConnectionStatusInfo = () => {
-    switch (connectionStatus) {
-      case 'active':
-        return {
-          icon: <CheckCircle className="h-6 w-6 text-green-500" />,
-          text: 'Conectado e Ativo',
-          color: 'text-green-600'
-        };
-      default:
-        return {
-          icon: <AlertCircle className="h-6 w-6 text-gray-400" />,
-          text: 'Desconectado',
-          color: 'text-gray-600'
-        };
+    if (connectionStatus === 'active') {
+      return {
+        icon: <CheckCircle className="h-6 w-6 text-green-500" />,
+        text: 'Conectado e Ativo',
+        color: 'text-green-600'
+      };
     }
+    return {
+      icon: <AlertCircle className="h-6 w-6 text-gray-400" />,
+      text: 'Desconectado',
+      color: 'text-gray-600'
+    };
   };
 
   const statusInfo = getConnectionStatusInfo();
@@ -332,11 +270,11 @@ export function RealWhatsAppMirror() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-green-900">
             <Smartphone className="h-5 w-5" />
-            WhatsApp Real - Espelho Business
+            WPPConnect Real - API Local
             {isConnected && <CheckCircle className="h-5 w-5 text-green-500" />}
           </CardTitle>
           <CardDescription className="text-green-700">
-            Conecta seu WhatsApp Business real via Make.com
+            Conecta seu WhatsApp via WPPConnect API (localhost:21465)
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -352,35 +290,11 @@ export function RealWhatsAppMirror() {
             </div>
             
             <div className="flex gap-2">
-              {!showWebhookConfig && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowWebhookConfig(!showWebhookConfig)}
-                >
-                  <Settings className="h-4 w-4 mr-1" />
-                  Configurar
-                </Button>
-              )}
-              
               {isConnected && (
                 <>
-                  <Button
-                    variant={isLiveMode ? "destructive" : "default"}
-                    size="sm"
-                    onClick={toggleLiveMode}
-                  >
-                    {isLiveMode ? (
-                      <>
-                        <Square className="h-4 w-4 mr-1" />
-                        Parar Live
-                      </>
-                    ) : (
-                      <>
-                        <Play className="h-4 w-4 mr-1" />
-                        Modo Live
-                      </>
-                    )}
+                  <Button onClick={loadRealChats} variant="outline" size="sm">
+                    <RefreshCw className="h-4 w-4 mr-1" />
+                    Atualizar Conversas
                   </Button>
                   <Button onClick={disconnectWhatsApp} variant="outline" size="sm">
                     Desconectar
@@ -389,46 +303,6 @@ export function RealWhatsAppMirror() {
               )}
             </div>
           </div>
-
-          {/* Configuração de Webhooks */}
-          {showWebhookConfig && (
-            <div className="space-y-4 mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-              <h4 className="font-medium text-blue-900">Configuração Make.com</h4>
-              <div className="grid grid-cols-1 gap-3">
-                <div>
-                  <label className="text-sm font-medium text-blue-700">Webhook QR Code *</label>
-                  <Input
-                    placeholder="https://hook.eu1.make.com/xxxxx"
-                    value={webhooks.qrWebhook}
-                    onChange={(e) => updateWebhooks({ qrWebhook: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-blue-700">Webhook Status *</label>
-                  <Input
-                    placeholder="https://hook.eu1.make.com/xxxxx"
-                    value={webhooks.statusWebhook}
-                    onChange={(e) => updateWebhooks({ statusWebhook: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-blue-700">Webhook Envio (Opcional)</label>
-                  <Input
-                    placeholder="https://hook.eu1.make.com/xxxxx"
-                    value={webhooks.sendMessageWebhook}
-                    onChange={(e) => updateWebhooks({ sendMessageWebhook: e.target.value })}
-                  />
-                </div>
-              </div>
-              <Button 
-                onClick={() => setShowWebhookConfig(false)} 
-                variant="outline" 
-                size="sm"
-              >
-                Fechar Configuração
-              </Button>
-            </div>
-          )}
 
           {!isConnected && !connectionState.qrCode && (
             <Button 
@@ -444,7 +318,7 @@ export function RealWhatsAppMirror() {
               ) : (
                 <>
                   <QrCode className="h-4 w-4 mr-2" />
-                  Conectar WhatsApp Business Real
+                  Conectar WPPConnect Real
                 </>
               )}
             </Button>
@@ -486,62 +360,69 @@ export function RealWhatsAppMirror() {
         </Card>
       )}
 
-      {/* Interface de Conversas */}
+      {/* Interface de Conversas REAL */}
       {isConnected && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 h-[600px]">
-          {/* Lista de Contatos */}
+          {/* Lista de Contatos REAL */}
           <Card className="lg:col-span-1">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <CardTitle className="flex items-center gap-2">
                   <MessageSquare className="h-5 w-5" />
-                  Conversas
+                  Conversas REAIS
                 </CardTitle>
-                <div className="flex items-center gap-2">
-                  {isLiveMode && (
-                    <div className="flex items-center gap-1">
-                      <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-                      <span className="text-xs text-red-600 font-medium">LIVE</span>
-                    </div>
-                  )}
-                  <Badge variant="secondary">{contacts.length}</Badge>
-                </div>
+                <Badge variant="secondary">{contacts.length}</Badge>
               </div>
             </CardHeader>
             
             <CardContent className="p-0">
               <div className="space-y-1 max-h-[500px] overflow-y-auto">
-                {contacts.map((contact) => (
-                  <div 
-                    key={contact.id}
-                    onClick={() => selectContact(contact)}
-                    className={`p-3 border-b cursor-pointer hover:bg-gray-50 transition-colors ${
-                      selectedContact === contact.id ? 'bg-blue-50 border-blue-200' : ''
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                        <User className="h-6 w-6 text-green-600" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between">
-                          <span className="font-medium text-sm">{contact.name}</span>
-                          <span className="text-xs text-gray-400">{formatTime(contact.timestamp)}</span>
-                        </div>
-                        <p className="text-sm text-gray-500 truncate mt-1">{contact.lastMessage}</p>
-                        <p className="text-xs text-gray-400">{contact.phone}</p>
-                      </div>
-                      {contact.unread > 0 && (
-                        <Badge className="bg-green-500 text-white">{contact.unread}</Badge>
-                      )}
-                    </div>
+                {contacts.length === 0 ? (
+                  <div className="p-4 text-center text-gray-500">
+                    <MessageSquare className="h-8 w-8 mx-auto mb-2" />
+                    <p>Nenhuma conversa encontrada</p>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={loadRealChats}
+                      className="mt-2"
+                    >
+                      Carregar Conversas
+                    </Button>
                   </div>
-                ))}
+                ) : (
+                  contacts.map((contact) => (
+                    <div 
+                      key={contact.id}
+                      onClick={() => selectContact(contact)}
+                      className={`p-3 border-b cursor-pointer hover:bg-gray-50 transition-colors ${
+                        selectedContact === contact.id ? 'bg-blue-50 border-blue-200' : ''
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                          <User className="h-6 w-6 text-green-600" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <span className="font-medium text-sm">{contact.name}</span>
+                            <span className="text-xs text-gray-400">{formatTime(contact.timestamp)}</span>
+                          </div>
+                          <p className="text-sm text-gray-500 truncate mt-1">{contact.lastMessage}</p>
+                          <p className="text-xs text-gray-400">{contact.phone}</p>
+                        </div>
+                        {contact.unread > 0 && (
+                          <Badge className="bg-green-500 text-white">{contact.unread}</Badge>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </CardContent>
           </Card>
 
-          {/* Área de Chat */}
+          {/* Área de Chat REAL */}
           <Card className="lg:col-span-2">
             {selectedContact ? (
               <>
@@ -562,7 +443,7 @@ export function RealWhatsAppMirror() {
                 </CardHeader>
                 
                 <CardContent className="flex flex-col h-[500px]">
-                  {/* Mensagens */}
+                  {/* Mensagens REAIS */}
                   <div className="flex-1 overflow-y-auto space-y-3 mb-4">
                     {messages
                       .filter(msg => msg.contactId === selectedContact)
@@ -593,11 +474,11 @@ export function RealWhatsAppMirror() {
                     <div ref={messagesEndRef} />
                   </div>
 
-                  {/* Enviar Mensagem */}
+                  {/* Enviar Mensagem REAL */}
                   <div className="border-t pt-4">
                     <div className="flex gap-3">
                       <Input 
-                        placeholder="Digite uma mensagem..."
+                        placeholder="Digite uma mensagem REAL..."
                         value={newMessage}
                         onChange={(e) => setNewMessage(e.target.value)}
                         onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
@@ -618,9 +499,9 @@ export function RealWhatsAppMirror() {
               <CardContent className="flex items-center justify-center h-full">
                 <div className="text-center text-gray-500">
                   <MessageSquare className="h-16 w-16 mx-auto mb-4 text-gray-300" />
-                  <h3 className="text-lg font-medium mb-2">Selecione uma conversa</h3>
-                  <p className="text-sm">Escolha um contato para ver as mensagens</p>
-                  <p className="text-xs mt-2">💡 Configure Make.com para conexão real</p>
+                  <h3 className="text-lg font-medium mb-2">Selecione uma conversa REAL</h3>
+                  <p className="text-sm">Escolha um contato para ver as mensagens reais</p>
+                  <p className="text-xs mt-2">💡 Conectado via WPPConnect API</p>
                 </div>
               </CardContent>
             )}
@@ -628,31 +509,19 @@ export function RealWhatsAppMirror() {
         </div>
       )}
 
-      {/* Instruções */}
+      {/* Status da API */}
       <Card className="bg-blue-50 border-blue-200">
         <CardHeader>
-          <CardTitle className="text-blue-900">Como conectar WhatsApp Business Real</CardTitle>
+          <CardTitle className="text-blue-900">Status da API WPPConnect</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-blue-700">
-            <div>
-              <h4 className="font-medium mb-2">🔧 Configuração necessária:</h4>
-              <ul className="space-y-1">
-                <li>• Configure webhooks do Make.com</li>
-                <li>• Tenha WhatsApp Business API</li>
-                <li>• Clique em "Configurar" para adicionar URLs</li>
-                <li>• Gere QR Code e escaneie</li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-medium mb-2">✅ Funcionalidades:</h4>
-              <ul className="space-y-1">
-                <li>• <strong>Conexão real:</strong> Via Make.com + API</li>
-                <li>• <strong>Espelhamento:</strong> Conversas em tempo real</li>
-                <li>• <strong>Envio/Recebimento:</strong> Mensagens reais</li>
-                <li>• <strong>Status:</strong> Entregue, lido, etc.</li>
-              </ul>
-            </div>
+          <div className="text-sm text-blue-700">
+            <p><strong>🔗 URL:</strong> http://localhost:21465</p>
+            <p><strong>🔑 Token:</strong> MySecretKeyToGenerateToken</p>
+            <p><strong>📡 Status:</strong> {isConnected ? '✅ Conectado' : '❌ Desconectado'}</p>
+            <p className="mt-2 text-blue-600">
+              Esta é a conexão REAL com sua API WPPConnect. Sem simulações!
+            </p>
           </div>
         </CardContent>
       </Card>
