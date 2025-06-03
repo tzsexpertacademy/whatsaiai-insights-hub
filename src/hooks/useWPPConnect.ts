@@ -55,27 +55,65 @@ export function useWPPConnect() {
   
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Obter configuração do WPPConnect
-  const getWPPConfig = useCallback((): WPPConnectConfig => {
-    if (!config?.whatsapp?.wppconnect) {
-      return { 
-        serverUrl: 'http://localhost:21465', 
-        sessionName: 'crm-session',
-        secretKey: 'MySecretKeyToGenerateToken',
-        webhookUrl: ''
-      };
+  // FORÇAR LOCALHOST - função para garantir que sempre use localhost
+  const forceLocalhost = useCallback((url: string): string => {
+    console.log('🔧 URL original:', url);
+    
+    // Se contém IP local (192.168.x.x), força localhost
+    if (url.includes('192.168.')) {
+      const localhostUrl = 'http://localhost:21465';
+      console.log('🔄 Convertendo IP local para localhost:', localhostUrl);
+      return localhostUrl;
     }
     
-    return {
+    // Se não é localhost, força localhost
+    if (!url.includes('localhost')) {
+      const localhostUrl = 'http://localhost:21465';
+      console.log('🔄 Forçando localhost:', localhostUrl);
+      return localhostUrl;
+    }
+    
+    console.log('✅ URL já é localhost:', url);
+    return url;
+  }, []);
+
+  // Obter configuração do WPPConnect
+  const getWPPConfig = useCallback((): WPPConnectConfig => {
+    const defaultConfig = { 
+      serverUrl: 'http://localhost:21465', 
+      sessionName: 'crm-session',
+      secretKey: 'MySecretKeyToGenerateToken',
+      webhookUrl: ''
+    };
+    
+    console.log('📋 Config atual:', config?.whatsapp?.wppconnect);
+    
+    if (!config?.whatsapp?.wppconnect) {
+      console.log('⚠️ Usando config padrão');
+      return defaultConfig;
+    }
+    
+    const rawConfig = {
       serverUrl: config.whatsapp.wppconnect.serverUrl || 'http://localhost:21465',
       sessionName: config.whatsapp.wppconnect.sessionName || 'crm-session',
       secretKey: config.whatsapp.wppconnect.secretKey || 'MySecretKeyToGenerateToken',
       webhookUrl: config.whatsapp.wppconnect.webhookUrl || ''
     };
-  }, [config]);
+    
+    // SEMPRE força localhost na serverUrl
+    const finalConfig = {
+      ...rawConfig,
+      serverUrl: forceLocalhost(rawConfig.serverUrl)
+    };
+    
+    console.log('🎯 Config final (forçado localhost):', finalConfig);
+    return finalConfig;
+  }, [config, forceLocalhost]);
 
   // Salvar configuração do WPPConnect
   const saveWPPConfig = useCallback((newConfig: Partial<WPPConnectConfig>) => {
+    console.log('💾 Salvando config:', newConfig);
+    
     if (!config?.whatsapp) return;
     
     const currentWhatsapp = config.whatsapp;
@@ -86,30 +124,40 @@ export function useWPPConnect() {
       webhookUrl: ''
     };
     
+    // SEMPRE força localhost antes de salvar
+    const configToSave = {
+      ...currentWPP,
+      ...newConfig
+    };
+    
+    if (configToSave.serverUrl) {
+      configToSave.serverUrl = forceLocalhost(configToSave.serverUrl);
+    }
+    
+    console.log('💾 Config que será salvo (localhost forçado):', configToSave);
+    
     updateConfig('whatsapp', {
       ...currentWhatsapp,
-      wppconnect: {
-        ...currentWPP,
-        ...newConfig
-      }
+      wppconnect: configToSave
     });
-  }, [config, updateConfig]);
+  }, [config, updateConfig, forceLocalhost]);
 
   // Criar nova sessão
   const createSession = useCallback(async () => {
-    const { serverUrl, sessionName, secretKey } = getWPPConfig();
-    
-    console.log('🚀 Criando nova sessão WPPConnect v2.8.6:', sessionName);
+    const wppConfig = getWPPConfig();
+    console.log('🚀 Criando sessão com config:', wppConfig);
     
     try {
       setSessionStatus(prev => ({ ...prev, isLoading: true }));
       
-      // Endpoint correto para WPPConnect Server v2.8.6
-      const response = await fetch(`${serverUrl}/api/${sessionName}/start-session`, {
+      const endpoint = `${wppConfig.serverUrl}/api/${wppConfig.sessionName}/start-session`;
+      console.log('📡 Fazendo POST para:', endpoint);
+      
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${secretKey}`
+          'Authorization': `Bearer ${wppConfig.secretKey}`
         },
         body: JSON.stringify({
           webhook: '',
@@ -117,8 +165,13 @@ export function useWPPConnect() {
         })
       });
 
+      console.log('📥 Response status:', response.status);
+      console.log('📥 Response ok:', response.ok);
+
       if (!response.ok) {
-        throw new Error(`Erro HTTP: ${response.status}`);
+        const errorText = await response.text();
+        console.error('❌ Erro na resposta:', errorText);
+        throw new Error(`Erro HTTP: ${response.status} - ${errorText}`);
       }
 
       const data = await response.json();
@@ -130,7 +183,8 @@ export function useWPPConnect() {
       }, 2000);
       
     } catch (error) {
-      console.error('❌ Erro ao criar sessão:', error);
+      console.error('❌ ERRO COMPLETO ao criar sessão:', error);
+      console.error('❌ Stack trace:', error instanceof Error ? error.stack : 'N/A');
       setSessionStatus(prev => ({ ...prev, isLoading: false }));
       toast({
         title: "Erro ao criar sessão",
@@ -142,14 +196,21 @@ export function useWPPConnect() {
 
   // Obter QR Code
   const getQRCode = useCallback(async () => {
-    const { serverUrl, sessionName, secretKey } = getWPPConfig();
+    const wppConfig = getWPPConfig();
+    console.log('📱 Obtendo QR Code com config:', wppConfig);
     
     try {
-      const response = await fetch(`${serverUrl}/api/${sessionName}/qr-code`, {
+      const endpoint = `${wppConfig.serverUrl}/api/${wppConfig.sessionName}/qr-code`;
+      console.log('📡 Fazendo GET para:', endpoint);
+      
+      const response = await fetch(endpoint, {
         headers: {
-          'Authorization': `Bearer ${secretKey}`
+          'Authorization': `Bearer ${wppConfig.secretKey}`
         }
       });
+      
+      console.log('📥 QR Response status:', response.status);
+      console.log('📥 QR Response ok:', response.ok);
       
       if (response.ok) {
         const data = await response.json();
@@ -159,7 +220,7 @@ export function useWPPConnect() {
           setSessionStatus(prev => ({
             ...prev,
             qrCode: data.qrcode || data.qr,
-            sessionName,
+            sessionName: wppConfig.sessionName,
             isLoading: false
           }));
           
@@ -171,9 +232,12 @@ export function useWPPConnect() {
           // Verificar status da sessão periodicamente
           startStatusPolling();
         }
+      } else {
+        const errorText = await response.text();
+        console.error('❌ Erro ao obter QR:', errorText);
       }
     } catch (error) {
-      console.error('❌ Erro ao obter QR Code:', error);
+      console.error('❌ ERRO COMPLETO ao obter QR Code:', error);
       setSessionStatus(prev => ({ ...prev, isLoading: false }));
     }
   }, [getWPPConfig, toast]);
@@ -531,7 +595,55 @@ export function useWPPConnect() {
     
     // Ações
     createSession,
-    checkSessionStatus,
+    checkSessionStatus: async () => {
+      const wppConfig = getWPPConfig();
+      console.log('🔍 Verificando status com config:', wppConfig);
+      
+      try {
+        const endpoint = `${wppConfig.serverUrl}/api/${wppConfig.sessionName}/status`;
+        console.log('📡 Status endpoint:', endpoint);
+        
+        const response = await fetch(endpoint, {
+          headers: {
+            'Authorization': `Bearer ${wppConfig.secretKey}`
+          }
+        });
+        
+        console.log('📥 Status response:', response.status, response.ok);
+        
+        if (!response.ok) {
+          return false;
+        }
+
+        const data = await response.json();
+        console.log('📱 Status da sessão:', data);
+        
+        const isConnected = data.state === 'CONNECTED' || data.status === 'inChat';
+        
+        setSessionStatus(prev => ({
+          ...prev,
+          isConnected,
+          phoneNumber: data.phone || data.number || '',
+          qrCode: isConnected ? '' : prev.qrCode,
+          sessionName: wppConfig.sessionName
+        }));
+        
+        if (isConnected) {
+          toast({
+            title: "WhatsApp conectado!",
+            description: `Número: ${data.phone || data.number || 'Conectado'}`
+          });
+          
+          // Carregar chats após conectar
+          loadChats();
+        }
+        
+        return isConnected;
+      } catch (error) {
+        console.error('❌ Erro ao verificar status:', error);
+        return false;
+      }
+    },
     loadChats,
     loadChatMessages,
     sendMessage,

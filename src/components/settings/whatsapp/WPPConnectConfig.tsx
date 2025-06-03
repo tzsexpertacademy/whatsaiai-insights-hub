@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -33,81 +34,114 @@ export function WPPConnectConfig() {
   } = useWPPConnect();
 
   const [config, setConfig] = useState(() => {
-    const defaultConfig = {
-      serverUrl: 'http://localhost:21465',
-      sessionName: 'crm-session',
-      secretKey: 'MySecretKeyToGenerateToken',
-      webhookUrl: ''
-    };
-    
     try {
       const savedConfig = getWPPConfig();
-      // Força localhost se estiver usando IP local
-      if (savedConfig.serverUrl.includes('192.168.')) {
-        savedConfig.serverUrl = 'http://localhost:21465';
-      }
-      return savedConfig;
+      console.log('🔧 Config carregado no componente:', savedConfig);
+      
+      // SEMPRE força localhost
+      return {
+        ...savedConfig,
+        serverUrl: 'http://localhost:21465'
+      };
     } catch (error) {
-      return defaultConfig;
+      console.log('⚠️ Erro ao carregar config, usando padrão');
+      return {
+        serverUrl: 'http://localhost:21465',
+        sessionName: 'crm-session',
+        secretKey: 'MySecretKeyToGenerateToken',
+        webhookUrl: ''
+      };
     }
   });
   const [isCheckingServer, setIsCheckingServer] = useState(false);
 
   const handleConfigChange = (field: keyof typeof config, value: string) => {
-    setConfig(prev => ({ ...prev, [field]: value }));
+    console.log(`📝 Alterando ${field}:`, value);
+    
+    let finalValue = value;
+    
+    // Se está alterando serverUrl, SEMPRE força localhost
+    if (field === 'serverUrl') {
+      if (value.includes('192.168.') || !value.includes('localhost')) {
+        finalValue = 'http://localhost:21465';
+        console.log('🔄 URL forçada para localhost:', finalValue);
+        
+        toast({
+          title: "URL corrigida",
+          description: "Forçando uso do localhost para evitar problemas de CORS"
+        });
+      }
+    }
+    
+    setConfig(prev => ({ ...prev, [field]: finalValue }));
   };
 
   const handleSaveConfig = () => {
-    // Garante que usa localhost
+    console.log('💾 Salvando configuração:', config);
+    
+    // SEMPRE força localhost antes de salvar
     const configToSave = {
       ...config,
-      serverUrl: config.serverUrl.includes('192.168.') ? 'http://localhost:21465' : config.serverUrl
+      serverUrl: 'http://localhost:21465'
     };
+    
+    console.log('💾 Config final a ser salvo:', configToSave);
     
     saveWPPConfig(configToSave);
     setConfig(configToSave);
     
     toast({
       title: "Configuração salva",
-      description: "Configurações do WPPConnect foram salvas com localhost"
+      description: "Configurações salvas com localhost obrigatório"
     });
   };
 
   const handleCheckServer = async () => {
     setIsCheckingServer(true);
+    console.log('🔍 Testando servidor...');
+    
     try {
-      const testUrl = config.serverUrl.includes('192.168.') 
-        ? 'http://localhost:21465' 
-        : config.serverUrl;
+      // SEMPRE usa localhost para teste
+      const testUrl = 'http://localhost:21465';
+      console.log('📡 Testando URL:', testUrl);
       
-      // Testar endpoint simples primeiro
-      const response = await fetch(`${testUrl}/api/status`, {
+      // Testar endpoint de status primeiro
+      const statusResponse = await fetch(`${testUrl}/api/status`, {
+        method: 'GET',
         headers: {
           'Authorization': `Bearer ${config.secretKey}`
         }
       });
       
-      if (response.ok) {
+      console.log('📥 Status response:', statusResponse.status, statusResponse.ok);
+      
+      if (statusResponse.ok) {
+        console.log('✅ Servidor OK via /api/status');
         toast({
-          title: "Servidor online!",
-          description: "WPPConnect Server v2.8.6 está funcionando corretamente"
+          title: "Servidor online! ✅",
+          description: "WPPConnect Server está funcionando perfeitamente"
         });
       } else {
-        // Tentar endpoint alternativo
-        const altResponse = await fetch(`${testUrl}/health`);
-        if (altResponse.ok) {
+        // Tentar endpoint alternativo /health
+        console.log('🔄 Tentando endpoint alternativo /health...');
+        const healthResponse = await fetch(`${testUrl}/health`);
+        console.log('📥 Health response:', healthResponse.status, healthResponse.ok);
+        
+        if (healthResponse.ok) {
+          console.log('✅ Servidor OK via /health');
           toast({
-            title: "Servidor online!",
-            description: "WPPConnect Server v2.8.6 detectado"
+            title: "Servidor online! ✅",
+            description: "WPPConnect Server detectado e funcionando"
           });
         } else {
-          throw new Error('Servidor não respondeu');
+          throw new Error(`Servidor não respondeu. Status: ${statusResponse.status}`);
         }
       }
     } catch (error) {
+      console.error('❌ ERRO COMPLETO no teste:', error);
       toast({
-        title: "Servidor offline",
-        description: "Verifique se o WPPConnect Server está rodando em localhost:21465",
+        title: "Servidor offline ❌",
+        description: `Erro: ${error instanceof Error ? error.message : 'Desconhecido'}. Verifique se está rodando na porta 21465`,
         variant: "destructive"
       });
     } finally {
@@ -117,6 +151,20 @@ export function WPPConnectConfig() {
 
   return (
     <div className="space-y-6">
+      {/* Debug Info */}
+      <Card className="border-blue-200 bg-blue-50">
+        <CardHeader>
+          <CardTitle className="text-blue-900">🔧 Debug - Configuração Atual</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-sm text-blue-800 space-y-1">
+            <p><strong>Server URL:</strong> {config.serverUrl}</p>
+            <p><strong>Session Name:</strong> {config.sessionName}</p>
+            <p><strong>Secret Key:</strong> {config.secretKey ? '***' : 'Não definido'}</p>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Configuração do Servidor */}
       <Card>
         <CardHeader>
@@ -125,20 +173,20 @@ export function WPPConnectConfig() {
             Configuração do WPPConnect Server v2.8.6
           </CardTitle>
           <CardDescription>
-            Configure a conexão com seu servidor WPPConnect
+            Configure a conexão com seu servidor WPPConnect (SEMPRE localhost)
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="serverUrl">URL do Servidor</Label>
+            <Label htmlFor="serverUrl">URL do Servidor (BLOQUEADO EM LOCALHOST)</Label>
             <Input
               id="serverUrl"
-              placeholder="http://localhost:21465"
-              value={config.serverUrl}
-              onChange={(e) => handleConfigChange('serverUrl', e.target.value)}
+              value="http://localhost:21465"
+              disabled
+              className="bg-gray-100"
             />
-            <p className="text-sm text-gray-600">
-              URL onde o WPPConnect Server está rodando (use localhost, não IP local)
+            <p className="text-sm text-green-600 font-medium">
+              🔒 URL travada em localhost para evitar problemas de CORS
             </p>
           </div>
 
@@ -150,9 +198,6 @@ export function WPPConnectConfig() {
               value={config.sessionName}
               onChange={(e) => handleConfigChange('sessionName', e.target.value)}
             />
-            <p className="text-sm text-gray-600">
-              Identificador único para sua sessão WhatsApp
-            </p>
           </div>
 
           <div className="space-y-2">
@@ -166,9 +211,6 @@ export function WPPConnectConfig() {
               value={config.secretKey}
               onChange={(e) => handleConfigChange('secretKey', e.target.value)}
             />
-            <p className="text-sm text-gray-600">
-              Chave secreta para autenticação (padrão: MySecretKeyToGenerateToken)
-            </p>
           </div>
 
           <div className="space-y-2">
@@ -179,9 +221,6 @@ export function WPPConnectConfig() {
               value={config.webhookUrl}
               onChange={(e) => handleConfigChange('webhookUrl', e.target.value)}
             />
-            <p className="text-sm text-gray-600">
-              URL para receber mensagens em tempo real
-            </p>
           </div>
 
           <div className="flex gap-2">
