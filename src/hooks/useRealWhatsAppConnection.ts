@@ -38,11 +38,11 @@ export function useRealWhatsAppConnection() {
     };
   });
 
-  // Configuração WPPConnect local REAL
+  // Configuração WPPConnect local REAL - TOKEN CORRETO
   const wppConfig = {
     serverUrl: 'http://localhost:21465',
     sessionName: 'default',
-    secretKey: 'MySecretKeyToGenerateToken'
+    secretKey: 'THISISMYSECURETOKEN' // Token padrão do WPPConnect
   };
 
   const updateWebhooks = useCallback((newWebhooks: Partial<WebhookConfig>) => {
