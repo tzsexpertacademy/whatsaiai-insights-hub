@@ -51,19 +51,34 @@ export function WPPConnectConfig() {
   const handleCheckServer = async () => {
     setIsCheckingServer(true);
     try {
-      const response = await fetch(`${config.serverUrl}/api/server/status`);
+      // Testar se o servidor está respondendo usando um endpoint simples
+      const response = await fetch(`${config.serverUrl}/api/status`, {
+        headers: {
+          'Authorization': `Bearer ${config.secretKey}`
+        }
+      });
+      
       if (response.ok) {
         toast({
           title: "Servidor online!",
           description: "WPPConnect Server v2.8.6 está funcionando corretamente"
         });
       } else {
-        throw new Error('Servidor não respondeu');
+        // Tentar endpoint alternativo
+        const altResponse = await fetch(`${config.serverUrl}/health`);
+        if (altResponse.ok) {
+          toast({
+            title: "Servidor online!",
+            description: "WPPConnect Server v2.8.6 detectado"
+          });
+        } else {
+          throw new Error('Servidor não respondeu');
+        }
       }
     } catch (error) {
       toast({
         title: "Servidor offline",
-        description: "Verifique se o WPPConnect Server está rodando",
+        description: "Verifique se o WPPConnect Server está rodando na porta 21465",
         variant: "destructive"
       });
     } finally {
@@ -276,7 +291,7 @@ export function WPPConnectConfig() {
             <h4 className="font-semibold text-green-900 mb-2">✅ Servidor detectado!</h4>
             <p className="text-sm text-green-700">
               Sua versão v2.8.6 está funcionando corretamente. 
-              Esta versão usa Secret Key para autenticação.
+              Esta versão usa Bearer Token para autenticação.
             </p>
           </div>
           
@@ -288,6 +303,16 @@ export function WPPConnectConfig() {
             <p className="text-sm text-gray-600 mt-2">
               ℹ️ Você pode alterar esta chave no arquivo de configuração do servidor
             </p>
+          </div>
+
+          <div>
+            <h4 className="font-semibold mb-2">🔧 Endpoints corrigidos:</h4>
+            <div className="text-sm text-gray-600 space-y-1">
+              <p>• Criar sessão: <code>/api/{'{session}'}/start-session</code></p>
+              <p>• QR Code: <code>/api/{'{session}'}/qr-code</code></p>
+              <p>• Status: <code>/api/{'{session}'}/status</code></p>
+              <p>• Autenticação: <code>Authorization: Bearer {'{secretKey}'}</code></p>
+            </div>
           </div>
         </CardContent>
       </Card>
