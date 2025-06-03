@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -37,12 +36,6 @@ export function RealQRCodeGenerator() {
           icon: <CheckCircle className="h-6 w-6 text-green-500" />,
           text: 'Conectado e Ativo',
           color: 'text-green-600'
-        };
-      case 'idle':
-        return {
-          icon: <Clock className="h-6 w-6 text-yellow-500" />,
-          text: 'Conectado (Inativo)',
-          color: 'text-yellow-600'
         };
       default:
         return {
