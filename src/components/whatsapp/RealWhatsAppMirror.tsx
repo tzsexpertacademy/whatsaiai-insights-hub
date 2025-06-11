@@ -295,7 +295,7 @@ export function RealWhatsAppMirror() {
                 </Label>
                 <Input
                   id="sessionName"
-                  value={wppConfig.sessionName}
+                  value={wppConfig.sessionName || ''}
                   onChange={(e) => updateWPPConfig({ sessionName: e.target.value })}
                   placeholder="NERDWHATS_AMERICA"
                 />
@@ -308,7 +308,7 @@ export function RealWhatsAppMirror() {
                 </Label>
                 <Input
                   id="secretKey"
-                  value={wppConfig.secretKey}
+                  value={wppConfig.secretKey || ''}
                   onChange={(e) => updateWPPConfig({ secretKey: e.target.value })}
                   placeholder="THISISMYSECURETOKEN"
                 />
@@ -322,7 +322,7 @@ export function RealWhatsAppMirror() {
               </Label>
               <Input
                 id="token"
-                value={wppConfig.token}
+                value={wppConfig.token || ''}
                 onChange={(e) => updateWPPConfig({ token: e.target.value })}
                 placeholder="$2b$10$jKW5P3gzFYntHqLs0ttw2uRsoFGIxfiM6u4GSMWhsej15Kh6_ZyDa"
                 className="font-mono text-xs"
@@ -339,7 +339,7 @@ export function RealWhatsAppMirror() {
               </Label>
               <Input
                 id="serverUrl"
-                value={wppConfig.serverUrl}
+                value={wppConfig.serverUrl || ''}
                 onChange={(e) => updateWPPConfig({ serverUrl: e.target.value })}
                 placeholder="http://localhost:21465"
               />
@@ -599,10 +599,10 @@ export function RealWhatsAppMirror() {
         </CardHeader>
         <CardContent>
           <div className="text-sm text-blue-700">
-            <p><strong>🔗 URL:</strong> {wppConfig.serverUrl}</p>
-            <p><strong>🔑 Secret Key:</strong> {wppConfig.secretKey}</p>
-            <p><strong>🔐 Token:</strong> {wppConfig.token.substring(0, 20)}...</p>
-            <p><strong>📡 Sessão:</strong> {wppConfig.sessionName}</p>
+            <p><strong>🔗 URL:</strong> {wppConfig.serverUrl || 'Não configurado'}</p>
+            <p><strong>🔑 Secret Key:</strong> {wppConfig.secretKey || 'Não configurado'}</p>
+            <p><strong>🔐 Token:</strong> {wppConfig.token ? `${wppConfig.token.substring(0, 20)}...` : 'Não configurado'}</p>
+            <p><strong>📡 Sessão:</strong> {wppConfig.sessionName || 'Não configurado'}</p>
             <p><strong>📡 Status:</strong> {isConnected ? '✅ Conectado' : '❌ Desconectado'}</p>
             <p className="mt-2 text-blue-600">
               Esta é a conexão REAL com sua API WPPConnect. Configure os campos acima!
