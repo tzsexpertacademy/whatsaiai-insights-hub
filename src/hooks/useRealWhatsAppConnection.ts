@@ -16,6 +16,12 @@ interface WebhookConfig {
   autoReplyWebhook: string;
 }
 
+interface WPPConfig {
+  serverUrl: string;
+  sessionName: string;
+  secretKey: string;
+}
+
 export function useRealWhatsAppConnection() {
   const { toast } = useToast();
   
@@ -38,12 +44,26 @@ export function useRealWhatsAppConnection() {
     };
   });
 
-  // Configuração WPPConnect - CORRIGIDA baseada nas suas imagens
-  const wppConfig = {
-    serverUrl: 'http://localhost:21465',
-    sessionName: 'NERDWHATS_AMERICA',
-    secretKey: 'MySecretKeyToGenerateToken'
-  };
+  // Configuração WPPConnect - agora dinâmica
+  const [wppConfig, setWppConfig] = useState<WPPConfig>(() => {
+    const saved = localStorage.getItem('wpp_config');
+    return saved ? JSON.parse(saved) : {
+      serverUrl: 'http://localhost:21465',
+      sessionName: 'NERDWHATS_AMERICA',
+      secretKey: 'THISISMYSECURETOKEN'
+    };
+  });
+
+  const updateWPPConfig = useCallback((newConfig: Partial<WPPConfig>) => {
+    const updated = { ...wppConfig, ...newConfig };
+    setWppConfig(updated);
+    localStorage.setItem('wpp_config', JSON.stringify(updated));
+    
+    toast({
+      title: "Configuração salva! ⚙️",
+      description: "Configurações do WPPConnect atualizadas"
+    });
+  }, [wppConfig, toast]);
 
   const updateWebhooks = useCallback((newWebhooks: Partial<WebhookConfig>) => {
     const updated = { ...webhooks, ...newWebhooks };
@@ -53,6 +73,7 @@ export function useRealWhatsAppConnection() {
 
   const generateQRCode = useCallback(async () => {
     console.log('🚀 Gerando QR Code WPPConnect REAL...');
+    console.log('📱 Configuração atual:', wppConfig);
     setIsLoading(true);
     
     try {
@@ -108,7 +129,7 @@ export function useRealWhatsAppConnection() {
     } finally {
       setIsLoading(false);
     }
-  }, [toast]);
+  }, [toast, wppConfig]);
 
   const startStatusPolling = useCallback(() => {
     const pollInterval = setInterval(async () => {
@@ -159,7 +180,7 @@ export function useRealWhatsAppConnection() {
       clearInterval(pollInterval);
       console.log('⏰ Polling timeout');
     }, 120000);
-  }, [toast]);
+  }, [toast, wppConfig]);
 
   const disconnectWhatsApp = useCallback(async () => {
     console.log('🔌 Desconectando WhatsApp...');
@@ -201,7 +222,7 @@ export function useRealWhatsAppConnection() {
         description: "Estado local limpo"
       });
     }
-  }, [toast]);
+  }, [toast, wppConfig]);
 
   const sendMessage = useCallback(async (phone: string, message: string) => {
     console.log('📤 Enviando mensagem real via WPPConnect...');
@@ -250,7 +271,7 @@ export function useRealWhatsAppConnection() {
       });
       return false;
     }
-  }, [toast]);
+  }, [toast, wppConfig]);
 
   const getConnectionStatus = useCallback(() => {
     if (connectionState.isConnected) {
@@ -263,7 +284,9 @@ export function useRealWhatsAppConnection() {
     connectionState,
     isLoading,
     webhooks,
+    wppConfig,
     updateWebhooks,
+    updateWPPConfig,
     generateQRCode,
     disconnectWhatsApp,
     sendMessage,

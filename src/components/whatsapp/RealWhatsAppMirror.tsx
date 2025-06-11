@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useRealWhatsAppConnection } from "@/hooks/useRealWhatsAppConnection";
@@ -16,7 +17,9 @@ import {
   User,
   AlertCircle,
   RefreshCw,
-  Settings
+  Settings,
+  Key,
+  Server
 } from 'lucide-react';
 
 interface Contact {
@@ -43,7 +46,9 @@ export function RealWhatsAppMirror() {
     connectionState, 
     isLoading, 
     webhooks, 
+    wppConfig,
     updateWebhooks, 
+    updateWPPConfig,
     generateQRCode, 
     disconnectWhatsApp,
     sendMessage: sendWhatsAppMessage,
@@ -52,7 +57,7 @@ export function RealWhatsAppMirror() {
   
   const [selectedContact, setSelectedContact] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState('');
-  const [showWebhookConfig, setShowWebhookConfig] = useState(false);
+  const [showConfig, setShowConfig] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
   // Estados reais da API WPPConnect - SEM SIMULAÇÃO
@@ -79,7 +84,7 @@ export function RealWhatsAppMirror() {
     
     try {
       // Usar endpoint correto sem autenticação
-      const response = await fetch('http://localhost:21465/api/NERDWHATS_AMERICA/all-chats');
+      const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/all-chats`);
 
       if (response.ok) {
         const chatsData = await response.json();
@@ -124,7 +129,7 @@ export function RealWhatsAppMirror() {
     
     try {
       // Usar endpoint correto sem autenticação  
-      const response = await fetch(`http://localhost:21465/api/NERDWHATS_AMERICA/get-messages/${contactId}`);
+      const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/get-messages/${contactId}`);
 
       if (response.ok) {
         const messagesData = await response.json();
@@ -258,16 +263,82 @@ export function RealWhatsAppMirror() {
 
   return (
     <div className="space-y-6">
+      {/* Configuração WPPConnect */}
+      <Card className="bg-blue-50 border-blue-200">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-blue-900">
+            <Server className="h-5 w-5" />
+            Configuração WPPConnect
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => setShowConfig(!showConfig)}
+            >
+              <Settings className="h-4 w-4 mr-1" />
+              {showConfig ? 'Ocultar' : 'Configurar'}
+            </Button>
+          </CardTitle>
+          <CardDescription className="text-blue-700">
+            Configure sua conexão com o servidor WPPConnect
+          </CardDescription>
+        </CardHeader>
+        
+        {showConfig && (
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="sessionName" className="flex items-center gap-2">
+                  <Key className="h-4 w-4" />
+                  Nome da Sessão
+                </Label>
+                <Input
+                  id="sessionName"
+                  value={wppConfig.sessionName}
+                  onChange={(e) => updateWPPConfig({ sessionName: e.target.value })}
+                  placeholder="NERDWHATS_AMERICA"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="secretKey" className="flex items-center gap-2">
+                  <Key className="h-4 w-4" />
+                  Token/Secret Key
+                </Label>
+                <Input
+                  id="secretKey"
+                  value={wppConfig.secretKey}
+                  onChange={(e) => updateWPPConfig({ secretKey: e.target.value })}
+                  placeholder="THISISMYSECURETOKEN"
+                />
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="serverUrl" className="flex items-center gap-2">
+                <Server className="h-4 w-4" />
+                URL do Servidor
+              </Label>
+              <Input
+                id="serverUrl"
+                value={wppConfig.serverUrl}
+                onChange={(e) => updateWPPConfig({ serverUrl: e.target.value })}
+                placeholder="http://localhost:21465"
+              />
+            </div>
+          </CardContent>
+        )}
+      </Card>
+
       {/* Header com Status */}
       <Card className="bg-green-50 border-green-200">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-green-900">
             <Smartphone className="h-5 w-5" />
-            WPPConnect Real - NERDWHATS_AMERICA
+            WPPConnect Real - {wppConfig.sessionName}
             {isConnected && <CheckCircle className="h-5 w-5 text-green-500" />}
           </CardTitle>
           <CardDescription className="text-green-700">
-            Conecta seu WhatsApp via WPPConnect API (localhost:21465)
+            Conecta seu WhatsApp via WPPConnect API ({wppConfig.serverUrl})
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -509,12 +580,12 @@ export function RealWhatsAppMirror() {
         </CardHeader>
         <CardContent>
           <div className="text-sm text-blue-700">
-            <p><strong>🔗 URL:</strong> http://localhost:21465</p>
-            <p><strong>🔑 Token:</strong> MySecretKeyToGenerateToken</p>
-            <p><strong>📡 Sessão:</strong> NERDWHATS_AMERICA</p>
+            <p><strong>🔗 URL:</strong> {wppConfig.serverUrl}</p>
+            <p><strong>🔑 Token:</strong> {wppConfig.secretKey}</p>
+            <p><strong>📡 Sessão:</strong> {wppConfig.sessionName}</p>
             <p><strong>📡 Status:</strong> {isConnected ? '✅ Conectado' : '❌ Desconectado'}</p>
             <p className="mt-2 text-blue-600">
-              Esta é a conexão REAL com sua API WPPConnect. Endpoints corrigidos!
+              Esta é a conexão REAL com sua API WPPConnect. Configure os campos acima!
             </p>
           </div>
         </CardContent>
