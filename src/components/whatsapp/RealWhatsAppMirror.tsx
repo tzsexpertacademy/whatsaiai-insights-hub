@@ -95,28 +95,52 @@ export function RealWhatsAppMirror() {
     setIsLoadingChats(true);
     
     try {
+      console.log('🔄 Iniciando carregamento de conversas...');
       const chatsData = await loadRealChats();
       
-      const realContacts: Contact[] = chatsData.map((chat: any, index: number) => ({
-        id: chat.id || `chat_${index}`,
-        name: chat.name || chat.contact?.name || 'Contato sem nome',
-        phone: chat.phone || chat.contact?.phone || 'Número não disponível',
-        lastMessage: chat.lastMessage?.body || 'Sem mensagens',
-        timestamp: chat.lastMessage?.timestamp || new Date().toISOString(),
-        unread: chat.unreadCount || 0
-      }));
+      console.log('📋 Dados recebidos:', chatsData);
       
+      if (!chatsData || chatsData.length === 0) {
+        console.log('⚠️ Nenhuma conversa encontrada');
+        setContacts([]);
+        toast({
+          title: "Nenhuma conversa encontrada",
+          description: "Não há conversas disponíveis no momento",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      const realContacts: Contact[] = chatsData.map((chat: any, index: number) => {
+        console.log(`📱 Processando chat ${index}:`, chat);
+        
+        return {
+          id: chat.id || chat.chatId || `chat_${index}`,
+          name: chat.name || chat.contact?.name || chat.title || 'Contato sem nome',
+          phone: chat.phone || chat.contact?.phone || chat.id || 'Número não disponível',
+          lastMessage: chat.lastMessage?.body || chat.lastMessage?.text || 'Sem mensagens',
+          timestamp: chat.lastMessage?.timestamp || chat.timestamp || new Date().toISOString(),
+          unread: chat.unreadCount || chat.unread || 0
+        };
+      });
+      
+      console.log('✅ Conversas processadas:', realContacts);
       setContacts(realContacts);
       
       toast({
         title: "Conversas carregadas! 📱",
         description: `${realContacts.length} conversas encontradas`
       });
+      
     } catch (error) {
       console.error('❌ Erro ao carregar conversas:', error);
+      
+      // Limpar estado em caso de erro
+      setContacts([]);
+      
       toast({
         title: "Erro ao carregar conversas",
-        description: "Verifique se o WPPConnect está rodando",
+        description: error instanceof Error ? error.message : "Verifique se o WPPConnect está rodando corretamente",
         variant: "destructive"
       });
     } finally {
@@ -301,7 +325,7 @@ export function RealWhatsAppMirror() {
                     disabled={isLoadingChats}
                   >
                     <RefreshCw className={`h-4 w-4 mr-1 ${isLoadingChats ? 'animate-spin' : ''}`} />
-                    Atualizar Conversas
+                    {isLoadingChats ? 'Carregando...' : 'Carregar Conversas'}
                   </Button>
                   <Button onClick={disconnectWhatsApp} variant="outline" size="sm">
                     Desconectar

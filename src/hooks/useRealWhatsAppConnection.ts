@@ -1,4 +1,3 @@
-
 import { useState, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -345,12 +344,11 @@ export function useRealWhatsAppConnection() {
     }
   }, [toast, wppConfig]);
 
-  // NOVA FUNÇÃO: Carregar conversas reais
+  // FUNÇÃO CORRIGIDA: Carregar conversas reais
   const loadRealChats = useCallback(async () => {
     console.log('📱 Carregando conversas reais da API WPPConnect...');
     
     try {
-      // CORRIGIDO: URL correta da API
       const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/all-chats`, {
         method: 'GET',
         headers: {
@@ -360,15 +358,40 @@ export function useRealWhatsAppConnection() {
       });
 
       if (response.ok) {
-        const chatsData = await response.json();
-        console.log('✅ Conversas carregadas:', chatsData);
-        return chatsData;
+        const responseData = await response.json();
+        console.log('✅ Resposta da API:', responseData);
+        
+        // Verificar diferentes formatos de resposta da API
+        let chatsArray = [];
+        
+        if (Array.isArray(responseData)) {
+          chatsArray = responseData;
+        } else if (responseData.chats && Array.isArray(responseData.chats)) {
+          chatsArray = responseData.chats;
+        } else if (responseData.data && Array.isArray(responseData.data)) {
+          chatsArray = responseData.data;
+        } else if (responseData.response && Array.isArray(responseData.response)) {
+          chatsArray = responseData.response;
+        } else {
+          console.warn('⚠️ Formato de resposta não reconhecido:', responseData);
+          throw new Error('Formato de dados não suportado. Verifique se o WPPConnect está retornando os chats corretamente.');
+        }
+        
+        console.log('📋 Array de chats encontrado:', chatsArray);
+        
+        if (chatsArray.length === 0) {
+          console.log('⚠️ Nenhuma conversa encontrada');
+          return [];
+        }
+        
+        return chatsArray;
       } else {
-        console.error('❌ Erro ao carregar conversas:', response.status);
-        throw new Error(`Erro ${response.status}: ${await response.text()}`);
+        const errorText = await response.text();
+        console.error('❌ Erro ao carregar conversas:', response.status, errorText);
+        throw new Error(`Erro ${response.status}: ${errorText}`);
       }
     } catch (error) {
-      console.error('❌ Erro de conexão:', error);
+      console.error('❌ Erro de conexão ao carregar conversas:', error);
       throw error;
     }
   }, [wppConfig]);
