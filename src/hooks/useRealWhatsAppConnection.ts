@@ -78,12 +78,13 @@ export function useRealWhatsAppConnection() {
     setIsLoading(true);
     
     try {
-      // CORRIGIDO: Usar o endpoint /start-session em vez de /generate-token
+      // CORRIGIDO: URL sem token no path, token vai no header Authorization
       console.log('📱 Iniciando sessão para obter QR Code...');
-      const startSessionResponse = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/${wppConfig.token}/start-session`, {
+      const startSessionResponse = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/start-session`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${wppConfig.token}`
         },
         body: JSON.stringify({
           webhook: '',
@@ -157,10 +158,11 @@ export function useRealWhatsAppConnection() {
     const pollInterval = setInterval(async () => {
       try {
         console.log('🔍 Verificando status da sessão...');
-        const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/${wppConfig.token}/status-session`, {
+        const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/status-session`, {
           method: 'GET',
           headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${wppConfig.token}`
           }
         });
         
@@ -208,10 +210,11 @@ export function useRealWhatsAppConnection() {
     console.log('🔌 Desconectando WhatsApp...');
     
     try {
-      const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/${wppConfig.token}/logout-session`, {
+      const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/logout-session`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${wppConfig.token}`
         }
       });
       
@@ -250,10 +253,11 @@ export function useRealWhatsAppConnection() {
     console.log('📤 Enviando mensagem real via WPPConnect...');
     
     try {
-      const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/${wppConfig.token}/send-message`, {
+      const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/send-message`, {
         method: 'POST',
         headers: { 
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${wppConfig.token}`
         },
         body: JSON.stringify({
           phone: phone,
