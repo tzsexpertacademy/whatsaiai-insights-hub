@@ -38,11 +38,11 @@ export function useRealWhatsAppConnection() {
     };
   });
 
-  // Configuração WPPConnect local REAL - SESSÃO CORRETA
+  // Configuração WPPConnect - CORRIGIDA baseada nas suas imagens
   const wppConfig = {
     serverUrl: 'http://localhost:21465',
-    sessionName: 'NERDWHATS_AMERICA', // Sessão real identificada
-    secretKey: 'MySecretKeyToGenerateToken' // Token correto da sua API
+    sessionName: 'NERDWHATS_AMERICA',
+    secretKey: 'MySecretKeyToGenerateToken'
   };
 
   const updateWebhooks = useCallback((newWebhooks: Partial<WebhookConfig>) => {
@@ -56,35 +56,12 @@ export function useRealWhatsAppConnection() {
     setIsLoading(true);
     
     try {
-      // 1. Primeiro, criar/iniciar a sessão
-      console.log('📡 Criando sessão WPPConnect...');
-      const startResponse = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/start-session`, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${wppConfig.secretKey}`
-        },
-        body: JSON.stringify({
-          webhook: '',
-          waitQrCode: true
-        })
-      });
-
-      console.log('📥 Start session response:', startResponse.status);
-
-      if (!startResponse.ok) {
-        const errorText = await startResponse.text();
-        console.error('❌ Erro start session:', errorText);
-        throw new Error(`Erro ao iniciar sessão: ${startResponse.status} - ${errorText}`);
-      }
-
-      // 2. Aguardar um pouco e obter o QR Code
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      
-      console.log('📱 Obtendo QR Code...');
-      const qrResponse = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/qr-code`, {
+      // Usar o endpoint correto que você testou: /qrcode-session
+      console.log('📱 Obtendo QR Code da sessão...');
+      const qrResponse = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/qrcode-session`, {
+        method: 'GET',
         headers: {
-          'Authorization': `Bearer ${wppConfig.secretKey}`
+          'Content-Type': 'application/json'
         }
       });
       
@@ -94,10 +71,13 @@ export function useRealWhatsAppConnection() {
         const qrData = await qrResponse.json();
         console.log('📱 QR Code recebido:', qrData);
         
-        if (qrData.qrcode) {
+        // O QR code pode vir em diferentes formatos, vamos tentar todas as possibilidades
+        const qrCodeUrl = qrData.qrcode || qrData.qr || qrData.base64 || qrData.data;
+        
+        if (qrCodeUrl) {
           setConnectionState(prev => ({
             ...prev,
-            qrCode: qrData.qrcode
+            qrCode: qrCodeUrl
           }));
           
           toast({
@@ -107,7 +87,7 @@ export function useRealWhatsAppConnection() {
           
           // Verificar status a cada 3 segundos
           startStatusPolling();
-          return qrData.qrcode;
+          return qrCodeUrl;
         }
       } else {
         const errorText = await qrResponse.text();
@@ -133,10 +113,11 @@ export function useRealWhatsAppConnection() {
   const startStatusPolling = useCallback(() => {
     const pollInterval = setInterval(async () => {
       try {
-        console.log('🔍 Verificando status...');
-        const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/status`, {
+        console.log('🔍 Verificando status da sessão...');
+        const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/status-session`, {
+          method: 'GET',
           headers: {
-            'Authorization': `Bearer ${wppConfig.secretKey}`
+            'Content-Type': 'application/json'
           }
         });
         
@@ -184,10 +165,10 @@ export function useRealWhatsAppConnection() {
     console.log('🔌 Desconectando WhatsApp...');
     
     try {
-      const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/logout`, {
+      const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/logout-session`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${wppConfig.secretKey}`
+          'Content-Type': 'application/json'
         }
       });
       
@@ -229,8 +210,7 @@ export function useRealWhatsAppConnection() {
       const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/send-message`, {
         method: 'POST',
         headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${wppConfig.secretKey}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           phone: phone,
