@@ -170,8 +170,13 @@ export function useRealWhatsAppConnection() {
           const data = await response.json();
           console.log('📱 Status atual:', data);
           
-          // Verificar se está conectado baseado no status real da API
-          const isConnected = data.state === 'CONNECTED' || data.status === 'inChat' || data.connected === true;
+          // MELHORADA: Verificação mais ampla de estados conectados
+          const isConnected = data.state === 'CONNECTED' || 
+                             data.status === 'inChat' || 
+                             data.status === 'CONNECTED' ||
+                             data.connected === true ||
+                             data.accountStatus === 'authenticated' ||
+                             (data.session && data.session.state === 'CONNECTED');
           
           if (isConnected) {
             console.log('✅ WhatsApp conectado!');
@@ -179,7 +184,7 @@ export function useRealWhatsAppConnection() {
             setConnectionState(prev => ({
               ...prev,
               isConnected: true,
-              phoneNumber: data.phone || data.number || data.wid || 'Conectado',
+              phoneNumber: data.phone || data.number || data.wid || data.session?.phone || 'Conectado',
               qrCode: '',
               lastConnected: new Date().toISOString()
             }));
@@ -205,6 +210,55 @@ export function useRealWhatsAppConnection() {
       console.log('⏰ Polling timeout');
     }, 120000);
   }, [toast, wppConfig]);
+
+  // NOVA FUNÇÃO: Verificar status manualmente
+  const checkConnectionStatus = useCallback(async () => {
+    console.log('🔍 Verificação manual do status...');
+    
+    try {
+      const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/status-session`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${wppConfig.token}`
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('📱 Status manual:', data);
+        
+        const isConnected = data.state === 'CONNECTED' || 
+                           data.status === 'inChat' || 
+                           data.status === 'CONNECTED' ||
+                           data.connected === true ||
+                           data.accountStatus === 'authenticated' ||
+                           (data.session && data.session.state === 'CONNECTED');
+        
+        if (isConnected) {
+          setConnectionState(prev => ({
+            ...prev,
+            isConnected: true,
+            phoneNumber: data.phone || data.number || data.wid || data.session?.phone || 'Conectado',
+            qrCode: '',
+            lastConnected: new Date().toISOString()
+          }));
+          
+          toast({
+            title: "✅ Status atualizado!",
+            description: "WhatsApp está conectado"
+          });
+          
+          return true;
+        }
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('❌ Erro ao verificar status:', error);
+      return false;
+    }
+  }, [wppConfig, toast]);
 
   const disconnectWhatsApp = useCallback(async () => {
     console.log('🔌 Desconectando WhatsApp...');
@@ -314,6 +368,7 @@ export function useRealWhatsAppConnection() {
     updateWebhooks,
     updateWPPConfig,
     generateQRCode,
+    checkConnectionStatus,
     disconnectWhatsApp,
     sendMessage,
     getConnectionStatus

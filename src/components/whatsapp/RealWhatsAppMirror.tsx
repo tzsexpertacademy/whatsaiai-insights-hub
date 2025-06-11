@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -52,6 +51,7 @@ export function RealWhatsAppMirror() {
     updateWebhooks, 
     updateWPPConfig,
     generateQRCode, 
+    checkConnectionStatus,
     disconnectWhatsApp,
     sendMessage: sendWhatsAppMessage,
     getConnectionStatus 
@@ -229,6 +229,16 @@ export function RealWhatsAppMirror() {
     }
   };
 
+  const handleCheckStatus = async () => {
+    console.log('🔍 Verificando status manualmente...');
+    toast({
+      title: "Verificando status...",
+      description: "Consultando servidor WPPConnect"
+    });
+    
+    await checkConnectionStatus();
+  };
+
   const formatTime = (timestamp: string) => {
     return new Date(timestamp).toLocaleTimeString('pt-BR', {
       hour: '2-digit',
@@ -373,6 +383,12 @@ export function RealWhatsAppMirror() {
             </div>
             
             <div className="flex gap-2">
+              {/* Botão para verificar status manualmente */}
+              <Button onClick={handleCheckStatus} variant="outline" size="sm">
+                <RefreshCw className="h-4 w-4 mr-1" />
+                Verificar Status
+              </Button>
+              
               {isConnected && (
                 <>
                   <Button onClick={loadRealChats} variant="outline" size="sm">
@@ -437,6 +453,15 @@ export function RealWhatsAppMirror() {
                 <p className="text-yellow-700 text-sm font-medium">
                   🔄 Aguardando você escanear o QR Code...
                 </p>
+                <Button 
+                  onClick={handleCheckStatus} 
+                  variant="outline" 
+                  size="sm"
+                  className="mt-2"
+                >
+                  <RefreshCw className="h-4 w-4 mr-1" />
+                  Verificar se conectou
+                </Button>
               </div>
             </div>
           </CardContent>
