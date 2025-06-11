@@ -79,7 +79,7 @@ export function RealWhatsAppMirror() {
     console.log('📱 Carregando conversas reais da API WPPConnect...');
     
     try {
-      const response = await fetch('http://localhost:21465/api/default/chats', {
+      const response = await fetch('http://localhost:21465/api/NERDWHATS_AMERICA/chats', {
         headers: {
           'Authorization': 'Bearer MySecretKeyToGenerateToken'
         }
@@ -127,7 +127,7 @@ export function RealWhatsAppMirror() {
     console.log('📤 Carregando mensagens reais para:', contactId);
     
     try {
-      const response = await fetch(`http://localhost:21465/api/default/messages/${contactId}`, {
+      const response = await fetch(`http://localhost:21465/api/NERDWHATS_AMERICA/messages/${contactId}`, {
         headers: {
           'Authorization': 'Bearer MySecretKeyToGenerateToken'
         }
@@ -270,7 +270,7 @@ export function RealWhatsAppMirror() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-green-900">
             <Smartphone className="h-5 w-5" />
-            WPPConnect Real - API Local
+            WPPConnect Real - NERDWHATS_AMERICA
             {isConnected && <CheckCircle className="h-5 w-5 text-green-500" />}
           </CardTitle>
           <CardDescription className="text-green-700">
@@ -518,6 +518,7 @@ export function RealWhatsAppMirror() {
           <div className="text-sm text-blue-700">
             <p><strong>🔗 URL:</strong> http://localhost:21465</p>
             <p><strong>🔑 Token:</strong> MySecretKeyToGenerateToken</p>
+            <p><strong>📡 Sessão:</strong> NERDWHATS_AMERICA</p>
             <p><strong>📡 Status:</strong> {isConnected ? '✅ Conectado' : '❌ Desconectado'}</p>
             <p className="mt-2 text-blue-600">
               Esta é a conexão REAL com sua API WPPConnect. Sem simulações!

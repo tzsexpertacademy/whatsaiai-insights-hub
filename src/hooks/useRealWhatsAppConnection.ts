@@ -38,11 +38,11 @@ export function useRealWhatsAppConnection() {
     };
   });
 
-  // Configuração WPPConnect local REAL - TOKEN CORRETO
+  // Configuração WPPConnect local REAL - SESSÃO CORRETA
   const wppConfig = {
     serverUrl: 'http://localhost:21465',
-    sessionName: 'default',
-    secretKey: 'THISISMYSECURETOKEN' // Token padrão do WPPConnect
+    sessionName: 'NERDWHATS_AMERICA', // Sessão real identificada
+    secretKey: 'MySecretKeyToGenerateToken' // Token correto da sua API
   };
 
   const updateWebhooks = useCallback((newWebhooks: Partial<WebhookConfig>) => {
