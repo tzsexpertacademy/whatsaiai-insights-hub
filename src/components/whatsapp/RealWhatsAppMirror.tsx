@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -54,6 +55,8 @@ export function RealWhatsAppMirror() {
     checkConnectionStatus,
     disconnectWhatsApp,
     sendMessage: sendWhatsAppMessage,
+    loadRealChats,
+    loadRealMessages,
     getConnectionStatus 
   } = useRealWhatsAppConnection();
   
@@ -62,101 +65,90 @@ export function RealWhatsAppMirror() {
   const [showConfig, setShowConfig] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
-  // Estados reais da API WPPConnect - SEM SIMULAÇÃO
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [isLoadingChats, setIsLoadingChats] = useState(false);
 
   const connectionStatus = getConnectionStatus();
   const isConnected = connectionState.isConnected;
 
-  // Auto-scroll para última mensagem
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Carregar conversas reais da API quando conectar
   useEffect(() => {
     if (isConnected) {
-      loadRealChats();
+      handleLoadRealChats();
     }
   }, [isConnected]);
 
-  const loadRealChats = async () => {
-    console.log('📱 Carregando conversas reais da API WPPConnect...');
-    
-    try {
-      // Usar endpoint correto com token
-      const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/${wppConfig.token}/all-chats`);
-
-      if (response.ok) {
-        const chatsData = await response.json();
-        console.log('✅ Conversas carregadas:', chatsData);
-        
-        // Converter dados da API para o formato do componente
-        const realContacts: Contact[] = chatsData.map((chat: any, index: number) => ({
-          id: chat.id || `chat_${index}`,
-          name: chat.name || chat.contact?.name || 'Contato sem nome',
-          phone: chat.phone || chat.contact?.phone || 'Número não disponível',
-          lastMessage: chat.lastMessage?.body || 'Sem mensagens',
-          timestamp: chat.lastMessage?.timestamp || new Date().toISOString(),
-          unread: chat.unreadCount || 0
-        }));
-        
-        setContacts(realContacts);
-        
-        toast({
-          title: "Conversas carregadas! 📱",
-          description: `${realContacts.length} conversas encontradas`
-        });
-      } else {
-        console.error('❌ Erro ao carregar conversas:', response.status);
-        toast({
-          title: "Erro ao carregar conversas",
-          description: "Verifique se o WPPConnect está rodando",
-          variant: "destructive"
-        });
-      }
-    } catch (error) {
-      console.error('❌ Erro de conexão:', error);
+  const handleLoadRealChats = async () => {
+    if (!isConnected) {
       toast({
-        title: "Erro de conexão",
-        description: "Não foi possível conectar com a API",
+        title: "WhatsApp não conectado",
+        description: "Conecte seu WhatsApp primeiro",
         variant: "destructive"
       });
+      return;
+    }
+
+    setIsLoadingChats(true);
+    
+    try {
+      const chatsData = await loadRealChats();
+      
+      const realContacts: Contact[] = chatsData.map((chat: any, index: number) => ({
+        id: chat.id || `chat_${index}`,
+        name: chat.name || chat.contact?.name || 'Contato sem nome',
+        phone: chat.phone || chat.contact?.phone || 'Número não disponível',
+        lastMessage: chat.lastMessage?.body || 'Sem mensagens',
+        timestamp: chat.lastMessage?.timestamp || new Date().toISOString(),
+        unread: chat.unreadCount || 0
+      }));
+      
+      setContacts(realContacts);
+      
+      toast({
+        title: "Conversas carregadas! 📱",
+        description: `${realContacts.length} conversas encontradas`
+      });
+    } catch (error) {
+      console.error('❌ Erro ao carregar conversas:', error);
+      toast({
+        title: "Erro ao carregar conversas",
+        description: "Verifique se o WPPConnect está rodando",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoadingChats(false);
     }
   };
 
-  const loadRealMessages = async (contactId: string) => {
-    console.log('📤 Carregando mensagens reais para:', contactId);
-    
+  const handleLoadRealMessages = async (contactId: string) => {
     try {
-      // Usar endpoint correto com token
-      const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/${wppConfig.token}/get-messages/${contactId}`);
-
-      if (response.ok) {
-        const messagesData = await response.json();
-        console.log('✅ Mensagens carregadas:', messagesData);
-        
-        // Converter mensagens da API para o formato do componente
-        const realMessages: Message[] = messagesData.map((msg: any, index: number) => ({
-          id: msg.id || `msg_${index}`,
-          contactId: contactId,
-          text: msg.body || msg.text || 'Mensagem sem texto',
-          sent: msg.fromMe || false,
-          timestamp: msg.timestamp || new Date().toISOString(),
-          status: msg.ack ? 'delivered' : 'sent'
-        }));
-        
-        setMessages(prev => [
-          ...prev.filter(m => m.contactId !== contactId),
-          ...realMessages
-        ]);
-        
-      } else {
-        console.error('❌ Erro ao carregar mensagens:', response.status);
-      }
+      const messagesData = await loadRealMessages(contactId);
+      
+      const realMessages: Message[] = messagesData.map((msg: any, index: number) => ({
+        id: msg.id || `msg_${index}`,
+        contactId: contactId,
+        text: msg.body || msg.text || 'Mensagem sem texto',
+        sent: msg.fromMe || false,
+        timestamp: msg.timestamp || new Date().toISOString(),
+        status: msg.ack ? 'delivered' : 'sent'
+      }));
+      
+      setMessages(prev => [
+        ...prev.filter(m => m.contactId !== contactId),
+        ...realMessages
+      ]);
+      
     } catch (error) {
       console.error('❌ Erro ao carregar mensagens:', error);
+      toast({
+        title: "Erro ao carregar mensagens",
+        description: "Não foi possível carregar as mensagens",
+        variant: "destructive"
+      });
     }
   };
 
@@ -174,10 +166,8 @@ export function RealWhatsAppMirror() {
     console.log('📱 Selecionando contato:', contact.name);
     setSelectedContact(contact.id);
     
-    // Carregar mensagens reais deste contato
-    loadRealMessages(contact.id);
+    handleLoadRealMessages(contact.id);
     
-    // Marcar como lido
     setContacts(prev => prev.map(c => 
       c.id === contact.id ? { ...c, unread: 0 } : c
     ));
@@ -204,12 +194,10 @@ export function RealWhatsAppMirror() {
     const messageText = newMessage;
     setNewMessage('');
 
-    // Enviar via API WPPConnect REAL
     try {
       const success = await sendWhatsAppMessage(contact.phone, messageText);
       
       if (success) {
-        // Atualizar status da mensagem
         setMessages(prev => prev.map(msg => 
           msg.id === message.id ? { ...msg, status: 'delivered' } : msg
         ));
@@ -219,7 +207,6 @@ export function RealWhatsAppMirror() {
           description: "Mensagem enviada via WPPConnect"
         });
       } else {
-        // Falha no envio
         setMessages(prev => prev.map(msg => 
           msg.id === message.id ? { ...msg, status: 'sent' } : msg
         ));
@@ -275,89 +262,6 @@ export function RealWhatsAppMirror() {
 
   return (
     <div className="space-y-6">
-      {/* Configuração WPPConnect */}
-      <Card className="bg-blue-50 border-blue-200">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-blue-900">
-            <Server className="h-5 w-5" />
-            Configuração WPPConnect
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => setShowConfig(!showConfig)}
-            >
-              <Settings className="h-4 w-4 mr-1" />
-              {showConfig ? 'Ocultar' : 'Configurar'}
-            </Button>
-          </CardTitle>
-          <CardDescription className="text-blue-700">
-            Configure sua conexão com o servidor WPPConnect
-          </CardDescription>
-        </CardHeader>
-        
-        {showConfig && (
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="sessionName" className="flex items-center gap-2">
-                  <Key className="h-4 w-4" />
-                  Nome da Sessão
-                </Label>
-                <Input
-                  id="sessionName"
-                  value={wppConfig.sessionName || ''}
-                  onChange={(e) => updateWPPConfig({ sessionName: e.target.value })}
-                  placeholder="NERDWHATS_AMERICA"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="secretKey" className="flex items-center gap-2">
-                  <Key className="h-4 w-4" />
-                  Secret Key
-                </Label>
-                <Input
-                  id="secretKey"
-                  value={wppConfig.secretKey || ''}
-                  onChange={(e) => updateWPPConfig({ secretKey: e.target.value })}
-                  placeholder="THISISMYSECURETOKEN"
-                />
-              </div>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="token" className="flex items-center gap-2">
-                <Lock className="h-4 w-4" />
-                Token Gerado
-              </Label>
-              <Input
-                id="token"
-                value={wppConfig.token || ''}
-                onChange={(e) => updateWPPConfig({ token: e.target.value })}
-                placeholder="$2b$10$jKW5P3gzFYntHqLs0ttw2uRsoFGIxfiM6u4GSMWhsej15Kh6_ZyDa"
-                className="font-mono text-xs"
-              />
-              <p className="text-xs text-blue-600">
-                Este é o token gerado pelo endpoint /generate-token
-              </p>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="serverUrl" className="flex items-center gap-2">
-                <Server className="h-4 w-4" />
-                URL do Servidor
-              </Label>
-              <Input
-                id="serverUrl"
-                value={wppConfig.serverUrl || ''}
-                onChange={(e) => updateWPPConfig({ serverUrl: e.target.value })}
-                placeholder="http://localhost:21465"
-              />
-            </div>
-          </CardContent>
-        )}
-      </Card>
-
       {/* Header com Status */}
       <Card className="bg-green-50 border-green-200">
         <CardHeader>
@@ -383,7 +287,6 @@ export function RealWhatsAppMirror() {
             </div>
             
             <div className="flex gap-2">
-              {/* Botão para verificar status manualmente */}
               <Button onClick={handleCheckStatus} variant="outline" size="sm">
                 <RefreshCw className="h-4 w-4 mr-1" />
                 Verificar Status
@@ -391,8 +294,13 @@ export function RealWhatsAppMirror() {
               
               {isConnected && (
                 <>
-                  <Button onClick={loadRealChats} variant="outline" size="sm">
-                    <RefreshCw className="h-4 w-4 mr-1" />
+                  <Button 
+                    onClick={handleLoadRealChats} 
+                    variant="outline" 
+                    size="sm"
+                    disabled={isLoadingChats}
+                  >
+                    <RefreshCw className={`h-4 w-4 mr-1 ${isLoadingChats ? 'animate-spin' : ''}`} />
                     Atualizar Conversas
                   </Button>
                   <Button onClick={disconnectWhatsApp} variant="outline" size="sm">
@@ -492,10 +400,18 @@ export function RealWhatsAppMirror() {
                     <Button 
                       variant="outline" 
                       size="sm" 
-                      onClick={loadRealChats}
+                      onClick={handleLoadRealChats}
+                      disabled={isLoadingChats}
                       className="mt-2"
                     >
-                      Carregar Conversas
+                      {isLoadingChats ? (
+                        <>
+                          <RefreshCw className="h-4 w-4 mr-1 animate-spin" />
+                          Carregando...
+                        </>
+                      ) : (
+                        'Carregar Conversas'
+                      )}
                     </Button>
                   </div>
                 ) : (
@@ -551,7 +467,6 @@ export function RealWhatsAppMirror() {
                 </CardHeader>
                 
                 <CardContent className="flex flex-col h-[500px]">
-                  {/* Mensagens REAIS */}
                   <div className="flex-1 overflow-y-auto space-y-3 mb-4">
                     {messages
                       .filter(msg => msg.contactId === selectedContact)
@@ -582,7 +497,6 @@ export function RealWhatsAppMirror() {
                     <div ref={messagesEndRef} />
                   </div>
 
-                  {/* Enviar Mensagem REAL */}
                   <div className="border-t pt-4">
                     <div className="flex gap-3">
                       <Input 
@@ -616,25 +530,6 @@ export function RealWhatsAppMirror() {
           </Card>
         </div>
       )}
-
-      {/* Status da API */}
-      <Card className="bg-blue-50 border-blue-200">
-        <CardHeader>
-          <CardTitle className="text-blue-900">Status da API WPPConnect</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-sm text-blue-700">
-            <p><strong>🔗 URL:</strong> {wppConfig.serverUrl || 'Não configurado'}</p>
-            <p><strong>🔑 Secret Key:</strong> {wppConfig.secretKey || 'Não configurado'}</p>
-            <p><strong>🔐 Token:</strong> {wppConfig.token ? `${wppConfig.token.substring(0, 20)}...` : 'Não configurado'}</p>
-            <p><strong>📡 Sessão:</strong> {wppConfig.sessionName || 'Não configurado'}</p>
-            <p><strong>📡 Status:</strong> {isConnected ? '✅ Conectado' : '❌ Desconectado'}</p>
-            <p className="mt-2 text-blue-600">
-              Esta é a conexão REAL com sua API WPPConnect. Configure os campos acima!
-            </p>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }

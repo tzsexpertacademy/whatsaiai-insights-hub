@@ -1,21 +1,24 @@
 
 import React from 'react';
 import { RealWhatsAppMirror } from './whatsapp/RealWhatsAppMirror';
-import { WPPConnectMirror } from './whatsapp/WPPConnectMirror';
-import { WhatsAppMirror } from './whatsapp/WhatsAppMirror';
-import { useClientConfig } from '@/contexts/ClientConfigContext';
+import { PageLayout } from '@/components/layout/PageLayout';
+import { Badge } from "@/components/ui/badge";
 
 export function ChatInterface() {
-  const { config } = useClientConfig();
-  
-  // Determinar qual plataforma usar baseado na configuração
-  const platform = config?.whatsapp?.platform || 'real';
-  
-  // Usar o novo WhatsApp Real como padrão
-  if (platform === 'real' || platform === 'wppconnect') {
-    return <RealWhatsAppMirror />;
-  }
-  
-  // Fallback para outras opções
-  return <WhatsAppMirror />;
+  const headerActions = (
+    <Badge className="bg-green-100 text-green-800 text-xs sm:text-sm">
+      📱 WhatsApp Conectado
+    </Badge>
+  );
+
+  return (
+    <PageLayout
+      title="WhatsApp Chat"
+      description="Suas conversas do WhatsApp em tempo real"
+      showBackButton={true}
+      headerActions={headerActions}
+    >
+      <RealWhatsAppMirror />
+    </PageLayout>
+  );
 }

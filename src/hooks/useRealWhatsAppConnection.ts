@@ -78,7 +78,6 @@ export function useRealWhatsAppConnection() {
     setIsLoading(true);
     
     try {
-      // CORRIGIDO: URL sem token no path, token vai no header Authorization
       console.log('📱 Iniciando sessão para obter QR Code...');
       const startSessionResponse = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/start-session`, {
         method: 'POST',
@@ -98,7 +97,6 @@ export function useRealWhatsAppConnection() {
         const sessionData = await startSessionResponse.json();
         console.log('📱 Sessão iniciada:', sessionData);
         
-        // Verificar se há QR code na resposta
         if (sessionData.qrcode || sessionData.qr || sessionData.base64) {
           const qrCodeData = sessionData.qrcode || sessionData.qr || sessionData.base64;
           
@@ -112,12 +110,10 @@ export function useRealWhatsAppConnection() {
             description: "Escaneie com seu WhatsApp para conectar"
           });
           
-          // Verificar status a cada 3 segundos
           startStatusPolling();
           return qrCodeData;
         }
         
-        // Se não tem QR code, pode estar já conectado
         if (sessionData.status === 'CONNECTED' || sessionData.state === 'CONNECTED') {
           setConnectionState(prev => ({
             ...prev,
@@ -170,7 +166,6 @@ export function useRealWhatsAppConnection() {
           const data = await response.json();
           console.log('📱 Status atual:', data);
           
-          // MELHORADA: Verificação mais ampla de estados conectados
           const isConnected = data.state === 'CONNECTED' || 
                              data.status === 'inChat' || 
                              data.status === 'CONNECTED' ||
@@ -204,14 +199,12 @@ export function useRealWhatsAppConnection() {
       }
     }, 3000);
     
-    // Parar polling após 2 minutos
     setTimeout(() => {
       clearInterval(pollInterval);
       console.log('⏰ Polling timeout');
     }, 120000);
   }, [toast, wppConfig]);
 
-  // NOVA FUNÇÃO: Verificar status manualmente
   const checkConnectionStatus = useCallback(async () => {
     console.log('🔍 Verificação manual do status...');
     
@@ -288,7 +281,6 @@ export function useRealWhatsAppConnection() {
     } catch (error) {
       console.error('❌ Erro ao desconectar:', error);
       
-      // Mesmo com erro, limpar o estado local
       setConnectionState({
         isConnected: false,
         phoneNumber: '',
@@ -353,6 +345,62 @@ export function useRealWhatsAppConnection() {
     }
   }, [toast, wppConfig]);
 
+  // NOVA FUNÇÃO: Carregar conversas reais
+  const loadRealChats = useCallback(async () => {
+    console.log('📱 Carregando conversas reais da API WPPConnect...');
+    
+    try {
+      // CORRIGIDO: URL correta da API
+      const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/all-chats`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${wppConfig.token}`
+        }
+      });
+
+      if (response.ok) {
+        const chatsData = await response.json();
+        console.log('✅ Conversas carregadas:', chatsData);
+        return chatsData;
+      } else {
+        console.error('❌ Erro ao carregar conversas:', response.status);
+        throw new Error(`Erro ${response.status}: ${await response.text()}`);
+      }
+    } catch (error) {
+      console.error('❌ Erro de conexão:', error);
+      throw error;
+    }
+  }, [wppConfig]);
+
+  // NOVA FUNÇÃO: Carregar mensagens de uma conversa
+  const loadRealMessages = useCallback(async (contactId: string) => {
+    console.log('📤 Carregando mensagens reais para:', contactId);
+    
+    try {
+      // CORRIGIDO: URL correta da API
+      const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/get-messages/${contactId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${wppConfig.token}`
+        }
+      });
+
+      if (response.ok) {
+        const messagesData = await response.json();
+        console.log('✅ Mensagens carregadas:', messagesData);
+        return messagesData;
+      } else {
+        console.error('❌ Erro ao carregar mensagens:', response.status);
+        throw new Error(`Erro ${response.status}: ${await response.text()}`);
+      }
+    } catch (error) {
+      console.error('❌ Erro ao carregar mensagens:', error);
+      throw error;
+    }
+  }, [wppConfig]);
+
   const getConnectionStatus = useCallback(() => {
     if (connectionState.isConnected) {
       return 'active';
@@ -371,6 +419,8 @@ export function useRealWhatsAppConnection() {
     checkConnectionStatus,
     disconnectWhatsApp,
     sendMessage,
+    loadRealChats,
+    loadRealMessages,
     getConnectionStatus
   };
 }
