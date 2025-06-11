@@ -20,7 +20,7 @@ interface WPPConfig {
   serverUrl: string;
   sessionName: string;
   secretKey: string;
-  token: string; // Novo campo para o token gerado
+  token: string;
 }
 
 export function useRealWhatsAppConnection() {
@@ -45,7 +45,6 @@ export function useRealWhatsAppConnection() {
     };
   });
 
-  // Configuração WPPConnect - agora com token separado
   const [wppConfig, setWppConfig] = useState<WPPConfig>(() => {
     const saved = localStorage.getItem('wpp_config');
     return saved ? JSON.parse(saved) : {
@@ -79,28 +78,32 @@ export function useRealWhatsAppConnection() {
     setIsLoading(true);
     
     try {
-      // Usar o endpoint correto com o token gerado
-      console.log('📱 Obtendo QR Code da sessão...');
-      const qrResponse = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/${wppConfig.token}/generate-token`, {
+      // CORRIGIDO: Usar o endpoint /start-session em vez de /generate-token
+      console.log('📱 Iniciando sessão para obter QR Code...');
+      const startSessionResponse = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/${wppConfig.token}/start-session`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
-        }
+        },
+        body: JSON.stringify({
+          webhook: '',
+          waitQrCode: true
+        })
       });
       
-      console.log('📥 QR Response status:', qrResponse.status);
+      console.log('📥 Start Session Response status:', startSessionResponse.status);
       
-      if (qrResponse.ok) {
-        const qrData = await qrResponse.json();
-        console.log('📱 QR Code recebido:', qrData);
+      if (startSessionResponse.ok) {
+        const sessionData = await startSessionResponse.json();
+        console.log('📱 Sessão iniciada:', sessionData);
         
-        // O QR code pode vir em diferentes formatos
-        const qrCodeUrl = qrData.qrcode || qrData.qr || qrData.base64 || qrData.data;
-        
-        if (qrCodeUrl) {
+        // Verificar se há QR code na resposta
+        if (sessionData.qrcode || sessionData.qr || sessionData.base64) {
+          const qrCodeData = sessionData.qrcode || sessionData.qr || sessionData.base64;
+          
           setConnectionState(prev => ({
             ...prev,
-            qrCode: qrCodeUrl
+            qrCode: qrCodeData
           }));
           
           toast({
@@ -110,12 +113,29 @@ export function useRealWhatsAppConnection() {
           
           // Verificar status a cada 3 segundos
           startStatusPolling();
-          return qrCodeUrl;
+          return qrCodeData;
+        }
+        
+        // Se não tem QR code, pode estar já conectado
+        if (sessionData.status === 'CONNECTED' || sessionData.state === 'CONNECTED') {
+          setConnectionState(prev => ({
+            ...prev,
+            isConnected: true,
+            phoneNumber: sessionData.phone || sessionData.number || 'Conectado',
+            qrCode: ''
+          }));
+          
+          toast({
+            title: "✅ Já conectado!",
+            description: "WhatsApp já está conectado"
+          });
+          
+          return null;
         }
       } else {
-        const errorText = await qrResponse.text();
-        console.error('❌ Erro QR:', errorText);
-        throw new Error(`Erro ao obter QR Code: ${qrResponse.status} - ${errorText}`);
+        const errorText = await startSessionResponse.text();
+        console.error('❌ Erro ao iniciar sessão:', errorText);
+        throw new Error(`Erro ao iniciar sessão: ${startSessionResponse.status} - ${errorText}`);
       }
       
       throw new Error('QR Code não foi gerado');
