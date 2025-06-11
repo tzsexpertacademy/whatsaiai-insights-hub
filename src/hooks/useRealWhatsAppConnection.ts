@@ -20,6 +20,7 @@ interface WPPConfig {
   serverUrl: string;
   sessionName: string;
   secretKey: string;
+  token: string; // Novo campo para o token gerado
 }
 
 export function useRealWhatsAppConnection() {
@@ -44,13 +45,14 @@ export function useRealWhatsAppConnection() {
     };
   });
 
-  // Configuração WPPConnect - agora dinâmica
+  // Configuração WPPConnect - agora com token separado
   const [wppConfig, setWppConfig] = useState<WPPConfig>(() => {
     const saved = localStorage.getItem('wpp_config');
     return saved ? JSON.parse(saved) : {
       serverUrl: 'http://localhost:21465',
       sessionName: 'NERDWHATS_AMERICA',
-      secretKey: 'THISISMYSECURETOKEN'
+      secretKey: 'THISISMYSECURETOKEN',
+      token: '$2b$10$jKW5P3gzFYntHqLs0ttw2uRsoFGIxfiM6u4GSMWhsej15Kh6_ZyDa'
     };
   });
 
@@ -77,10 +79,10 @@ export function useRealWhatsAppConnection() {
     setIsLoading(true);
     
     try {
-      // Usar o endpoint correto que você testou: /qrcode-session
+      // Usar o endpoint correto com o token gerado
       console.log('📱 Obtendo QR Code da sessão...');
-      const qrResponse = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/qrcode-session`, {
-        method: 'GET',
+      const qrResponse = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/${wppConfig.token}/generate-token`, {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         }
@@ -92,7 +94,7 @@ export function useRealWhatsAppConnection() {
         const qrData = await qrResponse.json();
         console.log('📱 QR Code recebido:', qrData);
         
-        // O QR code pode vir em diferentes formatos, vamos tentar todas as possibilidades
+        // O QR code pode vir em diferentes formatos
         const qrCodeUrl = qrData.qrcode || qrData.qr || qrData.base64 || qrData.data;
         
         if (qrCodeUrl) {
@@ -113,7 +115,7 @@ export function useRealWhatsAppConnection() {
       } else {
         const errorText = await qrResponse.text();
         console.error('❌ Erro QR:', errorText);
-        throw new Error(`Erro ao obter QR Code: ${qrResponse.status}`);
+        throw new Error(`Erro ao obter QR Code: ${qrResponse.status} - ${errorText}`);
       }
       
       throw new Error('QR Code não foi gerado');
@@ -135,7 +137,7 @@ export function useRealWhatsAppConnection() {
     const pollInterval = setInterval(async () => {
       try {
         console.log('🔍 Verificando status da sessão...');
-        const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/status-session`, {
+        const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/${wppConfig.token}/status-session`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json'
@@ -186,7 +188,7 @@ export function useRealWhatsAppConnection() {
     console.log('🔌 Desconectando WhatsApp...');
     
     try {
-      const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/logout-session`, {
+      const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/${wppConfig.token}/logout-session`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -228,7 +230,7 @@ export function useRealWhatsAppConnection() {
     console.log('📤 Enviando mensagem real via WPPConnect...');
     
     try {
-      const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/send-message`, {
+      const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/${wppConfig.token}/send-message`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json'

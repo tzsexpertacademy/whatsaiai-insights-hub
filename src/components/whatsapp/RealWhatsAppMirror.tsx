@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,7 +20,8 @@ import {
   RefreshCw,
   Settings,
   Key,
-  Server
+  Server,
+  Lock
 } from 'lucide-react';
 
 interface Contact {
@@ -83,8 +85,8 @@ export function RealWhatsAppMirror() {
     console.log('📱 Carregando conversas reais da API WPPConnect...');
     
     try {
-      // Usar endpoint correto sem autenticação
-      const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/all-chats`);
+      // Usar endpoint correto com token
+      const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/${wppConfig.token}/all-chats`);
 
       if (response.ok) {
         const chatsData = await response.json();
@@ -128,8 +130,8 @@ export function RealWhatsAppMirror() {
     console.log('📤 Carregando mensagens reais para:', contactId);
     
     try {
-      // Usar endpoint correto sem autenticação  
-      const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/get-messages/${contactId}`);
+      // Usar endpoint correto com token
+      const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/${wppConfig.token}/get-messages/${contactId}`);
 
       if (response.ok) {
         const messagesData = await response.json();
@@ -302,7 +304,7 @@ export function RealWhatsAppMirror() {
               <div className="space-y-2">
                 <Label htmlFor="secretKey" className="flex items-center gap-2">
                   <Key className="h-4 w-4" />
-                  Token/Secret Key
+                  Secret Key
                 </Label>
                 <Input
                   id="secretKey"
@@ -311,6 +313,23 @@ export function RealWhatsAppMirror() {
                   placeholder="THISISMYSECURETOKEN"
                 />
               </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="token" className="flex items-center gap-2">
+                <Lock className="h-4 w-4" />
+                Token Gerado
+              </Label>
+              <Input
+                id="token"
+                value={wppConfig.token}
+                onChange={(e) => updateWPPConfig({ token: e.target.value })}
+                placeholder="$2b$10$jKW5P3gzFYntHqLs0ttw2uRsoFGIxfiM6u4GSMWhsej15Kh6_ZyDa"
+                className="font-mono text-xs"
+              />
+              <p className="text-xs text-blue-600">
+                Este é o token gerado pelo endpoint /generate-token
+              </p>
             </div>
             
             <div className="space-y-2">
@@ -581,7 +600,8 @@ export function RealWhatsAppMirror() {
         <CardContent>
           <div className="text-sm text-blue-700">
             <p><strong>🔗 URL:</strong> {wppConfig.serverUrl}</p>
-            <p><strong>🔑 Token:</strong> {wppConfig.secretKey}</p>
+            <p><strong>🔑 Secret Key:</strong> {wppConfig.secretKey}</p>
+            <p><strong>🔐 Token:</strong> {wppConfig.token.substring(0, 20)}...</p>
             <p><strong>📡 Sessão:</strong> {wppConfig.sessionName}</p>
             <p><strong>📡 Status:</strong> {isConnected ? '✅ Conectado' : '❌ Desconectado'}</p>
             <p className="mt-2 text-blue-600">
