@@ -145,7 +145,7 @@ export function useWPPConnect() {
 
   // Função para normalizar ID do chat para a API
   const normalizeChatId = useCallback((chatId: string): string => {
-    console.log('🔧 Normalizando chatId:', chatId);
+    console.log('🔧 Normalizando chatId para envio:', chatId);
     
     // Se já tem @ no final, usar como está
     if (chatId.includes('@')) {
@@ -442,7 +442,7 @@ export function useWPPConnect() {
     }
   }, [makeWPPRequest, getWPPConfig, toast, normalizeChatId]);
 
-  // Carregar mensagens de uma conversa - CORRIGIDO PARA GRUPOS
+  // Carregar mensagens de uma conversa - CORRIGIDO
   const loadRealMessages = useCallback(async (chatId: string) => {
     try {
       setIsLoadingMessages(true);
@@ -568,34 +568,101 @@ export function useWPPConnect() {
     }
   }, [makeWPPRequest, getWPPConfig, toast, messageHistoryLimit, normalizeChatId]);
 
-  // Enviar mensagem
+  // Enviar mensagem - CORRIGIDO
   const sendMessage = useCallback(async (chatId: string, message: string) => {
     try {
       console.log('📤 Enviando mensagem:', { chatId, message });
       
       const config = getWPPConfig();
-      const data = await makeWPPRequest(`/api/${config.sessionName}/send-message`, {
-        method: 'POST',
-        body: JSON.stringify({
-          chatId: chatId,
-          message: message
-        })
+      const normalizedChatId = normalizeChatId(chatId);
+      
+      console.log('📤 ChatId normalizado para envio:', {
+        original: chatId,
+        normalized: normalizedChatId
       });
 
-      if (data.status === 'success' || data.success) {
-        await loadRealMessages(chatId);
-        toast({
-          title: "✅ Mensagem enviada!",
-          description: "A mensagem foi enviada com sucesso"
-        });
-      } else {
-        throw new Error(data.message || 'Falha ao enviar mensagem');
+      // Tentar diferentes endpoints para envio de mensagem
+      const possibleEndpoints = [
+        {
+          endpoint: `/api/${config.sessionName}/send-message`,
+          body: {
+            chatId: normalizedChatId,
+            message: message
+          }
+        },
+        {
+          endpoint: `/api/${config.sessionName}/send-text`,
+          body: {
+            chatId: normalizedChatId,
+            text: message
+          }
+        },
+        {
+          endpoint: `/api/${config.sessionName}/sendText`,
+          body: {
+            chatId: normalizedChatId,
+            text: message
+          }
+        }
+      ];
+
+      let sendSuccess = false;
+      let lastError = null;
+
+      // Tentar cada endpoint até um funcionar
+      for (const { endpoint, body } of possibleEndpoints) {
+        try {
+          console.log(`📤 Tentando enviar via: ${endpoint}`);
+          console.log('📤 Body:', body);
+          
+          const data = await makeWPPRequest(endpoint, {
+            method: 'POST',
+            body: JSON.stringify(body)
+          });
+
+          console.log('📤 Resposta do envio:', data);
+
+          // Verificar se o envio foi bem-sucedido
+          if (data.success || data.status === 'success' || data.sent || data.result) {
+            console.log('✅ Mensagem enviada com sucesso!');
+            sendSuccess = true;
+            break;
+          } else {
+            console.log('⚠️ Resposta não indica sucesso, tentando próximo endpoint');
+            lastError = new Error(`Resposta não indica sucesso: ${JSON.stringify(data)}`);
+          }
+        } catch (error) {
+          console.log(`❌ Falhou endpoint ${endpoint}:`, error.message);
+          lastError = error;
+          continue;
+        }
       }
+
+      if (!sendSuccess) {
+        throw lastError || new Error('Todos os endpoints de envio falharam');
+      }
+
+      // Aguardar um pouco e recarregar mensagens
+      setTimeout(() => {
+        console.log('🔄 Recarregando mensagens após envio...');
+        loadRealMessages(chatId);
+      }, 1000);
+      
+      toast({
+        title: "✅ Mensagem enviada!",
+        description: "A mensagem foi enviada com sucesso"
+      });
+
     } catch (error) {
       console.error('❌ Erro ao enviar mensagem:', error);
+      toast({
+        title: "❌ Erro ao enviar mensagem",
+        description: `Falha no envio: ${error.message}`,
+        variant: "destructive"
+      });
       throw error;
     }
-  }, [makeWPPRequest, getWPPConfig, loadRealMessages, toast]);
+  }, [makeWPPRequest, getWPPConfig, loadRealMessages, toast, normalizeChatId]);
 
   // Iniciar modo live
   const startLiveMode = useCallback((chatId: string) => {
