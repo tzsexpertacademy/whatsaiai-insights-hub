@@ -133,8 +133,8 @@ export function WPPConnectMirror() {
   };
 
   const selectContact = (contact: any) => {
-    const formattedChatId = formatChatId(contact.chatId || contact.id);
-    console.log('🎯 selectContact - Original:', contact.chatId || contact.id, 'Formatted:', formattedChatId);
+    const formattedChatId = formatChatId(contact.chatId);
+    console.log('🎯 selectContact - Original:', contact.chatId, 'Formatted:', formattedChatId);
     setSelectedContact(formattedChatId);
     loadChatMessages(formattedChatId);
   };
@@ -182,7 +182,7 @@ export function WPPConnectMirror() {
 
   const handleToggleAnalysis = async (chatId: string, priority?: 'high' | 'medium' | 'low') => {
     const formattedChatId = formatChatId(chatId);
-    const chat = chats.find(c => formatChatId(c.chatId || c.id) === formattedChatId);
+    const chat = chats.find(c => formatChatId(c.chatId) === formattedChatId);
     if (!chat) return;
 
     console.log('🏷️ Toggle análise para:', { chatId: formattedChatId, chatName: chat.name, priority });
@@ -361,10 +361,10 @@ export function WPPConnectMirror() {
             <CardContent className="p-0">
               <div className="space-y-1 max-h-[500px] overflow-y-auto">
                 {chats.map((chat, index) => {
-                  const formattedChatId = formatChatId(chat.chatId || chat.id);
+                  const formattedChatId = formatChatId(chat.chatId);
                   const chatKey = formattedChatId || `chat-${index}`;
                   
-                  console.log('🔄 Renderizing chat:', { originalId: chat.chatId || chat.id, formattedId: formattedChatId, name: chat.name });
+                  console.log('🔄 Renderizing chat:', { originalId: chat.chatId, formattedId: formattedChatId, name: chat.name });
                   
                   return (
                     <ConversationContextMenu
@@ -427,7 +427,7 @@ export function WPPConnectMirror() {
                     </div>
                     <div className="flex-1">
                       <CardTitle className="text-lg">
-                        {chats.find(c => formatChatId(c.chatId || c.id) === selectedContact)?.name || 'Conversa'}
+                        {chats.find(c => formatChatId(c.chatId) === selectedContact)?.name || 'Conversa'}
                       </CardTitle>
                     </div>
                     <Button
