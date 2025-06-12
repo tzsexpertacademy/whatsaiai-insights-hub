@@ -1,4 +1,3 @@
-
 import { useState, useCallback, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -143,7 +142,7 @@ export function useWPPConnect() {
     }
   }, [getWPPConfig]);
 
-  // Verificar status da conexão
+  // Verificar status da conexão com melhor detecção
   const checkConnectionStatus = useCallback(async () => {
     try {
       console.log('🔍 Verificando status da sessão...');
@@ -151,18 +150,25 @@ export function useWPPConnect() {
       const config = getWPPConfig();
       const data = await makeWPPRequest(`/api/${config.sessionName}/status-session`);
       
-      console.log('📊 Status da sessão:', data);
+      console.log('📊 Status da sessão completo:', JSON.stringify(data, null, 2));
       
-      // Verificar diferentes formas de resposta de conexão
+      // Melhor detecção de conexão - verificar múltiplos campos
       const isConnected = data.status === 'CONNECTED' || 
                          data.connected === true ||
                          data.state === 'CONNECTED' ||
-                         (data.session && data.session.status === 'CONNECTED');
+                         data.session?.status === 'CONNECTED' ||
+                         data.session?.state === 'CONNECTED' ||
+                         (data.session && data.session.status && data.session.status.includes('CONNECTED'));
       
+      // Melhor extração do número de telefone
       const phoneNumber = data.phoneNumber || 
                          data.wid?.user || 
                          data.session?.phoneNumber ||
+                         data.session?.wid?.user ||
+                         data.me?.user ||
                          sessionStatus.phoneNumber;
+      
+      console.log('🔍 Conexão detectada:', isConnected, 'Telefone:', phoneNumber);
       
       setSessionStatus(prev => ({
         ...prev,
@@ -172,8 +178,11 @@ export function useWPPConnect() {
       }));
 
       if (isConnected) {
-        console.log('✅ Sessão conectada! Carregando conversas...');
-        await loadRealChats();
+        console.log('✅ Sessão conectada! Tentando carregar conversas...');
+        // Aguardar um pouco para garantir que a sessão está estável
+        setTimeout(() => {
+          loadRealChats();
+        }, 1000);
       }
 
       return isConnected;
@@ -206,13 +215,13 @@ export function useWPPConnect() {
           ...prev,
           isConnected: true,
           isLoading: false,
-          phoneNumber: statusData.phoneNumber || statusData.wid?.user,
+          phoneNumber: statusData.phoneNumber || statusData.wid?.user || statusData.session?.phoneNumber,
           qrCode: null
         }));
         
         toast({
           title: "✅ WhatsApp já conectado!",
-          description: "Sua sessão já está ativa"
+          description: "Sua sessão já está ativa, carregando conversas..."
         });
         
         await loadRealChats();
@@ -263,16 +272,23 @@ export function useWPPConnect() {
           description: "Escaneie com seu WhatsApp Business"
         });
 
-        // Verificar status periodicamente
+        // Verificar status periodicamente com intervalo mais frequente
         const checkInterval = setInterval(async () => {
           const isConnected = await checkConnectionStatus();
           if (isConnected) {
             clearInterval(checkInterval);
             setSessionStatus(prev => ({ ...prev, qrCode: null }));
+            toast({
+              title: "🎉 WhatsApp conectado!",
+              description: "Carregando suas conversas..."
+            });
           }
-        }, 3000);
+        }, 2000); // Verificar a cada 2 segundos
 
-        setTimeout(() => clearInterval(checkInterval), 120000);
+        setTimeout(() => {
+          clearInterval(checkInterval);
+          console.log('⏱️ Timeout na verificação do QR Code');
+        }, 120000);
         
       } else {
         throw new Error('QR Code não encontrado na resposta da API');
@@ -293,7 +309,7 @@ export function useWPPConnect() {
     }
   }, [makeWPPRequest, getWPPConfig, toast, checkConnectionStatus]);
 
-  // Carregar conversas reais
+  // Carregar conversas reais com retry
   const loadRealChats = useCallback(async (): Promise<Chat[]> => {
     try {
       setIsLoadingChats(true);
@@ -301,47 +317,67 @@ export function useWPPConnect() {
       
       const config = getWPPConfig();
       
-      // Tentar diferentes endpoints para conversas
+      // Tentar diferentes endpoints para conversas com retry
       let chatsData;
-      try {
-        chatsData = await makeWPPRequest(`/api/${config.sessionName}/all-chats`);
-      } catch (error) {
-        console.log('❌ Erro com all-chats, tentando list-chats...');
-        chatsData = await makeWPPRequest(`/api/${config.sessionName}/list-chats`);
+      const endpoints = [`/api/${config.sessionName}/all-chats`, `/api/${config.sessionName}/list-chats`];
+      
+      for (const endpoint of endpoints) {
+        try {
+          console.log(`🔍 Tentando endpoint: ${endpoint}`);
+          chatsData = await makeWPPRequest(endpoint);
+          console.log(`✅ Sucesso com endpoint: ${endpoint}`);
+          break;
+        } catch (error) {
+          console.log(`❌ Falhou endpoint ${endpoint}:`, error.message);
+          if (endpoint === endpoints[endpoints.length - 1]) {
+            throw error; // Se foi o último endpoint, propagar o erro
+          }
+        }
       }
       
       console.log('📋 Dados das conversas:', chatsData);
       
-      if (Array.isArray(chatsData)) {
+      if (Array.isArray(chatsData) && chatsData.length > 0) {
         const formattedChats: Chat[] = chatsData.map((chat: any, index: number) => ({
           id: String(chat.id?._serialized || chat.id || `chat-${index}`),
           chatId: String(chat.id?._serialized || chat.id || ''),
-          name: chat.name || chat.pushname || chat.formattedTitle || 'Sem nome',
-          lastMessage: chat.lastMessage?.body || 'Sem mensagens',
-          timestamp: chat.t ? new Date(chat.t * 1000).toISOString() : new Date().toISOString(),
+          name: chat.name || chat.pushname || chat.formattedTitle || chat.contact?.name || 'Sem nome',
+          lastMessage: chat.lastMessage?.body || chat.lastMessage?.content || 'Sem mensagens',
+          timestamp: chat.t ? new Date(chat.t * 1000).toISOString() : 
+                     chat.lastMessage?.t ? new Date(chat.lastMessage.t * 1000).toISOString() :
+                     new Date().toISOString(),
           unreadCount: chat.unreadCount || 0,
           unread: chat.unreadCount || 0,
           isGroup: chat.isGroup || false,
           phone: chat.id?._serialized || chat.id || ''
         })).filter(chat => chat.chatId);
 
-        console.log('📋 Conversas formatadas:', formattedChats);
+        console.log(`📋 ${formattedChats.length} conversas formatadas:`, formattedChats);
         setChats(formattedChats);
         
         toast({
-          title: "✅ Conversas carregadas!",
+          title: "🎉 Conversas carregadas!",
           description: `${formattedChats.length} conversas encontradas`
         });
 
         return formattedChats;
+      } else if (Array.isArray(chatsData) && chatsData.length === 0) {
+        console.log('📭 Nenhuma conversa encontrada');
+        setChats([]);
+        toast({
+          title: "📭 Nenhuma conversa",
+          description: "Não há conversas no momento. Inicie uma conversa no WhatsApp!"
+        });
+        return [];
+      } else {
+        throw new Error('Formato de resposta inválido para conversas');
       }
       
-      return [];
     } catch (error) {
       console.error('❌ Erro ao carregar conversas:', error);
       toast({
         title: "❌ Erro ao carregar conversas",
-        description: error.message,
+        description: `${error.message}. Tente novamente em alguns segundos.`,
         variant: "destructive"
       });
       return [];
@@ -496,14 +532,19 @@ export function useWPPConnect() {
     return 'active';
   }, [sessionStatus]);
 
-  // Verificar status ao montar o componente
+  // Verificação automática melhorada ao montar o componente
   useEffect(() => {
     const config = getWPPConfig();
-    console.log('🚀 Iniciando verificação automática...');
+    console.log('🚀 Iniciando verificação automática melhorada...');
     
     if (config.secretKey && config.token) {
-      console.log('🚀 Config encontrada, verificando status...');
-      checkConnectionStatus();
+      console.log('🚀 Config encontrada, verificando status em 1 segundo...');
+      // Aguardar um pouco para o componente terminar de montar
+      const timer = setTimeout(() => {
+        checkConnectionStatus();
+      }, 1000);
+      
+      return () => clearTimeout(timer);
     } else {
       console.log('⚠️ Config WPP não encontrada');
     }
