@@ -63,7 +63,7 @@ export function useWPPConnect() {
       sessionName: localStorage.getItem('wpp_session_name') || 'NERDWHATS_AMERICA',
       serverUrl: localStorage.getItem('wpp_server_url') || 'http://localhost:21465',
       secretKey: localStorage.getItem('wpp_secret_key') || 'THISISMYSECURETOKEN',
-      token: localStorage.getItem('wpp_token') || '$2b$10$S1aK9kqjlklpoEHjttgnKuaZOw0lTb.c8xSYcQhKjXEUYKnMrH3s2',
+      token: localStorage.getItem('wpp_token') || '$2b$10$S1aK9qjlklpoEHjttgnKuaZOw0lTb.c8xSYcQhKjXEUYKnMrH3s2',
       webhookUrl: localStorage.getItem('wpp_webhook_url') || ''
     };
   }, []);
@@ -152,13 +152,20 @@ export function useWPPConnect() {
       
       console.log('📊 Status da sessão completo:', JSON.stringify(data, null, 2));
       
-      // Melhor detecção de conexão - verificar múltiplos campos
+      // Detectar se está sincronizando
+      const isSyncing = data.status === 'INITIALIZING' || 
+                       data.state === 'INITIALIZING' ||
+                       data.status === 'SYNCING' ||
+                       data.state === 'SYNCING' ||
+                       data.status === 'STARTING' ||
+                       data.state === 'STARTING';
+      
+      // Detectar se está conectado
       const isConnected = data.status === 'CONNECTED' || 
                          data.connected === true ||
                          data.state === 'CONNECTED' ||
                          data.session?.status === 'CONNECTED' ||
-                         data.session?.state === 'CONNECTED' ||
-                         (data.session && data.session.status && data.session.status.includes('CONNECTED'));
+                         data.session?.state === 'CONNECTED';
       
       // Melhor extração do número de telefone
       const phoneNumber = data.phoneNumber || 
@@ -168,11 +175,31 @@ export function useWPPConnect() {
                          data.me?.user ||
                          sessionStatus.phoneNumber;
       
-      console.log('🔍 Conexão detectada:', isConnected, 'Telefone:', phoneNumber);
+      console.log('🔍 Estado detectado:', { isConnected, isSyncing, phoneNumber });
+      
+      if (isSyncing) {
+        setSessionStatus(prev => ({
+          ...prev,
+          isConnected: false,
+          isLoading: true,
+          phoneNumber,
+          error: 'Sincronizando WhatsApp...'
+        }));
+        
+        console.log('🔄 WhatsApp sincronizando, aguardando...');
+        
+        // Verificar novamente em 3 segundos se estiver sincronizando
+        setTimeout(() => {
+          checkConnectionStatus();
+        }, 3000);
+        
+        return false;
+      }
       
       setSessionStatus(prev => ({
         ...prev,
         isConnected,
+        isLoading: false,
         phoneNumber,
         error: isConnected ? null : 'Sessão não conectada'
       }));
@@ -182,7 +209,7 @@ export function useWPPConnect() {
         // Aguardar um pouco para garantir que a sessão está estável
         setTimeout(() => {
           loadRealChats();
-        }, 1000);
+        }, 2000);
       }
 
       return isConnected;
@@ -191,6 +218,7 @@ export function useWPPConnect() {
       setSessionStatus(prev => ({
         ...prev,
         isConnected: false,
+        isLoading: false,
         error: error.message
       }));
       return false;
@@ -309,7 +337,7 @@ export function useWPPConnect() {
     }
   }, [makeWPPRequest, getWPPConfig, toast, checkConnectionStatus]);
 
-  // Carregar conversas reais com retry
+  // Carregar conversas reais com melhor tratamento de erros
   const loadRealChats = useCallback(async (): Promise<Chat[]> => {
     try {
       setIsLoadingChats(true);
@@ -319,59 +347,101 @@ export function useWPPConnect() {
       
       // Tentar diferentes endpoints para conversas com retry
       let chatsData;
-      const endpoints = [`/api/${config.sessionName}/all-chats`, `/api/${config.sessionName}/list-chats`];
+      const endpoints = [
+        `/api/${config.sessionName}/all-chats`,
+        `/api/${config.sessionName}/list-chats`,
+        `/api/${config.sessionName}/get-chats`
+      ];
       
       for (const endpoint of endpoints) {
         try {
           console.log(`🔍 Tentando endpoint: ${endpoint}`);
           chatsData = await makeWPPRequest(endpoint);
-          console.log(`✅ Sucesso com endpoint: ${endpoint}`);
-          break;
+          console.log(`✅ Sucesso com endpoint: ${endpoint}`, typeof chatsData, chatsData);
+          
+          // Verificar se a resposta é válida
+          if (chatsData && typeof chatsData === 'object') {
+            // Se a resposta é um objeto com propriedade que contém o array
+            if (chatsData.chats && Array.isArray(chatsData.chats)) {
+              chatsData = chatsData.chats;
+              break;
+            }
+            // Se a resposta é um objeto com propriedade data
+            if (chatsData.data && Array.isArray(chatsData.data)) {
+              chatsData = chatsData.data;
+              break;
+            }
+            // Se a resposta é um objeto com propriedade result
+            if (chatsData.result && Array.isArray(chatsData.result)) {
+              chatsData = chatsData.result;
+              break;
+            }
+            // Se a resposta é diretamente um array
+            if (Array.isArray(chatsData)) {
+              break;
+            }
+          }
+          
+          console.log(`⚠️ Formato inesperado de ${endpoint}:`, chatsData);
         } catch (error) {
           console.log(`❌ Falhou endpoint ${endpoint}:`, error.message);
           if (endpoint === endpoints[endpoints.length - 1]) {
-            throw error; // Se foi o último endpoint, propagar o erro
+            throw new Error(`Todos os endpoints falharam. Último erro: ${error.message}`);
           }
         }
       }
       
-      console.log('📋 Dados das conversas:', chatsData);
+      console.log('📋 Dados das conversas processados:', chatsData);
       
-      if (Array.isArray(chatsData) && chatsData.length > 0) {
-        const formattedChats: Chat[] = chatsData.map((chat: any, index: number) => ({
-          id: String(chat.id?._serialized || chat.id || `chat-${index}`),
-          chatId: String(chat.id?._serialized || chat.id || ''),
-          name: chat.name || chat.pushname || chat.formattedTitle || chat.contact?.name || 'Sem nome',
-          lastMessage: chat.lastMessage?.body || chat.lastMessage?.content || 'Sem mensagens',
-          timestamp: chat.t ? new Date(chat.t * 1000).toISOString() : 
-                     chat.lastMessage?.t ? new Date(chat.lastMessage.t * 1000).toISOString() :
-                     new Date().toISOString(),
-          unreadCount: chat.unreadCount || 0,
-          unread: chat.unreadCount || 0,
-          isGroup: chat.isGroup || false,
-          phone: chat.id?._serialized || chat.id || ''
-        })).filter(chat => chat.chatId);
-
-        console.log(`📋 ${formattedChats.length} conversas formatadas:`, formattedChats);
-        setChats(formattedChats);
+      // Verificar se conseguimos obter um array válido
+      if (!Array.isArray(chatsData)) {
+        console.error('❌ Resposta não é um array:', typeof chatsData, chatsData);
         
-        toast({
-          title: "🎉 Conversas carregadas!",
-          description: `${formattedChats.length} conversas encontradas`
-        });
-
-        return formattedChats;
-      } else if (Array.isArray(chatsData) && chatsData.length === 0) {
-        console.log('📭 Nenhuma conversa encontrada');
+        // Tentar aguardar mais um pouco se estiver sincronizando
+        if (sessionStatus.error?.includes('Sincronizando')) {
+          console.log('🔄 Ainda sincronizando, tentando novamente em 5 segundos...');
+          setTimeout(() => {
+            loadRealChats();
+          }, 5000);
+          return [];
+        }
+        
+        throw new Error(`Formato de resposta inválido: esperado array, recebido ${typeof chatsData}`);
+      }
+      
+      if (chatsData.length === 0) {
+        console.log('📭 Nenhuma conversa encontrada (array vazio)');
         setChats([]);
         toast({
           title: "📭 Nenhuma conversa",
           description: "Não há conversas no momento. Inicie uma conversa no WhatsApp!"
         });
         return [];
-      } else {
-        throw new Error('Formato de resposta inválido para conversas');
       }
+      
+      const formattedChats: Chat[] = chatsData.map((chat: any, index: number) => ({
+        id: String(chat.id?._serialized || chat.id || `chat-${index}`),
+        chatId: String(chat.id?._serialized || chat.id || ''),
+        name: chat.name || chat.pushname || chat.formattedTitle || chat.contact?.name || 'Sem nome',
+        lastMessage: chat.lastMessage?.body || chat.lastMessage?.content || 'Sem mensagens',
+        timestamp: chat.t ? new Date(chat.t * 1000).toISOString() : 
+                   chat.lastMessage?.t ? new Date(chat.lastMessage.t * 1000).toISOString() :
+                   new Date().toISOString(),
+        unreadCount: chat.unreadCount || 0,
+        unread: chat.unreadCount || 0,
+        isGroup: chat.isGroup || false,
+        phone: chat.id?._serialized || chat.id || ''
+      })).filter(chat => chat.chatId);
+
+      console.log(`📋 ${formattedChats.length} conversas formatadas:`, formattedChats);
+      setChats(formattedChats);
+      
+      toast({
+        title: "🎉 Conversas carregadas!",
+        description: `${formattedChats.length} conversas encontradas`
+      });
+
+      return formattedChats;
       
     } catch (error) {
       console.error('❌ Erro ao carregar conversas:', error);
@@ -384,7 +454,7 @@ export function useWPPConnect() {
     } finally {
       setIsLoadingChats(false);
     }
-  }, [makeWPPRequest, getWPPConfig, toast]);
+  }, [makeWPPRequest, getWPPConfig, toast, sessionStatus.error]);
 
   // Carregar mensagens de uma conversa
   const loadRealMessages = useCallback(async (chatId: string) => {
@@ -522,6 +592,7 @@ export function useWPPConnect() {
 
   // Função para obter status da conexão
   const getConnectionStatus = useCallback(() => {
+    if (sessionStatus.isLoading) return 'syncing';
     if (!sessionStatus.isConnected) return 'disconnected';
     
     const lastConnected = sessionStatus.phoneNumber ? new Date() : new Date(0);
