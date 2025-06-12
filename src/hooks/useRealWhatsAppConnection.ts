@@ -1,4 +1,3 @@
-
 import { useState, useCallback } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/contexts/AuthContext';
@@ -75,29 +74,43 @@ export function useRealWhatsAppConnection() {
     }
   }, [wppConfig, toast]);
 
-  const checkConnectionStatus = useCallback(async () => {
-    setIsLoading(true);
+  const getConnectionStatus = useCallback(async () => {
     try {
-      const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/check-connection`, {
+      const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/getSessionState`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${wppConfig.secretKey}`
         }
       });
-  
-      if (!response.ok) {
-        throw new Error(`Erro HTTP: ${response.status}`);
+
+      if (response.ok) {
+        const data = await response.json();
+        const isConnected = data.state === 'CONNECTED';
+        
+        setConnectionState(prev => ({
+          ...prev,
+          isConnected,
+          phoneNumber: data.phone || prev.phoneNumber || 'Não informado'
+        }));
+        
+        return isConnected ? 'active' : 'disconnected';
       }
-  
-      const data = await response.json();
-      const isConnected = data.isConnected;
       
-      setConnectionState({
-        isConnected,
-        phoneNumber: data.phone,
-        lastConnected: isConnected ? new Date().toISOString() : undefined
-      });
-  
+      setConnectionState(prev => ({ ...prev, isConnected: false }));
+      return 'disconnected';
+    } catch (error) {
+      console.error('Erro ao verificar status:', error);
+      setConnectionState(prev => ({ ...prev, isConnected: false }));
+      return 'disconnected';
+    }
+  }, [wppConfig]);
+
+  const checkConnectionStatus = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const status = await getConnectionStatus();
+      const isConnected = status === 'active';
+      
       toast({
         title: isConnected ? "WhatsApp conectado!" : "WhatsApp desconectado",
         description: isConnected ? "Conexão estabelecida com sucesso" : "Verifique seu QR Code ou conexão",
@@ -116,7 +129,7 @@ export function useRealWhatsAppConnection() {
     } finally {
       setIsLoading(false);
     }
-  }, [wppConfig, toast]);
+  }, [getConnectionStatus, toast]);
 
   const disconnectWhatsApp = useCallback(async () => {
     setIsLoading(true);
@@ -203,7 +216,6 @@ export function useRealWhatsAppConnection() {
     try {
       console.log('💾 Salvando conversa no banco de dados para análise...', chatData.name);
       
-      // Processar mensagens para o formato correto
       const processedMessages = messages.map(msg => ({
         text: msg.processedText || msg.body || msg.text || 'Mensagem sem texto',
         sender: msg.fromMe ? 'user' : 'contact',
@@ -211,7 +223,6 @@ export function useRealWhatsAppConnection() {
         messageId: msg.id || `msg_${Date.now()}`
       }));
 
-      // Verificar se a conversa já existe
       const { data: existingConversation, error: searchError } = await supabase
         .from('whatsapp_conversations')
         .select('id')
@@ -225,7 +236,6 @@ export function useRealWhatsAppConnection() {
       }
 
       if (existingConversation) {
-        // Atualizar conversa existente
         const { error: updateError } = await supabase
           .from('whatsapp_conversations')
           .update({
@@ -242,7 +252,6 @@ export function useRealWhatsAppConnection() {
 
         console.log('✅ Conversa atualizada no banco:', existingConversation.id);
       } else {
-        // Criar nova conversa
         const { data: newConversation, error: insertError } = await supabase
           .from('whatsapp_conversations')
           .insert({
@@ -359,13 +368,10 @@ export function useRealWhatsAppConnection() {
       }
     }));
 
-    // Se estiver marcando para análise, salvar no banco de dados
     if (newAnalysisState) {
       try {
-        // Carregar dados da conversa e mensagens
         const messages = await loadRealMessages(chatId);
         
-        // Criar objeto da conversa para salvar
         const chatData = {
           id: chatId,
           name: `Conversa ${chatId.split('@')[0]}`,
@@ -385,7 +391,6 @@ export function useRealWhatsAppConnection() {
             description: "Não foi possível salvar no banco de dados",
             variant: "destructive"
           });
-          // Reverter o estado se falhou
           setConversationMeta(prev => ({
             ...prev,
             [chatId]: currentMeta
@@ -398,7 +403,6 @@ export function useRealWhatsAppConnection() {
           description: "Não foi possível carregar dados da conversa",
           variant: "destructive"
         });
-        // Reverter o estado se falhou
         setConversationMeta(prev => ({
           ...prev,
           [chatId]: currentMeta
@@ -441,35 +445,6 @@ export function useRealWhatsAppConnection() {
   const getAnalysisPriority = useCallback((chatId: string) => {
     return conversationMeta[chatId]?.analysisPriority || 'medium';
   }, [conversationMeta]);
-
-  const getConnectionStatus = useCallback(async () => {
-    try {
-      const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/getSessionState`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${wppConfig.secretKey}`
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        const isConnected = data.state === 'CONNECTED';
-        
-        setConnectionState(prev => ({
-          ...prev,
-          isConnected,
-          phoneNumber: data.phone || 'Não informado'
-        }));
-        
-        return isConnected ? 'active' : 'disconnected';
-      }
-      
-      return 'disconnected';
-    } catch (error) {
-      console.error('Erro ao verificar status:', error);
-      return 'disconnected';
-    }
-  }, [wppConfig]);
 
   return {
     connectionState,

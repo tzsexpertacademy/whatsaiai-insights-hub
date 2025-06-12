@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -85,16 +84,17 @@ export function RealWhatsAppMirror() {
 
   const isConnected = connectionState.isConnected;
 
-  // Auto-load chats and check status when connected
+  // Auto-initialize when component mounts
   useEffect(() => {
     const initializeWhatsApp = async () => {
       console.log('🔄 Inicializando WhatsApp...');
       
       try {
-        // Verificar status de conexão
+        // Verificar status de conexão primeiro
         const status = await getConnectionStatus();
         console.log('📱 Status verificado:', status);
         
+        // Se conectado, carregar conversas automaticamente
         if (status === 'active') {
           console.log('✅ WhatsApp conectado, carregando conversas automaticamente...');
           await handleLoadRealChats();
@@ -105,7 +105,7 @@ export function RealWhatsAppMirror() {
     };
 
     initializeWhatsApp();
-  }, [getConnectionStatus]);
+  }, []); // Executar apenas uma vez ao montar o componente
 
   // Helper functions
   const extractPhoneNumber = (phoneData: any): string => {
@@ -461,9 +461,15 @@ export function RealWhatsAppMirror() {
         <CardContent>
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
-              {statusInfo.icon}
+              {isConnected ? (
+                <CheckCircle className="h-6 w-6 text-green-500" />
+              ) : (
+                <AlertCircle className="h-6 w-6 text-gray-400" />
+              )}
               <div>
-                <span className={`font-medium ${statusInfo.color}`}>{statusInfo.text}</span>
+                <span className={`font-medium ${isConnected ? 'text-green-600' : 'text-gray-600'}`}>
+                  {isConnected ? 'Conectado e Ativo' : 'Desconectado'}
+                </span>
                 {connectionState.phoneNumber && (
                   <p className="text-sm text-gray-500">{connectionState.phoneNumber}</p>
                 )}
