@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -55,6 +56,7 @@ export function RealWhatsAppMirror() {
     connectionState, 
     isLoading, 
     wppConfig,
+    messageHistoryLimit,
     generateQRCode, 
     checkConnectionStatus,
     disconnectWhatsApp,
@@ -62,6 +64,7 @@ export function RealWhatsAppMirror() {
     loadRealChats,
     loadRealMessages,
     getConnectionStatus,
+    updateMessageHistoryLimit,
     togglePinConversation,
     toggleAnalysisConversation,
     isConversationPinned,
@@ -71,7 +74,6 @@ export function RealWhatsAppMirror() {
   
   const [selectedContact, setSelectedContact] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState('');
-  const [showConfig, setShowConfig] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [showHistoryConfig, setShowHistoryConfig] = useState(false);
   const [tempHistoryLimit, setTempHistoryLimit] = useState(messageHistoryLimit);
@@ -81,7 +83,6 @@ export function RealWhatsAppMirror() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoadingChats, setIsLoadingChats] = useState(false);
 
-  const connectionStatus = getConnectionStatus();
   const isConnected = connectionState.isConnected;
 
   // Auto-load chats and check status when connected
@@ -413,8 +414,9 @@ export function RealWhatsAppMirror() {
     }
   };
 
-  const getConnectionStatusInfo = () => {
-    if (connectionStatus === 'active') {
+  const getConnectionStatusInfo = async () => {
+    const status = await getConnectionStatus();
+    if (status === 'active') {
       return {
         icon: <CheckCircle className="h-6 w-6 text-green-500" />,
         text: 'Conectado e Ativo',
@@ -428,7 +430,19 @@ export function RealWhatsAppMirror() {
     };
   };
 
-  const statusInfo = getConnectionStatusInfo();
+  const [statusInfo, setStatusInfo] = useState({
+    icon: <AlertCircle className="h-6 w-6 text-gray-400" />,
+    text: 'Verificando...',
+    color: 'text-gray-600'
+  });
+
+  useEffect(() => {
+    const updateStatus = async () => {
+      const info = await getConnectionStatusInfo();
+      setStatusInfo(info);
+    };
+    updateStatus();
+  }, [connectionState.isConnected]);
 
   return (
     <div className="space-y-6">
@@ -676,29 +690,34 @@ export function RealWhatsAppMirror() {
                           <div className="flex items-center gap-3">
                             <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center relative">
                               <User className="h-6 w-6 text-green-600" />
-                              {isPinned && (
-                                <Pin className="absolute -top-1 -right-1 h-4 w-4 text-yellow-600 fill-current" />
+                              {contact.unread > 0 && (
+                                <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 text-xs bg-red-500">
+                                  {contact.unread}
+                                </Badge>
                               )}
                             </div>
+                            
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center justify-between">
+                                <h3 className="font-medium text-sm truncate">{contact.name}</h3>
                                 <div className="flex items-center gap-2">
-                                  <span className="font-medium text-sm">{contact.name}</span>
-                                  <AnalysisStatusIndicator
-                                    isMarkedForAnalysis={isMarkedForAnalysis}
-                                    isSavedToDatabase={true} // Por simplicidade, assumimos que está salvo
-                                    analysisPriority={analysisPriority}
-                                  />
+                                  {isPinned && <Pin className="h-3 w-3 text-yellow-600" />}
+                                  <span className="text-xs text-gray-500">
+                                    {formatTime(contact.timestamp)}
+                                  </span>
                                 </div>
-                                <span className="text-xs text-gray-400">{formatTime(contact.timestamp)}</span>
                               </div>
-                              <div className="flex items-center justify-between">
-                                <p className="text-sm text-gray-500 truncate pr-2">{contact.lastMessage}</p>
-                                {contact.unread > 0 && (
-                                  <Badge variant="destructive" className="text-xs">
-                                    {contact.unread}
-                                  </Badge>
-                                )}
+                              
+                              <p className="text-sm text-gray-600 truncate">{contact.lastMessage}</p>
+                              
+                              <div className="flex items-center justify-between mt-1">
+                                <span className="text-xs text-gray-400 truncate">{contact.phone}</span>
+                                
+                                <AnalysisStatusIndicator
+                                  isMarkedForAnalysis={isMarkedForAnalysis}
+                                  isSavedToDatabase={true}
+                                  analysisPriority={analysisPriority}
+                                />
                               </div>
                             </div>
                           </div>
@@ -711,99 +730,99 @@ export function RealWhatsAppMirror() {
             </CardContent>
           </Card>
 
-          {/* Área de Chat */}
+          {/* Área de Mensagens */}
           <Card className="lg:col-span-2">
-            {selectedContact ? (
-              <>
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                        <User className="h-5 w-5 text-green-600" />
-                      </div>
-                      <div>
-                        <CardTitle className="text-lg">
-                          {contacts.find(c => c.id === selectedContact)?.name}
-                        </CardTitle>
-                        <p className="text-sm text-gray-500">
-                          {contacts.find(c => c.id === selectedContact)?.phone}
-                        </p>
-                      </div>
-                    </div>
-                    <Badge variant="outline">
-                      {messages.filter(m => m.contactId === selectedContact).length} mensagens
-                    </Badge>
+            <CardHeader className="pb-3">
+              {selectedContact ? (
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                    <User className="h-5 w-5 text-green-600" />
                   </div>
-                </CardHeader>
-                
-                <CardContent className="p-0">
-                  {/* Mensagens */}
-                  <div className="h-[400px] overflow-y-auto p-4 space-y-3">
+                  <div>
+                    <CardTitle className="text-base">
+                      {contacts.find(c => c.id === selectedContact)?.name}
+                    </CardTitle>
+                    <CardDescription className="text-sm">
+                      {contacts.find(c => c.id === selectedContact)?.phone}
+                    </CardDescription>
+                  </div>
+                </div>
+              ) : (
+                <CardTitle className="text-center text-gray-500">
+                  Selecione uma conversa para visualizar
+                </CardTitle>
+              )}
+            </CardHeader>
+            
+            <CardContent className="flex flex-col h-[480px]">
+              {selectedContact ? (
+                <>
+                  {/* Área de Mensagens */}
+                  <div className="flex-1 overflow-y-auto space-y-3 mb-4">
                     {messages
-                      .filter(m => m.contactId === selectedContact)
+                      .filter(msg => msg.contactId === selectedContact)
                       .map((message) => (
                         <div
                           key={message.id}
                           className={`flex ${message.sent ? 'justify-end' : 'justify-start'}`}
                         >
                           <div
-                            className={`max-w-[70%] px-3 py-2 rounded-lg ${
+                            className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
                               message.sent
                                 ? 'bg-green-500 text-white'
-                                : 'bg-gray-100 text-gray-900'
+                                : 'bg-gray-200 text-gray-800'
                             }`}
                           >
-                            <div className="flex items-start gap-2">
-                              {message.isAudio && <Volume2 className="h-4 w-4 mt-0.5 flex-shrink-0" />}
-                              <div className="flex-1">
-                                <p className="text-sm">{message.text}</p>
-                                <div className="flex items-center justify-between mt-1">
-                                  <span className="text-xs opacity-70">
-                                    {formatTime(message.timestamp)}
-                                  </span>
-                                  {message.sent && (
-                                    <span className="text-xs opacity-70">
-                                      {getStatusIcon(message.status)}
-                                    </span>
-                                  )}
-                                </div>
+                            {message.isAudio && (
+                              <div className="flex items-center gap-2 mb-1">
+                                <Volume2 className="h-4 w-4" />
+                                <span className="text-xs opacity-75">Áudio</span>
                               </div>
+                            )}
+                            <p className="text-sm">{message.text}</p>
+                            <div className="flex items-center justify-between mt-1">
+                              <span className="text-xs opacity-75">
+                                {formatTime(message.timestamp)}
+                              </span>
+                              {message.sent && (
+                                <span className="text-xs opacity-75 ml-2">
+                                  {getStatusIcon(message.status)}
+                                </span>
+                              )}
                             </div>
                           </div>
                         </div>
                       ))}
                     <div ref={messagesEndRef} />
                   </div>
-                  
-                  {/* Input de Mensagem */}
-                  <div className="border-t p-4">
-                    <div className="flex gap-2">
-                      <Input
-                        value={newMessage}
-                        onChange={(e) => setNewMessage(e.target.value)}
-                        placeholder="Digite sua mensagem..."
-                        onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-                        className="flex-1"
-                      />
-                      <Button 
-                        onClick={sendMessage}
-                        disabled={!newMessage.trim()}
-                        className="bg-green-600 hover:bg-green-700"
-                      >
-                        <Send className="h-4 w-4" />
-                      </Button>
-                    </div>
+
+                  {/* Campo de Envio */}
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Digite sua mensagem..."
+                      value={newMessage}
+                      onChange={(e) => setNewMessage(e.target.value)}
+                      onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+                      className="flex-1"
+                    />
+                    <Button 
+                      onClick={sendMessage}
+                      disabled={!newMessage.trim()}
+                      size="sm"
+                    >
+                      <Send className="h-4 w-4" />
+                    </Button>
                   </div>
-                </CardContent>
-              </>
-            ) : (
-              <CardContent className="flex items-center justify-center h-full">
-                <div className="text-center text-gray-500">
-                  <MessageSquare className="h-12 w-12 mx-auto mb-4" />
-                  <p>Selecione uma conversa para começar</p>
+                </>
+              ) : (
+                <div className="flex-1 flex items-center justify-center text-gray-500">
+                  <div className="text-center">
+                    <MessageSquare className="h-16 w-16 mx-auto mb-4 opacity-50" />
+                    <p>Selecione uma conversa para começar a visualizar mensagens</p>
+                  </div>
                 </div>
-              </CardContent>
-            )}
+              )}
+            </CardContent>
           </Card>
         </div>
       )}

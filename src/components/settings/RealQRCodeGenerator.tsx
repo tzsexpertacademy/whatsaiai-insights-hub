@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,7 +12,7 @@ export function RealQRCodeGenerator() {
   const { 
     connectionState, 
     isLoading, 
-    webhooks, 
+    wppConfig,
     updateWebhooks, 
     generateQRCode, 
     disconnectWhatsApp, 
@@ -19,17 +20,17 @@ export function RealQRCodeGenerator() {
   } = useRealWhatsAppConnection();
   
   const { toast } = useToast();
-  const connectionStatus = getConnectionStatus();
 
   const handleWebhookUpdate = (field: string, value: string) => {
-    updateWebhooks({ [field]: value });
+    updateWebhooks(value);
     toast({
       title: "Webhook atualizado",
       description: `${field} foi salvo localmente`
     });
   };
 
-  const getStatusInfo = () => {
+  const getStatusInfo = async () => {
+    const connectionStatus = await getConnectionStatus();
     switch (connectionStatus) {
       case 'active':
         return {
@@ -46,8 +47,19 @@ export function RealQRCodeGenerator() {
     }
   };
 
-  const statusInfo = getStatusInfo();
-  const isWebhookConfigured = webhooks.qrWebhook && webhooks.statusWebhook;
+  const [statusInfo, setStatusInfo] = React.useState({
+    icon: <WifiOff className="h-6 w-6 text-gray-400" />,
+    text: 'Carregando...',
+    color: 'text-gray-600'
+  });
+
+  React.useEffect(() => {
+    const updateStatus = async () => {
+      const info = await getStatusInfo();
+      setStatusInfo(info);
+    };
+    updateStatus();
+  }, [connectionState.isConnected]);
 
   return (
     <div className="space-y-6">
@@ -56,60 +68,42 @@ export function RealQRCodeGenerator() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Settings className="h-5 w-5 text-blue-600" />
-            Configuração Make.com
+            Configuração WPPConnect
           </CardTitle>
           <CardDescription>
-            Configure os webhooks do Make.com para conectar WhatsApp real
+            Configure o servidor WPPConnect para conectar WhatsApp real
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="qr-webhook">Webhook QR Code *</Label>
+            <Label htmlFor="server-url">URL do Servidor</Label>
             <Input
-              id="qr-webhook"
-              placeholder="https://hook.eu1.make.com/xxxxx"
-              value={webhooks.qrWebhook}
-              onChange={(e) => handleWebhookUpdate('qrWebhook', e.target.value)}
+              id="server-url"
+              placeholder="http://localhost:21465"
+              value={wppConfig.serverUrl}
+              disabled
             />
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="status-webhook">Webhook Status *</Label>
+            <Label htmlFor="session-name">Nome da Sessão</Label>
             <Input
-              id="status-webhook"
-              placeholder="https://hook.eu1.make.com/xxxxx"
-              value={webhooks.statusWebhook}
-              onChange={(e) => handleWebhookUpdate('statusWebhook', e.target.value)}
+              id="session-name"
+              placeholder="NERDWHATS_AMERICA"
+              value={wppConfig.sessionName}
+              disabled
             />
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="send-webhook">Webhook Envio (Opcional)</Label>
+            <Label htmlFor="webhook-url">URL do Webhook</Label>
             <Input
-              id="send-webhook"
-              placeholder="https://hook.eu1.make.com/xxxxx"
-              value={webhooks.sendMessageWebhook}
-              onChange={(e) => handleWebhookUpdate('sendMessageWebhook', e.target.value)}
+              id="webhook-url"
+              placeholder="https://your-project.supabase.co/functions/v1/whatsapp-autoreply"
+              value={wppConfig.webhookUrl}
+              onChange={(e) => handleWebhookUpdate('webhookUrl', e.target.value)}
             />
           </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="autoreply-webhook">Webhook Auto-resposta (Opcional)</Label>
-            <Input
-              id="autoreply-webhook"
-              placeholder="https://hook.eu1.make.com/xxxxx"
-              value={webhooks.autoReplyWebhook}
-              onChange={(e) => handleWebhookUpdate('autoReplyWebhook', e.target.value)}
-            />
-          </div>
-          
-          {!isWebhookConfigured && (
-            <div className="p-3 bg-yellow-50 rounded-lg border border-yellow-200">
-              <p className="text-sm text-yellow-700">
-                ⚠️ Configure pelo menos os webhooks QR Code e Status para continuar
-              </p>
-            </div>
-          )}
         </CardContent>
       </Card>
 
@@ -121,7 +115,7 @@ export function RealQRCodeGenerator() {
             WhatsApp Business Real
           </CardTitle>
           <CardDescription>
-            Conecte seu WhatsApp Business real usando Make.com
+            Conecte seu WhatsApp Business real usando WPPConnect
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -144,13 +138,11 @@ export function RealQRCodeGenerator() {
                 <div className="text-center py-8">
                   <QrCode className="h-16 w-16 text-gray-400 mx-auto mb-4" />
                   <p className="text-gray-500 mb-4">
-                    {isWebhookConfigured 
-                      ? "Clique para gerar QR Code real" 
-                      : "Configure os webhooks primeiro"}
+                    Clique para gerar QR Code real
                   </p>
                   <Button 
                     onClick={generateQRCode} 
-                    disabled={isLoading || !isWebhookConfigured}
+                    disabled={isLoading}
                   >
                     {isLoading ? (
                       <>
@@ -211,9 +203,11 @@ export function RealQRCodeGenerator() {
               <p className="text-sm text-gray-600 mb-4">
                 Conectado ao: {connectionState.phoneNumber}
               </p>
-              <p className="text-sm text-gray-600 mb-4">
-                Última conexão: {new Date(connectionState.lastConnected).toLocaleString('pt-BR')}
-              </p>
+              {connectionState.lastConnected && (
+                <p className="text-sm text-gray-600 mb-4">
+                  Última conexão: {new Date(connectionState.lastConnected).toLocaleString('pt-BR')}
+                </p>
+              )}
               <div className="flex gap-2 justify-center">
                 <Button onClick={disconnectWhatsApp} variant="outline" size="sm">
                   Desconectar
@@ -239,12 +233,12 @@ export function RealQRCodeGenerator() {
         </CardContent>
       </Card>
 
-      {/* Instruções Make.com */}
+      {/* Instruções WPPConnect */}
       <Card className="bg-white/70 backdrop-blur-sm border-white/50">
         <CardHeader>
-          <CardTitle>Configuração Make.com</CardTitle>
+          <CardTitle>Configuração WPPConnect</CardTitle>
           <CardDescription>
-            Como criar os webhooks no Make.com para WhatsApp real
+            Como configurar o servidor WPPConnect para WhatsApp real
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -252,21 +246,20 @@ export function RealQRCodeGenerator() {
             <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
               <h4 className="font-medium text-blue-900 mb-2">📋 Passo a passo:</h4>
               <ol className="text-sm text-blue-700 space-y-2 list-decimal list-inside">
-                <li>Acesse <strong>make.com</strong> e crie uma conta</li>
-                <li>Crie um novo cenário</li>
-                <li>Adicione um módulo <strong>"Webhook"</strong> → <strong>"Custom webhook"</strong></li>
-                <li>Copie a URL do webhook e cole no campo "Webhook QR Code"</li>
-                <li>Adicione módulos do WhatsApp Business API</li>
-                <li>Configure os outros webhooks conforme necessário</li>
-                <li>Ative o cenário no Make.com</li>
+                <li>Instale o <strong>WPPConnect</strong> em seu servidor</li>
+                <li>Configure a URL do servidor (padrão: localhost:21465)</li>
+                <li>Defina o nome da sessão</li>
+                <li>Configure o webhook para receber mensagens</li>
+                <li>Gere o QR Code e escaneie com WhatsApp Business</li>
+                <li>Aguarde a conexão ser estabelecida</li>
               </ol>
             </div>
             
             <div className="bg-amber-50 p-4 rounded-lg border border-amber-200">
               <h4 className="font-medium text-amber-900 mb-2">⚡ Dica importante:</h4>
               <p className="text-sm text-amber-700">
-                Você precisará de uma conta WhatsApp Business API válida. 
-                O Make.com pode conectar com provedores como Twilio, 360Dialog, ou outros.
+                O WPPConnect deve estar rodando e acessível na URL configurada. 
+                Certifique-se de que o servidor está ativo antes de tentar conectar.
               </p>
             </div>
           </div>

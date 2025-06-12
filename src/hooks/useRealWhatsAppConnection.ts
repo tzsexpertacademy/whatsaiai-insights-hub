@@ -1,3 +1,4 @@
+
 import { useState, useCallback } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/contexts/AuthContext';
@@ -14,6 +15,7 @@ interface ConnectionState {
   isConnected: boolean;
   phoneNumber?: string;
   qrCode?: string;
+  lastConnected?: string;
 }
 
 interface ConversationMeta {
@@ -92,7 +94,8 @@ export function useRealWhatsAppConnection() {
       
       setConnectionState({
         isConnected,
-        phoneNumber: data.phone
+        phoneNumber: data.phone,
+        lastConnected: isConnected ? new Date().toISOString() : undefined
       });
   
       toast({
@@ -132,8 +135,7 @@ export function useRealWhatsAppConnection() {
       setConnectionState({ isConnected: false });
       toast({
         title: "WhatsApp desconectado",
-        description: "Sessão encerrada com sucesso",
-        variant: "success"
+        description: "Sessão encerrada com sucesso"
       });
     } catch (error) {
       console.error('Erro ao desconectar WhatsApp:', error);
@@ -170,8 +172,7 @@ export function useRealWhatsAppConnection() {
       if (data.result === true) {
         toast({
           title: "Mensagem enviada!",
-          description: `Mensagem enviada para ${to} com sucesso`,
-          variant: "success"
+          description: `Mensagem enviada para ${to} com sucesso`
         });
         return true;
       } else {
@@ -230,7 +231,6 @@ export function useRealWhatsAppConnection() {
           .update({
             contact_name: chatData.name,
             messages: processedMessages,
-            marked_for_analysis: true,
             updated_at: new Date().toISOString()
           })
           .eq('id', existingConversation.id);
@@ -249,9 +249,7 @@ export function useRealWhatsAppConnection() {
             user_id: user.id,
             contact_name: chatData.name,
             contact_phone: chatData.phone || chatData.id,
-            messages: processedMessages,
-            marked_for_analysis: true,
-            analysis_priority: conversationMeta[chatData.id]?.analysisPriority || 'medium'
+            messages: processedMessages
           })
           .select()
           .single();
@@ -269,7 +267,7 @@ export function useRealWhatsAppConnection() {
       console.error('❌ Erro ao salvar conversa no banco:', error);
       return false;
     }
-  }, [user?.id, conversationMeta]);
+  }, [user?.id]);
 
   const loadRealChats = useCallback(async () => {
     try {
@@ -328,24 +326,11 @@ export function useRealWhatsAppConnection() {
     }
   }, [wppConfig, messageHistoryLimit]);
 
-  const updateWPPConfig = useCallback((newConfig: Partial<WPPConfig>) => {
-    // Implemente a lógica para atualizar a configuração do WPPConnect
-    // e salvar no estado ou em um arquivo de configuração.
-    console.log('Atualizando configuração do WPPConnect:', newConfig);
-    toast({
-      title: "Configuração atualizada!",
-      description: "As novas configurações serão aplicadas",
-      variant: "success"
-    });
-  }, [toast]);
-
   const updateWebhooks = useCallback((newWebhookUrl: string) => {
-    // Implemente a lógica para atualizar o webhook no WPPConnect
     console.log('Atualizando URL do webhook:', newWebhookUrl);
     toast({
       title: "Webhook atualizado!",
-      description: "A nova URL do webhook foi configurada",
-      variant: "success"
+      description: "A nova URL do webhook foi configurada"
     });
   }, [toast]);
 
@@ -353,8 +338,7 @@ export function useRealWhatsAppConnection() {
     setMessageHistoryLimit(newLimit);
     toast({
       title: "Limite de histórico atualizado!",
-      description: `O limite de mensagens foi alterado para ${newLimit}`,
-      variant: "success"
+      description: `O limite de mensagens foi alterado para ${newLimit}`
     });
   }, [toast]);
 
@@ -384,7 +368,7 @@ export function useRealWhatsAppConnection() {
         // Criar objeto da conversa para salvar
         const chatData = {
           id: chatId,
-          name: `Conversa ${chatId.split('@')[0]}`, // Nome básico, será atualizado quando tiver mais dados
+          name: `Conversa ${chatId.split('@')[0]}`,
           phone: chatId
         };
         
@@ -471,10 +455,11 @@ export function useRealWhatsAppConnection() {
         const data = await response.json();
         const isConnected = data.state === 'CONNECTED';
         
-        setConnectionState({
+        setConnectionState(prev => ({
+          ...prev,
           isConnected,
           phoneNumber: data.phone || 'Não informado'
-        });
+        }));
         
         return isConnected ? 'active' : 'disconnected';
       }
@@ -492,114 +477,11 @@ export function useRealWhatsAppConnection() {
     wppConfig,
     messageHistoryLimit,
     updateWebhooks,
-    updateWPPConfig,
     updateMessageHistoryLimit,
-    generateQRCode: useCallback(async () => {
-      setIsLoading(true);
-      try {
-        const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/generate-qr`, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${wppConfig.secretKey}`
-          }
-        });
-    
-        if (!response.ok) {
-          throw new Error(`Erro HTTP: ${response.status}`);
-        }
-    
-        const data = await response.json();
-        setConnectionState(prev => ({ ...prev, qrCode: data.image }));
-        return data.image;
-      } catch (error) {
-        console.error('Erro ao gerar QR Code:', error);
-        toast({
-          title: "Erro ao gerar QR Code",
-          description: "Verifique se o WPPConnect está rodando corretamente",
-          variant: "destructive"
-        });
-        return null;
-      } finally {
-        setIsLoading(false);
-      }
-    }, [wppConfig, toast]),
-    checkConnectionStatus: getConnectionStatus,
-    disconnectWhatsApp: useCallback(async () => {
-      setIsLoading(true);
-      try {
-        const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/logout`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${wppConfig.secretKey}`
-          }
-        });
-    
-        if (!response.ok) {
-          throw new Error(`Erro HTTP: ${response.status}`);
-        }
-    
-        setConnectionState({ isConnected: false });
-        toast({
-          title: "WhatsApp desconectado",
-          description: "Sessão encerrada com sucesso",
-          variant: "success"
-        });
-      } catch (error) {
-        console.error('Erro ao desconectar WhatsApp:', error);
-        toast({
-          title: "Erro ao desconectar",
-          description: "Não foi possível encerrar a sessão",
-          variant: "destructive"
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    }, [wppConfig, toast]),
-    sendMessage: useCallback(async (to: string, message: string) => {
-      try {
-        const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/send-message`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${wppConfig.secretKey}`
-          },
-          body: JSON.stringify({
-            phone: to,
-            message: message
-          })
-        });
-    
-        if (!response.ok) {
-          throw new Error(`Erro HTTP: ${response.status}`);
-        }
-    
-        const data = await response.json();
-        
-        if (data.result === true) {
-          toast({
-            title: "Mensagem enviada!",
-            description: `Mensagem enviada para ${to} com sucesso`,
-            variant: "success"
-          });
-          return true;
-        } else {
-          toast({
-            title: "Erro ao enviar mensagem",
-            description: data.error || "Não foi possível enviar a mensagem",
-            variant: "destructive"
-          });
-          return false;
-        }
-      } catch (error) {
-        console.error('Erro ao enviar mensagem:', error);
-        toast({
-          title: "Erro ao enviar mensagem",
-          description: "Verifique sua conexão com o WPPConnect",
-          variant: "destructive"
-        });
-        return false;
-      }
-    }, [wppConfig, toast]),
+    generateQRCode,
+    checkConnectionStatus,
+    disconnectWhatsApp,
+    sendMessage,
     loadRealChats,
     loadRealMessages,
     getConnectionStatus,
