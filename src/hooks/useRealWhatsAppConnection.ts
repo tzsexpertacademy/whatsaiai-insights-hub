@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useVoiceTranscription } from './useVoiceTranscription';
+import { useConversationPersistence } from './useConversationPersistence';
 
 interface ConnectionState {
   isConnected: boolean;
@@ -37,6 +38,7 @@ interface ConversationForAnalysis {
 export function useRealWhatsAppConnection() {
   const { toast } = useToast();
   const { transcribeAudio } = useVoiceTranscription();
+  const { saveConversationToDatabase, verifyConversationInDatabase } = useConversationPersistence();
   
   const [connectionState, setConnectionState] = useState<ConnectionState>({
     isConnected: false,
@@ -115,7 +117,7 @@ export function useRealWhatsAppConnection() {
   }, [toast]);
 
   // Função para fixar/desfixar conversa
-  const togglePinConversation = useCallback((chatId: string) => {
+  const togglePinConversation = useCallback(async (chatId: string) => {
     setPinnedConversations(prev => {
       const isPinned = prev.some(p => p.chatId === chatId);
       let updated;
@@ -128,16 +130,46 @@ export function useRealWhatsAppConnection() {
         });
       } else {
         updated = [...prev, { chatId, pinnedAt: new Date().toISOString() }];
+        
+        // Salvar conversa fixada no banco
+        if (cachedChats.length > 0) {
+          const chatToPin = cachedChats.find(chat => 
+            chat.id?.includes(chatId) || chat.contact?.includes(chatId)
+          );
+          
+          if (chatToPin) {
+            console.log('💾 Salvando conversa fixada no banco...', chatId);
+            
+            // Carregar mensagens da conversa fixada
+            loadRealMessages(chatId).then(messages => {
+              if (messages && messages.length > 0) {
+                saveConversationToDatabase(
+                  chatId,
+                  chatToPin.name || chatToPin.contact || 'Contato',
+                  messages,
+                  true
+                ).then(() => {
+                  console.log('✅ Conversa fixada salva no banco:', chatId);
+                }).catch(error => {
+                  console.error('❌ Erro ao salvar conversa fixada:', error);
+                });
+              }
+            }).catch(error => {
+              console.error('❌ Erro ao carregar mensagens para salvar:', error);
+            });
+          }
+        }
+        
         toast({
           title: "📌 Conversa fixada",
-          description: "Conversa adicionada aos fixados"
+          description: "Conversa adicionada aos fixados e salva no banco"
         });
       }
       
       localStorage.setItem('pinned_conversations', JSON.stringify(updated));
       return updated;
     });
-  }, [toast]);
+  }, [toast, saveConversationToDatabase, cachedChats, loadRealMessages]);
 
   // Função para marcar/desmarcar conversa para análise
   const toggleAnalysisConversation = useCallback((chatId: string, priority: 'high' | 'medium' | 'low' = 'medium') => {
@@ -599,6 +631,29 @@ export function useRealWhatsAppConnection() {
           })
         );
         
+        // Verificar se conversa fixada está no banco
+        const isPinned = pinnedConversations.some(p => p.chatId === contactId);
+        if (isPinned) {
+          console.log('🔍 Verificando se conversa fixada está no banco...', contactId);
+          const isInDatabase = await verifyConversationInDatabase(contactId);
+          
+          if (!isInDatabase && processedMessages.length > 0) {
+            console.log('💾 Conversa fixada não encontrada no banco, salvando...', contactId);
+            const chatData = cachedChats.find(chat => 
+              chat.id?.includes(contactId) || chat.contact?.includes(contactId)
+            );
+            
+            if (chatData) {
+              await saveConversationToDatabase(
+                contactId,
+                chatData.name || chatData.contact || 'Contato',
+                processedMessages,
+                true
+              );
+            }
+          }
+        }
+        
         return processedMessages;
       } else {
         console.error('❌ Erro ao carregar mensagens:', response.status);
@@ -609,7 +664,7 @@ export function useRealWhatsAppConnection() {
       console.error('❌ Erro ao carregar mensagens:', error);
       throw error;
     }
-  }, [wppConfig, transcribeAudio, messageHistoryLimit]);
+  }, [wppConfig, transcribeAudio, messageHistoryLimit, verifyConversationInDatabase, saveConversationToDatabase, pinnedConversations, cachedChats]);
 
   const getConnectionStatus = useCallback(() => {
     if (connectionState.isConnected) {
@@ -625,10 +680,10 @@ export function useRealWhatsAppConnection() {
     wppConfig,
     pinnedConversations,
     conversationsForAnalysis,
-    messageHistoryLimit, // Nova propriedade
+    messageHistoryLimit,
     updateWebhooks,
     updateWPPConfig,
-    updateMessageHistoryLimit, // Nova função
+    updateMessageHistoryLimit,
     generateQRCode,
     checkConnectionStatus,
     disconnectWhatsApp,
