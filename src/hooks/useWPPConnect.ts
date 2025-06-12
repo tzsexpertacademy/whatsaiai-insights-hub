@@ -70,9 +70,8 @@ export function useWPPConnect() {
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const [messageHistoryLimit, setMessageHistoryLimit] = useState(50);
 
-  // Lista de tokens inválidos que devem ser rejeitados
+  // Lista REDUZIDA de tokens inválidos - removendo THISISMYSECURETOKEN
   const INVALID_TOKENS = [
-    'THISISMYSECURETOKEN',
     'YOUR_SECRET_KEY_HERE',
     'YOUR_TOKEN_HERE',
     'DEFAULT_TOKEN',
@@ -136,12 +135,12 @@ export function useWPPConnect() {
 
   const saveWPPConfig = (config: WPPConfig) => {
     try {
-      // Validar se os tokens não são valores padrão inválidos
+      // Validar se os tokens não são valores inválidos (mas aceitar THISISMYSECURETOKEN)
       if (INVALID_TOKENS.includes(config.secretKey)) {
         console.error('❌ Secret Key inválido detectado:', config.secretKey);
         toast({
           title: "❌ Secret Key Inválido",
-          description: "O Secret Key não pode ser o valor padrão. Configure um valor real.",
+          description: "O Secret Key não pode estar vazio ou ser um valor padrão inválido.",
           variant: "destructive"
         });
         return false;
@@ -151,7 +150,7 @@ export function useWPPConnect() {
         console.error('❌ Token inválido detectado:', config.token);
         toast({
           title: "❌ Token Inválido", 
-          description: "O Token não pode ser o valor padrão. Configure um valor real.",
+          description: "O Token não pode estar vazio ou ser um valor padrão inválido.",
           variant: "destructive"
         });
         return false;
@@ -181,21 +180,21 @@ export function useWPPConnect() {
   const isTokenValid = () => {
     const config = getWPPConfig();
     
-    // Verificar se os valores não são inválidos
+    // Verificar se os valores não são inválidos (mas aceitar THISISMYSECURETOKEN)
     const isSecretKeyValid = !INVALID_TOKENS.includes(config.secretKey) && 
                             config.secretKey && 
-                            config.secretKey.length > 10;
+                            config.secretKey.length > 0;
     
     const isTokenValid = !INVALID_TOKENS.includes(config.token) && 
                         config.token && 
-                        config.token.length > 10;
+                        config.token.length > 0;
 
     console.log('🔍 Validação de tokens:', {
       secretKeyValid: isSecretKeyValid,
       tokenValid: isTokenValid,
       secretKeyLength: config.secretKey?.length || 0,
       tokenLength: config.token?.length || 0,
-      secretKeyValue: config.secretKey === 'THISISMYSECURETOKEN' ? 'VALOR_PADRAO_DETECTADO' : 'OK'
+      secretKeyValue: config.secretKey || 'VAZIO'
     });
 
     return isSecretKeyValid && isTokenValid;
@@ -204,15 +203,15 @@ export function useWPPConnect() {
   const generateQRCode = async (): Promise<string | null> => {
     console.log('🔄 Gerando QR Code WPPConnect...');
     
-    // Verificação rigorosa de tokens
+    // Verificação de tokens
     if (!isTokenValid()) {
       const config = getWPPConfig();
       let errorMessage = "Configure Secret Key e Token válidos do WPPConnect primeiro";
       
       if (INVALID_TOKENS.includes(config.secretKey)) {
-        errorMessage = "Secret Key ainda está com valor padrão. Configure um valor real na aba WPPConnect.";
+        errorMessage = "Secret Key não pode estar vazio. Configure um valor válido na aba WPPConnect.";
       } else if (INVALID_TOKENS.includes(config.token)) {
-        errorMessage = "Token ainda está com valor padrão. Configure um valor real na aba WPPConnect.";
+        errorMessage = "Token não pode estar vazio. Configure um valor válido na aba WPPConnect.";
       }
       
       toast({
@@ -253,11 +252,7 @@ export function useWPPConnect() {
         console.log('⚠️ Erro na criação de sessão:', errorText);
         
         if (createResponse.status === 401) {
-          // Forçar limpeza de tokens inválidos
-          localStorage.removeItem('wpp_secret_key');
-          localStorage.removeItem('wpp_token');
-          
-          throw new Error('Token ou Secret Key inválidos. Por favor, reconfigure na aba WPPConnect com valores reais (não padrão).');
+          throw new Error('Token ou Secret Key inválidos. Verifique suas credenciais na aba WPPConnect.');
         }
       }
 
@@ -285,11 +280,7 @@ export function useWPPConnect() {
         });
 
         if (qrResponse.status === 401) {
-          // Forçar limpeza de tokens inválidos
-          localStorage.removeItem('wpp_secret_key');
-          localStorage.removeItem('wpp_token');
-          
-          throw new Error('Erro de autenticação. Reconfigure Secret Key e Token na aba WPPConnect.');
+          throw new Error('Erro de autenticação. Verifique Secret Key e Token na aba WPPConnect.');
         }
         
         throw new Error(`Erro HTTP: ${qrResponse.status} - ${errorText}`);

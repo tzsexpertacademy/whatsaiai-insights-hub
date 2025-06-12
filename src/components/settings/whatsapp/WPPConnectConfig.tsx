@@ -35,22 +35,21 @@ export function WPPConnectConfig() {
     };
   });
 
-  // Lista de tokens inválidos
+  // Lista REDUZIDA de tokens inválidos - removendo THISISMYSECURETOKEN
   const INVALID_TOKENS = [
-    'THISISMYSECURETOKEN',
     'YOUR_SECRET_KEY_HERE', 
     'YOUR_TOKEN_HERE',
     'DEFAULT_TOKEN',
     'CHANGE_ME'
   ];
 
-  // Verificar se os tokens estão configurados corretamente
+  // Verificar se os tokens estão configurados corretamente - ACEITANDO THISISMYSECURETOKEN
   const isSecretKeyValid = config.secretKey && 
-                          config.secretKey.length > 10 && 
+                          config.secretKey.length > 0 && 
                           !INVALID_TOKENS.includes(config.secretKey);
                           
   const isTokenValid = config.token && 
-                      config.token.length > 10 && 
+                      config.token.length > 0 && 
                       !INVALID_TOKENS.includes(config.token);
 
   const isConfigComplete = isSecretKeyValid && isTokenValid;
@@ -73,7 +72,7 @@ export function WPPConnectConfig() {
     if (!isConfigComplete) {
       toast({
         title: "❌ Configuração incompleta",
-        description: "Configure Secret Key e Token válidos (não valores padrão)",
+        description: "Configure Secret Key e Token válidos",
         variant: "destructive"
       });
       return;
@@ -83,12 +82,12 @@ export function WPPConnectConfig() {
     if (success) {
       toast({
         title: "✅ Configuração salva!",
-        description: "Secret Key, Token e configurações do WPPConnect atualizados com valores válidos"
+        description: "Secret Key, Token e configurações do WPPConnect atualizados"
       });
     } else {
       toast({
         title: "❌ Erro ao salvar",
-        description: "Valores padrão detectados. Configure tokens reais.",
+        description: "Não foi possível salvar a configuração.",
         variant: "destructive"
       });
     }
@@ -118,7 +117,7 @@ export function WPPConnectConfig() {
     
     toast({
       title: "🗑️ Tokens limpos",
-      description: "Configure novos valores válidos"
+      description: "Configure novos valores"
     });
   };
 
@@ -129,9 +128,6 @@ export function WPPConnectConfig() {
     if (INVALID_TOKENS.includes(config.secretKey)) {
       return { valid: false, message: "Valor padrão detectado - configure valor real" };
     }
-    if (config.secretKey.length <= 10) {
-      return { valid: false, message: "Secret Key muito curto (mínimo 10 caracteres)" };
-    }
     return { valid: true, message: "Secret Key configurado corretamente" };
   };
 
@@ -141,9 +137,6 @@ export function WPPConnectConfig() {
     }
     if (INVALID_TOKENS.includes(config.token)) {
       return { valid: false, message: "Valor padrão detectado - configure valor real" };
-    }
-    if (config.token.length <= 10) {
-      return { valid: false, message: "Token muito curto (mínimo 10 caracteres)" };
     }
     return { valid: true, message: "Token configurado corretamente" };
   };
@@ -178,7 +171,7 @@ export function WPPConnectConfig() {
           <CardDescription>
             {isConfigComplete 
               ? 'Configuração completa com tokens válidos - Pronto para conectar' 
-              : 'Configure Secret Key e Token REAIS (não valores padrão) para usar o WhatsApp Real'}
+              : 'Configure Secret Key e Token válidos para usar o WhatsApp Real'}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -215,29 +208,6 @@ export function WPPConnectConfig() {
           </div>
         </CardContent>
       </Card>
-
-      {/* Aviso sobre valores padrão */}
-      {(!isSecretKeyValid || !isTokenValid) && (
-        <Card className="border-2 border-yellow-200 bg-yellow-50">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-yellow-900">
-              <AlertTriangle className="h-5 w-5" />
-              ⚠️ VALORES PADRÃO DETECTADOS
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2 text-yellow-800">
-              <p><strong>❌ Problema:</strong> Você ainda está usando valores padrão para os tokens.</p>
-              <p><strong>🔧 Solução:</strong> Configure valores REAIS obtidos do seu servidor WPPConnect:</p>
-              <ul className="list-disc list-inside ml-4 space-y-1">
-                <li>Secret Key: Chave configurada no servidor WPPConnect (não "THISISMYSECURETOKEN")</li>
-                <li>Token: Token específico gerado pelo WPPConnect para sua sessão</li>
-              </ul>
-              <p><strong>📝 Nota:</strong> Os campos abaixo NÃO devem conter valores padrão.</p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Formulário de Configuração */}
       <Card className="border-2 border-blue-200 bg-blue-50">
@@ -280,13 +250,12 @@ export function WPPConnectConfig() {
             <div className="space-y-2">
               <Label htmlFor="secretKey" className="flex items-center gap-2">
                 <Shield className="h-4 w-4" />
-                Secret Key (Chave do Servidor) * 
-                <span className="text-red-600 font-bold">NÃO USE VALOR PADRÃO!</span>
+                Secret Key (Chave do Servidor) *
               </Label>
               <Input
                 id="secretKey"
                 type="password"
-                placeholder="Digite sua chave REAL do WPPConnect (não 'THISISMYSECURETOKEN')"
+                placeholder="THISISMYSECURETOKEN ou sua chave personalizada"
                 value={config.secretKey}
                 onChange={(e) => handleInputChange('secretKey', e.target.value)}
                 className={!secretKeyStatus.valid ? 'border-red-300 focus:border-red-500' : 'border-green-300 focus:border-green-500'}
@@ -308,12 +277,11 @@ export function WPPConnectConfig() {
               <Label htmlFor="token" className="flex items-center gap-2">
                 <Key className="h-4 w-4" />
                 Token de Sessão *
-                <span className="text-red-600 font-bold">NÃO USE VALOR PADRÃO!</span>
               </Label>
               <Input
                 id="token"
                 type="password"
-                placeholder="Digite seu token REAL específico da sessão"
+                placeholder="Token da sua sessão WPPConnect"
                 value={config.token}
                 onChange={(e) => handleInputChange('token', e.target.value)}
                 className={!tokenStatus.valid ? 'border-red-300 focus:border-red-500' : 'border-green-300 focus:border-green-500'}
@@ -367,9 +335,8 @@ export function WPPConnectConfig() {
             <div className="bg-red-50 p-4 rounded-lg border border-red-200">
               <h4 className="font-medium text-red-900 mb-2">🚨 CONFIGURAÇÃO OBRIGATÓRIA:</h4>
               <div className="text-sm text-red-700 space-y-2">
-                <p><strong>1. Secret Key:</strong> Chave de autenticação configurada no servidor WPPConnect</p>
+                <p><strong>1. Secret Key:</strong> Use "THISISMYSECURETOKEN" ou sua chave personalizada do WPPConnect</p>
                 <p><strong>2. Token:</strong> Token específico gerado para a sessão pelo WPPConnect</p>
-                <p className="font-bold text-red-800">⚠️ IMPORTANTE: NÃO use "THISISMYSECURETOKEN" ou outros valores padrão!</p>
                 <p><strong>3. Auto-salvamento:</strong> Só salva automaticamente quando os tokens são válidos</p>
               </div>
             </div>
@@ -391,7 +358,7 @@ export function WPPConnectConfig() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <MessageSquare className="h-5 w-5" />
-            Diferença entre Secret Key e Token
+            Sobre os Tokens WPPConnect
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -403,7 +370,7 @@ export function WPPConnectConfig() {
               <h3 className="font-medium text-blue-900 mb-1">Secret Key</h3>
               <p className="text-sm text-blue-700">
                 Chave de autenticação do servidor WPPConnect. 
-                Configurada uma vez no servidor. NUNCA usar "THISISMYSECURETOKEN".
+                Pode ser "THISISMYSECURETOKEN" (padrão) ou personalizada.
               </p>
             </div>
             
@@ -414,7 +381,7 @@ export function WPPConnectConfig() {
               <h3 className="font-medium text-green-900 mb-1">Token de Sessão</h3>
               <p className="text-sm text-green-700">
                 Token específico gerado pelo WPPConnect para cada sessão/conexão.
-                Deve ser um valor único e real.
+                Deve ser obtido da resposta da API do WPPConnect.
               </p>
             </div>
           </div>
