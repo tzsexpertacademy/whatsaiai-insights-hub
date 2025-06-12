@@ -27,7 +27,8 @@ import {
   Star,
   TrendingUp,
   AlertTriangle,
-  Search
+  Search,
+  Volume2
 } from 'lucide-react';
 
 interface Contact {
@@ -37,6 +38,7 @@ interface Contact {
   lastMessage: string;
   timestamp: string;
   unread: number;
+  lastMessageTimestamp?: number; // Timestamp numérico para ordenação
 }
 
 interface Message {
@@ -46,6 +48,7 @@ interface Message {
   sent: boolean;
   timestamp: string;
   status: 'sending' | 'sent' | 'delivered' | 'read';
+  isAudio?: boolean;
 }
 
 export function RealWhatsAppMirror() {
@@ -105,26 +108,57 @@ export function RealWhatsAppMirror() {
     if (chat.contact?.formattedName) return chat.contact.formattedName;
     if (chat.contact?.pushname) return chat.contact.pushname;
     if (chat.title) return chat.title;
+    
+    // Se não tem nome, tentar extrair do ID do chat
+    const phoneNumber = extractPhoneNumber(chat.id || chat.contact?.id || chat.phone);
+    if (phoneNumber && phoneNumber !== 'Número não disponível') {
+      // Para grupos, manter como está
+      if (phoneNumber.includes('@g.us')) {
+        return chat.id || 'Grupo sem nome';
+      }
+      // Para contatos individuais, mostrar o número formatado
+      const cleanNumber = phoneNumber.replace('@c.us', '');
+      return `+${cleanNumber}`;
+    }
+    
     return 'Contato sem nome';
   };
 
   // Helper function to safely extract phone from chat ID for sending
   const extractPhoneForSending = (contact: Contact): string => {
-    let phone = contact.phone;
-    
-    if (phone.includes('@c.us')) {
-      return phone; // Retorna o phone completo com @c.us para contatos individuais
-    }
-    
-    if (phone.includes('@g.us')) {
-      return phone; // Retorna o phone completo com @g.us para grupos
-    }
-    
-    // Se não tem formato WhatsApp, adiciona @c.us
-    return phone + '@c.us';
+    return contact.phone; // Usar o phone já formatado
   };
 
-  // Função para filtrar e ordenar conversas
+  // Helper function to extract timestamp for sorting (WhatsApp order)
+  const extractTimestamp = (chat: any): number => {
+    // Tentar várias propriedades de timestamp
+    if (chat.lastMessage?.timestamp) {
+      return typeof chat.lastMessage.timestamp === 'number' 
+        ? chat.lastMessage.timestamp 
+        : new Date(chat.lastMessage.timestamp).getTime();
+    }
+    
+    if (chat.timestamp) {
+      return typeof chat.timestamp === 'number'
+        ? chat.timestamp
+        : new Date(chat.timestamp).getTime();
+    }
+    
+    if (chat.t) {
+      return chat.t * 1000; // Converter segundos para millisegundos
+    }
+    
+    if (chat.lastMessageTime) {
+      return typeof chat.lastMessageTime === 'number'
+        ? chat.lastMessageTime
+        : new Date(chat.lastMessageTime).getTime();
+    }
+    
+    // Se não encontrar timestamp, usar timestamp atual para conversas sem mensagens
+    return new Date().getTime();
+  };
+
+  // Função para filtrar e ordenar conversas (ordem do WhatsApp)
   const filteredAndSortedContacts = useMemo(() => {
     let filtered = contacts;
     
@@ -136,7 +170,7 @@ export function RealWhatsAppMirror() {
       );
     }
     
-    // Ordenar: fixadas primeiro, depois por timestamp
+    // Ordenar: fixadas primeiro, depois por timestamp da última mensagem (mais recente primeiro)
     return [...filtered].sort((a, b) => {
       const aPinned = isConversationPinned(a.id);
       const bPinned = isConversationPinned(b.id);
@@ -145,8 +179,11 @@ export function RealWhatsAppMirror() {
       if (aPinned && !bPinned) return -1;
       if (!aPinned && bPinned) return 1;
       
-      // Depois por timestamp (mais recente primeiro)
-      return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+      // Depois por timestamp da última mensagem (mais recente primeiro) - ordem do WhatsApp
+      const aTime = a.lastMessageTimestamp || new Date(a.timestamp).getTime();
+      const bTime = b.lastMessageTimestamp || new Date(b.timestamp).getTime();
+      
+      return bTime - aTime; // Mais recente primeiro
     });
   }, [contacts, searchTerm, isConversationPinned]);
 
@@ -202,15 +239,16 @@ export function RealWhatsAppMirror() {
         console.log(`📱 Processando chat ${index}:`, chat);
         
         const chatId = chat.id?._serialized || chat.id || chat.chatId || `chat_${index}`;
-        
         const phoneNumber = extractPhoneNumber(chat.id || chat.contact?.id || chat.phone);
+        const lastMessageTimestamp = extractTimestamp(chat);
         
         return {
           id: chatId,
           name: extractContactName(chat),
           phone: phoneNumber,
           lastMessage: chat.lastMessage?.body || chat.lastMessage?.text || chat.chatlistPreview?.reactionText || 'Sem mensagens',
-          timestamp: chat.lastMessage?.timestamp || chat.timestamp || chat.t ? new Date(chat.t * 1000).toISOString() : new Date().toISOString(),
+          timestamp: new Date(lastMessageTimestamp).toISOString(),
+          lastMessageTimestamp: lastMessageTimestamp, // Para ordenação
           unread: chat.unreadCount || chat.unread || 0
         };
       });
@@ -255,14 +293,21 @@ export function RealWhatsAppMirror() {
         return;
       }
       
-      const realMessages: Message[] = messagesData.map((msg: any, index: number) => ({
-        id: msg.id || `msg_${index}`,
-        contactId: contactId,
-        text: msg.body || msg.text || msg.content || 'Mensagem sem texto',
-        sent: msg.fromMe || false,
-        timestamp: msg.timestamp ? new Date(msg.timestamp * 1000).toISOString() : new Date().toISOString(),
-        status: msg.ack ? 'delivered' : 'sent'
-      }));
+      const realMessages: Message[] = messagesData.map((msg: any, index: number) => {
+        // Usar texto processado se disponível (com transcrição de áudio)
+        const text = msg.processedText || msg.body || msg.text || msg.content || 'Mensagem sem texto';
+        const isAudio = text.includes('🎤 [Áudio]');
+        
+        return {
+          id: msg.id || `msg_${index}`,
+          contactId: contactId,
+          text: text,
+          sent: msg.fromMe || false,
+          timestamp: msg.timestamp ? new Date(msg.timestamp * 1000).toISOString() : new Date().toISOString(),
+          status: msg.ack ? 'delivered' : 'sent',
+          isAudio: isAudio
+        };
+      });
       
       console.log('✅ Mensagens processadas:', realMessages);
       
@@ -625,7 +670,12 @@ export function RealWhatsAppMirror() {
                                 </div>
                                 <span className="text-xs text-gray-400">{formatTime(contact.timestamp)}</span>
                               </div>
-                              <p className="text-sm text-gray-500 truncate mt-1">{contact.lastMessage}</p>
+                              <p className="text-sm text-gray-500 truncate mt-1 flex items-center gap-1">
+                                {contact.lastMessage.includes('🎤 [Áudio]') && (
+                                  <Volume2 className="h-3 w-3 text-blue-500" />
+                                )}
+                                {contact.lastMessage}
+                              </p>
                               <div className="flex items-center justify-between mt-1">
                                 <p className="text-xs text-gray-400">{contact.phone}</p>
                                 {contact.unread > 0 && (
@@ -688,7 +738,12 @@ export function RealWhatsAppMirror() {
                                 : 'bg-gray-100 text-gray-800'
                             }`}
                           >
-                            <p className="text-sm">{msg.text}</p>
+                            <p className="text-sm flex items-center gap-2">
+                              {msg.isAudio && (
+                                <Volume2 className="h-4 w-4 text-blue-500" />
+                              )}
+                              {msg.text}
+                            </p>
                             <div className={`text-xs mt-1 flex items-center justify-between ${
                               msg.sent ? 'text-green-100' : 'text-gray-500'
                             }`}>
@@ -737,6 +792,10 @@ export function RealWhatsAppMirror() {
                     <p className="flex items-center gap-2 justify-center">
                       <Brain className="h-3 w-3" />
                       Marque conversas para análise da IA
+                    </p>
+                    <p className="flex items-center gap-2 justify-center">
+                      <Volume2 className="h-3 w-3" />
+                      Áudios são transcritos automaticamente
                     </p>
                   </div>
                 </div>

@@ -103,6 +103,36 @@ export function useRealWhatsAppConnection() {
     return formattedPhone;
   };
 
+  // Função para transcrever áudio
+  const transcribeAudio = useCallback(async (audioBase64: string): Promise<string> => {
+    try {
+      console.log('🎤 Iniciando transcrição de áudio...');
+      
+      const response = await fetch('/functions/v1/voice-to-text', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+        },
+        body: JSON.stringify({
+          audio: audioBase64
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ Áudio transcrito:', data.text);
+        return data.text || 'Não foi possível transcrever o áudio';
+      } else {
+        console.error('❌ Erro na transcrição:', response.status);
+        return '[Áudio - transcrição não disponível]';
+      }
+    } catch (error) {
+      console.error('❌ Erro ao transcrever áudio:', error);
+      return '[Áudio - erro na transcrição]';
+    }
+  }, []);
+
   // Função para fixar/desfixar conversa
   const togglePinConversation = useCallback((chatId: string) => {
     setPinnedConversations(prev => {
@@ -420,19 +450,23 @@ export function useRealWhatsAppConnection() {
     console.log('💬 Mensagem:', message);
     
     try {
-      // Formatar o número corretamente
-      const targetPhone = formatPhoneNumber(phone);
-      console.log('📞 Telefone formatado para envio:', targetPhone);
+      // Usar o phone como recebido (já formatado)
+      const targetPhone = phone;
+      console.log('📞 Telefone para envio:', targetPhone);
       
-      // Tentar primeiro o endpoint /send-text
-      let endpoint = `${wppConfig.serverUrl}/api/${wppConfig.sessionName}/send-text`;
-      let sendData = {
+      // Dados básicos para envio
+      const sendData = {
         phone: targetPhone,
-        message: message
+        message: message,
+        text: message // Adicionar também o campo text
       };
       
-      console.log('📤 Tentando endpoint send-text:', endpoint);
       console.log('📤 Dados de envio:', sendData);
+      
+      // Tentar primeiro o endpoint /send-message
+      let endpoint = `${wppConfig.serverUrl}/api/${wppConfig.sessionName}/send-message`;
+      
+      console.log('📤 Tentando endpoint send-message:', endpoint);
       
       let response = await fetch(endpoint, {
         method: 'POST',
@@ -443,12 +477,12 @@ export function useRealWhatsAppConnection() {
         body: JSON.stringify(sendData)
       });
 
-      console.log('📤 Response status send-text:', response.status);
+      console.log('📤 Response status send-message:', response.status);
 
-      // Se deu 404, tentar o endpoint alternativo /send-message
-      if (response.status === 404) {
-        console.log('📤 Tentando endpoint alternativo send-message...');
-        endpoint = `${wppConfig.serverUrl}/api/${wppConfig.sessionName}/send-message`;
+      // Se deu erro, tentar o endpoint /send-text
+      if (!response.ok) {
+        console.log('📤 Tentando endpoint send-text...');
+        endpoint = `${wppConfig.serverUrl}/api/${wppConfig.sessionName}/send-text`;
         
         response = await fetch(endpoint, {
           method: 'POST',
@@ -456,20 +490,18 @@ export function useRealWhatsAppConnection() {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${wppConfig.token}`
           },
-          body: JSON.stringify(sendData)
+          body: JSON.stringify({
+            phone: targetPhone,
+            message: message
+          })
         });
         
-        console.log('📤 Response status send-message:', response.status);
+        console.log('📤 Response status send-text:', response.status);
       }
 
-      // Se ainda deu 404, tentar o formato chat-id
-      if (response.status === 404) {
-        console.log('📤 Tentando com formato chatId...');
-        sendData = {
-          phone: targetPhone,
-          message: message
-        };
-        
+      // Se ainda deu erro, tentar com chatId
+      if (!response.ok) {
+        console.log('📤 Tentando com chatId...');
         endpoint = `${wppConfig.serverUrl}/api/${wppConfig.sessionName}/send-message`;
         
         response = await fetch(endpoint, {
@@ -509,7 +541,7 @@ export function useRealWhatsAppConnection() {
         
         toast({
           title: "❌ Erro ao enviar mensagem",
-          description: `Erro ${response.status}: Verifique se o WPPConnect está funcionando`,
+          description: `Erro ${response.status}: Verifique o número ou conexão`,
           variant: "destructive"
         });
         return false;
@@ -609,7 +641,33 @@ export function useRealWhatsAppConnection() {
           return [];
         }
         
-        return messagesArray;
+        // Processar mensagens com transcrição de áudio
+        const processedMessages = await Promise.all(
+          messagesArray.map(async (msg: any) => {
+            let text = msg.body || msg.text || msg.content || 'Mensagem sem texto';
+            
+            // Verificar se é mensagem de áudio
+            if (msg.type === 'audio' || msg.type === 'ptt' || (msg.mimetype && msg.mimetype.includes('audio'))) {
+              console.log('🎤 Mensagem de áudio detectada:', msg);
+              
+              if (msg.body && msg.body.startsWith('data:audio')) {
+                // Extrair base64 do áudio
+                const base64Audio = msg.body.split(',')[1];
+                const transcription = await transcribeAudio(base64Audio);
+                text = `🎤 [Áudio]: ${transcription}`;
+              } else {
+                text = '🎤 [Áudio - transcrição não disponível]';
+              }
+            }
+            
+            return {
+              ...msg,
+              processedText: text
+            };
+          })
+        );
+        
+        return processedMessages;
       } else {
         console.error('❌ Erro ao carregar mensagens:', response.status);
         const errorText = await response.text();
@@ -620,7 +678,7 @@ export function useRealWhatsAppConnection() {
       console.error('❌ Erro ao carregar mensagens:', error);
       throw error;
     }
-  }, [wppConfig]);
+  }, [wppConfig, transcribeAudio]);
 
   const getConnectionStatus = useCallback(() => {
     if (connectionState.isConnected) {
@@ -645,7 +703,8 @@ export function useRealWhatsAppConnection() {
     loadRealChats,
     loadRealMessages,
     getConnectionStatus,
-    // Novas funções para fixar e marcar para análise
+    transcribeAudio,
+    // Funções para fixar e marcar para análise
     togglePinConversation,
     toggleAnalysisConversation,
     isConversationPinned,
