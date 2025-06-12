@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,16 +19,7 @@ export function RealQRCodeGenerator() {
   } = useRealWhatsAppConnection();
   
   const { toast } = useToast();
-  const [currentStatus, setCurrentStatus] = useState<'active' | 'inactive'>('inactive');
-
-  // Check connection status on mount
-  useEffect(() => {
-    const checkStatus = async () => {
-      const status = await getConnectionStatus();
-      setCurrentStatus(status.connected ? 'active' : 'inactive');
-    };
-    checkStatus();
-  }, [getConnectionStatus]);
+  const connectionStatus = getConnectionStatus();
 
   const handleWebhookUpdate = (field: string, value: string) => {
     updateWebhooks({ [field]: value });
@@ -40,7 +30,7 @@ export function RealQRCodeGenerator() {
   };
 
   const getStatusInfo = () => {
-    switch (currentStatus) {
+    switch (connectionStatus) {
       case 'active':
         return {
           icon: <CheckCircle className="h-6 w-6 text-green-500" />,

@@ -14,7 +14,7 @@ import { useState, useEffect } from 'react';
 
 export function PersonalAssistantConfig() {
   const { config, updateConfig, recentMessages } = usePersonalAssistant();
-  const { processWebhookMessage, sendMessage, wppConfig } = useRealWhatsAppConnection();
+  const { processWebhookMessage, sendMessage, wppConfig, configureWebhookOnWPP, connectionState } = useRealWhatsAppConnection();
   const [isTestingWebhook, setIsTestingWebhook] = useState(false);
   const [isTestingResponse, setIsTestingResponse] = useState(false);
   const [isMonitoring, setIsMonitoring] = useState(false);
@@ -28,80 +28,31 @@ export function PersonalAssistantConfig() {
     webhookConfig?: { success: boolean; message: string };
   }>({});
 
-  // Função para configurar webhook no WPPConnect (endpoint correto)
+  // Função para configurar webhook automático
   const handleConfigureWebhook = async () => {
-    console.log('🔧 [CONFIG] Configurando webhook no WPPConnect...');
+    console.log('🔧 [CONFIG] Configurando webhook automático...');
     setIsConfiguringWebhook(true);
     setTestResults(prev => ({ ...prev, webhookConfig: undefined }));
 
     try {
-      if (!wppConfig.serverUrl || !wppConfig.sessionName || !wppConfig.token) {
-        throw new Error('Configurações do WPPConnect não estão completas');
-      }
-
-      // URL do webhook que será configurada no WPPConnect
-      const webhookUrl = `${window.location.origin.replace('localhost', 'localhost')}/api/webhook/whatsapp`;
+      const success = await configureWebhookOnWPP();
       
-      // Tentar configurar o webhook usando o endpoint correto do WPPConnect
-      const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/webhook`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${wppConfig.token}`
-        },
-        body: JSON.stringify({
-          webhookUrl: webhookUrl,
-          events: ['message']
-        })
-      });
-
-      console.log('📡 [CONFIG] Resposta do WPPConnect:', response.status);
-
-      if (response.ok) {
-        const result = await response.json();
-        console.log('✅ [CONFIG] Webhook configurado:', result);
-        
+      if (success) {
         setTestResults(prev => ({
           ...prev,
           webhookConfig: {
             success: true,
-            message: `Webhook configurado com sucesso! URL: ${webhookUrl}`
+            message: 'Webhook configurado! Agora o WPPConnect enviará mensagens automaticamente para o assistente.'
           }
         }));
       } else {
-        const errorText = await response.text();
-        console.error('❌ [CONFIG] Erro na resposta:', errorText);
-        
-        // Se o endpoint /webhook não existir, tentar endpoint alternativo
-        if (response.status === 404) {
-          console.log('🔄 [CONFIG] Tentando endpoint alternativo...');
-          
-          const altResponse = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/config-webhook`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${wppConfig.token}`
-            },
-            body: JSON.stringify({
-              webhook: webhookUrl,
-              events: ['message']
-            })
-          });
-
-          if (altResponse.ok) {
-            setTestResults(prev => ({
-              ...prev,
-              webhookConfig: {
-                success: true,
-                message: `Webhook configurado via endpoint alternativo! URL: ${webhookUrl}`
-              }
-            }));
-          } else {
-            throw new Error(`Endpoint principal falhou (404) e alternativo também: ${altResponse.status}`);
+        setTestResults(prev => ({
+          ...prev,
+          webhookConfig: {
+            success: false,
+            message: 'Falha ao configurar webhook automático. Tente configurar manualmente via Swagger.'
           }
-        } else {
-          throw new Error(`Erro HTTP ${response.status}: ${errorText}`);
-        }
+        }));
       }
     } catch (error) {
       console.error('❌ [CONFIG] Erro ao configurar webhook:', error);
@@ -109,7 +60,7 @@ export function PersonalAssistantConfig() {
         ...prev,
         webhookConfig: {
           success: false,
-          message: `Erro: ${error instanceof Error ? error.message : 'Erro desconhecido'}. Configure manualmente via Swagger usando o endpoint correto.`
+          message: `Erro ao configurar webhook: ${error instanceof Error ? error.message : 'Erro desconhecido'}`
         }
       }));
     } finally {
@@ -365,19 +316,19 @@ export function PersonalAssistantConfig() {
           <div className="space-y-4">
             <div className="flex items-center gap-2">
               <Webhook className="h-5 w-5 text-blue-600" />
-              <h3 className="text-lg font-semibold">Configuração de Webhook</h3>
+              <h3 className="text-lg font-semibold">Configuração Automática</h3>
             </div>
 
             <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
               <h4 className="font-medium text-blue-900 mb-2">🔧 Webhook Automático</h4>
               <p className="text-sm text-blue-700 mb-3">
-                Para receber mensagens automaticamente, configure o webhook no WPPConnect. 
-                Este botão tentará configurar automaticamente usando os endpoints disponíveis.
+                Para que o assistente responda automaticamente, é preciso configurar o webhook no WPPConnect. 
+                Clique no botão abaixo para tentar a configuração automática com diferentes formatos.
               </p>
               
               <Button
                 onClick={handleConfigureWebhook}
-                disabled={isConfiguringWebhook}
+                disabled={isConfiguringWebhook || !connectionState.isConnected}
                 className="w-full mb-3"
                 variant="default"
               >
@@ -389,13 +340,21 @@ export function PersonalAssistantConfig() {
                 ) : (
                   <>
                     <Webhook className="h-4 w-4 mr-2" />
-                    Configurar Webhook no WPPConnect
+                    Configurar Webhook Automático
                   </>
                 )}
               </Button>
 
+              {!connectionState.isConnected && (
+                <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg mb-3">
+                  <p className="text-sm text-yellow-700">
+                    ⚠️ WhatsApp não está conectado. Conecte primeiro para configurar o webhook.
+                  </p>
+                </div>
+              )}
+
               {testResults.webhookConfig && (
-                <div className={`p-3 rounded-lg border text-sm ${
+                <div className={`p-3 rounded-lg border text-sm mb-3 ${
                   testResults.webhookConfig.success 
                     ? 'bg-green-50 border-green-200 text-green-800' 
                     : 'bg-red-50 border-red-200 text-red-800'
@@ -414,16 +373,23 @@ export function PersonalAssistantConfig() {
                 </div>
               )}
               
-              {/* Instruções manuais */}
+              {/* Instruções manuais detalhadas */}
               <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                <h5 className="font-medium text-yellow-900 mb-2">📖 Configuração Manual (Swagger):</h5>
+                <h5 className="font-medium text-yellow-900 mb-2">📖 Configuração Manual (se automático falhar):</h5>
                 <ol className="text-sm text-yellow-700 space-y-1 list-decimal list-inside">
-                  <li>Acesse: <code className="bg-yellow-100 px-1 rounded">http://localhost:21465/api-docs</code></li>
-                  <li>Procure por endpoints como <strong>/webhook</strong>, <strong>/config-webhook</strong> ou <strong>/set-webhook-url</strong></li>
-                  <li>Configure a URL: <code className="bg-yellow-100 px-1 rounded">{window.location.origin}/api/webhook/whatsapp</code></li>
+                  <li>Acesse: <code className="bg-yellow-100 px-1 rounded">{wppConfig.serverUrl}/api-docs</code></li>
+                  <li>Encontre o endpoint <strong>set-webhook</strong> ou <strong>webhook</strong> da sua sessão</li>
+                  <li>Configure: <code className="bg-yellow-100 px-1 rounded">webhook: https://your-project.supabase.co/functions/v1/whatsapp-autoreply</code></li>
                   <li>Events: <code className="bg-yellow-100 px-1 rounded">["message"]</code></li>
-                  <li>⚠️ <strong>Importante:</strong> O endpoint exato pode variar conforme a versão do WPPConnect</li>
+                  <li>Enabled: <code className="bg-yellow-100 px-1 rounded">true</code></li>
                 </ol>
+                
+                <div className="mt-2 p-2 bg-yellow-100 rounded">
+                  <p className="text-xs text-yellow-800 font-medium mb-1">📋 Dados para configuração manual:</p>
+                  <p className="text-xs text-yellow-800">URL do Webhook: <code>https://your-project.supabase.co/functions/v1/whatsapp-autoreply</code></p>
+                  <p className="text-xs text-yellow-800">Events: <code>["message"]</code></p>
+                  <p className="text-xs text-yellow-800">Enabled: <code>true</code></p>
+                </div>
               </div>
             </div>
           </div>
@@ -624,7 +590,7 @@ export function PersonalAssistantConfig() {
               <li>Configure seu número master (apenas números, com código do país)</li>
               <li>Selecione um assistente da lista</li>
               <li>Ative o assistente</li>
-              <li><strong>IMPORTANTE:</strong> Configure o webhook (automático ou manual via Swagger)</li>
+              <li><strong>IMPORTANTE:</strong> Clique em "Configurar Webhook Automático" para receber mensagens automaticamente</li>
               <li>Use os botões de teste para verificar se está funcionando</li>
               <li>Agora envie mensagens do seu WhatsApp - o assistente deve responder automaticamente!</li>
             </ol>
