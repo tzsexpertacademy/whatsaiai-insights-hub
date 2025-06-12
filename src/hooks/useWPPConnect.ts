@@ -147,10 +147,14 @@ export function useWPPConnect() {
   const normalizeChatId = useCallback((chatId: string): string => {
     console.log('🔧 Normalizando chatId para envio:', chatId);
     
+    // Se já tem @ no final, usar como está
     if (chatId.includes('@')) {
       return chatId;
     }
     
+    // Se não tem @, adicionar o sufixo apropriado
+    // Grupos geralmente terminam com @g.us
+    // Contatos individuais terminam com @c.us
     if (chatId.includes('g.us') || chatId.includes('group')) {
       return chatId.includes('@') ? chatId : `${chatId}@g.us`;
     } else {
@@ -168,6 +172,7 @@ export function useWPPConnect() {
       
       console.log('📊 Status da sessão completo:', JSON.stringify(data, null, 2));
       
+      // Detectar se está sincronizando
       const isSyncing = data.status === 'INITIALIZING' || 
                        data.state === 'INITIALIZING' ||
                        data.status === 'SYNCING' ||
@@ -175,12 +180,14 @@ export function useWPPConnect() {
                        data.status === 'STARTING' ||
                        data.state === 'STARTING';
       
+      // Detectar se está conectado
       const isConnected = data.status === 'CONNECTED' || 
                          data.connected === true ||
                          data.state === 'CONNECTED' ||
                          data.session?.status === 'CONNECTED' ||
                          data.session?.state === 'CONNECTED';
       
+      // Melhor extração do número de telefone
       const phoneNumber = data.phoneNumber || 
                          data.wid?.user || 
                          data.session?.phoneNumber ||
@@ -201,6 +208,7 @@ export function useWPPConnect() {
         
         console.log('🔄 WhatsApp sincronizando, aguardando...');
         
+        // Verificar novamente em 3 segundos se estiver sincronizando
         setTimeout(() => {
           checkConnectionStatus();
         }, 3000);
@@ -218,6 +226,7 @@ export function useWPPConnect() {
 
       if (isConnected) {
         console.log('✅ Sessão conectada! Tentando carregar conversas...');
+        // Aguardar um pouco para garantir que a sessão está estável
         setTimeout(() => {
           loadRealChats();
         }, 2000);
@@ -244,6 +253,7 @@ export function useWPPConnect() {
       const config = getWPPConfig();
       console.log('🎯 Gerando QR Code para sessão:', config.sessionName);
       
+      // Primeiro tentar verificar se já está conectado
       const statusData = await makeWPPRequest(`/api/${config.sessionName}/status-session`);
       console.log('📱 Status antes de gerar QR:', statusData);
       
@@ -266,6 +276,7 @@ export function useWPPConnect() {
         return;
       }
       
+      // Se não está conectado, gerar QR Code
       const qrData = await makeWPPRequest(`/api/${config.sessionName}/start-session`, {
         method: 'POST',
         body: JSON.stringify({
@@ -276,6 +287,7 @@ export function useWPPConnect() {
       
       console.log('📱 Resposta start-session:', qrData);
       
+      // Verificar se retornou QR Code ou se já está conectado
       if (qrData.status === 'CONNECTED' || qrData.connected === true) {
         console.log('✅ Conectou durante a geração do QR Code');
         setSessionStatus(prev => ({
@@ -308,6 +320,7 @@ export function useWPPConnect() {
           description: "Escaneie com seu WhatsApp Business"
         });
 
+        // Verificar status periodicamente com intervalo mais frequente
         const checkInterval = setInterval(async () => {
           const isConnected = await checkConnectionStatus();
           if (isConnected) {
@@ -318,7 +331,7 @@ export function useWPPConnect() {
               description: "Carregando suas conversas..."
             });
           }
-        }, 2000);
+        }, 2000); // Verificar a cada 2 segundos
 
         setTimeout(() => {
           clearInterval(checkInterval);
@@ -357,6 +370,7 @@ export function useWPPConnect() {
       
       console.log('✅ Resposta completa da API:', response);
       
+      // Handle the API response structure
       let chatsData;
       if (response && response.response && Array.isArray(response.response)) {
         chatsData = response.response;
@@ -436,9 +450,11 @@ export function useWPPConnect() {
       
       const config = getWPPConfig();
       
+      // Normalizar o chatId antes de usar na API
       const normalizedChatId = normalizeChatId(chatId);
       console.log('🔧 ChatId normalizado:', { original: chatId, normalized: normalizedChatId });
       
+      // Tentar diferentes formatos de endpoint para grupos e contatos
       const possibleEndpoints = [
         `/api/${config.sessionName}/all-messages-in-chat/${encodeURIComponent(normalizedChatId)}?count=${messageHistoryLimit}`,
         `/api/${config.sessionName}/get-messages/${encodeURIComponent(normalizedChatId)}?count=${messageHistoryLimit}`,
@@ -448,6 +464,7 @@ export function useWPPConnect() {
       let messagesData = null;
       let successfulEndpoint = null;
       
+      // Tentar cada endpoint até encontrar um que funcione
       for (const endpoint of possibleEndpoints) {
         try {
           console.log(`🔍 Tentando endpoint: ${endpoint}`);
@@ -476,6 +493,7 @@ export function useWPPConnect() {
       
       console.log(`✅ Resposta de mensagens do endpoint ${successfulEndpoint}:`, messagesData);
       
+      // Extrair array de mensagens da resposta
       let messagesList = [];
       if (Array.isArray(messagesData)) {
         messagesList = messagesData;
@@ -523,6 +541,7 @@ export function useWPPConnect() {
         status: msg.ack ? (msg.ack === 1 ? 'sent' : msg.ack === 2 ? 'delivered' : 'read') : undefined
       }));
 
+      // Ordenar mensagens por timestamp
       formattedMessages.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
       console.log(`📋 ${formattedMessages.length} mensagens formatadas para ${chatId}:`, formattedMessages.slice(0, 3));
@@ -565,25 +584,42 @@ export function useWPPConnect() {
       
       const config = getWPPConfig();
       
+      // Detectar se é grupo ou contato individual
       const isGroup = chatId.includes('@g.us') || chatId.includes('group');
       console.log('🔍 Tipo de chat detectado:', { chatId, isGroup, message: message.substring(0, 50) });
       
+      // Preparar diferentes formatos de chatId para testar
+      const chatIdVariations = [
+        chatId, // Original
+        chatId.includes('@') ? chatId : `${chatId}@${isGroup ? 'g.us' : 'c.us'}`, // Com sufixo
+        chatId.replace('@c.us', '').replace('@g.us', ''), // Sem sufixo
+        chatId.replace('@c.us', '@g.us'), // Forçar grupo se for contato
+        chatId.replace('@g.us', '@c.us'), // Forçar contato se for grupo
+      ];
+      
+      console.log('🔄 Variações de chatId para testar:', chatIdVariations);
+      
+      // Lista de endpoints e payloads para testar
       const sendAttempts = [
+        // Tentativa 1: send-message com phone
         {
           endpoint: `/api/${config.sessionName}/send-message`,
           payload: { phone: chatId, message: message },
           description: 'send-message com phone original'
         },
+        // Tentativa 2: send-message com chatId
         {
           endpoint: `/api/${config.sessionName}/send-message`,
           payload: { chatId: chatId, message: message },
           description: 'send-message com chatId original'
         },
+        // Tentativa 3: sendText
         {
           endpoint: `/api/${config.sessionName}/sendText`,
           payload: { chatId: chatId, text: message },
           description: 'sendText com chatId original'
         },
+        // Tentativa 4: send-text
         {
           endpoint: `/api/${config.sessionName}/send-text`,
           payload: { chatId: chatId, text: message },
@@ -591,6 +627,7 @@ export function useWPPConnect() {
         }
       ];
 
+      // Se for grupo, adicionar tentativas específicas para grupos
       if (isGroup) {
         sendAttempts.push(
           {
@@ -627,6 +664,7 @@ export function useWPPConnect() {
 
           console.log(`📤 Resposta tentativa ${i + 1}:`, response);
 
+          // Verificar se a mensagem foi enviada com sucesso
           if (response && (
             response.status === 'success' || 
             response.success === true ||
@@ -640,6 +678,7 @@ export function useWPPConnect() {
             success = true;
             successfulMethod = description;
             
+            // Adicionar mensagem ao estado imediatamente
             const newMessage: Message = {
               id: `temp-${Date.now()}`,
               chatId: chatId,
@@ -656,6 +695,7 @@ export function useWPPConnect() {
               description: isGroup ? `Mensagem enviada para o grupo via ${successfulMethod}` : "Sua mensagem foi enviada"
             });
 
+            // Recarregar mensagens após 2 segundos
             setTimeout(() => {
               console.log('🔄 Recarregando mensagens após envio bem-sucedido');
               loadRealMessages(chatId);
@@ -776,6 +816,7 @@ export function useWPPConnect() {
     
     if (config.secretKey && config.token) {
       console.log('🚀 Config encontrada, verificando status em 1 segundo...');
+      // Aguardar um pouco para o componente terminar de montar
       const timer = setTimeout(() => {
         checkConnectionStatus();
       }, 1000);
@@ -791,6 +832,7 @@ export function useWPPConnect() {
     console.log('📊 Atualizando limite de mensagens para:', newLimit);
     setMessageHistoryLimit(newLimit);
     
+    // Se há uma conversa selecionada, recarregar mensagens com novo limite
     if (currentChatId) {
       console.log('🔄 Recarregando mensagens da conversa atual com novo limite');
       setTimeout(() => {

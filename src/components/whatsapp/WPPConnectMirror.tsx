@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -145,38 +146,18 @@ export function WPPConnectMirror() {
       // Atualizar prioridade
       await updateConversationPriority(chatId, priority);
     } else {
-      // Marcar/desmarcar para análise COM mensagens
-      const chatMessages = messages.filter(msg => msg.chatId === chatId);
-      
-      console.log('💬 Mensagens da conversa para salvar:', {
-        chatId,
-        messagesCount: chatMessages.length,
-        sampleMessages: chatMessages.slice(0, 2)
-      });
-
+      // Marcar/desmarcar para análise
       const isMarked = await markConversationForAnalysis(
         chatId, 
         chat.name, 
-        chat.chatId,
-        priority || 'medium',
-        chatMessages // Passar as mensagens carregadas
+        chat.chatId, // usando chatId como phone por enquanto
+        priority || 'medium'
       );
 
       setMarkedConversations(prev => {
         const newSet = new Set(prev);
         if (isMarked) {
           newSet.add(chatId);
-          
-          // Toast adicional se mensagens foram salvas
-          if (chatMessages.length > 0) {
-            setTimeout(() => {
-              toast({
-                title: "🎯 Conversa marcada para análise macro",
-                description: `${chatMessages.length} mensagens salvas no banco para análise comportamental`,
-                duration: 4000
-              });
-            }, 1000);
-          }
         } else {
           newSet.delete(chatId);
         }
@@ -402,6 +383,7 @@ export function WPPConnectMirror() {
                             <span className="text-xs text-gray-400">{formatTime(chat.timestamp)}</span>
                           </div>
                           <p className="text-sm text-gray-500 truncate mt-1">{chat.lastMessage}</p>
+                          {/* Indicador de mensagens carregadas */}
                           {selectedContact === chat.chatId && messages.filter(m => m.chatId === chat.chatId).length > 0 && (
                             <div className="flex items-center gap-1 mt-1">
                               <MessageCircle className="h-3 w-3 text-blue-500" />
@@ -546,9 +528,6 @@ export function WPPConnectMirror() {
                   <p className="text-xs mt-1 text-green-600">
                     📊 Configure quantas mensagens carregar no controle acima
                   </p>
-                  <p className="text-xs mt-1 text-purple-600">
-                    💾 Conversas marcadas são salvas automaticamente no banco de dados
-                  </p>
                 </div>
               </CardContent>
             )}
@@ -575,11 +554,8 @@ export function WPPConnectMirror() {
             <p className="mb-2">
               <strong>👥 Grupos:</strong> Suporte completo para envio de mensagens em grupos
             </p>
-            <p className="mb-2">
-              <strong>🤖 IA:</strong> Clique com botão direito nas conversas para marcar para análise IA
-            </p>
             <p>
-              <strong>💾 Banco de Dados:</strong> Conversas marcadas são automaticamente salvas no banco para análise comportamental
+              <strong>🤖 IA:</strong> Clique com botão direito nas conversas para marcar para análise IA
             </p>
           </div>
         </CardContent>
