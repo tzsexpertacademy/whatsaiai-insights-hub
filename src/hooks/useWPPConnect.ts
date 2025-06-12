@@ -25,6 +25,8 @@ interface Chat {
   timestamp: string;
   unreadCount: number;
   isGroup: boolean;
+  phone: string;
+  unread: number;
 }
 
 interface Message {
@@ -34,6 +36,8 @@ interface Message {
   sender: 'user' | 'contact';
   timestamp: string;
   fromMe: boolean;
+  isAudio?: boolean;
+  status?: string;
 }
 
 export function useWPPConnect() {
@@ -49,6 +53,7 @@ export function useWPPConnect() {
   const [chats, setChats] = useState<Chat[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+  const [isLoadingChats, setIsLoadingChats] = useState(false);
   const [isLiveMode, setIsLiveMode] = useState(false);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
 
@@ -214,6 +219,7 @@ export function useWPPConnect() {
   // Carregar conversas reais
   const loadRealChats = useCallback(async () => {
     try {
+      setIsLoadingChats(true);
       console.log('📱 Carregando conversas reais...');
       
       const config = getWPPConfig();
@@ -226,7 +232,9 @@ export function useWPPConnect() {
           lastMessage: chat.lastMessage?.body || chat.lastMessage || 'Sem mensagens',
           timestamp: chat.t ? new Date(chat.t * 1000).toISOString() : new Date().toISOString(),
           unreadCount: chat.unreadCount || 0,
-          isGroup: chat.isGroup || false
+          unread: chat.unreadCount || 0,
+          isGroup: chat.isGroup || false,
+          phone: chat.id?._serialized || chat.id || ''
         })).filter(chat => chat.chatId && chat.chatId !== '');
 
         console.log('📋 Conversas formatadas:', formattedChats);
@@ -236,10 +244,13 @@ export function useWPPConnect() {
           title: "Conversas carregadas!",
           description: `${formattedChats.length} conversas encontradas`
         });
+
+        return formattedChats;
         
       } else {
         console.warn('⚠️ Resposta não é array:', data);
         setChats([]);
+        return [];
       }
     } catch (error) {
       console.error('❌ Erro ao carregar conversas:', error);
@@ -248,6 +259,9 @@ export function useWPPConnect() {
         description: error.message,
         variant: "destructive"
       });
+      return [];
+    } finally {
+      setIsLoadingChats(false);
     }
   }, [makeWPPRequest, getWPPConfig, toast]);
 
@@ -267,7 +281,9 @@ export function useWPPConnect() {
           text: msg.body || msg.content || '',
           sender: msg.fromMe ? 'user' : 'contact',
           timestamp: msg.t ? new Date(msg.t * 1000).toISOString() : new Date().toISOString(),
-          fromMe: msg.fromMe || false
+          fromMe: msg.fromMe || false,
+          isAudio: msg.type === 'ptt' || msg.type === 'audio',
+          status: msg.ack ? (msg.ack === 1 ? 'sent' : msg.ack === 2 ? 'delivered' : 'read') : undefined
         }));
 
         setMessages(prev => [
@@ -390,6 +406,18 @@ export function useWPPConnect() {
     }
   }, [makeWPPRequest, getWPPConfig, stopLiveMode, toast]);
 
+  // Função para obter status da conexão
+  const getConnectionStatus = useCallback(() => {
+    if (!sessionStatus.isConnected) return 'disconnected';
+    
+    const lastConnected = sessionStatus.phoneNumber ? new Date() : new Date(0);
+    const now = new Date();
+    const minutesDiff = (now.getTime() - lastConnected.getTime()) / (1000 * 60);
+    
+    if (minutesDiff > 30) return 'idle';
+    return 'active';
+  }, [sessionStatus]);
+
   // Verificar status ao montar o componente
   useEffect(() => {
     const config = getWPPConfig();
@@ -402,8 +430,10 @@ export function useWPPConnect() {
   return {
     sessionStatus,
     chats,
+    contacts: chats, // Alias para compatibilidade
     messages,
     isLoadingMessages,
+    isLoadingChats,
     isLiveMode,
     currentChatId,
     getWPPConfig,
@@ -415,6 +445,7 @@ export function useWPPConnect() {
     sendMessage,
     startLiveMode,
     stopLiveMode,
-    disconnectWhatsApp
+    disconnectWhatsApp,
+    getConnectionStatus
   };
 }
