@@ -148,24 +148,27 @@ export function RealWhatsAppMirror() {
       return phoneData;
     }
     if (phoneData && typeof phoneData === 'object') {
-      if (phoneData._serialized) return phoneData._serialized;
-      if (phoneData.user) return phoneData.user;
-      if (phoneData.number) return phoneData.number;
+      if (phoneData._serialized) return String(phoneData._serialized);
+      if (phoneData.user) return String(phoneData.user);
+      if (phoneData.number) return String(phoneData.number);
+      if (phoneData.server && phoneData.user) {
+        return `${phoneData.user}@${phoneData.server}`;
+      }
     }
     return 'Número não disponível';
   };
 
   const extractContactName = (chat: any): string => {
-    if (chat.name) return chat.name;
-    if (chat.contact?.name) return chat.contact.name;
-    if (chat.contact?.formattedName) return chat.contact.formattedName;
-    if (chat.contact?.pushname) return chat.contact.pushname;
-    if (chat.title) return chat.title;
+    if (chat.name) return String(chat.name);
+    if (chat.contact?.name) return String(chat.contact.name);
+    if (chat.contact?.formattedName) return String(chat.contact.formattedName);
+    if (chat.contact?.pushname) return String(chat.contact.pushname);
+    if (chat.title) return String(chat.title);
     
     const phoneNumber = extractPhoneNumber(chat.id || chat.contact?.id || chat.phone);
     if (phoneNumber && phoneNumber !== 'Número não disponível') {
       if (phoneNumber.includes('@g.us')) {
-        return chat.id || 'Grupo sem nome';
+        return chat.id ? String(chat.id) : 'Grupo sem nome';
       }
       const cleanNumber = phoneNumber.replace('@c.us', '');
       return `+${cleanNumber}`;
@@ -275,13 +278,13 @@ export function RealWhatsAppMirror() {
         const lastMessageTimestamp = extractTimestamp(chat);
         
         return {
-          id: chatId,
+          id: String(chatId),
           name: extractContactName(chat),
-          phone: phoneNumber,
-          lastMessage: chat.lastMessage?.body || chat.lastMessage?.text || chat.chatlistPreview?.reactionText || 'Sem mensagens',
+          phone: String(phoneNumber),
+          lastMessage: String(chat.lastMessage?.body || chat.lastMessage?.text || chat.chatlistPreview?.reactionText || 'Sem mensagens'),
           timestamp: new Date(lastMessageTimestamp).toISOString(),
           lastMessageTimestamp: lastMessageTimestamp,
-          unread: chat.unreadCount || chat.unread || 0
+          unread: Number(chat.unreadCount || chat.unread || 0)
         };
       });
       
@@ -328,13 +331,13 @@ export function RealWhatsAppMirror() {
       
       const realMessages: Message[] = messagesData.map((msg: any, index: number) => {
         const text = msg.processedText || msg.body || msg.text || msg.content || 'Mensagem sem texto';
-        const isAudio = text.includes('🎤 [Áudio]');
+        const isAudio = String(text).includes('🎤 [Áudio]');
         
         return {
-          id: msg.id || `msg_${index}`,
-          contactId: contactId,
-          text: text,
-          sent: msg.fromMe || false,
+          id: String(msg.id || `msg_${index}`),
+          contactId: String(contactId),
+          text: String(text),
+          sent: Boolean(msg.fromMe || false),
           timestamp: msg.timestamp ? new Date(msg.timestamp * 1000).toISOString() : new Date().toISOString(),
           status: msg.ack ? 'delivered' : 'sent',
           isAudio: isAudio
@@ -496,7 +499,7 @@ export function RealWhatsAppMirror() {
               <div>
                 <span className={`font-medium ${statusInfo.color}`}>{statusInfo.text}</span>
                 {connectionState.phoneNumber && (
-                  <p className="text-sm text-gray-500">{connectionState.phoneNumber}</p>
+                  <p className="text-sm text-gray-500">{String(connectionState.phoneNumber)}</p>
                 )}
               </div>
             </div>
