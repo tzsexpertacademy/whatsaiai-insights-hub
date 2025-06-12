@@ -23,6 +23,10 @@ export function ConversationMetrics({ conversations, insights, protectedStats }:
   const validInsights = Array.isArray(insights) ? insights : [];
   const stats = protectedStats || {};
 
+  console.log('ConversationMetrics - Conversas:', validConversations);
+  console.log('ConversationMetrics - Insights:', validInsights);
+  console.log('ConversationMetrics - Stats:', stats);
+
   const totalConversations = validConversations.length;
   const completedAnalyses = validConversations.filter(c => c.analysis_status === 'completed').length;
   const analysisCompletionRate = totalConversations > 0 ? (completedAnalyses / totalConversations) * 100 : 0;

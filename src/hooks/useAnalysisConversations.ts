@@ -23,9 +23,14 @@ export function useAnalysisConversations() {
   const [isLoading, setIsLoading] = useState(false);
 
   const loadAnalysisConversations = useCallback(async () => {
-    if (!user?.id) return;
+    if (!user?.id) {
+      console.warn('useAnalysisConversations: Usuário não autenticado');
+      return;
+    }
 
     setIsLoading(true);
+    console.log('🔍 Carregando conversas marcadas para análise...');
+    
     try {
       const { data, error } = await supabase
         .from('whatsapp_conversations_analysis')
@@ -33,7 +38,12 @@ export function useAnalysisConversations() {
         .eq('user_id', user.id)
         .order('marked_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Erro ao buscar conversas:', error);
+        throw error;
+      }
+      
+      console.log('📊 Conversas encontradas no banco:', data);
       
       // Converter os dados do Supabase para o tipo esperado
       const convertedData: AnalysisConversation[] = (data || []).map(item => ({
@@ -48,9 +58,11 @@ export function useAnalysisConversations() {
         analysis_results: item.analysis_results as any[] || []
       }));
       
+      console.log('✅ Conversas processadas:', convertedData);
       setConversations(convertedData);
+      
     } catch (error) {
-      console.error('Erro ao carregar conversas para análise:', error);
+      console.error('❌ Erro ao carregar conversas para análise:', error);
       toast({
         title: "Erro ao carregar conversas",
         description: "Não foi possível carregar as conversas marcadas para análise",
@@ -87,8 +99,10 @@ export function useAnalysisConversations() {
             : conv
         )
       );
+      
+      console.log(`✅ Status da conversa ${conversationId} atualizado para: ${status}`);
     } catch (error) {
-      console.error('Erro ao atualizar status da análise:', error);
+      console.error('❌ Erro ao atualizar status da análise:', error);
     }
   }, [user?.id]);
 

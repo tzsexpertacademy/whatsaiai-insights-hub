@@ -23,6 +23,9 @@ export function ConversationInsights({ insights, conversations }: ConversationIn
   const validInsights = Array.isArray(insights) ? insights : [];
   const validConversations = Array.isArray(conversations) ? conversations : [];
 
+  console.log('ConversationInsights - Insights recebidos:', validInsights);
+  console.log('ConversationInsights - Conversas recebidas:', validConversations);
+
   const getInsightIcon = (type: string) => {
     switch (type?.toLowerCase()) {
       case 'emotional': return <Heart className="h-4 w-4" />;
@@ -94,7 +97,7 @@ export function ConversationInsights({ insights, conversations }: ConversationIn
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {assistantInsights.map((insight, index) => (
+              {assistantInsights.map((insight: any, index: number) => (
                 <div key={insight.id || index} className="border rounded-lg p-4">
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-2">

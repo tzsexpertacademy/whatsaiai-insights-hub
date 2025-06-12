@@ -18,7 +18,8 @@ import {
   Clock,
   Users,
   BarChart3,
-  RefreshCw
+  RefreshCw,
+  AlertTriangle
 } from 'lucide-react';
 
 export function ConversationAnalysisDashboard() {
@@ -34,12 +35,21 @@ export function ConversationAnalysisDashboard() {
     refreshData 
   } = useProtectedAnalysisData();
 
+  // Log para debugging
+  console.log('=== ConversationAnalysisDashboard Debug ===');
+  console.log('Conversas carregadas:', conversations);
+  console.log('Insights carregados:', insights);
+  console.log('Stats protegidas:', protectedStats);
+  console.log('Loading state:', isLoading);
+
   useEffect(() => {
+    console.log('🚀 Iniciando carregamento do dashboard...');
     loadAnalysisConversations();
     refreshData();
   }, []);
 
   const handleRefreshAll = async () => {
+    console.log('🔄 Atualizando todos os dados...');
     await loadAnalysisConversations();
     await refreshData();
   };
@@ -74,6 +84,23 @@ export function ConversationAnalysisDashboard() {
       backUrl="/dashboard/behavioral"
       headerActions={headerActions}
     >
+      {/* Debug Info */}
+      {process.env.NODE_ENV === 'development' && (
+        <Card className="mb-4 bg-yellow-50 border-yellow-200">
+          <CardContent className="p-4">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="h-4 w-4 text-yellow-600 mt-0.5" />
+              <div className="text-xs">
+                <p><strong>Debug Info:</strong></p>
+                <p>Conversas: {conversations.length} | Insights: {insights.length}</p>
+                <p>Loading: {isLoading ? 'Sim' : 'Não'}</p>
+                <p>Última atualização: {new Date().toLocaleTimeString()}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Cards de Métricas */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <Card>
