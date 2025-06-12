@@ -170,29 +170,50 @@ export function useWPPConnect() {
     setSessionStatus(prev => ({ ...prev, isLoading: true, status: 'connecting' }));
 
     try {
-      const response = await fetch(`${config.serverUrl}/api/${config.sessionName}/generate-token`, {
+      // Primeiro tenta criar a sessão
+      console.log('📱 Criando sessão WPPConnect...');
+      const createResponse = await fetch(`${config.serverUrl}/api/${config.sessionName}/start-session`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${config.secretKey}`,
-          'X-Session-Token': config.token
+          'Authorization': `Bearer ${config.secretKey}`
         },
         body: JSON.stringify({
           session: config.sessionName,
-          webhookUrl: config.webhookUrl || undefined
+          webhook: config.webhookUrl || undefined
         })
       });
 
-      if (!response.ok) {
-        throw new Error(`Erro HTTP: ${response.status}`);
+      if (!createResponse.ok) {
+        console.log('⚠️ Sessão pode já existir, tentando obter QR Code...');
       }
 
-      const data = await response.json();
+      // Tenta obter o QR Code
+      console.log('🔍 Obtendo QR Code...');
+      const qrResponse = await fetch(`${config.serverUrl}/api/${config.sessionName}/start-session`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${config.secretKey}`
+        },
+        body: JSON.stringify({
+          session: config.sessionName,
+          webhook: config.webhookUrl || undefined
+        })
+      });
+
+      if (!qrResponse.ok) {
+        throw new Error(`Erro HTTP: ${qrResponse.status}`);
+      }
+
+      const data = await qrResponse.json();
+      console.log('📋 Resposta do servidor:', data);
       
-      if (data.qrcode) {
+      if (data.qrcode || data.qr) {
+        const qrCode = data.qrcode || data.qr;
         setSessionStatus(prev => ({
           ...prev,
-          qrCode: data.qrcode,
+          qrCode: qrCode,
           sessionId: config.sessionName,
           isLoading: false,
           status: 'connecting'
@@ -206,7 +227,7 @@ export function useWPPConnect() {
         // Iniciar verificação de status
         startStatusCheck();
         
-        return data.qrcode;
+        return qrCode;
       }
       
       throw new Error('QR Code não encontrado na resposta');
@@ -258,10 +279,9 @@ export function useWPPConnect() {
     const config = getWPPConfig();
 
     try {
-      const response = await fetch(`${config.serverUrl}/api/${config.sessionName}/check-connection-session`, {
+      const response = await fetch(`${config.serverUrl}/api/${config.sessionName}/status-session`, {
         headers: {
-          'Authorization': `Bearer ${config.secretKey}`,
-          'X-Session-Token': config.token
+          'Authorization': `Bearer ${config.secretKey}`
         }
       });
 
@@ -270,20 +290,21 @@ export function useWPPConnect() {
       }
 
       const data = await response.json();
+      console.log('📊 Status da sessão:', data);
       
-      if (data.connected || data.status === 'connected') {
+      if (data.connected || data.status === 'connected' || data.session === 'CONNECTED') {
         setSessionStatus(prev => ({
           ...prev,
           isConnected: true,
           qrCode: '',
-          phoneNumber: data.phoneNumber || data.number || 'Conectado',
+          phoneNumber: data.phoneNumber || data.number || data.phone || 'Conectado',
           lastConnected: new Date().toISOString(),
           status: 'connected'
         }));
         
         toast({
           title: "🎉 WhatsApp conectado!",
-          description: `Conectado com ${data.phoneNumber || 'sucesso'}`
+          description: `Conectado com ${data.phoneNumber || data.number || 'sucesso'}`
         });
         
         return true;
@@ -312,8 +333,7 @@ export function useWPPConnect() {
       console.log('📞 Carregando conversas reais...');
       const response = await fetch(`${config.serverUrl}/api/${config.sessionName}/all-chats`, {
         headers: {
-          'Authorization': `Bearer ${config.secretKey}`,
-          'X-Session-Token': config.token
+          'Authorization': `Bearer ${config.secretKey}`
         }
       });
 
@@ -383,8 +403,7 @@ export function useWPPConnect() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${config.secretKey}`,
-          'X-Session-Token': config.token
+          'Authorization': `Bearer ${config.secretKey}`
         },
         body: JSON.stringify({
           phone: chatId,
@@ -446,8 +465,7 @@ export function useWPPConnect() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${config.secretKey}`,
-          'X-Session-Token': config.token
+          'Authorization': `Bearer ${config.secretKey}`
         },
         body: JSON.stringify({
           phone: chatId,
@@ -486,8 +504,7 @@ export function useWPPConnect() {
         await fetch(`${config.serverUrl}/api/${config.sessionName}/close-session`, {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${config.secretKey}`,
-            'X-Session-Token': config.token
+            'Authorization': `Bearer ${config.secretKey}`
           }
         });
       } catch (error) {
