@@ -1,53 +1,96 @@
-
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { useWPPConnect } from '@/hooks/useWPPConnect';
+import { useRealWhatsAppConnection } from "@/hooks/useRealWhatsAppConnection";
+import { ConversationContextMenu } from "./ConversationContextMenu";
 import { 
   QrCode, 
   Smartphone, 
   CheckCircle, 
   MessageSquare, 
   Send,
+  Clock,
   User,
   AlertCircle,
   RefreshCw,
+  Settings,
+  Pin,
+  Brain,
+  Star,
+  TrendingUp,
+  AlertTriangle,
   Search,
   Volume2,
   Loader2
 } from 'lucide-react';
 
+interface Contact {
+  id: string;
+  name: string;
+  phone: string;
+  lastMessage: string;
+  timestamp: string;
+  unread: number;
+  lastMessageTimestamp?: number;
+}
+
+interface Message {
+  id: string;
+  contactId: string;
+  text: string;
+  sent: boolean;
+  timestamp: string;
+  status: 'sending' | 'sent' | 'delivered' | 'read';
+  isAudio?: boolean;
+}
+
 export function RealWhatsAppMirror() {
   const { toast } = useToast();
   const { 
-    sessionStatus, 
-    contacts,
-    messages,
-    isLoadingChats,
-    isLoadingMessages,
+    connectionState, 
+    isLoading, 
+    webhooks, 
+    wppConfig,
+    messageHistoryLimit,
+    updateWebhooks, 
+    updateWPPConfig,
+    updateMessageHistoryLimit,
     generateQRCode, 
     checkConnectionStatus,
     disconnectWhatsApp,
     sendMessage: sendWhatsAppMessage,
     loadRealChats,
     loadRealMessages,
-    getConnectionStatus
-  } = useWPPConnect();
+    getConnectionStatus,
+    togglePinConversation,
+    toggleAnalysisConversation,
+    isConversationPinned,
+    isConversationMarkedForAnalysis,
+    getAnalysisPriority
+  } = useRealWhatsAppConnection();
   
   const [selectedContact, setSelectedContact] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState('');
+  const [showConfig, setShowConfig] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showHistoryConfig, setShowHistoryConfig] = useState(false);
+  const [tempHistoryLimit, setTempHistoryLimit] = useState(messageHistoryLimit);
   const [isAutoChecking, setIsAutoChecking] = useState(false);
   const [hasAutoChecked, setHasAutoChecked] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [isLoadingChats, setIsLoadingChats] = useState(false);
 
   const connectionStatus = getConnectionStatus();
-  const isConnected = sessionStatus.isConnected;
+  const isConnected = connectionState.isConnected;
 
-  // Verificação automática ao entrar na página
+  // ===== VERIFICAÇÃO AUTOMÁTICA AO ENTRAR NA PÁGINA =====
   useEffect(() => {
     const performAutoCheck = async () => {
       if (hasAutoChecked) return;
@@ -57,6 +100,7 @@ export function RealWhatsAppMirror() {
       setHasAutoChecked(true);
       
       try {
+        // Primeiro verificar o status da conexão
         console.log('🔍 [AUTO] Verificando status da conexão...');
         const isCurrentlyConnected = await checkConnectionStatus();
         
@@ -68,6 +112,7 @@ export function RealWhatsAppMirror() {
             description: "WhatsApp conectado, carregando suas conversas...",
           });
           
+          // Se conectado, carregar conversas automaticamente
           await handleLoadRealChats(true);
         } else {
           console.log('❌ [AUTO] WhatsApp não conectado');
@@ -91,18 +136,110 @@ export function RealWhatsAppMirror() {
       }
     };
 
+    // Executar verificação automática após 500ms (para dar tempo da interface carregar)
     const timer = setTimeout(performAutoCheck, 500);
-    return () => clearTimeout(timer);
-  }, []);
+    
+    return () => clearInterval(timer);
+  }, []); // Executar apenas uma vez ao montar o componente
+
+  // Helper functions
+  const extractPhoneNumber = (phoneData: any): string => {
+    if (typeof phoneData === 'string') {
+      return phoneData;
+    }
+    if (phoneData && typeof phoneData === 'object') {
+      if (phoneData._serialized) return phoneData._serialized;
+      if (phoneData.user) return phoneData.user;
+      if (phoneData.number) return phoneData.number;
+    }
+    return 'Número não disponível';
+  };
+
+  const extractContactName = (chat: any): string => {
+    if (chat.name) return chat.name;
+    if (chat.contact?.name) return chat.contact.name;
+    if (chat.contact?.formattedName) return chat.contact.formattedName;
+    if (chat.contact?.pushname) return chat.contact.pushname;
+    if (chat.title) return chat.title;
+    
+    const phoneNumber = extractPhoneNumber(chat.id || chat.contact?.id || chat.phone);
+    if (phoneNumber && phoneNumber !== 'Número não disponível') {
+      if (phoneNumber.includes('@g.us')) {
+        return chat.id || 'Grupo sem nome';
+      }
+      const cleanNumber = phoneNumber.replace('@c.us', '');
+      return `+${cleanNumber}`;
+    }
+    
+    return 'Contato sem nome';
+  };
+
+  const extractPhoneForSending = (contact: Contact): string => {
+    return contact.phone;
+  };
+
+  const extractTimestamp = (chat: any): number => {
+    if (chat.lastMessage?.timestamp) {
+      return typeof chat.lastMessage.timestamp === 'number' 
+        ? chat.lastMessage.timestamp 
+        : new Date(chat.lastMessage.timestamp).getTime();
+    }
+    
+    if (chat.timestamp) {
+      return typeof chat.timestamp === 'number'
+        ? chat.timestamp
+        : new Date(chat.timestamp).getTime();
+    }
+    
+    if (chat.t) {
+      return chat.t * 1000;
+    }
+    
+    if (chat.lastMessageTime) {
+      return typeof chat.lastMessageTime === 'number'
+        ? chat.lastMessageTime
+        : new Date(chat.lastMessageTime).getTime();
+    }
+    
+    return new Date().getTime();
+  };
+
+  // Função para filtrar e ordenar conversas
+  const filteredAndSortedContacts = useMemo(() => {
+    let filtered = contacts;
+    
+    if (searchTerm.trim()) {
+      filtered = contacts.filter(contact =>
+        contact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        contact.phone.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+    
+    return [...filtered].sort((a, b) => {
+      const aPinned = isConversationPinned(a.id);
+      const bPinned = isConversationPinned(b.id);
+      
+      if (aPinned && !bPinned) return -1;
+      if (!aPinned && bPinned) return 1;
+      
+      const aTime = a.lastMessageTimestamp || new Date(a.timestamp).getTime();
+      const bTime = b.lastMessageTimestamp || new Date(b.timestamp).getTime();
+      
+      return bTime - aTime;
+    });
+  }, [contacts, searchTerm, isConversationPinned]);
+
+  const getPriorityIcon = (priority: 'high' | 'medium' | 'low') => {
+    switch (priority) {
+      case 'high': return <AlertTriangle className="h-3 w-3 text-red-500" />;
+      case 'medium': return <TrendingUp className="h-3 w-3 text-yellow-500" />;
+      case 'low': return <Star className="h-3 w-3 text-blue-500" />;
+    }
+  };
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
-
-  const filteredContacts = contacts.filter(contact =>
-    contact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    contact.phone.toLowerCase().includes(searchTerm.toLowerCase())
-  );
 
   const handleLoadRealChats = async (isAutomatic = false) => {
     if (!isConnected && !isAutomatic) {
@@ -114,10 +251,14 @@ export function RealWhatsAppMirror() {
       return;
     }
 
+    setIsLoadingChats(true);
+    
     try {
       const chatsData = await loadRealChats();
       
       if (!chatsData || chatsData.length === 0) {
+        setContacts([]);
+        
         if (!isAutomatic) {
           toast({
             title: "Nenhuma conversa encontrada",
@@ -128,17 +269,37 @@ export function RealWhatsAppMirror() {
         return;
       }
       
+      const realContacts: Contact[] = chatsData.map((chat: any, index: number) => {
+        const chatId = chat.id?._serialized || chat.id || chat.chatId || `chat_${index}`;
+        const phoneNumber = extractPhoneNumber(chat.id || chat.contact?.id || chat.phone);
+        const lastMessageTimestamp = extractTimestamp(chat);
+        
+        return {
+          id: chatId,
+          name: extractContactName(chat),
+          phone: phoneNumber,
+          lastMessage: chat.lastMessage?.body || chat.lastMessage?.text || chat.chatlistPreview?.reactionText || 'Sem mensagens',
+          timestamp: new Date(lastMessageTimestamp).toISOString(),
+          lastMessageTimestamp: lastMessageTimestamp,
+          unread: chat.unreadCount || chat.unread || 0
+        };
+      });
+      
+      setContacts(realContacts);
+      
       if (!isAutomatic) {
         toast({
           title: "Conversas carregadas! 📱",
-          description: `${chatsData.length} conversas encontradas`
+          description: `${realContacts.length} conversas encontradas`
         });
       } else {
-        console.log(`✅ [AUTO] ${chatsData.length} conversas carregadas automaticamente`);
+        console.log(`✅ [AUTO] ${realContacts.length} conversas carregadas automaticamente`);
       }
       
     } catch (error) {
       console.error('❌ Erro ao carregar conversas:', error);
+      
+      setContacts([]);
       
       if (!isAutomatic) {
         toast({
@@ -147,12 +308,44 @@ export function RealWhatsAppMirror() {
           variant: "destructive"
         });
       }
+    } finally {
+      setIsLoadingChats(false);
     }
   };
 
   const handleLoadRealMessages = async (contactId: string) => {
     try {
-      await loadRealMessages(contactId);
+      const messagesData = await loadRealMessages(contactId);
+      
+      if (!Array.isArray(messagesData)) {
+        toast({
+          title: "Erro ao carregar mensagens",
+          description: "Formato de dados inválido",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      const realMessages: Message[] = messagesData.map((msg: any, index: number) => {
+        const text = msg.processedText || msg.body || msg.text || msg.content || 'Mensagem sem texto';
+        const isAudio = text.includes('🎤 [Áudio]');
+        
+        return {
+          id: msg.id || `msg_${index}`,
+          contactId: contactId,
+          text: text,
+          sent: msg.fromMe || false,
+          timestamp: msg.timestamp ? new Date(msg.timestamp * 1000).toISOString() : new Date().toISOString(),
+          status: msg.ack ? 'delivered' : 'sent',
+          isAudio: isAudio
+        };
+      });
+      
+      setMessages(prev => [
+        ...prev.filter(m => m.contactId !== contactId),
+        ...realMessages
+      ]);
+      
     } catch (error) {
       console.error('❌ Erro ao carregar mensagens:', error);
       toast({
@@ -173,21 +366,52 @@ export function RealWhatsAppMirror() {
     }
   };
 
-  const selectContact = (contact: any) => {
+  const selectContact = (contact: Contact) => {
     setSelectedContact(contact.id);
     handleLoadRealMessages(contact.id);
+    setContacts(prev => prev.map(c => 
+      c.id === contact.id ? { ...c, unread: 0 } : c
+    ));
   };
 
   const sendMessage = async () => {
     if (!newMessage.trim() || !selectedContact) return;
 
+    const contact = contacts.find(c => c.id === selectedContact);
+    if (!contact) return;
+
+    const message: Message = {
+      id: Date.now().toString(),
+      contactId: selectedContact,
+      text: newMessage,
+      sent: true,
+      timestamp: new Date().toISOString(),
+      status: 'sending'
+    };
+
+    setMessages(prev => [...prev, message]);
     const messageText = newMessage;
     setNewMessage('');
 
     try {
-      await sendWhatsAppMessage(selectedContact, messageText);
+      const phoneForSending = extractPhoneForSending(contact);
+      const success = await sendWhatsAppMessage(phoneForSending, messageText);
+      
+      if (success) {
+        setMessages(prev => prev.map(msg => 
+          msg.id === message.id ? { ...msg, status: 'delivered' } : msg
+        ));
+      } else {
+        setMessages(prev => prev.map(msg => 
+          msg.id === message.id ? { ...msg, status: 'sent', text: `❌ ${msg.text} (Erro no envio)` } : msg
+        ));
+      }
     } catch (error) {
       console.error('❌ Erro ao enviar mensagem:', error);
+      
+      setMessages(prev => prev.map(msg => 
+        msg.id === message.id ? { ...msg, status: 'sent', text: `❌ ${msg.text} (Erro de conexão)` } : msg
+      ));
       
       toast({
         title: "❌ Erro ao enviar",
@@ -204,6 +428,11 @@ export function RealWhatsAppMirror() {
     });
     
     await checkConnectionStatus();
+  };
+
+  const handleUpdateHistoryLimit = () => {
+    updateMessageHistoryLimit(tempHistoryLimit);
+    setShowHistoryConfig(false);
   };
 
   const formatTime = (timestamp: string) => {
@@ -247,12 +476,12 @@ export function RealWhatsAppMirror() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-green-900">
             <Smartphone className="h-5 w-5" />
-            WPPConnect Real - Sessão Ativa
+            WPPConnect Real - {wppConfig.sessionName}
             {isConnected && <CheckCircle className="h-5 w-5 text-green-500" />}
             {isAutoChecking && <Loader2 className="h-5 w-5 text-blue-500 animate-spin" />}
           </CardTitle>
           <CardDescription className="text-green-700">
-            Conecta seu WhatsApp via WPPConnect API
+            Conecta seu WhatsApp via WPPConnect API ({wppConfig.serverUrl})
             {isAutoChecking && (
               <span className="block text-blue-600 font-medium mt-1">
                 🔄 Verificando status e carregando conversas automaticamente...
@@ -266,8 +495,8 @@ export function RealWhatsAppMirror() {
               {statusInfo.icon}
               <div>
                 <span className={`font-medium ${statusInfo.color}`}>{statusInfo.text}</span>
-                {sessionStatus.phoneNumber && (
-                  <p className="text-sm text-gray-500">{sessionStatus.phoneNumber}</p>
+                {connectionState.phoneNumber && (
+                  <p className="text-sm text-gray-500">{connectionState.phoneNumber}</p>
                 )}
               </div>
             </div>
@@ -280,6 +509,14 @@ export function RealWhatsAppMirror() {
               
               {isConnected && (
                 <>
+                  <Button 
+                    onClick={() => setShowHistoryConfig(!showHistoryConfig)} 
+                    variant="outline" 
+                    size="sm"
+                  >
+                    <Settings className="h-4 w-4 mr-1" />
+                    Histórico ({messageHistoryLimit})
+                  </Button>
                   <Button 
                     onClick={() => handleLoadRealChats(false)} 
                     variant="outline" 
@@ -297,13 +534,46 @@ export function RealWhatsAppMirror() {
             </div>
           </div>
 
-          {!isConnected && !sessionStatus.qrCode && (
+          {/* Configuração de Histórico */}
+          {showHistoryConfig && (
+            <Card className="mb-4 border-blue-200 bg-blue-50">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm">Configurar Histórico de Mensagens</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-3">
+                  <Label htmlFor="historyLimit" className="text-sm">Limite:</Label>
+                  <Input
+                    id="historyLimit"
+                    type="number"
+                    min="10"
+                    max="1000"
+                    value={tempHistoryLimit}
+                    onChange={(e) => setTempHistoryLimit(parseInt(e.target.value) || 50)}
+                    className="w-20"
+                  />
+                  <span className="text-sm text-gray-600">mensagens</span>
+                  <Button onClick={handleUpdateHistoryLimit} size="sm">
+                    Aplicar
+                  </Button>
+                  <Button onClick={() => setShowHistoryConfig(false)} variant="outline" size="sm">
+                    Cancelar
+                  </Button>
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  Maior histórico pode levar mais tempo para carregar e consumir mais recursos.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
+          {!isConnected && !connectionState.qrCode && (
             <Button 
               onClick={handleGenerateQR} 
               className="w-full bg-green-600 hover:bg-green-700"
-              disabled={sessionStatus.isLoading}
+              disabled={isLoading}
             >
-              {sessionStatus.isLoading ? (
+              {isLoading ? (
                 <>
                   <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
                   Gerando QR Code...
@@ -320,7 +590,7 @@ export function RealWhatsAppMirror() {
       </Card>
 
       {/* QR Code para Conexão */}
-      {sessionStatus.qrCode && !isConnected && (
+      {connectionState.qrCode && !isConnected && (
         <Card className="border-blue-200 bg-blue-50">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-blue-900">
@@ -331,7 +601,7 @@ export function RealWhatsAppMirror() {
           <CardContent className="text-center">
             <div className="bg-white p-6 rounded-lg inline-block mb-4 shadow-lg">
               <img 
-                src={sessionStatus.qrCode} 
+                src={connectionState.qrCode} 
                 alt="QR Code WhatsApp Business" 
                 className="w-80 h-80 mx-auto"
               />
@@ -373,7 +643,7 @@ export function RealWhatsAppMirror() {
                   <MessageSquare className="h-5 w-5" />
                   Conversas REAIS
                 </CardTitle>
-                <Badge variant="secondary">{filteredContacts.length}</Badge>
+                <Badge variant="secondary">{filteredAndSortedContacts.length}</Badge>
               </div>
               
               {/* Barra de Pesquisa */}
@@ -386,11 +656,16 @@ export function RealWhatsAppMirror() {
                   className="pl-10"
                 />
               </div>
+              
+              <div className="flex items-center gap-2 text-xs text-gray-500">
+                <Pin className="h-3 w-3" />
+                <span>Clique direito para fixar/analisar</span>
+              </div>
             </CardHeader>
             
             <CardContent className="p-0">
               <div className="space-y-1 max-h-[500px] overflow-y-auto">
-                {filteredContacts.length === 0 ? (
+                {filteredAndSortedContacts.length === 0 ? (
                   <div className="p-4 text-center text-gray-500">
                     {searchTerm ? (
                       <>
@@ -422,35 +697,61 @@ export function RealWhatsAppMirror() {
                     )}
                   </div>
                 ) : (
-                  filteredContacts.map((contact) => (
-                    <div 
-                      key={contact.id}
-                      onClick={() => selectContact(contact)}
-                      className={`p-3 border-b cursor-pointer hover:bg-gray-50 transition-colors ${
-                        selectedContact === contact.id ? 'bg-blue-50 border-blue-200' : ''
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                          <User className="h-6 w-6 text-green-600" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between">
-                            <span className="font-medium text-sm">{contact.name}</span>
-                            <span className="text-xs text-gray-400">{formatTime(contact.timestamp)}</span>
+                  filteredAndSortedContacts.map((contact) => {
+                    const isPinned = isConversationPinned(contact.id);
+                    const isMarkedForAnalysis = isConversationMarkedForAnalysis(contact.id);
+                    const analysisPriority = getAnalysisPriority(contact.id);
+
+                    return (
+                      <ConversationContextMenu
+                        key={contact.id}
+                        chatId={contact.id}
+                        isPinned={isPinned}
+                        isMarkedForAnalysis={isMarkedForAnalysis}
+                        analysisPriority={analysisPriority}
+                        onTogglePin={togglePinConversation}
+                        onToggleAnalysis={toggleAnalysisConversation}
+                      >
+                        <div 
+                          onClick={() => selectContact(contact)}
+                          className={`p-3 border-b cursor-pointer hover:bg-gray-50 transition-colors ${
+                            selectedContact === contact.id ? 'bg-blue-50 border-blue-200' : ''
+                          } ${isPinned ? 'bg-yellow-50 border-l-4 border-l-yellow-400' : ''}`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center relative">
+                              <User className="h-6 w-6 text-green-600" />
+                              {isPinned && (
+                                <Pin className="absolute -top-1 -right-1 h-4 w-4 text-yellow-600 fill-current" />
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium text-sm">{contact.name}</span>
+                                  {isMarkedForAnalysis && (
+                                    <div className="flex items-center gap-1">
+                                      <Brain className="h-3 w-3 text-green-600" />
+                                      {getPriorityIcon(analysisPriority)}
+                                    </div>
+                                  )}
+                                </div>
+                                <span className="text-xs text-gray-400">{formatTime(contact.timestamp)}</span>
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <p className="text-sm text-gray-500 truncate pr-2">{contact.lastMessage}</p>
+                                {contact.unread > 0 && (
+                                  <Badge variant="destructive" className="text-xs">
+                                    {contact.unread}
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
                           </div>
-                          <div className="flex items-center justify-between">
-                            <p className="text-sm text-gray-500 truncate pr-2">{contact.lastMessage}</p>
-                            {contact.unread > 0 && (
-                              <Badge variant="destructive" className="text-xs">
-                                {contact.unread}
-                              </Badge>
-                            )}
-                          </div>
                         </div>
-                      </div>
-                    </div>
-                  ))
+                      </ConversationContextMenu>
+                    );
+                  })
                 )}
               </div>
             </CardContent>
@@ -476,7 +777,7 @@ export function RealWhatsAppMirror() {
                       </div>
                     </div>
                     <Badge variant="outline">
-                      {messages.filter(m => m.chatId === selectedContact).length} mensagens
+                      {messages.filter(m => m.contactId === selectedContact).length} mensagens
                     </Badge>
                   </div>
                 </CardHeader>
@@ -485,15 +786,15 @@ export function RealWhatsAppMirror() {
                   {/* Mensagens */}
                   <div className="h-[400px] overflow-y-auto p-4 space-y-3">
                     {messages
-                      .filter(m => m.chatId === selectedContact)
+                      .filter(m => m.contactId === selectedContact)
                       .map((message) => (
                         <div
                           key={message.id}
-                          className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                          className={`flex ${message.sent ? 'justify-end' : 'justify-start'}`}
                         >
                           <div
                             className={`max-w-[70%] px-3 py-2 rounded-lg ${
-                              message.sender === 'user'
+                              message.sent
                                 ? 'bg-green-500 text-white'
                                 : 'bg-gray-100 text-gray-900'
                             }`}
@@ -506,7 +807,7 @@ export function RealWhatsAppMirror() {
                                   <span className="text-xs opacity-70">
                                     {formatTime(message.timestamp)}
                                   </span>
-                                  {message.sender === 'user' && message.status && (
+                                  {message.sent && (
                                     <span className="text-xs opacity-70">
                                       {getStatusIcon(message.status)}
                                     </span>

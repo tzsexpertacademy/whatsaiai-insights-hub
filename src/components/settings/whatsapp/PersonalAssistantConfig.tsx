@@ -1,274 +1,572 @@
-
-import React, { useState } from 'react';
+import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { useToast } from "@/hooks/use-toast";
-import { useRealWhatsAppConnection } from '@/hooks/useRealWhatsAppConnection';
-import { 
-  Brain, 
-  MessageSquare, 
-  Globe, 
-  CheckCircle, 
-  AlertTriangle,
-  Settings,
-  Save,
-  Bot,
-  Zap
-} from 'lucide-react';
+import { Brain, MessageSquare, Settings, Loader2, TestTube, Send, CheckCircle, XCircle, RefreshCw, Webhook } from 'lucide-react';
+import { usePersonalAssistant } from "@/hooks/usePersonalAssistant";
+import { useRealWhatsAppConnection } from "@/hooks/useRealWhatsAppConnection";
+import { AssistantSelector } from "@/components/AssistantSelector";
+import { useState, useEffect } from 'react';
 
 export function PersonalAssistantConfig() {
-  const { toast } = useToast();
-  const {
-    connectionState,
-    wppConfig,
-    updateWebhooks,
-    webhooks
-  } = useRealWhatsAppConnection();
+  const { config, updateConfig, recentMessages } = usePersonalAssistant();
+  const { processWebhookMessage, sendMessage, wppConfig, configureWebhookOnWPP } = useRealWhatsAppConnection();
+  const [isTestingWebhook, setIsTestingWebhook] = useState(false);
+  const [isTestingResponse, setIsTestingResponse] = useState(false);
+  const [isMonitoring, setIsMonitoring] = useState(false);
+  const [isConfiguringWebhook, setIsConfiguringWebhook] = useState(false);
+  const [testMessage, setTestMessage] = useState('Olá, você está funcionando?');
+  const [lastMessageCheck, setLastMessageCheck] = useState<Date>(new Date());
+  const [testResults, setTestResults] = useState<{
+    webhookTest?: { success: boolean; message: string };
+    responseTest?: { success: boolean; message: string };
+    monitoringTest?: { success: boolean; message: string };
+    webhookConfig?: { success: boolean; message: string };
+  }>({});
 
-  const [assistantConfig, setAssistantConfig] = useState({
-    enabled: false,
-    webhookUrl: '',
-    systemPrompt: `Você é um assistente pessoal especializado em bem-estar emocional.
-Responda com empatia, usando técnicas de aconselhamento.
-Mantenha respostas concisas mas acolhedoras.
-Se a situação for grave, sugira procurar ajuda profissional.`,
-    autoReply: true,
-    responseDelay: 2000
-  });
-
-  const isTokenConfigured = wppConfig.secretKey && 
-                           wppConfig.secretKey !== 'THISISMYSECURETOKEN' && 
-                           wppConfig.secretKey.length > 10;
-
-  const handleSaveConfig = () => {
-    updateWebhooks({
-      autoReplyWebhook: assistantConfig.webhookUrl
-    });
-    
-    toast({
-      title: "Configuração salva! ✅",
-      description: "Assistente pessoal configurado com sucesso"
-    });
-  };
-
-  const handleTestWebhook = async () => {
-    if (!assistantConfig.webhookUrl) {
-      toast({
-        title: "⚠️ URL necessária",
-        description: "Configure a URL do webhook primeiro",
-        variant: "destructive"
-      });
-      return;
-    }
+  // Função para configurar webhook automático
+  const handleConfigureWebhook = async () => {
+    console.log('🔧 [CONFIG] Configurando webhook automático...');
+    setIsConfiguringWebhook(true);
+    setTestResults(prev => ({ ...prev, webhookConfig: undefined }));
 
     try {
-      const response = await fetch(assistantConfig.webhookUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          action: 'test',
-          message: 'Teste de conexão do assistente pessoal',
-          timestamp: new Date().toISOString()
-        })
-      });
-
-      if (response.ok) {
-        toast({
-          title: "✅ Webhook funcionando!",
-          description: "Conexão com o assistente estabelecida"
-        });
+      const success = await configureWebhookOnWPP();
+      
+      if (success) {
+        setTestResults(prev => ({
+          ...prev,
+          webhookConfig: {
+            success: true,
+            message: 'Webhook configurado! Agora o WPPConnect enviará mensagens automaticamente para o assistente.'
+          }
+        }));
       } else {
-        throw new Error(`Erro HTTP: ${response.status}`);
+        setTestResults(prev => ({
+          ...prev,
+          webhookConfig: {
+            success: false,
+            message: 'Falha ao configurar webhook. Verifique se o WPPConnect está rodando e as configurações estão corretas.'
+          }
+        }));
       }
     } catch (error) {
-      console.error('Erro ao testar webhook:', error);
-      toast({
-        title: "❌ Erro no webhook",
-        description: "Verifique se a URL está correta e acessível",
-        variant: "destructive"
-      });
+      console.error('❌ [CONFIG] Erro ao configurar webhook:', error);
+      setTestResults(prev => ({
+        ...prev,
+        webhookConfig: {
+          success: false,
+          message: `Erro ao configurar webhook: ${error instanceof Error ? error.message : 'Erro desconhecido'}`
+        }
+      }));
+    } finally {
+      setIsConfiguringWebhook(false);
+    }
+  };
+
+  // Função para monitorar mensagens em tempo real
+  const startMessageMonitoring = async () => {
+    console.log('🔄 [MONITOR] Iniciando monitoramento de mensagens...');
+    setIsMonitoring(true);
+    setTestResults(prev => ({ ...prev, monitoringTest: undefined }));
+
+    const checkInterval = setInterval(async () => {
+      try {
+        console.log('🔍 [MONITOR] Verificando novas mensagens...');
+        
+        // Simular verificação de mensagens do WPPConnect
+        const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/get-messages/${config.masterNumber}?count=5`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${wppConfig.token}`
+          }
+        });
+
+        if (response.ok) {
+          const messages = await response.json();
+          console.log('📨 [MONITOR] Mensagens encontradas:', messages);
+          
+          // Verificar se há mensagens novas desde a última verificação
+          const newMessages = Array.isArray(messages) ? messages.filter((msg: any) => {
+            const msgDate = new Date(msg.timestamp * 1000 || msg.timestamp);
+            return msgDate > lastMessageCheck && !msg.fromMe;
+          }) : [];
+
+          if (newMessages.length > 0) {
+            console.log('🆕 [MONITOR] Novas mensagens encontradas:', newMessages.length);
+            
+            for (const message of newMessages) {
+              console.log('📨 [MONITOR] Processando nova mensagem:', message);
+              
+              // Simular webhook para cada mensagem nova
+              const webhookData = {
+                message: {
+                  from: message.from || config.masterNumber,
+                  to: message.to || wppConfig.sessionName,
+                  body: message.body || message.text || 'Mensagem sem texto',
+                  timestamp: message.timestamp
+                }
+              };
+              
+              await processWebhookMessage(webhookData);
+            }
+            
+            setLastMessageCheck(new Date());
+            setTestResults(prev => ({
+              ...prev,
+              monitoringTest: {
+                success: true,
+                message: `${newMessages.length} mensagem(ns) processada(s) automaticamente!`
+              }
+            }));
+          }
+        }
+      } catch (error) {
+        console.error('❌ [MONITOR] Erro no monitoramento:', error);
+        setTestResults(prev => ({
+          ...prev,
+          monitoringTest: {
+            success: false,
+            message: `Erro no monitoramento: ${error instanceof Error ? error.message : 'Erro desconhecido'}`
+          }
+        }));
+      }
+    }, 10000); // Verificar a cada 10 segundos
+
+    // Parar monitoramento após 5 minutos
+    setTimeout(() => {
+      clearInterval(checkInterval);
+      setIsMonitoring(false);
+      console.log('⏹️ [MONITOR] Monitoramento finalizado');
+    }, 300000);
+  };
+
+  const handleTestWebhookProcessing = async () => {
+    console.log('🧪 [TEST] Iniciando teste de processamento de webhook...');
+    setIsTestingWebhook(true);
+    setTestResults(prev => ({ ...prev, webhookTest: undefined }));
+
+    try {
+      // Simular webhook de mensagem recebida
+      const mockWebhookData = {
+        message: {
+          from: config.masterNumber,
+          to: config.masterNumber, // Simular que a mensagem chegou no nosso número
+          body: testMessage,
+          text: { body: testMessage },
+          timestamp: Date.now()
+        }
+      };
+
+      console.log('🧪 [TEST] Dados do webhook simulado:', mockWebhookData);
+
+      // Processar com o webhook
+      await processWebhookMessage(mockWebhookData);
+
+      setTestResults(prev => ({
+        ...prev,
+        webhookTest: {
+          success: true,
+          message: 'Webhook processado com sucesso! Verifique se a resposta foi enviada.'
+        }
+      }));
+
+      console.log('✅ [TEST] Teste de webhook concluído com sucesso');
+
+    } catch (error) {
+      console.error('❌ [TEST] Erro no teste de webhook:', error);
+      setTestResults(prev => ({
+        ...prev,
+        webhookTest: {
+          success: false,
+          message: `Erro no processamento: ${error instanceof Error ? error.message : 'Erro desconhecido'}`
+        }
+      }));
+    } finally {
+      setIsTestingWebhook(false);
+    }
+  };
+
+  const handleTestDirectResponse = async () => {
+    console.log('🧪 [TEST] Iniciando teste de resposta direta...');
+    setIsTestingResponse(true);
+    setTestResults(prev => ({ ...prev, responseTest: undefined }));
+
+    try {
+      if (!config.masterNumber) {
+        throw new Error('Número master não configurado');
+      }
+
+      const success = await sendMessage(config.masterNumber, `🤖 Teste do assistente: ${testMessage}`);
+
+      if (success) {
+        setTestResults(prev => ({
+          ...prev,
+          responseTest: {
+            success: true,
+            message: 'Mensagem de teste enviada com sucesso! Verifique seu WhatsApp.'
+          }
+        }));
+        console.log('✅ [TEST] Mensagem de teste enviada com sucesso');
+      } else {
+        throw new Error('Falha ao enviar mensagem');
+      }
+
+    } catch (error) {
+      console.error('❌ [TEST] Erro no teste de resposta:', error);
+      setTestResults(prev => ({
+        ...prev,
+        responseTest: {
+          success: false,
+          message: `Erro no envio: ${error instanceof Error ? error.message : 'Erro desconhecido'}`
+        }
+      }));
+    } finally {
+      setIsTestingResponse(false);
     }
   };
 
   return (
     <div className="space-y-6">
-      {/* Status do Token */}
-      {!isTokenConfigured && (
-        <Card className="bg-red-50 border-red-200">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-red-900">
-              <AlertTriangle className="h-5 w-5" />
-              Token do WPPConnect Necessário
-            </CardTitle>
-            <CardDescription className="text-red-700">
-              Configure o token do WPPConnect na aba "WPPConnect" antes de usar o assistente pessoal
-            </CardDescription>
-          </CardHeader>
-        </Card>
-      )}
-
-      {/* Status da Conexão */}
-      <Card className={`border-2 ${connectionState.isConnected ? 'border-green-200 bg-green-50' : 'border-gray-200'}`}>
+      <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <MessageSquare className="h-5 w-5" />
-            Status do WhatsApp
-            {connectionState.isConnected && <Badge className="bg-green-100 text-green-800">CONECTADO</Badge>}
+            <Brain className="h-5 w-5 text-purple-600" />
+            Assistente Pessoal WhatsApp
           </CardTitle>
           <CardDescription>
-            {connectionState.isConnected 
-              ? `Conectado ao número: ${connectionState.phoneNumber}`
-              : 'WhatsApp não conectado - conecte na aba "WhatsApp Real"'
-            }
+            Configure um assistente IA que responde automaticamente apenas ao seu número master
           </CardDescription>
         </CardHeader>
-      </Card>
-
-      {/* Configuração do Assistente */}
-      <Card className={`border-2 ${isTokenConfigured && connectionState.isConnected ? 'border-blue-200 bg-blue-50' : 'border-gray-200'}`}>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Brain className="h-5 w-5" />
-            Assistente Pessoal IA
-            {assistantConfig.enabled && <Badge className="bg-blue-100 text-blue-800">ATIVO</Badge>}
-          </CardTitle>
-          <CardDescription>
-            Configure respostas automáticas inteligentes para suas conversas
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center space-x-2">
+        <CardContent className="space-y-6">
+          {/* Status e Ativação */}
+          <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+            <div className="flex items-center gap-3">
+              <div className={`w-3 h-3 rounded-full ${config.enabled ? 'bg-green-500' : 'bg-gray-400'}`} />
+              <div>
+                <p className="font-medium">
+                  {config.enabled ? 'Assistente Ativo' : 'Assistente Inativo'}
+                </p>
+                <p className="text-sm text-gray-600">
+                  {config.enabled ? 'Respondendo automaticamente' : 'Respostas automáticas desativadas'}
+                </p>
+              </div>
+            </div>
             <Switch
-              id="assistant-enabled"
-              checked={assistantConfig.enabled}
-              onCheckedChange={(enabled) => 
-                setAssistantConfig(prev => ({ ...prev, enabled }))
-              }
-              disabled={!isTokenConfigured || !connectionState.isConnected}
+              checked={config.enabled}
+              onCheckedChange={(enabled) => updateConfig({ enabled })}
             />
-            <Label htmlFor="assistant-enabled">Ativar Assistente Pessoal</Label>
+          </div>
+
+          {/* Configuração do Número Master */}
+          <div className="space-y-2">
+            <Label htmlFor="master-number">Número Master (seu WhatsApp) *</Label>
+            <Input
+              id="master-number"
+              placeholder="Ex: 5511999999999"
+              value={config.masterNumber}
+              onChange={(e) => updateConfig({ masterNumber: e.target.value })}
+              className="font-mono"
+            />
+            <p className="text-sm text-gray-600">
+              💡 Use apenas números (com código do país). Exemplo: 5511999999999
+            </p>
+          </div>
+
+          {/* Seleção do Assistente */}
+          <div className="space-y-2">
+            <Label>Assistente Selecionado</Label>
+            <AssistantSelector
+              selectedAssistant={config.selectedAssistantId}
+              onAssistantChange={(assistantId) => updateConfig({ selectedAssistantId: assistantId })}
+            />
+          </div>
+
+          {/* Delay de Resposta */}
+          <div className="space-y-2">
+            <Label htmlFor="response-delay">Delay de Resposta (segundos)</Label>
+            <Select
+              value={config.responseDelay.toString()}
+              onValueChange={(value) => updateConfig({ responseDelay: parseInt(value) })}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="1">1 segundo (instantâneo)</SelectItem>
+                <SelectItem value="2">2 segundos (rápido)</SelectItem>
+                <SelectItem value="3">3 segundos (natural)</SelectItem>
+                <SelectItem value="5">5 segundos (pensativo)</SelectItem>
+                <SelectItem value="10">10 segundos (reflexivo)</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-sm text-gray-600">
+              Tempo que o assistente aguarda antes de responder (simula tempo de digitação)
+            </p>
           </div>
 
           <Separator />
 
-          <div className="space-y-2">
-            <Label htmlFor="webhook-url">URL do Webhook (Make.com, Zapier, etc.)</Label>
-            <Input
-              id="webhook-url"
-              placeholder="https://hook.make.com/sua-url-aqui"
-              value={assistantConfig.webhookUrl}
-              onChange={(e) => setAssistantConfig(prev => ({ ...prev, webhookUrl: e.target.value }))}
-              disabled={!isTokenConfigured}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="system-prompt">Prompt do Sistema (Personalidade da IA)</Label>
-            <textarea
-              id="system-prompt"
-              className="w-full h-32 p-3 border border-gray-300 rounded-lg resize-none"
-              placeholder="Defina como sua IA deve se comportar..."
-              value={assistantConfig.systemPrompt}
-              onChange={(e) => setAssistantConfig(prev => ({ ...prev, systemPrompt: e.target.value }))}
-              disabled={!isTokenConfigured}
-            />
-          </div>
-
-          <div className="flex items-center space-x-2">
-            <Switch
-              id="auto-reply"
-              checked={assistantConfig.autoReply}
-              onCheckedChange={(autoReply) => 
-                setAssistantConfig(prev => ({ ...prev, autoReply }))
-              }
-              disabled={!isTokenConfigured}
-            />
-            <Label htmlFor="auto-reply">Resposta Automática</Label>
-          </div>
-
-          <div className="flex gap-2">
-            <Button 
-              onClick={handleSaveConfig}
-              disabled={!isTokenConfigured}
-              className="flex items-center gap-2"
-            >
-              <Save className="h-4 w-4" />
-              Salvar Configuração
-            </Button>
-            
-            <Button 
-              onClick={handleTestWebhook}
-              variant="outline"
-              disabled={!assistantConfig.webhookUrl}
-              className="flex items-center gap-2"
-            >
-              <Zap className="h-4 w-4" />
-              Testar Webhook
-            </Button>
-          </div>
-
-          {!isTokenConfigured && (
-            <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
-              <p className="text-sm text-yellow-700">
-                ⚠️ Configure o token do WPPConnect primeiro na aba "WPPConnect" para usar o assistente pessoal.
-              </p>
+          {/* Configuração do Webhook Automático */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <Webhook className="h-5 w-5 text-blue-600" />
+              <h3 className="text-lg font-semibold">Configuração Automática</h3>
             </div>
-          )}
 
-          {isTokenConfigured && !connectionState.isConnected && (
+            <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <h4 className="font-medium text-blue-900 mb-2">🔧 Webhook Automático</h4>
+              <p className="text-sm text-blue-700 mb-3">
+                Para que o assistente responda automaticamente, é preciso configurar o webhook no WPPConnect. 
+                Clique no botão abaixo para configurar automaticamente.
+              </p>
+              
+              <Button
+                onClick={handleConfigureWebhook}
+                disabled={isConfiguringWebhook}
+                className="w-full mb-3"
+                variant="default"
+              >
+                {isConfiguringWebhook ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Configurando Webhook...
+                  </>
+                ) : (
+                  <>
+                    <Webhook className="h-4 w-4 mr-2" />
+                    Configurar Webhook Automático
+                  </>
+                )}
+              </Button>
+
+              {testResults.webhookConfig && (
+                <div className={`p-3 rounded-lg border text-sm ${
+                  testResults.webhookConfig.success 
+                    ? 'bg-green-50 border-green-200 text-green-800' 
+                    : 'bg-red-50 border-red-200 text-red-800'
+                }`}>
+                  <div className="flex items-center gap-2 mb-1">
+                    {testResults.webhookConfig.success ? (
+                      <CheckCircle className="h-4 w-4" />
+                    ) : (
+                      <XCircle className="h-4 w-4" />
+                    )}
+                    <span className="font-medium">
+                      {testResults.webhookConfig.success ? 'Webhook Configurado!' : 'Erro na Configuração'}
+                    </span>
+                  </div>
+                  <p>{testResults.webhookConfig.message}</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Seção de Testes */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <TestTube className="h-5 w-5 text-blue-600" />
+              <h3 className="text-lg font-semibold">Testes de Funcionamento</h3>
+            </div>
+
+            {/* Mensagem de Teste */}
+            <div className="space-y-2">
+              <Label htmlFor="test-message">Mensagem de Teste</Label>
+              <Input
+                id="test-message"
+                placeholder="Digite uma mensagem para testar..."
+                value={testMessage}
+                onChange={(e) => setTestMessage(e.target.value)}
+              />
+            </div>
+
+            {/* Botões de Teste */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Teste de Processamento de Webhook */}
+              <div className="space-y-3">
+                <Button
+                  onClick={handleTestWebhookProcessing}
+                  disabled={isTestingWebhook || !config.masterNumber || !testMessage.trim()}
+                  className="w-full"
+                  variant="outline"
+                >
+                  {isTestingWebhook ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Testando Webhook...
+                    </>
+                  ) : (
+                    <>
+                      <MessageSquare className="h-4 w-4 mr-2" />
+                      Testar Processamento
+                    </>
+                  )}
+                </Button>
+                
+                {testResults.webhookTest && (
+                  <div className={`p-3 rounded-lg border text-sm ${
+                    testResults.webhookTest.success 
+                      ? 'bg-green-50 border-green-200 text-green-800' 
+                      : 'bg-red-50 border-red-200 text-red-800'
+                  }`}>
+                    <div className="flex items-center gap-2 mb-1">
+                      {testResults.webhookTest.success ? (
+                        <CheckCircle className="h-4 w-4" />
+                      ) : (
+                        <XCircle className="h-4 w-4" />
+                      )}
+                      <span className="font-medium">
+                        {testResults.webhookTest.success ? 'Sucesso' : 'Erro'}
+                      </span>
+                    </div>
+                    <p>{testResults.webhookTest.message}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Teste de Envio Direto */}
+              <div className="space-y-3">
+                <Button
+                  onClick={handleTestDirectResponse}
+                  disabled={isTestingResponse || !config.masterNumber || !testMessage.trim()}
+                  className="w-full"
+                >
+                  {isTestingResponse ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Enviando Teste...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="h-4 w-4 mr-2" />
+                      Testar Envio Direto
+                    </>
+                  )}
+                </Button>
+
+                {testResults.responseTest && (
+                  <div className={`p-3 rounded-lg border text-sm ${
+                    testResults.responseTest.success 
+                      ? 'bg-green-50 border-green-200 text-green-800' 
+                      : 'bg-red-50 border-red-200 text-red-800'
+                  }`}>
+                    <div className="flex items-center gap-2 mb-1">
+                      {testResults.responseTest.success ? (
+                        <CheckCircle className="h-4 w-4" />
+                      ) : (
+                        <XCircle className="h-4 w-4" />
+                      )}
+                      <span className="font-medium">
+                        {testResults.responseTest.success ? 'Sucesso' : 'Erro'}
+                      </span>
+                    </div>
+                    <p>{testResults.responseTest.message}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Monitoramento de Mensagens */}
+              <div className="space-y-3">
+                <Button
+                  onClick={startMessageMonitoring}
+                  disabled={isMonitoring || !config.masterNumber}
+                  className="w-full"
+                  variant="secondary"
+                >
+                  {isMonitoring ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Monitorando...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      Monitorar Mensagens
+                    </>
+                  )}
+                </Button>
+
+                {testResults.monitoringTest && (
+                  <div className={`p-3 rounded-lg border text-sm ${
+                    testResults.monitoringTest.success 
+                      ? 'bg-green-50 border-green-200 text-green-800' 
+                      : 'bg-red-50 border-red-200 text-red-800'
+                  }`}>
+                    <div className="flex items-center gap-2 mb-1">
+                      {testResults.monitoringTest.success ? (
+                        <CheckCircle className="h-4 w-4" />
+                      ) : (
+                        <XCircle className="h-4 w-4" />
+                      )}
+                      <span className="font-medium">
+                        {testResults.monitoringTest.success ? 'Monitorando' : 'Erro'}
+                      </span>
+                    </div>
+                    <p>{testResults.monitoringTest.message}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
             <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-              <p className="text-sm text-blue-700">
-                📱 Conecte seu WhatsApp na aba "WhatsApp Real" para ativar o assistente.
-              </p>
+              <h4 className="font-medium text-blue-900 mb-2">💡 Como usar os recursos:</h4>
+              <ul className="text-sm text-blue-700 space-y-1 list-disc list-inside">
+                <li><strong>Configurar Webhook Automático:</strong> Configure uma vez para receber mensagens automaticamente</li>
+                <li><strong>Testar Processamento:</strong> Simula uma mensagem chegando via webhook e verifica se o assistente processa corretamente</li>
+                <li><strong>Testar Envio Direto:</strong> Envia uma mensagem de teste diretamente para seu WhatsApp</li>
+                <li><strong>Monitorar Mensagens:</strong> Verifica automaticamente por 5 minutos se há mensagens novas e processa elas</li>
+                <li>Use "Configurar Webhook" primeiro, depois teste o funcionamento com os outros botões</li>
+              </ul>
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Mensagens Recentes */}
+          {recentMessages.length > 0 && (
+            <div className="space-y-3">
+              <h4 className="font-medium flex items-center gap-2">
+                <MessageSquare className="h-4 w-4" />
+                Mensagens Recentes
+              </h4>
+              <div className="space-y-2 max-h-40 overflow-y-auto">
+                {recentMessages.slice(-5).map((msg, index) => (
+                  <div key={index} className="p-3 bg-gray-50 rounded text-sm">
+                    <div className="flex justify-between items-start mb-1">
+                      <span className="font-mono text-xs text-gray-500">
+                        {new Date(msg.timestamp).toLocaleTimeString('pt-BR')}
+                      </span>
+                      <span className={`text-xs px-2 py-1 rounded ${
+                        msg.isFromMaster ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'
+                      }`}>
+                        {msg.isFromMaster ? 'Você' : 'Sistema'}
+                      </span>
+                    </div>
+                    <p className="text-gray-800">{msg.message}</p>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
-          {isTokenConfigured && connectionState.isConnected && (
-            <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-              <p className="text-sm text-green-700">
-                ✅ Tudo configurado! Seu assistente pessoal está pronto para usar.
-              </p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Informações de Uso */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Bot className="h-5 w-5" />
-            Como funciona o Assistente Pessoal
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="text-center p-4 bg-blue-50 rounded-lg">
-              <div className="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center mx-auto mb-2">1</div>
-              <h3 className="font-medium text-blue-900 mb-1">Configure Token</h3>
-              <p className="text-sm text-blue-700">
-                Configure o token do WPPConnect e conecte o WhatsApp
-              </p>
-            </div>
-            
-            <div className="text-center p-4 bg-green-50 rounded-lg">
-              <div className="w-8 h-8 bg-green-500 text-white rounded-full flex items-center justify-center mx-auto mb-2">2</div>
-              <h3 className="font-medium text-green-900 mb-1">Configure Webhook</h3>
-              <p className="text-sm text-green-700">Configure a URL do seu webhook (Make.com, Zapier)</p>
-            </div>
-            
-            <div className="text-center p-4 bg-purple-50 rounded-lg">
-              <div className="w-8 h-8 bg-purple-500 text-white rounded-full flex items-center justify-center mx-auto mb-2">3</div>
-              <h3 className="font-medium text-purple-900 mb-1">Ative o Assistente</h3>
-              <p className="text-sm text-purple-700">Ative e personalize a IA para suas necessidades</p>
-            </div>
+          {/* Instruções */}
+          <div className="bg-amber-50 p-4 rounded-lg border border-amber-200">
+            <h4 className="font-medium text-amber-900 mb-2">📋 Instruções de uso:</h4>
+            <ol className="text-sm text-amber-700 space-y-1 list-decimal list-inside">
+              <li>Configure seu número master (apenas números, com código do país)</li>
+              <li>Selecione um assistente da lista</li>
+              <li>Ative o assistente</li>
+              <li><strong>IMPORTANTE:</strong> Clique em "Configurar Webhook Automático" para receber mensagens automaticamente</li>
+              <li>Use os botões de teste para verificar se está funcionando</li>
+              <li>Agora envie mensagens do seu WhatsApp - o assistente deve responder automaticamente!</li>
+            </ol>
           </div>
         </CardContent>
       </Card>
