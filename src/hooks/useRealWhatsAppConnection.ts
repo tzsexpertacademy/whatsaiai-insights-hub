@@ -9,6 +9,7 @@ interface ConnectionState {
   isLoading: boolean;
   sessionName: string;
   status: 'disconnected' | 'connecting' | 'connected' | 'qr' | 'error';
+  lastConnected: string;
 }
 
 interface WPPConfig {
@@ -21,6 +22,10 @@ interface WebhookConfig {
   enabled: boolean;
   url: string;
   events: string[];
+  qrWebhook: string;
+  statusWebhook: string;
+  sendMessageWebhook: string;
+  autoReplyWebhook: string;
 }
 
 export function useRealWhatsAppConnection() {
@@ -32,7 +37,8 @@ export function useRealWhatsAppConnection() {
     qrCode: '',
     isLoading: false,
     sessionName: 'NERDWHATS_AMERICA',
-    status: 'disconnected'
+    status: 'disconnected',
+    lastConnected: ''
   });
 
   const [wppConfig] = useState<WPPConfig>({
@@ -41,17 +47,22 @@ export function useRealWhatsAppConnection() {
     token: undefined
   });
 
-  const [webhooks] = useState<WebhookConfig>({
+  const [webhooks, setWebhooks] = useState<WebhookConfig>({
     enabled: false,
     url: '',
-    events: []
+    events: [],
+    qrWebhook: '',
+    statusWebhook: '',
+    sendMessageWebhook: '',
+    autoReplyWebhook: ''
   });
 
   const [messageHistoryLimit] = useState(50);
   const isCheckingStatus = useRef(false);
 
   const updateWebhooks = useCallback((config: Partial<WebhookConfig>) => {
-    console.log('Webhooks config would be updated:', config);
+    setWebhooks(prev => ({ ...prev, ...config }));
+    console.log('Webhooks config updated:', config);
   }, []);
 
   const updateWPPConfig = useCallback((config: Partial<WPPConfig>) => {
@@ -61,6 +72,48 @@ export function useRealWhatsAppConnection() {
   const updateMessageHistoryLimit = useCallback((limit: number) => {
     console.log('Message history limit would be updated:', limit);
   }, []);
+
+  const getConnectionStatus = useCallback(() => {
+    if (!connectionState.isConnected) return 'disconnected';
+    
+    if (connectionState.lastConnected) {
+      const lastConnected = new Date(connectionState.lastConnected);
+      const now = new Date();
+      const minutesDiff = (now.getTime() - lastConnected.getTime()) / (1000 * 60);
+      
+      if (minutesDiff > 5) return 'idle';
+    }
+    
+    return 'active';
+  }, [connectionState.isConnected, connectionState.lastConnected]);
+
+  const processWebhookMessage = useCallback(async (webhookData: any) => {
+    console.log('Processing webhook message:', webhookData);
+    // Implementar lógica de processamento do webhook aqui
+    return true;
+  }, []);
+
+  const configureWebhookOnWPP = useCallback(async () => {
+    console.log('Configuring webhook on WPP...');
+    try {
+      const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/set-webhook`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          webhook: 'https://your-project.supabase.co/functions/v1/whatsapp-autoreply',
+          events: ['message'],
+          enabled: true
+        })
+      });
+
+      return response.ok;
+    } catch (error) {
+      console.error('Error configuring webhook:', error);
+      return false;
+    }
+  }, [wppConfig]);
 
   const generateQRCode = useCallback(async () => {
     console.log('🔄 Gerando QR Code...');
@@ -95,7 +148,8 @@ export function useRealWhatsAppConnection() {
           isConnected: true,
           isLoading: false,
           status: 'connected',
-          phoneNumber: data.session || wppConfig.sessionName
+          phoneNumber: data.session || wppConfig.sessionName,
+          lastConnected: new Date().toISOString()
         }));
         toast({
           title: "✅ WhatsApp já conectado!",
@@ -148,7 +202,8 @@ export function useRealWhatsAppConnection() {
         ...prev,
         isConnected,
         status: isConnected ? 'connected' : 'disconnected',
-        phoneNumber: isConnected ? (data.session || wppConfig.sessionName) : ''
+        phoneNumber: isConnected ? (data.session || wppConfig.sessionName) : '',
+        lastConnected: isConnected ? new Date().toISOString() : prev.lastConnected
       }));
 
       return isConnected;
@@ -177,7 +232,8 @@ export function useRealWhatsAppConnection() {
         qrCode: '',
         isLoading: false,
         sessionName: wppConfig.sessionName,
-        status: 'disconnected'
+        status: 'disconnected',
+        lastConnected: ''
       });
       
       toast({
@@ -347,6 +403,9 @@ export function useRealWhatsAppConnection() {
     isConversationMarkedForAnalysis,
     getAnalysisPriority,
     togglePinConversation,
-    toggleAnalysisConversation
+    toggleAnalysisConversation,
+    getConnectionStatus,
+    processWebhookMessage,
+    configureWebhookOnWPP
   };
 }
