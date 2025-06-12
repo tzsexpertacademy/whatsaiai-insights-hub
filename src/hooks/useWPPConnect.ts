@@ -568,7 +568,7 @@ export function useWPPConnect() {
     }
   }, [makeWPPRequest, getWPPConfig, toast, messageHistoryLimit, normalizeChatId]);
 
-  // Enviar mensagem - CORRIGIDO PARA FUNCIONAR
+  // Enviar mensagem - CORRIGIDO ESPECIFICAMENTE PARA GRUPOS
   const sendMessage = useCallback(async (chatId: string, message: string) => {
     if (!message.trim()) {
       toast({
@@ -584,81 +584,166 @@ export function useWPPConnect() {
       
       const config = getWPPConfig();
       
-      // Usar o chatId original primeiro, depois tentar normalizado se falhar
-      const endpoints = [
-        {
-          url: `/api/${config.sessionName}/send-message`,
-          payload: {
-            phone: chatId,
-            message: message
+      // Detectar se é grupo ou contato individual
+      const isGroup = chatId.includes('@g.us') || chatId.includes('group');
+      console.log('🔍 Tipo de chat detectado:', { chatId, isGroup });
+      
+      // Para grupos, usar endpoints específicos
+      if (isGroup) {
+        console.log('👥 Enviando para GRUPO:', chatId);
+        
+        const groupEndpoints = [
+          {
+            url: `/api/${config.sessionName}/send-message`,
+            payload: {
+              chatId: chatId,
+              message: message,
+              isGroup: true
+            }
+          },
+          {
+            url: `/api/${config.sessionName}/sendText`,
+            payload: {
+              chatId: chatId,
+              text: message
+            }
+          },
+          {
+            url: `/api/${config.sessionName}/send-message`,
+            payload: {
+              phone: chatId,
+              message: message
+            }
           }
-        },
-        {
-          url: `/api/${config.sessionName}/send-message`,
-          payload: {
-            chatId: chatId,
-            message: message
-          }
-        },
-        {
-          url: `/api/${config.sessionName}/sendText`,
-          payload: {
-            chatId: normalizeChatId(chatId),
-            text: message
-          }
-        }
-      ];
+        ];
 
-      let success = false;
-      let lastError = null;
+        let success = false;
+        let lastError = null;
 
-      for (const { url, payload } of endpoints) {
-        try {
-          console.log(`📤 Tentando endpoint: ${url}`, payload);
-          
-          const response = await makeWPPRequest(url, {
-            method: 'POST',
-            body: JSON.stringify(payload)
-          });
-
-          console.log('📤 Resposta da API:', response);
-
-          // Verificar diferentes formatos de resposta de sucesso
-          if (response && (
-            response.status === 'success' || 
-            response.success === true ||
-            response.sent === true ||
-            response.result === true ||
-            response.error === false ||
-            (response.status !== 'error' && !response.error)
-          )) {
-            console.log('✅ Mensagem enviada com sucesso!');
-            success = true;
+        for (const { url, payload } of groupEndpoints) {
+          try {
+            console.log(`📤 [GRUPO] Tentando endpoint: ${url}`, payload);
             
-            toast({
-              title: "✅ Mensagem enviada!",
-              description: "Sua mensagem foi enviada com sucesso"
+            const response = await makeWPPRequest(url, {
+              method: 'POST',
+              body: JSON.stringify(payload)
             });
 
-            // Recarregar mensagens após um pequeno delay
-            setTimeout(() => {
-              loadRealMessages(chatId);
-            }, 1000);
+            console.log('📤 [GRUPO] Resposta da API:', response);
 
-            break;
-          } else {
-            console.log('⚠️ Resposta não indica sucesso:', response);
-            lastError = new Error(response.message || 'Resposta da API não indica sucesso');
+            if (response && (
+              response.status === 'success' || 
+              response.success === true ||
+              response.sent === true ||
+              response.result === true ||
+              response.error === false ||
+              (response.status !== 'error' && !response.error)
+            )) {
+              console.log('✅ [GRUPO] Mensagem enviada com sucesso!');
+              success = true;
+              
+              toast({
+                title: "✅ Mensagem enviada para o grupo!",
+                description: "Sua mensagem foi enviada com sucesso"
+              });
+
+              setTimeout(() => {
+                loadRealMessages(chatId);
+              }, 1000);
+
+              break;
+            } else {
+              console.log('⚠️ [GRUPO] Resposta não indica sucesso:', response);
+              lastError = new Error(response.message || 'Resposta da API não indica sucesso');
+            }
+          } catch (error) {
+            console.log(`❌ [GRUPO] Erro no endpoint ${url}:`, error.message);
+            lastError = error;
+            continue;
           }
-        } catch (error) {
-          console.log(`❌ Erro no endpoint ${url}:`, error.message);
-          lastError = error;
-          continue;
         }
-      }
 
-      if (!success) {
-        throw lastError || new Error('Todos os endpoints de envio falharam');
+        if (!success) {
+          throw lastError || new Error('Todos os endpoints de grupo falharam');
+        }
+
+      } else {
+        // Para contatos individuais
+        console.log('👤 Enviando para CONTATO INDIVIDUAL:', chatId);
+        
+        const individualEndpoints = [
+          {
+            url: `/api/${config.sessionName}/send-message`,
+            payload: {
+              phone: chatId,
+              message: message
+            }
+          },
+          {
+            url: `/api/${config.sessionName}/send-message`,
+            payload: {
+              chatId: chatId,
+              message: message
+            }
+          },
+          {
+            url: `/api/${config.sessionName}/sendText`,
+            payload: {
+              chatId: normalizeChatId(chatId),
+              text: message
+            }
+          }
+        ];
+
+        let success = false;
+        let lastError = null;
+
+        for (const { url, payload } of individualEndpoints) {
+          try {
+            console.log(`📤 [INDIVIDUAL] Tentando endpoint: ${url}`, payload);
+            
+            const response = await makeWPPRequest(url, {
+              method: 'POST',
+              body: JSON.stringify(payload)
+            });
+
+            console.log('📤 [INDIVIDUAL] Resposta da API:', response);
+
+            if (response && (
+              response.status === 'success' || 
+              response.success === true ||
+              response.sent === true ||
+              response.result === true ||
+              response.error === false ||
+              (response.status !== 'error' && !response.error)
+            )) {
+              console.log('✅ [INDIVIDUAL] Mensagem enviada com sucesso!');
+              success = true;
+              
+              toast({
+                title: "✅ Mensagem enviada!",
+                description: "Sua mensagem foi enviada com sucesso"
+              });
+
+              setTimeout(() => {
+                loadRealMessages(chatId);
+              }, 1000);
+
+              break;
+            } else {
+              console.log('⚠️ [INDIVIDUAL] Resposta não indica sucesso:', response);
+              lastError = new Error(response.message || 'Resposta da API não indica sucesso');
+            }
+          } catch (error) {
+            console.log(`❌ [INDIVIDUAL] Erro no endpoint ${url}:`, error.message);
+            lastError = error;
+            continue;
+          }
+        }
+
+        if (!success) {
+          throw lastError || new Error('Todos os endpoints individuais falharam');
+        }
       }
 
     } catch (error) {
