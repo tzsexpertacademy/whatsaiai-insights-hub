@@ -115,47 +115,86 @@ export function useRealWhatsAppConnection() {
       const webhookUrl = `${window.location.origin.includes('localhost') ? 'https://your-project.supabase.co' : window.location.origin}/functions/v1/whatsapp-autoreply`;
       
       console.log('🔧 [WPP] URL do webhook:', webhookUrl);
+      console.log('🔧 [WPP] Configurações atuais:', wppConfig);
       
-      // Configurar webhook para receber mensagens
-      const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/set-webhook`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${wppConfig.token}`
+      // Lista de endpoints para tentar (diferentes versões do WPPConnect)
+      const webhookEndpoints = [
+        {
+          url: `${wppConfig.serverUrl}/api/${wppConfig.sessionName}/set-webhook`,
+          method: 'POST',
+          body: { webhook: webhookUrl, events: ['message'] }
         },
-        body: JSON.stringify({
-          webhook: webhookUrl,
-          events: ['message', 'onMessage']
-        })
-      });
+        {
+          url: `${wppConfig.serverUrl}/api/${wppConfig.sessionName}/webhook`,
+          method: 'POST', 
+          body: { url: webhookUrl, enabled: true, events: ['message'] }
+        },
+        {
+          url: `${wppConfig.serverUrl}/webhook/${wppConfig.sessionName}`,
+          method: 'POST',
+          body: { webhookUrl: webhookUrl }
+        },
+        {
+          url: `${wppConfig.serverUrl}/api/${wppConfig.sessionName}/config-webhook`,
+          method: 'PUT',
+          body: { webhook: webhookUrl }
+        }
+      ];
 
-      if (response.ok) {
-        console.log('✅ [WPP] Webhook configurado com sucesso!');
+      for (let i = 0; i < webhookEndpoints.length; i++) {
+        const endpoint = webhookEndpoints[i];
+        console.log(`🔧 [WPP] Tentando endpoint ${i + 1}:`, endpoint.url);
         
-        toast({
-          title: "🔗 Webhook configurado!",
-          description: "WPPConnect agora enviará mensagens automaticamente para o assistente"
-        });
-        
-        return true;
-      } else {
-        const errorText = await response.text();
-        console.error('❌ [WPP] Erro ao configurar webhook:', response.status, errorText);
-        
-        toast({
-          title: "❌ Erro no webhook",
-          description: "Não foi possível configurar o webhook automático",
-          variant: "destructive"
-        });
-        
-        return false;
+        try {
+          const response = await fetch(endpoint.url, {
+            method: endpoint.method,
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${wppConfig.token}`,
+              'X-API-KEY': wppConfig.token,
+              'token': wppConfig.token
+            },
+            body: JSON.stringify(endpoint.body)
+          });
+
+          console.log(`🔧 [WPP] Resposta endpoint ${i + 1}:`, response.status);
+          
+          if (response.ok) {
+            const result = await response.json();
+            console.log('✅ [WPP] Webhook configurado com sucesso:', result);
+            
+            toast({
+              title: "🔗 Webhook configurado!",
+              description: `WPPConnect configurado via endpoint ${i + 1}. Agora as mensagens serão enviadas automaticamente para o assistente.`
+            });
+            
+            return true;
+          } else {
+            const errorText = await response.text();
+            console.log(`❌ [WPP] Endpoint ${i + 1} falhou:`, response.status, errorText);
+          }
+        } catch (endpointError) {
+          console.log(`❌ [WPP] Erro no endpoint ${i + 1}:`, endpointError);
+        }
       }
+      
+      // Se chegou aqui, todos os endpoints falharam
+      console.error('❌ [WPP] Todos os endpoints de webhook falharam');
+      
+      toast({
+        title: "❌ Erro no webhook",
+        description: "Não foi possível configurar webhook automático. Verifique se o WPPConnect está rodando e configure manualmente via Swagger.",
+        variant: "destructive"
+      });
+      
+      return false;
+      
     } catch (error) {
       console.error('❌ [WPP] Erro ao configurar webhook:', error);
       
       toast({
         title: "❌ Erro de conexão",
-        description: "Falha ao conectar com o WPPConnect para configurar webhook",
+        description: "Falha ao conectar com o WPPConnect. Verifique se está rodando na porta correta.",
         variant: "destructive"
       });
       

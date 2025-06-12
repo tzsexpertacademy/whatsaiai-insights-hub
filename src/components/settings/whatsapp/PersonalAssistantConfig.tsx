@@ -50,7 +50,7 @@ export function PersonalAssistantConfig() {
           ...prev,
           webhookConfig: {
             success: false,
-            message: 'Falha ao configurar webhook. Verifique se o WPPConnect está rodando e as configurações estão corretas.'
+            message: 'Falha ao configurar webhook automático. Tente configurar manualmente via Swagger.'
           }
         }));
       }
@@ -364,6 +364,17 @@ export function PersonalAssistantConfig() {
                   <p>{testResults.webhookConfig.message}</p>
                 </div>
               )}
+              
+              {/* Instruções manuais se automático falhar */}
+              <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <h5 className="font-medium text-yellow-900 mb-2">📖 Configuração Manual (se automático falhar):</h5>
+                <ol className="text-sm text-yellow-700 space-y-1 list-decimal list-inside">
+                  <li>Acesse: <code className="bg-yellow-100 px-1 rounded">http://localhost:21465/api-docs</code></li>
+                  <li>Encontre o endpoint <strong>set-webhook</strong> da sua sessão</li>
+                  <li>Configure: <code className="bg-yellow-100 px-1 rounded">webhook: sua-url-supabase/functions/v1/whatsapp-autoreply</code></li>
+                  <li>Events: <code className="bg-yellow-100 px-1 rounded">["message"]</code></li>
+                </ol>
+              </div>
             </div>
           </div>
 
