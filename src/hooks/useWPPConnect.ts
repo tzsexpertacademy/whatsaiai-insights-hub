@@ -1,4 +1,3 @@
-
 import { useState, useCallback, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -19,7 +18,7 @@ interface SessionStatus {
 }
 
 interface Chat {
-  id: string; // Adicionando id que estava faltando
+  id: string;
   chatId: string;
   name: string;
   lastMessage: string;
@@ -98,8 +97,15 @@ export function useWPPConnect() {
   const makeWPPRequest = useCallback(async (endpoint: string, options: RequestInit = {}) => {
     const config = getWPPConfig();
     
+    console.log('🔧 Config atual:', {
+      sessionName: config.sessionName,
+      serverUrl: config.serverUrl,
+      hasSecretKey: !!config.secretKey,
+      hasToken: !!config.token
+    });
+
     if (!config.secretKey || !config.token) {
-      throw new Error('Token ou Secret Key não configurado');
+      throw new Error('Token ou Secret Key não configurado. Vá em Configurações → WPPConnect');
     }
 
     const url = `${config.serverUrl}${endpoint}`;
@@ -118,6 +124,14 @@ export function useWPPConnect() {
     if (!response.ok) {
       const errorText = await response.text();
       console.error(`❌ WPP Request Error (${response.status}):`, errorText);
+      
+      if (response.status === 401) {
+        throw new Error('Token/Secret Key inválido. Verifique as configurações em WPPConnect');
+      }
+      if (response.status === 404) {
+        throw new Error('Endpoint não encontrado. Verifique se o WPPConnect está rodando');
+      }
+      
       throw new Error(`Erro ${response.status}: ${response.statusText}`);
     }
 
@@ -136,13 +150,17 @@ export function useWPPConnect() {
       
       console.log('📊 Status da sessão:', data);
       
-      // Atualizar estado baseado na resposta
-      const isConnected = data.status === true || data.status === 'CONNECTED' || data.message === 'Connected';
+      // Verificar diferentes formatos de resposta
+      const isConnected = data.status === true || 
+                         data.status === 'CONNECTED' || 
+                         data.message === 'Connected' ||
+                         data.connected === true ||
+                         (data.session && data.session.status === 'CONNECTED');
       
       setSessionStatus(prev => ({
         ...prev,
         isConnected,
-        phoneNumber: data.phoneNumber || data.wid?.user || prev.phoneNumber,
+        phoneNumber: data.phoneNumber || data.wid?.user || data.session?.phoneNumber || prev.phoneNumber,
         error: isConnected ? null : 'Sessão não conectada'
       }));
 
@@ -164,7 +182,7 @@ export function useWPPConnect() {
     }
   }, [makeWPPRequest, getWPPConfig]);
 
-  // Gerar QR Code
+  // Gerar QR Code - ENDPOINT CORRETO
   const generateQRCode = useCallback(async () => {
     try {
       setSessionStatus(prev => ({ ...prev, isLoading: true, error: null }));
@@ -172,7 +190,8 @@ export function useWPPConnect() {
       const config = getWPPConfig();
       console.log('🎯 Gerando QR Code para sessão:', config.sessionName);
       
-      const data = await makeWPPRequest(`/api/${config.sessionName}/generate-token`);
+      // ENDPOINT CORRETO para gerar QR Code
+      const data = await makeWPPRequest(`/api/${config.sessionName}/start-session`);
       
       if (data.status === 'SUCCESS' && data.qrcode) {
         setSessionStatus(prev => ({
@@ -217,21 +236,24 @@ export function useWPPConnect() {
     }
   }, [makeWPPRequest, getWPPConfig, toast, checkConnectionStatus]);
 
-  // Carregar conversas reais
+  // Carregar conversas reais - ENDPOINT CORRETO
   const loadRealChats = useCallback(async (): Promise<Chat[]> => {
     try {
       setIsLoadingChats(true);
       console.log('📱 Carregando conversas reais...');
       
       const config = getWPPConfig();
+      // ENDPOINT CORRETO para buscar conversas
       const data = await makeWPPRequest(`/api/${config.sessionName}/all-chats`);
+      
+      console.log('📋 Dados brutos das conversas:', data);
       
       if (Array.isArray(data)) {
         const formattedChats: Chat[] = data.map((chat: any) => ({
-          id: String(chat.id?._serialized || chat.id || chat.chatId || ''), // Garantindo que id existe
+          id: String(chat.id?._serialized || chat.id || chat.chatId || `chat-${Math.random()}`),
           chatId: String(chat.id?._serialized || chat.id || chat.chatId || ''),
-          name: chat.name || chat.pushname || chat.formattedTitle || 'Sem nome',
-          lastMessage: chat.lastMessage?.body || chat.lastMessage || 'Sem mensagens',
+          name: chat.name || chat.pushname || chat.formattedTitle || chat.contact?.name || 'Sem nome',
+          lastMessage: chat.lastMessage?.body || chat.lastMessage?.content || chat.lastMessage || 'Sem mensagens',
           timestamp: chat.t ? new Date(chat.t * 1000).toISOString() : new Date().toISOString(),
           unreadCount: chat.unreadCount || 0,
           unread: chat.unreadCount || 0,
@@ -243,7 +265,7 @@ export function useWPPConnect() {
         setChats(formattedChats);
         
         toast({
-          title: "Conversas carregadas!",
+          title: "Conversas carregadas! 📱",
           description: `${formattedChats.length} conversas encontradas`
         });
 
@@ -344,12 +366,10 @@ export function useWPPConnect() {
     setIsLiveMode(true);
     setCurrentChatId(chatId);
     
-    // Atualizar mensagens a cada 3 segundos
     const liveInterval = setInterval(() => {
       loadRealMessages(chatId);
     }, 3000);
 
-    // Salvar referência do intervalo
     (window as any).wppLiveInterval = liveInterval;
     
     toast({
@@ -423,11 +443,20 @@ export function useWPPConnect() {
   // Verificar status ao montar o componente
   useEffect(() => {
     const config = getWPPConfig();
+    console.log('🚀 Iniciando verificação de status...');
+    
     if (config.secretKey && config.token) {
-      console.log('🚀 Verificando status inicial...');
+      console.log('🚀 Config encontrada, verificando status...');
       checkConnectionStatus();
+    } else {
+      console.log('⚠️ Config WPP não encontrada');
+      toast({
+        title: "Configuração necessária",
+        description: "Configure o WPPConnect em Configurações → WPPConnect",
+        variant: "destructive"
+      });
     }
-  }, [checkConnectionStatus]);
+  }, [checkConnectionStatus, getWPPConfig, toast]);
 
   return {
     sessionStatus,
