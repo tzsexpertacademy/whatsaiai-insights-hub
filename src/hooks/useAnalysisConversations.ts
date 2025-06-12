@@ -54,7 +54,7 @@ export function useAnalysisConversations() {
         return;
       }
 
-      // Converter os dados para o tipo esperado
+      // Converter os dados para o tipo esperado com tratamento correto do analysis_results
       const convertedData: AnalysisConversation[] = data.map(item => ({
         id: item.id,
         chat_id: item.chat_id,
@@ -64,7 +64,7 @@ export function useAnalysisConversations() {
         analysis_status: item.analysis_status as 'pending' | 'processing' | 'completed' | 'failed',
         marked_at: item.marked_at,
         last_analyzed_at: item.last_analyzed_at || undefined,
-        analysis_results: item.analysis_results || [],
+        analysis_results: Array.isArray(item.analysis_results) ? item.analysis_results : [],
         marked_for_analysis: item.marked_for_analysis
       }));
       
