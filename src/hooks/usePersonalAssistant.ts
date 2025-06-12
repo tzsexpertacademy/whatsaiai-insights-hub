@@ -1,12 +1,12 @@
 
 import { useState, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import { useAssistantsConfig } from '@/hooks/useAssistantsConfig';
 
 interface PersonalAssistantConfig {
   enabled: boolean;
   masterNumber: string;
-  assistantName: string;
-  systemPrompt: string;
+  selectedAssistantId: string;
   responseDelay: number;
 }
 
@@ -20,14 +20,14 @@ interface AssistantMessage {
 
 export function usePersonalAssistant() {
   const { toast } = useToast();
+  const { assistants } = useAssistantsConfig();
   
   const [config, setConfig] = useState<PersonalAssistantConfig>(() => {
     const saved = localStorage.getItem('personal_assistant_config');
     return saved ? JSON.parse(saved) : {
       enabled: false,
       masterNumber: '',
-      assistantName: 'Kairon',
-      systemPrompt: '',
+      selectedAssistantId: 'kairon',
       responseDelay: 2
     };
   });
@@ -37,15 +37,12 @@ export function usePersonalAssistant() {
   const formatPhoneNumber = useCallback((phone: string): string => {
     console.log('🔧 [ASSISTANT] Formatando número:', phone);
     
-    // Remove todos os caracteres não numéricos
     let cleaned = phone.replace(/\D/g, '');
     
-    // Remove prefixos comuns do WhatsApp
     if (cleaned.endsWith('@c.us')) {
       cleaned = cleaned.replace('@c.us', '');
     }
     
-    // Se começar com 55, mantém, senão adiciona
     if (cleaned.length >= 11 && !cleaned.startsWith('55')) {
       cleaned = '55' + cleaned;
     }
@@ -59,7 +56,7 @@ export function usePersonalAssistant() {
     console.log('🛡️ [ASSISTANT] Config atual:', {
       enabled: config.enabled,
       masterNumber: config.masterNumber,
-      assistantName: config.assistantName
+      selectedAssistantId: config.selectedAssistantId
     });
 
     if (!config.enabled) {
@@ -97,24 +94,24 @@ export function usePersonalAssistant() {
   const generateAIResponse = useCallback(async (message: string): Promise<string> => {
     console.log('🤖 [ASSISTANT] Gerando resposta IA...');
     console.log('🤖 [ASSISTANT] Mensagem recebida:', message);
-    console.log('🤖 [ASSISTANT] Prompt do sistema:', config.systemPrompt);
+    console.log('🤖 [ASSISTANT] Assistente selecionado:', config.selectedAssistantId);
     
     try {
-      // Simular chamada para IA (OpenAI, etc.)
-      // Aqui você integraria com sua API de IA preferida
+      // Buscar o assistente selecionado
+      const selectedAssistant = assistants.find(a => a.id === config.selectedAssistantId);
+      const assistantName = selectedAssistant?.name || 'Kairon';
+      const systemPrompt = selectedAssistant?.prompt || `Você é ${assistantName}, um assistente pessoal inteligente via WhatsApp.`;
       
-      const aiPrompt = `${config.systemPrompt}
-
-Mensagem do usuário: ${message}
-
-Responda de forma natural e útil:`;
-
-      console.log('🤖 [ASSISTANT] Prompt completo:', aiPrompt);
+      console.log('🤖 [ASSISTANT] Usando assistente:', {
+        id: config.selectedAssistantId,
+        name: assistantName,
+        prompt: systemPrompt.substring(0, 100) + '...'
+      });
       
-      // Simulação de resposta da IA
+      // Simulação de resposta da IA baseada no assistente selecionado
       const responses = [
-        `Olá! Sou o ${config.assistantName}, seu assistente pessoal. Recebi sua mensagem: "${message}". Como posso ajudar você hoje?`,
-        `Entendi sua mensagem: "${message}". Estou aqui para ajudar! Sou o ${config.assistantName}.`,
+        `Olá! Sou o ${assistantName}, seu assistente pessoal. Recebi sua mensagem: "${message}". Como posso ajudar você hoje?`,
+        `Entendi sua mensagem: "${message}". Estou aqui para ajudar! Sou o ${assistantName}.`,
         `Perfeito! Processando: "${message}". Mais alguma coisa em que posso ajudar?`,
         `Interessante! Sobre "${message}" - deixe-me pensar na melhor forma de ajudar com isso.`
       ];
@@ -124,7 +121,6 @@ Responda de forma natural e útil:`;
       console.log('🤖 [ASSISTANT] Resposta gerada:', randomResponse);
       console.log('🤖 [ASSISTANT] Aplicando delay de', config.responseDelay, 'segundos');
       
-      // Adicionar delay configurado
       await new Promise(resolve => setTimeout(resolve, config.responseDelay * 1000));
       
       console.log('✅ [ASSISTANT] Resposta pronta para envio');
@@ -132,9 +128,10 @@ Responda de forma natural e útil:`;
       
     } catch (error) {
       console.error('❌ [ASSISTANT] Erro ao gerar resposta IA:', error);
-      return `Desculpe, tive um problema técnico. Sou o ${config.assistantName} e normalmente consigo ajudar melhor!`;
+      const assistantName = assistants.find(a => a.id === config.selectedAssistantId)?.name || 'Kairon';
+      return `Desculpe, tive um problema técnico. Sou o ${assistantName} e normalmente consigo ajudar melhor!`;
     }
-  }, [config.assistantName, config.systemPrompt, config.responseDelay]);
+  }, [config.selectedAssistantId, config.responseDelay, assistants]);
 
   const processIncomingMessage = useCallback(async (
     fromNumber: string, 
@@ -149,16 +146,15 @@ Responda de forma natural e útil:`;
       to: toNumber,
       message: messageText,
       assistantEnabled: config.enabled,
-      masterNumber: config.masterNumber
+      masterNumber: config.masterNumber,
+      selectedAssistant: config.selectedAssistantId
     });
 
-    // Verificar se o assistente está ativo
     if (!config.enabled) {
       console.log('🔇 [ASSISTANT] Assistente desativado - ignorando mensagem');
       return { shouldRespond: false };
     }
 
-    // Verificar se é do número master autorizado
     const isFromMaster = isAuthorizedMaster(fromNumber);
     
     if (!isFromMaster) {
@@ -168,7 +164,6 @@ Responda de forma natural e útil:`;
 
     console.log('✅ [ASSISTANT] Mensagem autorizada do master - processando...');
 
-    // Registrar mensagem
     const newMessage: AssistantMessage = {
       from: fromNumber,
       to: toNumber,
@@ -179,11 +174,9 @@ Responda de forma natural e útil:`;
 
     setRecentMessages(prev => [...prev.slice(-9), newMessage]);
 
-    // Gerar resposta da IA
     console.log('🔄 [ASSISTANT] Gerando resposta...');
     const aiResponse = await generateAIResponse(messageText);
     
-    // Enviar resposta
     try {
       console.log('📤 [ASSISTANT] Tentando enviar resposta:', aiResponse);
       const success = await sendReplyFunction(fromNumber, aiResponse);
@@ -191,8 +184,10 @@ Responda de forma natural e útil:`;
       if (success) {
         console.log('✅ [ASSISTANT] Resposta enviada com sucesso!');
         
+        const assistantName = assistants.find(a => a.id === config.selectedAssistantId)?.name || 'Assistente';
+        
         toast({
-          title: `${config.assistantName} respondeu! 🤖`,
+          title: `${assistantName} respondeu! 🤖`,
           description: `"${aiResponse.substring(0, 50)}${aiResponse.length > 50 ? '...' : ''}"`
         });
 
@@ -219,7 +214,7 @@ Responda de forma natural e útil:`;
       
       return { shouldRespond: false };
     }
-  }, [config, isAuthorizedMaster, generateAIResponse, toast]);
+  }, [config, isAuthorizedMaster, generateAIResponse, toast, assistants]);
 
   const updateConfig = useCallback((newConfig: Partial<PersonalAssistantConfig>) => {
     const updatedConfig = { ...config, ...newConfig };
@@ -234,7 +229,6 @@ Responda de forma natural e útil:`;
     });
   }, [config, toast]);
 
-  // Log do estado atual quando o hook é usado
   console.log('🔧 [ASSISTANT] Hook inicializado com config:', config);
 
   return {
@@ -243,6 +237,7 @@ Responda de forma natural e útil:`;
     updateConfig,
     processIncomingMessage,
     isAuthorizedMaster,
-    formatPhoneNumber
+    formatPhoneNumber,
+    assistants
   };
 }

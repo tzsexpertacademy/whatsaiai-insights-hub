@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { AssistantSelector } from "@/components/AssistantSelector";
 import { 
   Brain, 
   Shield, 
@@ -22,9 +23,8 @@ import {
 interface PersonalAssistantConfig {
   enabled: boolean;
   masterNumber: string;
-  assistantName: string;
-  systemPrompt: string;
-  responseDelay: number; // em segundos
+  selectedAssistantId: string;
+  responseDelay: number;
 }
 
 export function PersonalAssistantConfig() {
@@ -35,17 +35,7 @@ export function PersonalAssistantConfig() {
     return saved ? JSON.parse(saved) : {
       enabled: false,
       masterNumber: '',
-      assistantName: 'Kairon',
-      systemPrompt: `Você é Kairon, um assistente pessoal inteligente via WhatsApp. 
-
-Características:
-- Seja proativo, eficiente e direto
-- Mantenha conversas naturais e amigáveis
-- Ajude com tarefas, lembretes, informações e organização
-- Responda de forma concisa mas completa
-- Use emojis adequadamente para tornar a conversa mais natural
-
-Você está respondendo apenas ao seu usuário master, então seja pessoal e útil.`,
+      selectedAssistantId: 'kairon',
       responseDelay: 2
     };
   });
@@ -64,11 +54,8 @@ Você está respondendo apenas ao seu usuário master, então seja pessoal e út
   };
 
   const formatPhoneNumber = (phone: string): string => {
-    // Remove todos os caracteres não numéricos
     const cleaned = phone.replace(/\D/g, '');
     
-    // Se começar com 55 (Brasil), mantém
-    // Se não, adiciona 55
     if (cleaned.length >= 11) {
       if (cleaned.startsWith('55')) {
         return cleaned;
@@ -93,7 +80,6 @@ Você está respondendo apenas ao seu usuário master, então seja pessoal e út
     setIsTestingConnection(true);
 
     try {
-      // Simular teste de conexão
       await new Promise(resolve => setTimeout(resolve, 2000));
       
       toast({
@@ -113,7 +99,7 @@ Você está respondendo apenas ao seu usuário master, então seja pessoal e út
 
   const validateMasterNumber = (number: string): boolean => {
     const cleaned = number.replace(/\D/g, '');
-    return cleaned.length >= 10; // Mínimo 10 dígitos
+    return cleaned.length >= 10;
   };
 
   return (
@@ -205,40 +191,25 @@ Você está respondendo apenas ao seu usuário master, então seja pessoal e út
         </CardContent>
       </Card>
 
-      {/* Configuração do Assistente */}
+      {/* Seleção de Assistente */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Settings className="h-5 w-5 text-purple-600" />
-            Personalização do Assistente
+            Seleção do Assistente
           </CardTitle>
           <CardDescription>
-            Configure o comportamento e personalidade do assistente
+            Escolha qual assistente responderá suas mensagens
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="assistant-name">Nome do Assistente</Label>
-            <Input
-              id="assistant-name"
-              value={config.assistantName}
-              onChange={(e) => updateConfig({ assistantName: e.target.value })}
-              placeholder="Ex: Kairon, Assistant, etc."
+            <Label>Assistente Selecionado</Label>
+            <AssistantSelector
+              selectedAssistant={config.selectedAssistantId}
+              onAssistantChange={(assistantId) => updateConfig({ selectedAssistantId: assistantId })}
+              className="w-full"
             />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="system-prompt">Prompt do Sistema</Label>
-            <textarea
-              id="system-prompt"
-              className="w-full min-h-[120px] p-3 text-sm border border-gray-300 rounded-md resize-vertical"
-              value={config.systemPrompt}
-              onChange={(e) => updateConfig({ systemPrompt: e.target.value })}
-              placeholder="Defina como o assistente deve se comportar..."
-            />
-            <p className="text-xs text-gray-500">
-              Este prompt define a personalidade e comportamento do assistente
-            </p>
           </div>
 
           <div className="space-y-2">
@@ -283,12 +254,8 @@ Você está respondendo apenas ao seu usuário master, então seja pessoal e út
                   Número master configurado
                 </li>
                 <li className="flex items-center gap-2">
-                  {config.assistantName.trim() ? <CheckCircle className="h-4 w-4 text-green-500" /> : <AlertTriangle className="h-4 w-4 text-gray-400" />}
-                  Nome do assistente definido
-                </li>
-                <li className="flex items-center gap-2">
-                  {config.systemPrompt.trim().length > 50 ? <CheckCircle className="h-4 w-4 text-green-500" /> : <AlertTriangle className="h-4 w-4 text-gray-400" />}
-                  Prompt do sistema configurado
+                  {config.selectedAssistantId ? <CheckCircle className="h-4 w-4 text-green-500" /> : <AlertTriangle className="h-4 w-4 text-gray-400" />}
+                  Assistente selecionado
                 </li>
               </ul>
             </div>
@@ -331,7 +298,7 @@ Você está respondendo apenas ao seu usuário master, então seja pessoal e út
             </div>
             <div className="flex items-start gap-2">
               <span className="font-bold">2.</span>
-              <span>Ative o assistente e personalize seu comportamento</span>
+              <span>Ative o assistente e selecione qual assistente responderá</span>
             </div>
             <div className="flex items-start gap-2">
               <span className="font-bold">3.</span>

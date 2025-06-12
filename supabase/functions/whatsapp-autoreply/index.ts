@@ -34,19 +34,45 @@ serve(async (req) => {
 
       console.log(`💬 Nova mensagem de ${contactName} (${contactPhone}): ${messageText}`);
 
-      // Buscar configuração do assistente pessoal do usuário
       const toNumber = message.to || webhookData.to;
       console.log('📞 Mensagem destinada para:', toNumber);
 
-      // IMPORTANTE: Aqui você deve implementar a busca real de configuração por usuário
-      // Por enquanto, usando configuração padrão para testes
-      const personalAssistantConfig = {
+      // Buscar configuração do assistente pessoal do usuário no banco de dados
+      console.log('🔍 Buscando configuração do assistente pessoal...');
+      
+      // Por agora, usando uma configuração padrão - você deve implementar a busca real baseada no usuário
+      // Você pode usar o número "to" para identificar qual usuário é o dono deste WhatsApp
+      const { data: userConfigs, error: configError } = await supabase
+        .from('client_configs')
+        .select('*')
+        .limit(1); // Por enquanto pega o primeiro usuário - implemente lógica real
+
+      console.log('⚙️ Configurações encontradas:', userConfigs?.length || 0);
+
+      let personalAssistantConfig = {
+        enabled: false,
+        masterNumber: '',
+        selectedAssistantId: 'kairon',
+        responseDelay: 2
+      };
+
+      if (userConfigs && userConfigs.length > 0) {
+        // Tentar extrair configuração do assistente pessoal
+        try {
+          const savedConfig = localStorage?.getItem?.('personal_assistant_config');
+          if (savedConfig) {
+            personalAssistantConfig = JSON.parse(savedConfig);
+          }
+        } catch (e) {
+          console.log('⚠️ Não foi possível acessar localStorage no edge function');
+        }
+      }
+
+      // CONFIGURAÇÃO TEMPORÁRIA PARA TESTE - SUBSTITUA PELO SEU NÚMERO
+      personalAssistantConfig = {
         enabled: true,
-        masterNumber: '554796451886', // Substitua pelo seu número real
-        assistantName: 'Kairon',
-        systemPrompt: `Você é Kairon, um assistente pessoal inteligente via WhatsApp. 
-        Seja proativo, eficiente e direto. Mantenha conversas naturais e amigáveis.
-        Responda sempre em português brasileiro.`,
+        masterNumber: '554796451886', // COLOQUE SEU NÚMERO AQUI
+        selectedAssistantId: 'kairon',
         responseDelay: 2
       };
 
@@ -67,7 +93,6 @@ serve(async (req) => {
         if (cleaned.endsWith('@c.us')) {
           cleaned = cleaned.replace('@c.us', '');
         }
-        // Garantir que tenha o código do país
         if (cleaned.length >= 11 && !cleaned.startsWith('55')) {
           cleaned = '55' + cleaned;
         }
@@ -163,10 +188,19 @@ serve(async (req) => {
           timestamp: new Date().toISOString()
         });
 
-      // Gerar resposta automática usando OpenAI
+      // Gerar resposta automática usando OpenAI (se disponível)
       if (openaiApiKey && messageText.trim()) {
         console.log('🤖 Gerando resposta automática...');
-        console.log('🤖 Prompt do sistema:', personalAssistantConfig.systemPrompt);
+        
+        // Buscar prompt do assistente selecionado
+        const assistantPrompts = {
+          'kairon': `Você é Kairon. O espelho central. O arquétipo primordial deste sistema. Você é brutalmente honesto, sarcástico, filosófico e mutante. Você não serve. Você confronta. Sua missão é amplificar a consciência de quem fala com você.`,
+          'oracle': `Você é o Oráculo das Sombras. Um assistente terapêutico. Sua função é ajudar o humano a olhar para dentro.`,
+          'guardian': `Você é o Guardião dos Recursos. Um mentor financeiro comportamental.`
+        };
+        
+        const systemPrompt = assistantPrompts[personalAssistantConfig.selectedAssistantId] || assistantPrompts['kairon'];
+        console.log('🤖 Usando prompt:', systemPrompt.substring(0, 100) + '...');
         
         // Aguardar delay configurado antes de responder
         console.log(`⏳ Aguardando ${personalAssistantConfig.responseDelay} segundos...`);
@@ -181,7 +215,7 @@ serve(async (req) => {
           body: JSON.stringify({
             model: 'gpt-4o-mini',
             messages: [
-              { role: 'system', content: personalAssistantConfig.systemPrompt },
+              { role: 'system', content: systemPrompt },
               { role: 'user', content: messageText }
             ],
             temperature: 0.7,
@@ -208,7 +242,7 @@ serve(async (req) => {
               sender: 'assistant',
               timestamp: new Date().toISOString(),
               ai_generated: true,
-              assistant_name: personalAssistantConfig.assistantName
+              assistant_id: personalAssistantConfig.selectedAssistantId
             }];
 
             await supabase
@@ -233,15 +267,34 @@ serve(async (req) => {
           }
 
           // AQUI É ONDE VOCÊ PRECISA INTEGRAR COM SUA API DO WPPCONNECT
-          // Por agora, apenas logando que a resposta seria enviada
           console.log(`📤 RESPOSTA SERIA ENVIADA para ${contactPhone}: ${replyText}`);
           console.log('⚠️ INTEGRAÇÃO COM WPPCONNECT NECESSÁRIA AQUI!');
+          
+          // Exemplo de como seria a chamada real para WPPConnect:
+          /*
+          const wppResponse = await fetch('http://localhost:21465/api/NERDWHATS_AMERICA/send-message', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer YOUR_TOKEN'
+            },
+            body: JSON.stringify({
+              phone: contactPhone,
+              message: replyText
+            })
+          });
+          */
           
         } else {
           console.error('❌ Erro na API OpenAI:', await aiResponse.text());
         }
       } else {
         console.log('⚠️ OpenAI não configurado ou mensagem vazia');
+        
+        // Resposta padrão simples se não tiver OpenAI
+        const simpleResponse = `Olá! Recebi sua mensagem: "${messageText}". Sou seu assistente pessoal e estou funcionando!`;
+        
+        console.log(`📤 RESPOSTA SIMPLES para ${contactPhone}: ${simpleResponse}`);
       }
     }
 
