@@ -264,6 +264,7 @@ export function RealWhatsAppMirror() {
     if (!contact) return;
 
     console.log('📤 Enviando mensagem real via WPPConnect...');
+    console.log('📱 Contato selecionado:', contact);
 
     const message: Message = {
       id: Date.now().toString(),
@@ -279,9 +280,10 @@ export function RealWhatsAppMirror() {
     setNewMessage('');
 
     try {
-      // Usar telefone formatado corretamente
+      // Usar telefone formatado corretamente para envio
       const phoneForSending = extractPhoneForSending(contact);
       console.log('📞 Enviando para telefone:', phoneForSending);
+      console.log('💬 Texto da mensagem:', messageText);
       
       const success = await sendWhatsAppMessage(phoneForSending, messageText);
       
@@ -290,17 +292,28 @@ export function RealWhatsAppMirror() {
           msg.id === message.id ? { ...msg, status: 'delivered' } : msg
         ));
         
-        toast({
-          title: "Mensagem enviada! ✅",
-          description: "Mensagem enviada via WPPConnect"
-        });
+        console.log('✅ Mensagem enviada com sucesso!');
       } else {
+        // Marcar como erro se não foi enviada
         setMessages(prev => prev.map(msg => 
-          msg.id === message.id ? { ...msg, status: 'sent' } : msg
+          msg.id === message.id ? { ...msg, status: 'sent', text: `❌ ${msg.text} (Erro no envio)` } : msg
         ));
+        
+        console.error('❌ Falha no envio da mensagem');
       }
     } catch (error) {
-      console.error('❌ Erro ao enviar:', error);
+      console.error('❌ Erro ao enviar mensagem:', error);
+      
+      // Marcar mensagem com erro
+      setMessages(prev => prev.map(msg => 
+        msg.id === message.id ? { ...msg, status: 'sent', text: `❌ ${msg.text} (Erro de conexão)` } : msg
+      ));
+      
+      toast({
+        title: "❌ Erro ao enviar",
+        description: "Verifique se o WPPConnect está rodando e conectado",
+        variant: "destructive"
+      });
     }
   };
 

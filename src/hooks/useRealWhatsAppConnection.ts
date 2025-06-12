@@ -1,3 +1,4 @@
+
 import { useState, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -330,7 +331,8 @@ export function useRealWhatsAppConnection() {
       const formattedPhone = formatPhoneNumber(phone);
       console.log('📞 Telefone formatado:', formattedPhone);
       
-      const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/send-text`, {
+      // Usar endpoint correto do WPPConnect
+      const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/send-message`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -338,15 +340,17 @@ export function useRealWhatsAppConnection() {
         },
         body: JSON.stringify({
           phone: formattedPhone,
-          message: message
+          message: message,
+          isGroup: false
         })
       });
 
-      console.log('📤 Send message response:', response.status);
+      console.log('📤 Send message response status:', response.status);
+      console.log('📤 Send message response headers:', response.headers);
 
       if (response.ok) {
         const result = await response.json();
-        console.log('✅ Mensagem enviada:', result);
+        console.log('✅ Mensagem enviada com sucesso:', result);
         
         toast({
           title: "✅ Mensagem enviada!",
@@ -355,21 +359,54 @@ export function useRealWhatsAppConnection() {
         return true;
       } else {
         const errorText = await response.text();
-        console.error('❌ Erro ao enviar:', errorText);
-        
-        toast({
-          title: "❌ Erro ao enviar",
-          description: `Erro: ${response.status}`,
-          variant: "destructive"
+        console.error('❌ Erro ao enviar mensagem:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorText
         });
-        return false;
+        
+        // Tentar endpoint alternativo se o primeiro falhar
+        console.log('🔄 Tentando endpoint alternativo...');
+        
+        const altResponse = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/send-text`, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${wppConfig.token}`
+          },
+          body: JSON.stringify({
+            phone: formattedPhone,
+            message: message
+          })
+        });
+
+        if (altResponse.ok) {
+          const altResult = await altResponse.json();
+          console.log('✅ Mensagem enviada com endpoint alternativo:', altResult);
+          
+          toast({
+            title: "✅ Mensagem enviada!",
+            description: "Mensagem enviada via WPPConnect"
+          });
+          return true;
+        } else {
+          const altErrorText = await altResponse.text();
+          console.error('❌ Erro no endpoint alternativo:', altErrorText);
+          
+          toast({
+            title: "❌ Erro ao enviar mensagem",
+            description: `Erro ${response.status}: Verifique se o WPPConnect está funcionando`,
+            variant: "destructive"
+          });
+          return false;
+        }
       }
     } catch (error) {
-      console.error('❌ Erro ao enviar mensagem:', error);
+      console.error('❌ Erro de conexão ao enviar mensagem:', error);
       
       toast({
         title: "❌ Erro de conexão",
-        description: "Não foi possível enviar a mensagem",
+        description: "Não foi possível conectar com o servidor WPPConnect",
         variant: "destructive"
       });
       return false;
