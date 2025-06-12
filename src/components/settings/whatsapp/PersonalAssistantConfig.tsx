@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Brain, MessageSquare, Settings, Loader2, TestTube, Send, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
+import { Brain, MessageSquare, Settings, Loader2, TestTube, Send, CheckCircle, XCircle, RefreshCw, Webhook } from 'lucide-react';
 import { usePersonalAssistant } from "@/hooks/usePersonalAssistant";
 import { useRealWhatsAppConnection } from "@/hooks/useRealWhatsAppConnection";
 import { AssistantSelector } from "@/components/AssistantSelector";
@@ -15,17 +14,59 @@ import { useState, useEffect } from 'react';
 
 export function PersonalAssistantConfig() {
   const { config, updateConfig, recentMessages } = usePersonalAssistant();
-  const { processWebhookMessage, sendMessage, wppConfig } = useRealWhatsAppConnection();
+  const { processWebhookMessage, sendMessage, wppConfig, configureWebhookOnWPP } = useRealWhatsAppConnection();
   const [isTestingWebhook, setIsTestingWebhook] = useState(false);
   const [isTestingResponse, setIsTestingResponse] = useState(false);
   const [isMonitoring, setIsMonitoring] = useState(false);
+  const [isConfiguringWebhook, setIsConfiguringWebhook] = useState(false);
   const [testMessage, setTestMessage] = useState('Olá, você está funcionando?');
   const [lastMessageCheck, setLastMessageCheck] = useState<Date>(new Date());
   const [testResults, setTestResults] = useState<{
     webhookTest?: { success: boolean; message: string };
     responseTest?: { success: boolean; message: string };
     monitoringTest?: { success: boolean; message: string };
+    webhookConfig?: { success: boolean; message: string };
   }>({});
+
+  // Função para configurar webhook automático
+  const handleConfigureWebhook = async () => {
+    console.log('🔧 [CONFIG] Configurando webhook automático...');
+    setIsConfiguringWebhook(true);
+    setTestResults(prev => ({ ...prev, webhookConfig: undefined }));
+
+    try {
+      const success = await configureWebhookOnWPP();
+      
+      if (success) {
+        setTestResults(prev => ({
+          ...prev,
+          webhookConfig: {
+            success: true,
+            message: 'Webhook configurado! Agora o WPPConnect enviará mensagens automaticamente para o assistente.'
+          }
+        }));
+      } else {
+        setTestResults(prev => ({
+          ...prev,
+          webhookConfig: {
+            success: false,
+            message: 'Falha ao configurar webhook. Verifique se o WPPConnect está rodando e as configurações estão corretas.'
+          }
+        }));
+      }
+    } catch (error) {
+      console.error('❌ [CONFIG] Erro ao configurar webhook:', error);
+      setTestResults(prev => ({
+        ...prev,
+        webhookConfig: {
+          success: false,
+          message: `Erro ao configurar webhook: ${error instanceof Error ? error.message : 'Erro desconhecido'}`
+        }
+      }));
+    } finally {
+      setIsConfiguringWebhook(false);
+    }
+  };
 
   // Função para monitorar mensagens em tempo real
   const startMessageMonitoring = async () => {
@@ -271,6 +312,63 @@ export function PersonalAssistantConfig() {
 
           <Separator />
 
+          {/* Configuração do Webhook Automático */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <Webhook className="h-5 w-5 text-blue-600" />
+              <h3 className="text-lg font-semibold">Configuração Automática</h3>
+            </div>
+
+            <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <h4 className="font-medium text-blue-900 mb-2">🔧 Webhook Automático</h4>
+              <p className="text-sm text-blue-700 mb-3">
+                Para que o assistente responda automaticamente, é preciso configurar o webhook no WPPConnect. 
+                Clique no botão abaixo para configurar automaticamente.
+              </p>
+              
+              <Button
+                onClick={handleConfigureWebhook}
+                disabled={isConfiguringWebhook}
+                className="w-full mb-3"
+                variant="default"
+              >
+                {isConfiguringWebhook ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Configurando Webhook...
+                  </>
+                ) : (
+                  <>
+                    <Webhook className="h-4 w-4 mr-2" />
+                    Configurar Webhook Automático
+                  </>
+                )}
+              </Button>
+
+              {testResults.webhookConfig && (
+                <div className={`p-3 rounded-lg border text-sm ${
+                  testResults.webhookConfig.success 
+                    ? 'bg-green-50 border-green-200 text-green-800' 
+                    : 'bg-red-50 border-red-200 text-red-800'
+                }`}>
+                  <div className="flex items-center gap-2 mb-1">
+                    {testResults.webhookConfig.success ? (
+                      <CheckCircle className="h-4 w-4" />
+                    ) : (
+                      <XCircle className="h-4 w-4" />
+                    )}
+                    <span className="font-medium">
+                      {testResults.webhookConfig.success ? 'Webhook Configurado!' : 'Erro na Configuração'}
+                    </span>
+                  </div>
+                  <p>{testResults.webhookConfig.message}</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <Separator />
+
           {/* Seção de Testes */}
           <div className="space-y-4">
             <div className="flex items-center gap-2">
@@ -418,13 +516,13 @@ export function PersonalAssistantConfig() {
             </div>
 
             <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-              <h4 className="font-medium text-blue-900 mb-2">💡 Como usar os testes:</h4>
+              <h4 className="font-medium text-blue-900 mb-2">💡 Como usar os recursos:</h4>
               <ul className="text-sm text-blue-700 space-y-1 list-disc list-inside">
+                <li><strong>Configurar Webhook Automático:</strong> Configure uma vez para receber mensagens automaticamente</li>
                 <li><strong>Testar Processamento:</strong> Simula uma mensagem chegando via webhook e verifica se o assistente processa corretamente</li>
                 <li><strong>Testar Envio Direto:</strong> Envia uma mensagem de teste diretamente para seu WhatsApp</li>
                 <li><strong>Monitorar Mensagens:</strong> Verifica automaticamente por 5 minutos se há mensagens novas e processa elas</li>
-                <li>Use todos os testes para identificar onde pode estar o problema</li>
-                <li>Verifique os logs do console para detalhes adicionais</li>
+                <li>Use "Configurar Webhook" primeiro, depois teste o funcionamento com os outros botões</li>
               </ul>
             </div>
           </div>
@@ -465,9 +563,9 @@ export function PersonalAssistantConfig() {
               <li>Configure seu número master (apenas números, com código do país)</li>
               <li>Selecione um assistente da lista</li>
               <li>Ative o assistente</li>
+              <li><strong>IMPORTANTE:</strong> Clique em "Configurar Webhook Automático" para receber mensagens automaticamente</li>
               <li>Use os botões de teste para verificar se está funcionando</li>
-              <li>Use "Monitorar Mensagens" para simular o recebimento automático</li>
-              <li>Envie uma mensagem para seu próprio WhatsApp para testar na prática</li>
+              <li>Agora envie mensagens do seu WhatsApp - o assistente deve responder automaticamente!</li>
             </ol>
           </div>
         </CardContent>

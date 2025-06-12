@@ -56,7 +56,7 @@ export function useRealWhatsAppConnection() {
       qrWebhook: '',
       statusWebhook: '',
       sendMessageWebhook: '',
-      autoReplyWebhook: ''
+      autoReplyWebhook: window.location.origin + '/api/whatsapp-webhook'
     };
   });
 
@@ -105,6 +105,63 @@ export function useRealWhatsAppConnection() {
     console.log('📞 [WPP] Número formatado:', formattedPhone);
     return formattedPhone;
   };
+
+  // Função para configurar webhook automático no WPPConnect
+  const configureWebhookOnWPP = useCallback(async () => {
+    console.log('🔧 [WPP] Configurando webhook automático no WPPConnect...');
+    
+    try {
+      // URL do webhook que aponta para a edge function do Supabase
+      const webhookUrl = `${window.location.origin.includes('localhost') ? 'https://your-project.supabase.co' : window.location.origin}/functions/v1/whatsapp-autoreply`;
+      
+      console.log('🔧 [WPP] URL do webhook:', webhookUrl);
+      
+      // Configurar webhook para receber mensagens
+      const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/set-webhook`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${wppConfig.token}`
+        },
+        body: JSON.stringify({
+          webhook: webhookUrl,
+          events: ['message', 'onMessage']
+        })
+      });
+
+      if (response.ok) {
+        console.log('✅ [WPP] Webhook configurado com sucesso!');
+        
+        toast({
+          title: "🔗 Webhook configurado!",
+          description: "WPPConnect agora enviará mensagens automaticamente para o assistente"
+        });
+        
+        return true;
+      } else {
+        const errorText = await response.text();
+        console.error('❌ [WPP] Erro ao configurar webhook:', response.status, errorText);
+        
+        toast({
+          title: "❌ Erro no webhook",
+          description: "Não foi possível configurar o webhook automático",
+          variant: "destructive"
+        });
+        
+        return false;
+      }
+    } catch (error) {
+      console.error('❌ [WPP] Erro ao configurar webhook:', error);
+      
+      toast({
+        title: "❌ Erro de conexão",
+        description: "Falha ao conectar com o WPPConnect para configurar webhook",
+        variant: "destructive"
+      });
+      
+      return false;
+    }
+  }, [wppConfig, toast]);
 
   // Função para atualizar limite de histórico
   const updateMessageHistoryLimit = useCallback((newLimit: number) => {
@@ -245,6 +302,9 @@ export function useRealWhatsAppConnection() {
             qrCode: ''
           }));
           
+          // Configurar webhook automaticamente quando conectar
+          await configureWebhookOnWPP();
+          
           toast({
             title: "✅ Já conectado!",
             description: "WhatsApp já está conectado"
@@ -270,7 +330,7 @@ export function useRealWhatsAppConnection() {
     } finally {
       setIsLoading(false);
     }
-  }, [toast, wppConfig]);
+  }, [toast, wppConfig, configureWebhookOnWPP]);
 
   const startStatusPolling = useCallback(() => {
     const pollInterval = setInterval(async () => {
@@ -302,9 +362,12 @@ export function useRealWhatsAppConnection() {
               lastConnected: new Date().toISOString()
             }));
             
+            // Configurar webhook automaticamente quando conectar
+            await configureWebhookOnWPP();
+            
             toast({
               title: "🎉 WhatsApp conectado!",
-              description: `Conectado com sucesso!`
+              description: `Conectado com sucesso! Webhook configurado automaticamente.`
             });
             
             clearInterval(pollInterval);
@@ -318,7 +381,7 @@ export function useRealWhatsAppConnection() {
     setTimeout(() => {
       clearInterval(pollInterval);
     }, 120000);
-  }, [toast, wppConfig]);
+  }, [toast, wppConfig, configureWebhookOnWPP]);
 
   const checkConnectionStatus = useCallback(async () => {
     try {
@@ -721,6 +784,7 @@ export function useRealWhatsAppConnection() {
     isConversationMarkedForAnalysis,
     getAnalysisPriority,
     processWebhookMessage,
-    assistantConfig
+    assistantConfig,
+    configureWebhookOnWPP
   };
 }
