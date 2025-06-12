@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -25,7 +24,8 @@ import {
   TrendingUp,
   AlertTriangle,
   Search,
-  Volume2
+  Volume2,
+  Loader2
 } from 'lucide-react';
 
 interface Contact {
@@ -79,6 +79,8 @@ export function RealWhatsAppMirror() {
   const [searchTerm, setSearchTerm] = useState('');
   const [showHistoryConfig, setShowHistoryConfig] = useState(false);
   const [tempHistoryLimit, setTempHistoryLimit] = useState(messageHistoryLimit);
+  const [isAutoChecking, setIsAutoChecking] = useState(false);
+  const [hasAutoChecked, setHasAutoChecked] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -87,6 +89,58 @@ export function RealWhatsAppMirror() {
 
   const connectionStatus = getConnectionStatus();
   const isConnected = connectionState.isConnected;
+
+  // ===== VERIFICAÇÃO AUTOMÁTICA AO ENTRAR NA PÁGINA =====
+  useEffect(() => {
+    const performAutoCheck = async () => {
+      if (hasAutoChecked) return;
+      
+      console.log('🔄 [AUTO] Iniciando verificação automática...');
+      setIsAutoChecking(true);
+      setHasAutoChecked(true);
+      
+      try {
+        // Primeiro verificar o status da conexão
+        console.log('🔍 [AUTO] Verificando status da conexão...');
+        const isCurrentlyConnected = await checkConnectionStatus();
+        
+        if (isCurrentlyConnected) {
+          console.log('✅ [AUTO] WhatsApp conectado! Carregando conversas...');
+          
+          toast({
+            title: "🔄 Carregando automaticamente",
+            description: "WhatsApp conectado, carregando suas conversas...",
+          });
+          
+          // Se conectado, carregar conversas automaticamente
+          await handleLoadRealChats(true);
+        } else {
+          console.log('❌ [AUTO] WhatsApp não conectado');
+          
+          toast({
+            title: "📱 WhatsApp desconectado",
+            description: "Gere um QR Code para conectar seu WhatsApp",
+            variant: "destructive"
+          });
+        }
+      } catch (error) {
+        console.error('❌ [AUTO] Erro na verificação automática:', error);
+        
+        toast({
+          title: "⚠️ Erro na verificação",
+          description: "Não foi possível verificar o status automaticamente",
+          variant: "destructive"
+        });
+      } finally {
+        setIsAutoChecking(false);
+      }
+    };
+
+    // Executar verificação automática após 500ms (para dar tempo da interface carregar)
+    const timer = setTimeout(performAutoCheck, 500);
+    
+    return () => clearInterval(timer);
+  }, []); // Executar apenas uma vez ao montar o componente
 
   // Helper functions
   const extractPhoneNumber = (phoneData: any): string => {
@@ -187,14 +241,8 @@ export function RealWhatsAppMirror() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  useEffect(() => {
-    if (isConnected) {
-      handleLoadRealChats();
-    }
-  }, [isConnected]);
-
-  const handleLoadRealChats = async () => {
-    if (!isConnected) {
+  const handleLoadRealChats = async (isAutomatic = false) => {
+    if (!isConnected && !isAutomatic) {
       toast({
         title: "WhatsApp não conectado",
         description: "Conecte seu WhatsApp primeiro",
@@ -210,11 +258,14 @@ export function RealWhatsAppMirror() {
       
       if (!chatsData || chatsData.length === 0) {
         setContacts([]);
-        toast({
-          title: "Nenhuma conversa encontrada",
-          description: "Não há conversas disponíveis no momento",
-          variant: "destructive"
-        });
+        
+        if (!isAutomatic) {
+          toast({
+            title: "Nenhuma conversa encontrada",
+            description: "Não há conversas disponíveis no momento",
+            variant: "destructive"
+          });
+        }
         return;
       }
       
@@ -236,21 +287,27 @@ export function RealWhatsAppMirror() {
       
       setContacts(realContacts);
       
-      toast({
-        title: "Conversas carregadas! 📱",
-        description: `${realContacts.length} conversas encontradas`
-      });
+      if (!isAutomatic) {
+        toast({
+          title: "Conversas carregadas! 📱",
+          description: `${realContacts.length} conversas encontradas`
+        });
+      } else {
+        console.log(`✅ [AUTO] ${realContacts.length} conversas carregadas automaticamente`);
+      }
       
     } catch (error) {
       console.error('❌ Erro ao carregar conversas:', error);
       
       setContacts([]);
       
-      toast({
-        title: "Erro ao carregar conversas",
-        description: error instanceof Error ? error.message : "Verifique se o WPPConnect está rodando corretamente",
-        variant: "destructive"
-      });
+      if (!isAutomatic) {
+        toast({
+          title: "Erro ao carregar conversas",
+          description: error instanceof Error ? error.message : "Verifique se o WPPConnect está rodando corretamente",
+          variant: "destructive"
+        });
+      }
     } finally {
       setIsLoadingChats(false);
     }
@@ -421,9 +478,15 @@ export function RealWhatsAppMirror() {
             <Smartphone className="h-5 w-5" />
             WPPConnect Real - {wppConfig.sessionName}
             {isConnected && <CheckCircle className="h-5 w-5 text-green-500" />}
+            {isAutoChecking && <Loader2 className="h-5 w-5 text-blue-500 animate-spin" />}
           </CardTitle>
           <CardDescription className="text-green-700">
             Conecta seu WhatsApp via WPPConnect API ({wppConfig.serverUrl})
+            {isAutoChecking && (
+              <span className="block text-blue-600 font-medium mt-1">
+                🔄 Verificando status e carregando conversas automaticamente...
+              </span>
+            )}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -455,7 +518,7 @@ export function RealWhatsAppMirror() {
                     Histórico ({messageHistoryLimit})
                   </Button>
                   <Button 
-                    onClick={handleLoadRealChats} 
+                    onClick={() => handleLoadRealChats(false)} 
                     variant="outline" 
                     size="sm"
                     disabled={isLoadingChats}
@@ -617,7 +680,7 @@ export function RealWhatsAppMirror() {
                         <Button 
                           variant="outline" 
                           size="sm" 
-                          onClick={handleLoadRealChats}
+                          onClick={() => handleLoadRealChats(false)}
                           disabled={isLoadingChats}
                           className="mt-2"
                         >
