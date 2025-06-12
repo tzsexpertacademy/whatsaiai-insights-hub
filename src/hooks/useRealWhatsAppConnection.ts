@@ -454,12 +454,10 @@ export function useRealWhatsAppConnection() {
         console.log('✅ [WPP] Mensagem enviada com sucesso:', result);
         
         // Se for resposta do assistente, não mostrar toast padrão
-        if (!message.includes(assistantConfig.assistantName)) {
-          toast({
-            title: "✅ Mensagem enviada!",
-            description: "Mensagem enviada via WPPConnect"
-          });
-        }
+        toast({
+          title: "✅ Mensagem enviada!",
+          description: "Mensagem enviada via WPPConnect"
+        });
         
         return true;
       } else {
@@ -483,9 +481,8 @@ export function useRealWhatsAppConnection() {
       });
       return false;
     }
-  }, [toast, wppConfig, assistantConfig.assistantName]);
+  }, [toast, wppConfig]);
 
-  // Função para carregar conversas reais
   const loadRealChats = useCallback(async () => {
     console.log('📱 Carregando conversas reais da API WPPConnect...');
     
@@ -553,7 +550,6 @@ export function useRealWhatsAppConnection() {
     }
   }, [wppConfig, cachedChats, toast]);
 
-  // Função para carregar mensagens de uma conversa
   const loadRealMessages = useCallback(async (contactId: string) => {
     console.log('📤 Carregando mensagens reais para:', contactId);
     
