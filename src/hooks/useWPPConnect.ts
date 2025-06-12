@@ -71,17 +71,6 @@ export function useWPPConnect() {
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const [messageHistoryLimit, setMessageHistoryLimit] = useState(50);
 
-  // Lista REDUZIDA de tokens inválidos - ACEITA THISISMYSECURETOKEN
-  const INVALID_TOKENS = [
-    'YOUR_SECRET_KEY_HERE',
-    'YOUR_TOKEN_HERE',
-    'DEFAULT_TOKEN',
-    'CHANGE_ME',
-    '',
-    undefined,
-    null
-  ];
-
   // Carregar estado salvo na inicialização
   useEffect(() => {
     console.log('🔄 Carregando estado salvo do WPPConnect...');
@@ -136,7 +125,18 @@ export function useWPPConnect() {
 
   const saveWPPConfig = (config: WPPConfig) => {
     try {
-      // Validar se os tokens não são valores inválidos (mas aceitar THISISMYSECURETOKEN)
+      // Lista de tokens inválidos (ACEITA THISISMYSECURETOKEN)
+      const INVALID_TOKENS = [
+        'YOUR_SECRET_KEY_HERE',
+        'YOUR_TOKEN_HERE',
+        'DEFAULT_TOKEN',
+        'CHANGE_ME',
+        '',
+        undefined,
+        null
+      ];
+
+      // Validar se os tokens não são valores inválidos
       if (INVALID_TOKENS.includes(config.secretKey)) {
         console.error('❌ Secret Key inválido detectado:', config.secretKey);
         toast({
@@ -163,14 +163,7 @@ export function useWPPConnect() {
       localStorage.setItem('wpp_token', config.token);
       localStorage.setItem('wpp_webhook_url', config.webhookUrl || '');
       
-      console.log('💾 Config WPPConnect salvo com tokens válidos:', {
-        sessionName: config.sessionName,
-        serverUrl: config.serverUrl,
-        secretKey: config.secretKey ? `***${config.secretKey.slice(-4)}***` : 'NOT_SET',
-        token: config.token ? `***${config.token.slice(-4)}***` : 'NOT_SET',
-        webhookUrl: config.webhookUrl
-      });
-      
+      console.log('💾 Config WPPConnect salvo com tokens válidos');
       return true;
     } catch (error) {
       console.error('❌ Erro ao salvar config WPPConnect:', error);
@@ -180,8 +173,16 @@ export function useWPPConnect() {
 
   const isTokenValid = () => {
     const config = getWPPConfig();
+    const INVALID_TOKENS = [
+      'YOUR_SECRET_KEY_HERE',
+      'YOUR_TOKEN_HERE', 
+      'DEFAULT_TOKEN',
+      'CHANGE_ME',
+      '',
+      undefined,
+      null
+    ];
     
-    // Verificar se os valores não são inválidos (ACEITA THISISMYSECURETOKEN)
     const isSecretKeyValid = !INVALID_TOKENS.includes(config.secretKey) && 
                             config.secretKey && 
                             config.secretKey.length > 0;
@@ -194,8 +195,7 @@ export function useWPPConnect() {
       secretKeyValid: isSecretKeyValid,
       tokenValid: isTokenValid,
       secretKeyLength: config.secretKey?.length || 0,
-      tokenLength: config.token?.length || 0,
-      secretKeyValue: config.secretKey || 'VAZIO'
+      tokenLength: config.token?.length || 0
     });
 
     return isSecretKeyValid && isTokenValid;
@@ -204,20 +204,10 @@ export function useWPPConnect() {
   const generateQRCode = async (): Promise<string | null> => {
     console.log('🔄 Gerando QR Code WPPConnect...');
     
-    // Verificação de tokens
     if (!isTokenValid()) {
-      const config = getWPPConfig();
-      let errorMessage = "Configure Secret Key e Token válidos do WPPConnect primeiro";
-      
-      if (INVALID_TOKENS.includes(config.secretKey)) {
-        errorMessage = "Secret Key não pode estar vazio. Configure um valor válido na aba WPPConnect.";
-      } else if (INVALID_TOKENS.includes(config.token)) {
-        errorMessage = "Token não pode estar vazio. Configure um valor válido na aba WPPConnect.";
-      }
-      
       toast({
         title: "❌ Configuração incompleta",
-        description: errorMessage,
+        description: "Configure Secret Key e Token válidos do WPPConnect primeiro",
         variant: "destructive"
       });
       return null;
@@ -227,13 +217,38 @@ export function useWPPConnect() {
     setSessionStatus(prev => ({ ...prev, isLoading: true, status: 'connecting' }));
 
     try {
-      // CORREÇÃO: Usar endpoint /start-session que é padrão no WPPConnect
+      // Primeiro, gerar token se necessário (conforme mostrado na imagem)
+      console.log('🔑 Gerando token de sessão...');
+      const tokenResponse = await fetch(`${config.serverUrl}/api/${config.secretKey}/generate-token`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': '*/*'
+        },
+        body: JSON.stringify({
+          session: config.sessionName,
+          secretkey: config.secretKey
+        })
+      });
+
+      let sessionToken = config.token;
+      if (tokenResponse.ok) {
+        const tokenData = await tokenResponse.json();
+        if (tokenData.token) {
+          sessionToken = tokenData.token;
+          // Salvar o novo token
+          localStorage.setItem('wpp_token', sessionToken);
+          console.log('✅ Token de sessão gerado/atualizado');
+        }
+      }
+
+      // Agora iniciar a sessão com o endpoint correto
       console.log('📱 Iniciando sessão WPPConnect...');
       const response = await fetch(`${config.serverUrl}/api/${config.sessionName}/start-session`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${config.secretKey}`
+          'Authorization': `Bearer ${sessionToken}`
         },
         body: JSON.stringify({
           webhook: config.webhookUrl || undefined,
@@ -252,7 +267,7 @@ export function useWPPConnect() {
         console.log('⚠️ Erro na criação de sessão:', errorText);
         
         if (response.status === 401) {
-          throw new Error('Secret Key inválido. Verifique suas credenciais na aba WPPConnect.');
+          throw new Error('Token/Secret Key inválido. Verifique suas credenciais na aba WPPConnect.');
         }
         
         throw new Error(`Erro HTTP: ${response.status} - ${errorText}`);
@@ -351,10 +366,9 @@ export function useWPPConnect() {
     const config = getWPPConfig();
 
     try {
-      // CORREÇÃO: Usar endpoint /check-connection-session ou /status-session
       const response = await fetch(`${config.serverUrl}/api/${config.sessionName}/check-connection-session`, {
         headers: {
-          'Authorization': `Bearer ${config.secretKey}`
+          'Authorization': `Bearer ${config.token}`
         }
       });
 
@@ -362,7 +376,7 @@ export function useWPPConnect() {
         // Tentar endpoint alternativo
         const altResponse = await fetch(`${config.serverUrl}/api/${config.sessionName}/status-session`, {
           headers: {
-            'Authorization': `Bearer ${config.secretKey}`
+            'Authorization': `Bearer ${config.token}`
           }
         });
         
@@ -421,12 +435,8 @@ export function useWPPConnect() {
   };
 
   const loadRealChats = async () => {
-    if (!isTokenValid()) {
-      throw new Error('Secret Key e Token não configurados');
-    }
-
-    if (!sessionStatus.isConnected) {
-      throw new Error('WhatsApp não conectado');
+    if (!isTokenValid() || !sessionStatus.isConnected) {
+      throw new Error('WhatsApp não conectado ou credenciais inválidas');
     }
 
     const config = getWPPConfig();
@@ -436,8 +446,7 @@ export function useWPPConnect() {
       console.log('📞 Carregando conversas reais...');
       const response = await fetch(`${config.serverUrl}/api/${config.sessionName}/all-chats`, {
         headers: {
-          'Authorization': `Bearer ${config.secretKey}`,
-          'X-Session-Token': config.token
+          'Authorization': `Bearer ${config.token}`
         }
       });
 
@@ -507,8 +516,7 @@ export function useWPPConnect() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${config.secretKey}`,
-          'X-Session-Token': config.token
+          'Authorization': `Bearer ${config.token}`
         },
         body: JSON.stringify({
           phone: chatId,
@@ -570,8 +578,7 @@ export function useWPPConnect() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${config.secretKey}`,
-          'X-Session-Token': config.token
+          'Authorization': `Bearer ${config.token}`
         },
         body: JSON.stringify({
           phone: chatId,
@@ -610,8 +617,7 @@ export function useWPPConnect() {
         await fetch(`${config.serverUrl}/api/${config.sessionName}/close-session`, {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${config.secretKey}`,
-            'X-Session-Token': config.token
+            'Authorization': `Bearer ${config.token}`
           }
         });
       } catch (error) {
