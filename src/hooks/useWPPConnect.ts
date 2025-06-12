@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useToast } from "@/hooks/use-toast";
 
@@ -226,9 +227,9 @@ export function useWPPConnect() {
     setSessionStatus(prev => ({ ...prev, isLoading: true, status: 'connecting' }));
 
     try {
-      // CORREÇÃO: Usar headers corretos conforme mostrado na API
-      console.log('📱 Gerando QR Code via WPPConnect...');
-      const qrResponse = await fetch(`${config.serverUrl}/api/${config.sessionName}/qrcode-session`, {
+      // CORREÇÃO: Usar endpoint /start-session que é padrão no WPPConnect
+      console.log('📱 Iniciando sessão WPPConnect...');
+      const response = await fetch(`${config.serverUrl}/api/${config.sessionName}/start-session`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -240,28 +241,29 @@ export function useWPPConnect() {
         })
       });
 
-      console.log('📊 Resposta do QR Code:', {
-        status: qrResponse.status,
-        statusText: qrResponse.statusText,
-        ok: qrResponse.ok
+      console.log('📊 Resposta da sessão:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
       });
 
-      if (!qrResponse.ok) {
-        const errorText = await qrResponse.text();
-        console.log('⚠️ Erro na geração de QR Code:', errorText);
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.log('⚠️ Erro na criação de sessão:', errorText);
         
-        if (qrResponse.status === 401) {
+        if (response.status === 401) {
           throw new Error('Secret Key inválido. Verifique suas credenciais na aba WPPConnect.');
         }
         
-        throw new Error(`Erro HTTP: ${qrResponse.status} - ${errorText}`);
+        throw new Error(`Erro HTTP: ${response.status} - ${errorText}`);
       }
 
-      const data = await qrResponse.json();
-      console.log('📋 Resposta do QR Code:', data);
+      const data = await response.json();
+      console.log('📋 Resposta da sessão:', data);
       
-      if (data.qrcode || data.qr || data.base64) {
-        const qrCode = data.qrcode || data.qr || data.base64;
+      // Verificar diferentes formatos de resposta do QR Code
+      if (data.qrcode || data.qr || data.base64 || data.qr_code) {
+        const qrCode = data.qrcode || data.qr || data.base64 || data.qr_code;
         setSessionStatus(prev => ({
           ...prev,
           qrCode: qrCode,
@@ -279,6 +281,25 @@ export function useWPPConnect() {
         startStatusCheck();
         
         return qrCode;
+      }
+      
+      // Se não há QR Code, talvez a sessão já esteja conectada
+      if (data.connected || data.status === 'connected') {
+        setSessionStatus(prev => ({
+          ...prev,
+          isConnected: true,
+          phoneNumber: data.phoneNumber || data.number || 'Conectado',
+          lastConnected: new Date().toISOString(),
+          status: 'connected',
+          isLoading: false
+        }));
+        
+        toast({
+          title: "🎉 WhatsApp já conectado!",
+          description: `Sessão ativa: ${data.phoneNumber || data.number || 'sucesso'}`
+        });
+        
+        return null;
       }
       
       throw new Error('QR Code não encontrado na resposta');
@@ -330,14 +351,44 @@ export function useWPPConnect() {
     const config = getWPPConfig();
 
     try {
-      // CORREÇÃO: Usar endpoint correto para verificar status
-      const response = await fetch(`${config.serverUrl}/api/${config.sessionName}/status-session`, {
+      // CORREÇÃO: Usar endpoint /check-connection-session ou /status-session
+      const response = await fetch(`${config.serverUrl}/api/${config.sessionName}/check-connection-session`, {
         headers: {
           'Authorization': `Bearer ${config.secretKey}`
         }
       });
 
       if (!response.ok) {
+        // Tentar endpoint alternativo
+        const altResponse = await fetch(`${config.serverUrl}/api/${config.sessionName}/status-session`, {
+          headers: {
+            'Authorization': `Bearer ${config.secretKey}`
+          }
+        });
+        
+        if (!altResponse.ok) {
+          return false;
+        }
+        
+        const altData = await altResponse.json();
+        if (altData.connected || altData.status === 'connected') {
+          setSessionStatus(prev => ({
+            ...prev,
+            isConnected: true,
+            qrCode: '',
+            phoneNumber: altData.phoneNumber || altData.number || 'Conectado',
+            lastConnected: new Date().toISOString(),
+            status: 'connected'
+          }));
+          
+          toast({
+            title: "🎉 WhatsApp conectado!",
+            description: `Conectado com ${altData.phoneNumber || altData.number || 'sucesso'}`
+          });
+          
+          return true;
+        }
+        
         return false;
       }
 
