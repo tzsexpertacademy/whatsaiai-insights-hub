@@ -12,22 +12,29 @@ import { Pin, Brain, Star, TrendingUp, AlertTriangle } from 'lucide-react';
 interface ConversationContextMenuProps {
   children: React.ReactNode;
   chatId: string;
-  isPinned: boolean;
-  isMarkedForAnalysis: boolean;
-  analysisPriority: 'high' | 'medium' | 'low';
-  onTogglePin: (chatId: string) => void;
-  onToggleAnalysis: (chatId: string, priority?: 'high' | 'medium' | 'low') => void;
+  chatName: string;
 }
 
 export function ConversationContextMenu({ 
   children, 
   chatId, 
-  isPinned, 
-  isMarkedForAnalysis, 
-  analysisPriority,
-  onTogglePin, 
-  onToggleAnalysis 
+  chatName 
 }: ConversationContextMenuProps) {
+  // For now, we'll create placeholder functions
+  // These will be properly implemented when the real context menu functionality is needed
+  const handleTogglePin = (chatId: string) => {
+    console.log('Toggle pin for chat:', chatId);
+  };
+
+  const handleToggleAnalysis = (chatId: string, priority?: 'high' | 'medium' | 'low') => {
+    console.log('Toggle analysis for chat:', chatId, 'priority:', priority);
+  };
+
+  // Placeholder values - these would come from a real state management system
+  const isPinned = false;
+  const isMarkedForAnalysis = false;
+  const analysisPriority: 'high' | 'medium' | 'low' = 'low';
+
   const getPriorityIcon = (priority: 'high' | 'medium' | 'low') => {
     switch (priority) {
       case 'high': return <AlertTriangle className="h-4 w-4 text-red-500" />;
@@ -50,14 +57,14 @@ export function ConversationContextMenu({
         {children}
       </ContextMenuTrigger>
       <ContextMenuContent className="w-56">
-        <ContextMenuItem onClick={() => onTogglePin(chatId)}>
+        <ContextMenuItem onClick={() => handleTogglePin(chatId)}>
           <Pin className={`mr-2 h-4 w-4 ${isPinned ? 'text-blue-500' : 'text-gray-500'}`} />
           {isPinned ? 'Desfixar conversa' : 'Fixar conversa'}
         </ContextMenuItem>
         
         <ContextMenuSeparator />
         
-        <ContextMenuItem onClick={() => onToggleAnalysis(chatId)}>
+        <ContextMenuItem onClick={() => handleToggleAnalysis(chatId)}>
           <Brain className={`mr-2 h-4 w-4 ${isMarkedForAnalysis ? 'text-green-500' : 'text-gray-500'}`} />
           {isMarkedForAnalysis ? 'Remover da análise IA' : 'Marcar para análise IA'}
         </ContextMenuItem>
@@ -66,17 +73,17 @@ export function ConversationContextMenu({
           <>
             <ContextMenuSeparator />
             
-            <ContextMenuItem onClick={() => onToggleAnalysis(chatId, 'high')}>
+            <ContextMenuItem onClick={() => handleToggleAnalysis(chatId, 'high')}>
               <AlertTriangle className="mr-2 h-4 w-4 text-red-500" />
               Prioridade Alta
             </ContextMenuItem>
             
-            <ContextMenuItem onClick={() => onToggleAnalysis(chatId, 'medium')}>
+            <ContextMenuItem onClick={() => handleToggleAnalysis(chatId, 'medium')}>
               <TrendingUp className="mr-2 h-4 w-4 text-yellow-500" />
               Prioridade Média
             </ContextMenuItem>
             
-            <ContextMenuItem onClick={() => onToggleAnalysis(chatId, 'low')}>
+            <ContextMenuItem onClick={() => handleToggleAnalysis(chatId, 'low')}>
               <Star className="mr-2 h-4 w-4 text-blue-500" />
               Prioridade Baixa
             </ContextMenuItem>
