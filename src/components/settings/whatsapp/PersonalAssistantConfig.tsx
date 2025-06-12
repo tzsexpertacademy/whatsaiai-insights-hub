@@ -7,22 +7,103 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Brain, MessageSquare, Settings, Loader2, TestTube, Send, CheckCircle, XCircle } from 'lucide-react';
+import { Brain, MessageSquare, Settings, Loader2, TestTube, Send, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
 import { usePersonalAssistant } from "@/hooks/usePersonalAssistant";
 import { useRealWhatsAppConnection } from "@/hooks/useRealWhatsAppConnection";
 import { AssistantSelector } from "@/components/AssistantSelector";
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export function PersonalAssistantConfig() {
   const { config, updateConfig, recentMessages } = usePersonalAssistant();
-  const { processWebhookMessage, sendMessage } = useRealWhatsAppConnection();
+  const { processWebhookMessage, sendMessage, wppConfig } = useRealWhatsAppConnection();
   const [isTestingWebhook, setIsTestingWebhook] = useState(false);
   const [isTestingResponse, setIsTestingResponse] = useState(false);
+  const [isMonitoring, setIsMonitoring] = useState(false);
   const [testMessage, setTestMessage] = useState('Olá, você está funcionando?');
+  const [lastMessageCheck, setLastMessageCheck] = useState<Date>(new Date());
   const [testResults, setTestResults] = useState<{
     webhookTest?: { success: boolean; message: string };
     responseTest?: { success: boolean; message: string };
+    monitoringTest?: { success: boolean; message: string };
   }>({});
+
+  // Função para monitorar mensagens em tempo real
+  const startMessageMonitoring = async () => {
+    console.log('🔄 [MONITOR] Iniciando monitoramento de mensagens...');
+    setIsMonitoring(true);
+    setTestResults(prev => ({ ...prev, monitoringTest: undefined }));
+
+    const checkInterval = setInterval(async () => {
+      try {
+        console.log('🔍 [MONITOR] Verificando novas mensagens...');
+        
+        // Simular verificação de mensagens do WPPConnect
+        const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/get-messages/${config.masterNumber}?count=5`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${wppConfig.token}`
+          }
+        });
+
+        if (response.ok) {
+          const messages = await response.json();
+          console.log('📨 [MONITOR] Mensagens encontradas:', messages);
+          
+          // Verificar se há mensagens novas desde a última verificação
+          const newMessages = Array.isArray(messages) ? messages.filter((msg: any) => {
+            const msgDate = new Date(msg.timestamp * 1000 || msg.timestamp);
+            return msgDate > lastMessageCheck && !msg.fromMe;
+          }) : [];
+
+          if (newMessages.length > 0) {
+            console.log('🆕 [MONITOR] Novas mensagens encontradas:', newMessages.length);
+            
+            for (const message of newMessages) {
+              console.log('📨 [MONITOR] Processando nova mensagem:', message);
+              
+              // Simular webhook para cada mensagem nova
+              const webhookData = {
+                message: {
+                  from: message.from || config.masterNumber,
+                  to: message.to || wppConfig.sessionName,
+                  body: message.body || message.text || 'Mensagem sem texto',
+                  timestamp: message.timestamp
+                }
+              };
+              
+              await processWebhookMessage(webhookData);
+            }
+            
+            setLastMessageCheck(new Date());
+            setTestResults(prev => ({
+              ...prev,
+              monitoringTest: {
+                success: true,
+                message: `${newMessages.length} mensagem(ns) processada(s) automaticamente!`
+              }
+            }));
+          }
+        }
+      } catch (error) {
+        console.error('❌ [MONITOR] Erro no monitoramento:', error);
+        setTestResults(prev => ({
+          ...prev,
+          monitoringTest: {
+            success: false,
+            message: `Erro no monitoramento: ${error instanceof Error ? error.message : 'Erro desconhecido'}`
+          }
+        }));
+      }
+    }, 10000); // Verificar a cada 10 segundos
+
+    // Parar monitoramento após 5 minutos
+    setTimeout(() => {
+      clearInterval(checkInterval);
+      setIsMonitoring(false);
+      console.log('⏹️ [MONITOR] Monitoramento finalizado');
+    }, 300000);
+  };
 
   const handleTestWebhookProcessing = async () => {
     console.log('🧪 [TEST] Iniciando teste de processamento de webhook...');
@@ -209,7 +290,7 @@ export function PersonalAssistantConfig() {
             </div>
 
             {/* Botões de Teste */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {/* Teste de Processamento de Webhook */}
               <div className="space-y-3">
                 <Button
@@ -292,6 +373,48 @@ export function PersonalAssistantConfig() {
                   </div>
                 )}
               </div>
+
+              {/* Monitoramento de Mensagens */}
+              <div className="space-y-3">
+                <Button
+                  onClick={startMessageMonitoring}
+                  disabled={isMonitoring || !config.masterNumber}
+                  className="w-full"
+                  variant="secondary"
+                >
+                  {isMonitoring ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Monitorando...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      Monitorar Mensagens
+                    </>
+                  )}
+                </Button>
+
+                {testResults.monitoringTest && (
+                  <div className={`p-3 rounded-lg border text-sm ${
+                    testResults.monitoringTest.success 
+                      ? 'bg-green-50 border-green-200 text-green-800' 
+                      : 'bg-red-50 border-red-200 text-red-800'
+                  }`}>
+                    <div className="flex items-center gap-2 mb-1">
+                      {testResults.monitoringTest.success ? (
+                        <CheckCircle className="h-4 w-4" />
+                      ) : (
+                        <XCircle className="h-4 w-4" />
+                      )}
+                      <span className="font-medium">
+                        {testResults.monitoringTest.success ? 'Monitorando' : 'Erro'}
+                      </span>
+                    </div>
+                    <p>{testResults.monitoringTest.message}</p>
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
@@ -299,7 +422,8 @@ export function PersonalAssistantConfig() {
               <ul className="text-sm text-blue-700 space-y-1 list-disc list-inside">
                 <li><strong>Testar Processamento:</strong> Simula uma mensagem chegando via webhook e verifica se o assistente processa corretamente</li>
                 <li><strong>Testar Envio Direto:</strong> Envia uma mensagem de teste diretamente para seu WhatsApp</li>
-                <li>Use ambos os testes para identificar onde pode estar o problema</li>
+                <li><strong>Monitorar Mensagens:</strong> Verifica automaticamente por 5 minutos se há mensagens novas e processa elas</li>
+                <li>Use todos os testes para identificar onde pode estar o problema</li>
                 <li>Verifique os logs do console para detalhes adicionais</li>
               </ul>
             </div>
@@ -342,6 +466,7 @@ export function PersonalAssistantConfig() {
               <li>Selecione um assistente da lista</li>
               <li>Ative o assistente</li>
               <li>Use os botões de teste para verificar se está funcionando</li>
+              <li>Use "Monitorar Mensagens" para simular o recebimento automático</li>
               <li>Envie uma mensagem para seu próprio WhatsApp para testar na prática</li>
             </ol>
           </div>
