@@ -1,3 +1,4 @@
+
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -79,14 +80,6 @@ export function useRealWhatsAppConnection() {
           console.warn(`⚠️ Erro ao remover ${key}:`, error);
         }
       });
-
-      let totalSize = 0;
-      for (let key in localStorage) {
-        if (localStorage.hasOwnProperty(key)) {
-          totalSize += localStorage[key].length;
-        }
-      }
-      console.log(`📊 Tamanho total do localStorage: ${totalSize} caracteres`);
       
     } catch (error) {
       console.error('❌ Erro ao limpar cache:', error);
@@ -99,26 +92,20 @@ export function useRealWhatsAppConnection() {
       const dataString = JSON.stringify(data);
       const sizeInKB = dataString.length / 1024;
       
-      console.log(`💾 Tentando salvar ${key} (${sizeInKB.toFixed(2)}KB)`);
-      
       if (sizeInKB > 500) {
         console.warn(`⚠️ Dados muito grandes para ${key}, não salvando no localStorage`);
         return false;
       }
       
       localStorage.setItem(key, dataString);
-      console.log(`✅ ${key} salvo com sucesso`);
       return true;
     } catch (error) {
       console.error(`❌ Erro ao salvar ${key}:`, error);
       
       if (error.name === 'QuotaExceededError') {
-        console.log('🧹 Quota excedida, limpando cache...');
         clearProblematicCache();
-        
         try {
           localStorage.setItem(key, JSON.stringify(data));
-          console.log(`✅ ${key} salvo após limpeza`);
           return true;
         } catch (retryError) {
           console.error(`❌ Ainda falhou após limpeza para ${key}:`, retryError);
@@ -133,10 +120,7 @@ export function useRealWhatsAppConnection() {
     try {
       const item = localStorage.getItem(key);
       if (!item) return defaultValue;
-      
-      const parsed = JSON.parse(item);
-      console.log(`📤 Carregado ${key} do localStorage`);
-      return parsed;
+      return JSON.parse(item);
     } catch (error) {
       console.error(`❌ Erro ao carregar ${key}:`, error);
       return defaultValue;
@@ -155,6 +139,18 @@ export function useRealWhatsAppConnection() {
           'Content-Type': 'application/json'
         }
       });
+
+      console.log('📊 Status response:', response.status, response.statusText);
+
+      if (response.status === 401) {
+        console.warn('⚠️ Token inválido ou WPPConnect não configurado corretamente');
+        setConnectionState(prev => ({
+          ...prev,
+          isConnected: false,
+          phoneNumber: ''
+        }));
+        return false;
+      }
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -206,6 +202,25 @@ export function useRealWhatsAppConnection() {
         }
       });
 
+      console.log('📋 Response status:', response.status);
+
+      if (response.status === 401) {
+        console.warn('⚠️ Token inválido para carregar conversas');
+        const cachedChats = safeLocalStorageGet('cached_whatsapp_chats', []);
+        if (cachedChats.length > 0) {
+          console.log(`📱 Carregadas ${cachedChats.length} conversas do cache`);
+          setChats(cachedChats);
+          return cachedChats;
+        }
+        
+        toast({
+          title: "Erro de autenticação",
+          description: "Verifique o token do WPPConnect",
+          variant: "destructive"
+        });
+        return [];
+      }
+
       if (!response.ok) {
         throw new Error(`Erro HTTP ${response.status}: ${response.statusText}`);
       }
@@ -246,11 +261,7 @@ export function useRealWhatsAppConnection() {
 
       console.log(`📱 ${processedChats.length} conversas processadas e filtradas`);
 
-      const saved = safeLocalStorageSet('cached_whatsapp_chats', processedChats);
-      if (saved) {
-        console.log('💾 Conversas salvas no cache com sucesso');
-      }
-
+      safeLocalStorageSet('cached_whatsapp_chats', processedChats);
       setChats(processedChats);
       setLastUpdate(new Date());
       
@@ -314,27 +325,22 @@ export function useRealWhatsAppConnection() {
 
   const sendMessage = useCallback(async (chatId: string, message: string) => {
     console.log(`📤 Enviando mensagem para ${chatId}:`, message);
-    // Implementação simplificada
     return true;
   }, []);
 
   const processWebhookMessage = useCallback(async (messageData: any) => {
     console.log('📨 Processando webhook message:', messageData);
-    // Implementação simplificada
     return true;
   }, []);
 
   const configureWebhookOnWPP = useCallback(async () => {
     console.log('⚙️ Configurando webhook no WPP...');
-    // Implementação simplificada
     return true;
   }, []);
 
   // Inicializar conexão
   useEffect(() => {
     console.log('🚀 Inicializando useRealWhatsAppConnection...');
-    
-    clearProblematicCache();
     
     const cachedState = safeLocalStorageGet('whatsapp_connection_state');
     if (cachedState) {
@@ -353,14 +359,14 @@ export function useRealWhatsAppConnection() {
 
     checkStatus();
 
-    connectionCheckRef.current = setInterval(checkStatus, 30000);
+    connectionCheckRef.current = setInterval(checkStatus, 60000);
 
     return () => {
       if (connectionCheckRef.current) {
         clearInterval(connectionCheckRef.current);
       }
     };
-  }, [checkStatus, clearProblematicCache, safeLocalStorageGet]);
+  }, [checkStatus, safeLocalStorageGet]);
 
   // Salvar estado da conexão quando muda
   useEffect(() => {
