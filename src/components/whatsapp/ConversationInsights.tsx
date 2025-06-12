@@ -19,6 +19,10 @@ interface ConversationInsightsProps {
 }
 
 export function ConversationInsights({ insights, conversations }: ConversationInsightsProps) {
+  // Validar se insights é um array
+  const validInsights = Array.isArray(insights) ? insights : [];
+  const validConversations = Array.isArray(conversations) ? conversations : [];
+
   const getInsightIcon = (type: string) => {
     switch (type?.toLowerCase()) {
       case 'emotional': return <Heart className="h-4 w-4" />;
@@ -38,7 +42,7 @@ export function ConversationInsights({ insights, conversations }: ConversationIn
     }
   };
 
-  const groupedInsights = insights.reduce((groups, insight) => {
+  const groupedInsights = validInsights.reduce((groups, insight) => {
     const assistant = insight.assistantName || 'Assistente Desconhecido';
     if (!groups[assistant]) {
       groups[assistant] = [];
@@ -61,12 +65,12 @@ export function ConversationInsights({ insights, conversations }: ConversationIn
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="text-center p-4 bg-blue-50 rounded-lg">
               <Brain className="h-8 w-8 mx-auto mb-2 text-blue-600" />
-              <p className="text-2xl font-bold text-blue-600">{insights.length}</p>
+              <p className="text-2xl font-bold text-blue-600">{validInsights.length}</p>
               <p className="text-sm text-blue-700">Insights Gerados</p>
             </div>
             <div className="text-center p-4 bg-green-50 rounded-lg">
               <MessageSquare className="h-8 w-8 mx-auto mb-2 text-green-600" />
-              <p className="text-2xl font-bold text-green-600">{conversations.length}</p>
+              <p className="text-2xl font-bold text-green-600">{validConversations.length}</p>
               <p className="text-sm text-green-700">Conversas Analisadas</p>
             </div>
             <div className="text-center p-4 bg-purple-50 rounded-lg">
@@ -118,7 +122,7 @@ export function ConversationInsights({ insights, conversations }: ConversationIn
         </Card>
       ))}
 
-      {insights.length === 0 && (
+      {validInsights.length === 0 && (
         <Card>
           <CardContent className="text-center py-12">
             <Brain className="h-16 w-16 mx-auto mb-4 text-gray-300" />

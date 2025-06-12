@@ -18,22 +18,28 @@ interface ConversationMetricsProps {
 }
 
 export function ConversationMetrics({ conversations, insights, protectedStats }: ConversationMetricsProps) {
-  const totalConversations = conversations.length;
-  const completedAnalyses = conversations.filter(c => c.analysis_status === 'completed').length;
+  // Validar arrays
+  const validConversations = Array.isArray(conversations) ? conversations : [];
+  const validInsights = Array.isArray(insights) ? insights : [];
+  const stats = protectedStats || {};
+
+  const totalConversations = validConversations.length;
+  const completedAnalyses = validConversations.filter(c => c.analysis_status === 'completed').length;
   const analysisCompletionRate = totalConversations > 0 ? (completedAnalyses / totalConversations) * 100 : 0;
 
-  const priorityDistribution = conversations.reduce((acc, conv) => {
-    acc[conv.priority] = (acc[conv.priority] || 0) + 1;
+  const priorityDistribution = validConversations.reduce((acc, conv) => {
+    const priority = conv.priority || 'unknown';
+    acc[priority] = (acc[priority] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
 
-  const insightTypeDistribution = insights.reduce((acc, insight) => {
+  const insightTypeDistribution = validInsights.reduce((acc, insight) => {
     const type = insight.insight_type || 'unknown';
     acc[type] = (acc[type] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
 
-  const assistantDistribution = insights.reduce((acc, insight) => {
+  const assistantDistribution = validInsights.reduce((acc, insight) => {
     const assistant = insight.assistantName || 'Desconhecido';
     acc[assistant] = (acc[assistant] || 0) + 1;
     return acc;
@@ -74,7 +80,7 @@ export function ConversationMetrics({ conversations, insights, protectedStats }:
           <CardContent>
             <div className="space-y-2">
               <p className="text-2xl font-bold">
-                {completedAnalyses > 0 ? (insights.length / completedAnalyses).toFixed(1) : '0'}
+                {completedAnalyses > 0 ? (validInsights.length / completedAnalyses).toFixed(1) : '0'}
               </p>
               <p className="text-xs text-gray-500">
                 Média de insights gerados por conversa analisada
@@ -92,7 +98,7 @@ export function ConversationMetrics({ conversations, insights, protectedStats }:
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              <p className="text-2xl font-bold">{protectedStats.assistantsActive}</p>
+              <p className="text-2xl font-bold">{stats.assistantsActive || 0}</p>
               <p className="text-xs text-gray-500">
                 Assistentes gerando insights ativamente
               </p>
@@ -112,15 +118,15 @@ export function ConversationMetrics({ conversations, insights, protectedStats }:
         <CardContent>
           <div className="space-y-4">
             {Object.entries(priorityDistribution).map(([priority, count]) => {
-              const percentage = totalConversations > 0 ? (count / totalConversations) * 100 : 0;
+              const percentage = totalConversations > 0 ? ((count as number) / totalConversations) * 100 : 0;
               const colorClass = priority === 'high' ? 'bg-red-500' : 
                                 priority === 'medium' ? 'bg-yellow-500' : 'bg-blue-500';
               
               return (
                 <div key={priority} className="space-y-2">
                   <div className="flex justify-between text-sm">
-                    <span className="capitalize">{priority}</span>
-                    <span>{count} ({Math.round(percentage)}%)</span>
+                    <span className="capitalize">{String(priority)}</span>
+                    <span>{String(count)} ({Math.round(percentage)}%)</span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
                     <div 
@@ -147,8 +153,8 @@ export function ConversationMetrics({ conversations, insights, protectedStats }:
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {Object.entries(insightTypeDistribution).map(([type, count]) => (
               <div key={type} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <span className="capitalize font-medium">{type}</span>
-                <span className="text-lg font-bold">{count}</span>
+                <span className="capitalize font-medium">{String(type)}</span>
+                <span className="text-lg font-bold">{String(count)}</span>
               </div>
             ))}
           </div>
@@ -166,13 +172,13 @@ export function ConversationMetrics({ conversations, insights, protectedStats }:
         <CardContent>
           <div className="space-y-3">
             {Object.entries(assistantDistribution).map(([assistant, count]) => {
-              const percentage = insights.length > 0 ? (count / insights.length) * 100 : 0;
+              const percentage = validInsights.length > 0 ? ((count as number) / validInsights.length) * 100 : 0;
               
               return (
                 <div key={assistant} className="space-y-2">
                   <div className="flex justify-between text-sm">
-                    <span className="font-medium">{assistant}</span>
-                    <span>{count} insights ({Math.round(percentage)}%)</span>
+                    <span className="font-medium">{String(assistant)}</span>
+                    <span>{String(count)} insights ({Math.round(percentage)}%)</span>
                   </div>
                   <Progress value={percentage} className="h-2" />
                 </div>
