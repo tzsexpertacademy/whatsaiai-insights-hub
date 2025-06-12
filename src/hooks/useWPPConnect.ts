@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useToast } from "@/hooks/use-toast";
 
@@ -93,6 +92,16 @@ export function useWPPConnect() {
       console.log('💾 Estado salvo:', sessionStatus);
     }
   }, [sessionStatus]);
+
+  // Carregar conversas automaticamente quando conectar
+  useEffect(() => {
+    if (sessionStatus.isConnected && sessionStatus.status === 'connected') {
+      console.log('🔄 Conexão estabelecida - carregando conversas automaticamente...');
+      loadRealChats().catch(error => {
+        console.error('❌ Erro ao carregar conversas automaticamente:', error);
+      });
+    }
+  }, [sessionStatus.isConnected, sessionStatus.status]);
 
   const getWPPConfig = (): WPPConfig => {
     try {
@@ -400,6 +409,13 @@ export function useWPPConnect() {
             description: `Conectado com ${altData.phoneNumber || altData.number || 'sucesso'}`
           });
           
+          // Carregar conversas automaticamente
+          setTimeout(() => {
+            loadRealChats().catch(error => {
+              console.error('❌ Erro ao carregar conversas:', error);
+            });
+          }, 1000);
+          
           return true;
         }
         
@@ -424,6 +440,13 @@ export function useWPPConnect() {
           description: `Conectado com ${data.phoneNumber || data.number || 'sucesso'}`
         });
         
+        // Carregar conversas automaticamente
+        setTimeout(() => {
+          loadRealChats().catch(error => {
+            console.error('❌ Erro ao carregar conversas:', error);
+          });
+        }, 1000);
+        
         return true;
       }
       
@@ -436,7 +459,14 @@ export function useWPPConnect() {
 
   const loadRealChats = async () => {
     if (!isTokenValid() || !sessionStatus.isConnected) {
-      throw new Error('WhatsApp não conectado ou credenciais inválidas');
+      const errorMsg = !isTokenValid() ? 'WhatsApp não conectado ou credenciais inválidas' : 'WhatsApp não conectado';
+      console.error('❌ Erro ao carregar conversas:', errorMsg);
+      toast({
+        title: "❌ Erro ao carregar conversas",
+        description: errorMsg,
+        variant: "destructive"
+      });
+      throw new Error(errorMsg);
     }
 
     const config = getWPPConfig();
@@ -451,13 +481,14 @@ export function useWPPConnect() {
       });
 
       if (!response.ok) {
-        throw new Error(`Erro HTTP: ${response.status}`);
+        throw new Error(`Erro HTTP: ${response.status} - ${response.statusText}`);
       }
 
       const data = await response.json();
+      console.log('📋 Dados das conversas recebidos:', data);
       
       if (!Array.isArray(data)) {
-        throw new Error('Formato de dados inválido');
+        throw new Error('Formato de dados inválido - esperado array');
       }
 
       // Transformar dados da API em formato padronizado
@@ -490,11 +521,22 @@ export function useWPPConnect() {
       setChats(formattedChats);
       setContacts(formattedContacts);
       
-      console.log(`✅ ${formattedChats.length} conversas carregadas`);
+      console.log(`✅ ${formattedChats.length} conversas carregadas com sucesso`);
+      
+      toast({
+        title: "📞 Conversas carregadas!",
+        description: `${formattedChats.length} conversas encontradas`
+      });
+      
       return formattedChats;
       
     } catch (error) {
       console.error('❌ Erro ao carregar conversas:', error);
+      toast({
+        title: "❌ Erro ao carregar conversas",
+        description: error instanceof Error ? error.message : "Erro desconhecido",
+        variant: "destructive"
+      });
       throw error;
     } finally {
       setIsLoadingChats(false);
