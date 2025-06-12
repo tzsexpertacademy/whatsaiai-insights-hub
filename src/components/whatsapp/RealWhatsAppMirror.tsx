@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -48,17 +47,14 @@ interface Message {
   isAudio?: boolean;
 }
 
+import { AnalysisStatusIndicator } from './AnalysisStatusIndicator';
+
 export function RealWhatsAppMirror() {
   const { toast } = useToast();
   const { 
     connectionState, 
     isLoading, 
-    webhooks, 
     wppConfig,
-    messageHistoryLimit,
-    updateWebhooks, 
-    updateWPPConfig,
-    updateMessageHistoryLimit,
     generateQRCode, 
     checkConnectionStatus,
     disconnectWhatsApp,
@@ -87,6 +83,28 @@ export function RealWhatsAppMirror() {
 
   const connectionStatus = getConnectionStatus();
   const isConnected = connectionState.isConnected;
+
+  // Auto-load chats and check status when connected
+  useEffect(() => {
+    const initializeWhatsApp = async () => {
+      console.log('🔄 Inicializando WhatsApp...');
+      
+      try {
+        // Verificar status de conexão
+        const status = await getConnectionStatus();
+        console.log('📱 Status verificado:', status);
+        
+        if (status === 'active') {
+          console.log('✅ WhatsApp conectado, carregando conversas automaticamente...');
+          await handleLoadRealChats();
+        }
+      } catch (error) {
+        console.error('❌ Erro na inicialização:', error);
+      }
+    };
+
+    initializeWhatsApp();
+  }, [getConnectionStatus]);
 
   // Helper functions
   const extractPhoneNumber = (phoneData: any): string => {
@@ -666,12 +684,11 @@ export function RealWhatsAppMirror() {
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
                                   <span className="font-medium text-sm">{contact.name}</span>
-                                  {isMarkedForAnalysis && (
-                                    <div className="flex items-center gap-1">
-                                      <Brain className="h-3 w-3 text-green-600" />
-                                      {getPriorityIcon(analysisPriority)}
-                                    </div>
-                                  )}
+                                  <AnalysisStatusIndicator
+                                    isMarkedForAnalysis={isMarkedForAnalysis}
+                                    isSavedToDatabase={true} // Por simplicidade, assumimos que está salvo
+                                    analysisPriority={analysisPriority}
+                                  />
                                 </div>
                                 <span className="text-xs text-gray-400">{formatTime(contact.timestamp)}</span>
                               </div>
