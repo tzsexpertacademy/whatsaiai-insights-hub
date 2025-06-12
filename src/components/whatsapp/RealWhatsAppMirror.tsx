@@ -72,6 +72,29 @@ export function RealWhatsAppMirror() {
   const connectionStatus = getConnectionStatus();
   const isConnected = connectionState.isConnected;
 
+  // Helper function to safely extract phone number
+  const extractPhoneNumber = (phoneData: any): string => {
+    if (typeof phoneData === 'string') {
+      return phoneData;
+    }
+    if (phoneData && typeof phoneData === 'object') {
+      if (phoneData._serialized) return phoneData._serialized;
+      if (phoneData.user) return phoneData.user;
+      if (phoneData.number) return phoneData.number;
+    }
+    return 'Número não disponível';
+  };
+
+  // Helper function to safely extract contact name
+  const extractContactName = (chat: any): string => {
+    if (chat.name) return chat.name;
+    if (chat.contact?.name) return chat.contact.name;
+    if (chat.contact?.formattedName) return chat.contact.formattedName;
+    if (chat.contact?.pushname) return chat.contact.pushname;
+    if (chat.title) return chat.title;
+    return 'Contato sem nome';
+  };
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -114,12 +137,18 @@ export function RealWhatsAppMirror() {
       const realContacts: Contact[] = chatsData.map((chat: any, index: number) => {
         console.log(`📱 Processando chat ${index}:`, chat);
         
+        // Extrair ID do chat de forma segura
+        const chatId = chat.id?._serialized || chat.id || chat.chatId || `chat_${index}`;
+        
+        // Extrair telefone de forma segura
+        const phoneNumber = extractPhoneNumber(chat.id || chat.contact?.id || chat.phone);
+        
         return {
-          id: chat.id || chat.chatId || `chat_${index}`,
-          name: chat.name || chat.contact?.name || chat.title || 'Contato sem nome',
-          phone: chat.phone || chat.contact?.phone || chat.id || 'Número não disponível',
-          lastMessage: chat.lastMessage?.body || chat.lastMessage?.text || 'Sem mensagens',
-          timestamp: chat.lastMessage?.timestamp || chat.timestamp || new Date().toISOString(),
+          id: chatId,
+          name: extractContactName(chat),
+          phone: phoneNumber,
+          lastMessage: chat.lastMessage?.body || chat.lastMessage?.text || chat.chatlistPreview?.reactionText || 'Sem mensagens',
+          timestamp: chat.lastMessage?.timestamp || chat.timestamp || chat.t ? new Date(chat.t * 1000).toISOString() : new Date().toISOString(),
           unread: chat.unreadCount || chat.unread || 0
         };
       });
