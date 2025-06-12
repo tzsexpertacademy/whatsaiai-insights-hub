@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import { useVoiceTranscription } from './useVoiceTranscription';
 
 interface ConnectionState {
   isConnected: boolean;
@@ -35,6 +36,7 @@ interface ConversationForAnalysis {
 
 export function useRealWhatsAppConnection() {
   const { toast } = useToast();
+  const { transcribeAudio } = useVoiceTranscription();
   
   const [connectionState, setConnectionState] = useState<ConnectionState>({
     isConnected: false,
@@ -44,6 +46,7 @@ export function useRealWhatsAppConnection() {
   });
   
   const [isLoading, setIsLoading] = useState(false);
+  const [messageHistoryLimit, setMessageHistoryLimit] = useState(50); // Nova configuração
   
   const [webhooks, setWebhooks] = useState<WebhookConfig>(() => {
     const saved = localStorage.getItem('whatsapp_webhooks');
@@ -76,62 +79,40 @@ export function useRealWhatsAppConnection() {
     return saved ? JSON.parse(saved) : [];
   });
 
+  // Cache para conversas
+  const [cachedChats, setCachedChats] = useState(() => {
+    const saved = localStorage.getItem('cached_whatsapp_chats');
+    return saved ? JSON.parse(saved) : [];
+  });
+
   // Helper function to format phone number for WPPConnect
   const formatPhoneNumber = (phone: string): string => {
     console.log('📞 Formatando número original:', phone);
     
-    // Para grupos, manter o formato original
     if (phone.includes('@g.us')) {
-      console.log('📞 É grupo, mantendo formato:', phone);
       return phone;
     }
     
-    // Se já tem @c.us, usar como está
     if (phone.includes('@c.us')) {
-      console.log('📞 Já tem @c.us, mantendo:', phone);
       return phone;
     }
     
-    // Remove caracteres especiais para limpeza
     let cleanPhone = phone.replace(/\D/g, '');
-    console.log('📞 Número limpo:', cleanPhone);
-    
-    // Se não tem @c.us e não é grupo, adicionar @c.us
     const formattedPhone = cleanPhone + '@c.us';
-    console.log('📞 Número formatado final:', formattedPhone);
     
     return formattedPhone;
   };
 
-  // Função para transcrever áudio
-  const transcribeAudio = useCallback(async (audioBase64: string): Promise<string> => {
-    try {
-      console.log('🎤 Iniciando transcrição de áudio...');
-      
-      const response = await fetch('/functions/v1/voice-to-text', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
-        },
-        body: JSON.stringify({
-          audio: audioBase64
-        })
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        console.log('✅ Áudio transcrito:', data.text);
-        return data.text || 'Não foi possível transcrever o áudio';
-      } else {
-        console.error('❌ Erro na transcrição:', response.status);
-        return '[Áudio - transcrição não disponível]';
-      }
-    } catch (error) {
-      console.error('❌ Erro ao transcrever áudio:', error);
-      return '[Áudio - erro na transcrição]';
-    }
-  }, []);
+  // Função para atualizar limite de histórico
+  const updateMessageHistoryLimit = useCallback((newLimit: number) => {
+    setMessageHistoryLimit(newLimit);
+    localStorage.setItem('message_history_limit', newLimit.toString());
+    
+    toast({
+      title: "Limite atualizado! 📊",
+      description: `Histórico agora carrega ${newLimit} mensagens`
+    });
+  }, [toast]);
 
   // Função para fixar/desfixar conversa
   const togglePinConversation = useCallback((chatId: string) => {
@@ -216,14 +197,11 @@ export function useRealWhatsAppConnection() {
     localStorage.setItem('whatsapp_webhooks', JSON.stringify(updated));
   }, [webhooks]);
 
-  // Função para gerar QR Code
   const generateQRCode = useCallback(async () => {
     console.log('🚀 Gerando QR Code WPPConnect REAL...');
-    console.log('📱 Configuração atual:', wppConfig);
     setIsLoading(true);
     
     try {
-      console.log('📱 Iniciando sessão para obter QR Code...');
       const startSessionResponse = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/start-session`, {
         method: 'POST',
         headers: {
@@ -236,11 +214,8 @@ export function useRealWhatsAppConnection() {
         })
       });
       
-      console.log('📥 Start Session Response status:', startSessionResponse.status);
-      
       if (startSessionResponse.ok) {
         const sessionData = await startSessionResponse.json();
-        console.log('📱 Sessão iniciada:', sessionData);
         
         if (sessionData.qrcode || sessionData.qr || sessionData.base64) {
           const qrCodeData = sessionData.qrcode || sessionData.qr || sessionData.base64;
@@ -276,7 +251,6 @@ export function useRealWhatsAppConnection() {
         }
       } else {
         const errorText = await startSessionResponse.text();
-        console.error('❌ Erro ao iniciar sessão:', errorText);
         throw new Error(`Erro ao iniciar sessão: ${startSessionResponse.status} - ${errorText}`);
       }
       
@@ -295,11 +269,9 @@ export function useRealWhatsAppConnection() {
     }
   }, [toast, wppConfig]);
 
-  // Função para iniciar polling de status
   const startStatusPolling = useCallback(() => {
     const pollInterval = setInterval(async () => {
       try {
-        console.log('🔍 Verificando status da sessão...');
         const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/status-session`, {
           method: 'GET',
           headers: {
@@ -310,7 +282,6 @@ export function useRealWhatsAppConnection() {
         
         if (response.ok) {
           const data = await response.json();
-          console.log('📱 Status atual:', data);
           
           const isConnected = data.state === 'CONNECTED' || 
                              data.status === 'inChat' || 
@@ -320,8 +291,6 @@ export function useRealWhatsAppConnection() {
                              (data.session && data.session.state === 'CONNECTED');
           
           if (isConnected) {
-            console.log('✅ WhatsApp conectado!');
-            
             setConnectionState(prev => ({
               ...prev,
               isConnected: true,
@@ -337,8 +306,6 @@ export function useRealWhatsAppConnection() {
             
             clearInterval(pollInterval);
           }
-        } else {
-          console.log('❌ Erro no status:', response.status);
         }
       } catch (error) {
         console.error('❌ Erro no polling:', error);
@@ -347,14 +314,10 @@ export function useRealWhatsAppConnection() {
     
     setTimeout(() => {
       clearInterval(pollInterval);
-      console.log('⏰ Polling timeout');
     }, 120000);
   }, [toast, wppConfig]);
 
-  // Função para verificar status manual
   const checkConnectionStatus = useCallback(async () => {
-    console.log('🔍 Verificação manual do status...');
-    
     try {
       const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/status-session`, {
         method: 'GET',
@@ -366,7 +329,6 @@ export function useRealWhatsAppConnection() {
       
       if (response.ok) {
         const data = await response.json();
-        console.log('📱 Status manual:', data);
         
         const isConnected = data.state === 'CONNECTED' || 
                            data.status === 'inChat' || 
@@ -400,10 +362,7 @@ export function useRealWhatsAppConnection() {
     }
   }, [wppConfig, toast]);
 
-  // Função para desconectar WhatsApp
   const disconnectWhatsApp = useCallback(async () => {
-    console.log('🔌 Desconectando WhatsApp...');
-    
     try {
       const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/logout-session`, {
         method: 'POST',
@@ -412,8 +371,6 @@ export function useRealWhatsAppConnection() {
           'Authorization': `Bearer ${wppConfig.token}`
         }
       });
-      
-      console.log('📤 Logout response:', response.status);
       
       setConnectionState({
         isConnected: false,
@@ -446,27 +403,16 @@ export function useRealWhatsAppConnection() {
   // Função para enviar mensagem
   const sendMessage = useCallback(async (phone: string, message: string) => {
     console.log('📤 Enviando mensagem real via WPPConnect...');
-    console.log('📞 Telefone recebido:', phone);
-    console.log('💬 Mensagem:', message);
     
     try {
-      // Usar o phone como recebido (já formatado)
       const targetPhone = phone;
-      console.log('📞 Telefone para envio:', targetPhone);
-      
-      // Dados básicos para envio
       const sendData = {
         phone: targetPhone,
         message: message,
-        text: message // Adicionar também o campo text
+        text: message
       };
       
-      console.log('📤 Dados de envio:', sendData);
-      
-      // Tentar primeiro o endpoint /send-message
       let endpoint = `${wppConfig.serverUrl}/api/${wppConfig.sessionName}/send-message`;
-      
-      console.log('📤 Tentando endpoint send-message:', endpoint);
       
       let response = await fetch(endpoint, {
         method: 'POST',
@@ -477,11 +423,7 @@ export function useRealWhatsAppConnection() {
         body: JSON.stringify(sendData)
       });
 
-      console.log('📤 Response status send-message:', response.status);
-
-      // Se deu erro, tentar o endpoint /send-text
       if (!response.ok) {
-        console.log('📤 Tentando endpoint send-text...');
         endpoint = `${wppConfig.serverUrl}/api/${wppConfig.sessionName}/send-text`;
         
         response = await fetch(endpoint, {
@@ -495,29 +437,6 @@ export function useRealWhatsAppConnection() {
             message: message
           })
         });
-        
-        console.log('📤 Response status send-text:', response.status);
-      }
-
-      // Se ainda deu erro, tentar com chatId
-      if (!response.ok) {
-        console.log('📤 Tentando com chatId...');
-        endpoint = `${wppConfig.serverUrl}/api/${wppConfig.sessionName}/send-message`;
-        
-        response = await fetch(endpoint, {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${wppConfig.token}`
-          },
-          body: JSON.stringify({
-            chatId: targetPhone,
-            message: message,
-            text: message
-          })
-        });
-        
-        console.log('📤 Response status com chatId:', response.status);
       }
 
       if (response.ok) {
@@ -531,13 +450,7 @@ export function useRealWhatsAppConnection() {
         return true;
       } else {
         const errorText = await response.text();
-        console.error('❌ Erro ao enviar mensagem:', {
-          status: response.status,
-          statusText: response.statusText,
-          error: errorText,
-          endpoint: endpoint,
-          phone: targetPhone
-        });
+        console.error('❌ Erro ao enviar mensagem:', errorText);
         
         toast({
           title: "❌ Erro ao enviar mensagem",
@@ -573,7 +486,6 @@ export function useRealWhatsAppConnection() {
 
       if (response.ok) {
         const responseData = await response.json();
-        console.log('✅ Resposta da API:', responseData);
         
         let chatsArray = [];
         
@@ -586,35 +498,53 @@ export function useRealWhatsAppConnection() {
         } else if (responseData.response && Array.isArray(responseData.response)) {
           chatsArray = responseData.response;
         } else {
-          console.warn('⚠️ Formato de resposta não reconhecido:', responseData);
-          throw new Error('Formato de dados não suportado. Verifique se o WPPConnect está retornando os chats corretamente.');
+          throw new Error('Formato de dados não suportado');
         }
         
-        console.log('📋 Array de chats encontrado:', chatsArray);
-        
-        if (chatsArray.length === 0) {
-          console.log('⚠️ Nenhuma conversa encontrada');
-          return [];
-        }
+        // Salvar no cache
+        setCachedChats(chatsArray);
+        localStorage.setItem('cached_whatsapp_chats', JSON.stringify(chatsArray));
         
         return chatsArray;
       } else {
         const errorText = await response.text();
         console.error('❌ Erro ao carregar conversas:', response.status, errorText);
+        
+        // Se falhar, tentar usar cache
+        if (cachedChats.length > 0) {
+          console.log('📋 Usando conversas do cache');
+          toast({
+            title: "📋 Conversas do cache",
+            description: "Carregadas conversas salvas localmente"
+          });
+          return cachedChats;
+        }
+        
         throw new Error(`Erro ${response.status}: ${errorText}`);
       }
     } catch (error) {
       console.error('❌ Erro de conexão ao carregar conversas:', error);
+      
+      // Tentar usar cache em caso de erro
+      if (cachedChats.length > 0) {
+        console.log('📋 Usando conversas do cache devido ao erro');
+        toast({
+          title: "📋 Modo offline",
+          description: "Exibindo conversas salvas localmente"
+        });
+        return cachedChats;
+      }
+      
       throw error;
     }
-  }, [wppConfig]);
+  }, [wppConfig, cachedChats, toast]);
 
   // Função para carregar mensagens de uma conversa
   const loadRealMessages = useCallback(async (contactId: string) => {
     console.log('📤 Carregando mensagens reais para:', contactId);
     
     try {
-      const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/get-messages/${contactId}?count=50`, {
+      const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/get-messages/${contactId}?count=${messageHistoryLimit}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -624,7 +554,6 @@ export function useRealWhatsAppConnection() {
 
       if (response.ok) {
         const responseData = await response.json();
-        console.log('✅ Mensagens recebidas:', responseData);
         
         let messagesArray = [];
         
@@ -637,7 +566,6 @@ export function useRealWhatsAppConnection() {
         } else if (responseData.response && Array.isArray(responseData.response)) {
           messagesArray = responseData.response;
         } else {
-          console.warn('⚠️ Formato de mensagens não reconhecido:', responseData);
           return [];
         }
         
@@ -651,10 +579,14 @@ export function useRealWhatsAppConnection() {
               console.log('🎤 Mensagem de áudio detectada:', msg);
               
               if (msg.body && msg.body.startsWith('data:audio')) {
-                // Extrair base64 do áudio
-                const base64Audio = msg.body.split(',')[1];
-                const transcription = await transcribeAudio(base64Audio);
-                text = `🎤 [Áudio]: ${transcription}`;
+                try {
+                  const base64Audio = msg.body.split(',')[1];
+                  const transcription = await transcribeAudio(base64Audio);
+                  text = transcription ? `🎤 [Áudio]: ${transcription}` : '🎤 [Áudio - transcrição não disponível]';
+                } catch (error) {
+                  console.error('❌ Erro na transcrição:', error);
+                  text = '🎤 [Áudio - erro na transcrição]';
+                }
               } else {
                 text = '🎤 [Áudio - transcrição não disponível]';
               }
@@ -671,14 +603,13 @@ export function useRealWhatsAppConnection() {
       } else {
         console.error('❌ Erro ao carregar mensagens:', response.status);
         const errorText = await response.text();
-        console.error('❌ Detalhes do erro:', errorText);
         throw new Error(`Erro ${response.status}: ${errorText}`);
       }
     } catch (error) {
       console.error('❌ Erro ao carregar mensagens:', error);
       throw error;
     }
-  }, [wppConfig, transcribeAudio]);
+  }, [wppConfig, transcribeAudio, messageHistoryLimit]);
 
   const getConnectionStatus = useCallback(() => {
     if (connectionState.isConnected) {
@@ -694,8 +625,10 @@ export function useRealWhatsAppConnection() {
     wppConfig,
     pinnedConversations,
     conversationsForAnalysis,
+    messageHistoryLimit, // Nova propriedade
     updateWebhooks,
     updateWPPConfig,
+    updateMessageHistoryLimit, // Nova função
     generateQRCode,
     checkConnectionStatus,
     disconnectWhatsApp,
@@ -704,7 +637,6 @@ export function useRealWhatsAppConnection() {
     loadRealMessages,
     getConnectionStatus,
     transcribeAudio,
-    // Funções para fixar e marcar para análise
     togglePinConversation,
     toggleAnalysisConversation,
     isConversationPinned,

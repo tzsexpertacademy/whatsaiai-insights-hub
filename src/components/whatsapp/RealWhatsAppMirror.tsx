@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,15 +14,11 @@ import {
   CheckCircle, 
   MessageSquare, 
   Send,
-  Wifi,
   Clock,
   User,
   AlertCircle,
   RefreshCw,
   Settings,
-  Key,
-  Server,
-  Lock,
   Pin,
   Brain,
   Star,
@@ -38,7 +35,7 @@ interface Contact {
   lastMessage: string;
   timestamp: string;
   unread: number;
-  lastMessageTimestamp?: number; // Timestamp numérico para ordenação
+  lastMessageTimestamp?: number;
 }
 
 interface Message {
@@ -58,8 +55,10 @@ export function RealWhatsAppMirror() {
     isLoading, 
     webhooks, 
     wppConfig,
+    messageHistoryLimit,
     updateWebhooks, 
     updateWPPConfig,
+    updateMessageHistoryLimit,
     generateQRCode, 
     checkConnectionStatus,
     disconnectWhatsApp,
@@ -67,7 +66,6 @@ export function RealWhatsAppMirror() {
     loadRealChats,
     loadRealMessages,
     getConnectionStatus,
-    // Novas funções
     togglePinConversation,
     toggleAnalysisConversation,
     isConversationPinned,
@@ -79,6 +77,8 @@ export function RealWhatsAppMirror() {
   const [newMessage, setNewMessage] = useState('');
   const [showConfig, setShowConfig] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showHistoryConfig, setShowHistoryConfig] = useState(false);
+  const [tempHistoryLimit, setTempHistoryLimit] = useState(messageHistoryLimit);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -88,7 +88,7 @@ export function RealWhatsAppMirror() {
   const connectionStatus = getConnectionStatus();
   const isConnected = connectionState.isConnected;
 
-  // Helper function to safely extract phone number
+  // Helper functions
   const extractPhoneNumber = (phoneData: any): string => {
     if (typeof phoneData === 'string') {
       return phoneData;
@@ -101,7 +101,6 @@ export function RealWhatsAppMirror() {
     return 'Número não disponível';
   };
 
-  // Helper function to safely extract contact name
   const extractContactName = (chat: any): string => {
     if (chat.name) return chat.name;
     if (chat.contact?.name) return chat.contact.name;
@@ -109,14 +108,11 @@ export function RealWhatsAppMirror() {
     if (chat.contact?.pushname) return chat.contact.pushname;
     if (chat.title) return chat.title;
     
-    // Se não tem nome, tentar extrair do ID do chat
     const phoneNumber = extractPhoneNumber(chat.id || chat.contact?.id || chat.phone);
     if (phoneNumber && phoneNumber !== 'Número não disponível') {
-      // Para grupos, manter como está
       if (phoneNumber.includes('@g.us')) {
         return chat.id || 'Grupo sem nome';
       }
-      // Para contatos individuais, mostrar o número formatado
       const cleanNumber = phoneNumber.replace('@c.us', '');
       return `+${cleanNumber}`;
     }
@@ -124,14 +120,11 @@ export function RealWhatsAppMirror() {
     return 'Contato sem nome';
   };
 
-  // Helper function to safely extract phone from chat ID for sending
   const extractPhoneForSending = (contact: Contact): string => {
-    return contact.phone; // Usar o phone já formatado
+    return contact.phone;
   };
 
-  // Helper function to extract timestamp for sorting (WhatsApp order)
   const extractTimestamp = (chat: any): number => {
-    // Tentar várias propriedades de timestamp
     if (chat.lastMessage?.timestamp) {
       return typeof chat.lastMessage.timestamp === 'number' 
         ? chat.lastMessage.timestamp 
@@ -145,7 +138,7 @@ export function RealWhatsAppMirror() {
     }
     
     if (chat.t) {
-      return chat.t * 1000; // Converter segundos para millisegundos
+      return chat.t * 1000;
     }
     
     if (chat.lastMessageTime) {
@@ -154,15 +147,13 @@ export function RealWhatsAppMirror() {
         : new Date(chat.lastMessageTime).getTime();
     }
     
-    // Se não encontrar timestamp, usar timestamp atual para conversas sem mensagens
     return new Date().getTime();
   };
 
-  // Função para filtrar e ordenar conversas (ordem do WhatsApp)
+  // Função para filtrar e ordenar conversas
   const filteredAndSortedContacts = useMemo(() => {
     let filtered = contacts;
     
-    // Aplicar filtro de pesquisa
     if (searchTerm.trim()) {
       filtered = contacts.filter(contact =>
         contact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -170,24 +161,20 @@ export function RealWhatsAppMirror() {
       );
     }
     
-    // Ordenar: fixadas primeiro, depois por timestamp da última mensagem (mais recente primeiro)
     return [...filtered].sort((a, b) => {
       const aPinned = isConversationPinned(a.id);
       const bPinned = isConversationPinned(b.id);
       
-      // Fixadas primeiro
       if (aPinned && !bPinned) return -1;
       if (!aPinned && bPinned) return 1;
       
-      // Depois por timestamp da última mensagem (mais recente primeiro) - ordem do WhatsApp
       const aTime = a.lastMessageTimestamp || new Date(a.timestamp).getTime();
       const bTime = b.lastMessageTimestamp || new Date(b.timestamp).getTime();
       
-      return bTime - aTime; // Mais recente primeiro
+      return bTime - aTime;
     });
   }, [contacts, searchTerm, isConversationPinned]);
 
-  // Função para obter ícone de prioridade
   const getPriorityIcon = (priority: 'high' | 'medium' | 'low') => {
     switch (priority) {
       case 'high': return <AlertTriangle className="h-3 w-3 text-red-500" />;
@@ -219,13 +206,9 @@ export function RealWhatsAppMirror() {
     setIsLoadingChats(true);
     
     try {
-      console.log('🔄 Iniciando carregamento de conversas...');
       const chatsData = await loadRealChats();
       
-      console.log('📋 Dados recebidos:', chatsData);
-      
       if (!chatsData || chatsData.length === 0) {
-        console.log('⚠️ Nenhuma conversa encontrada');
         setContacts([]);
         toast({
           title: "Nenhuma conversa encontrada",
@@ -236,8 +219,6 @@ export function RealWhatsAppMirror() {
       }
       
       const realContacts: Contact[] = chatsData.map((chat: any, index: number) => {
-        console.log(`📱 Processando chat ${index}:`, chat);
-        
         const chatId = chat.id?._serialized || chat.id || chat.chatId || `chat_${index}`;
         const phoneNumber = extractPhoneNumber(chat.id || chat.contact?.id || chat.phone);
         const lastMessageTimestamp = extractTimestamp(chat);
@@ -248,12 +229,11 @@ export function RealWhatsAppMirror() {
           phone: phoneNumber,
           lastMessage: chat.lastMessage?.body || chat.lastMessage?.text || chat.chatlistPreview?.reactionText || 'Sem mensagens',
           timestamp: new Date(lastMessageTimestamp).toISOString(),
-          lastMessageTimestamp: lastMessageTimestamp, // Para ordenação
+          lastMessageTimestamp: lastMessageTimestamp,
           unread: chat.unreadCount || chat.unread || 0
         };
       });
       
-      console.log('✅ Conversas processadas:', realContacts);
       setContacts(realContacts);
       
       toast({
@@ -278,13 +258,9 @@ export function RealWhatsAppMirror() {
 
   const handleLoadRealMessages = async (contactId: string) => {
     try {
-      console.log('📤 Carregando mensagens para contato:', contactId);
-      
       const messagesData = await loadRealMessages(contactId);
-      console.log('📥 Mensagens recebidas:', messagesData);
       
       if (!Array.isArray(messagesData)) {
-        console.warn('⚠️ Dados de mensagens não são um array:', messagesData);
         toast({
           title: "Erro ao carregar mensagens",
           description: "Formato de dados inválido",
@@ -294,7 +270,6 @@ export function RealWhatsAppMirror() {
       }
       
       const realMessages: Message[] = messagesData.map((msg: any, index: number) => {
-        // Usar texto processado se disponível (com transcrição de áudio)
         const text = msg.processedText || msg.body || msg.text || msg.content || 'Mensagem sem texto';
         const isAudio = text.includes('🎤 [Áudio]');
         
@@ -308,8 +283,6 @@ export function RealWhatsAppMirror() {
           isAudio: isAudio
         };
       });
-      
-      console.log('✅ Mensagens processadas:', realMessages);
       
       setMessages(prev => [
         ...prev.filter(m => m.contactId !== contactId),
@@ -337,11 +310,8 @@ export function RealWhatsAppMirror() {
   };
 
   const selectContact = (contact: Contact) => {
-    console.log('📱 Selecionando contato:', contact.name);
     setSelectedContact(contact.id);
-    
     handleLoadRealMessages(contact.id);
-    
     setContacts(prev => prev.map(c => 
       c.id === contact.id ? { ...c, unread: 0 } : c
     ));
@@ -352,9 +322,6 @@ export function RealWhatsAppMirror() {
 
     const contact = contacts.find(c => c.id === selectedContact);
     if (!contact) return;
-
-    console.log('📤 Enviando mensagem real via WPPConnect...');
-    console.log('📱 Contato selecionado:', contact);
 
     const message: Message = {
       id: Date.now().toString(),
@@ -371,23 +338,16 @@ export function RealWhatsAppMirror() {
 
     try {
       const phoneForSending = extractPhoneForSending(contact);
-      console.log('📞 Enviando para telefone:', phoneForSending);
-      console.log('💬 Texto da mensagem:', messageText);
-      
       const success = await sendWhatsAppMessage(phoneForSending, messageText);
       
       if (success) {
         setMessages(prev => prev.map(msg => 
           msg.id === message.id ? { ...msg, status: 'delivered' } : msg
         ));
-        
-        console.log('✅ Mensagem enviada com sucesso!');
       } else {
         setMessages(prev => prev.map(msg => 
           msg.id === message.id ? { ...msg, status: 'sent', text: `❌ ${msg.text} (Erro no envio)` } : msg
         ));
-        
-        console.error('❌ Falha no envio da mensagem');
       }
     } catch (error) {
       console.error('❌ Erro ao enviar mensagem:', error);
@@ -405,13 +365,17 @@ export function RealWhatsAppMirror() {
   };
 
   const handleCheckStatus = async () => {
-    console.log('🔍 Verificando status manualmente...');
     toast({
       title: "Verificando status...",
       description: "Consultando servidor WPPConnect"
     });
     
     await checkConnectionStatus();
+  };
+
+  const handleUpdateHistoryLimit = () => {
+    updateMessageHistoryLimit(tempHistoryLimit);
+    setShowHistoryConfig(false);
   };
 
   const formatTime = (timestamp: string) => {
@@ -483,6 +447,14 @@ export function RealWhatsAppMirror() {
               {isConnected && (
                 <>
                   <Button 
+                    onClick={() => setShowHistoryConfig(!showHistoryConfig)} 
+                    variant="outline" 
+                    size="sm"
+                  >
+                    <Settings className="h-4 w-4 mr-1" />
+                    Histórico ({messageHistoryLimit})
+                  </Button>
+                  <Button 
                     onClick={handleLoadRealChats} 
                     variant="outline" 
                     size="sm"
@@ -498,6 +470,39 @@ export function RealWhatsAppMirror() {
               )}
             </div>
           </div>
+
+          {/* Configuração de Histórico */}
+          {showHistoryConfig && (
+            <Card className="mb-4 border-blue-200 bg-blue-50">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm">Configurar Histórico de Mensagens</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-3">
+                  <Label htmlFor="historyLimit" className="text-sm">Limite:</Label>
+                  <Input
+                    id="historyLimit"
+                    type="number"
+                    min="10"
+                    max="1000"
+                    value={tempHistoryLimit}
+                    onChange={(e) => setTempHistoryLimit(parseInt(e.target.value) || 50)}
+                    className="w-20"
+                  />
+                  <span className="text-sm text-gray-600">mensagens</span>
+                  <Button onClick={handleUpdateHistoryLimit} size="sm">
+                    Aplicar
+                  </Button>
+                  <Button onClick={() => setShowHistoryConfig(false)} variant="outline" size="sm">
+                    Cancelar
+                  </Button>
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  Maior histórico pode levar mais tempo para carregar e consumir mais recursos.
+                </p>
+              </CardContent>
+            </Card>
+          )}
 
           {!isConnected && !connectionState.qrCode && (
             <Button 
@@ -670,16 +675,12 @@ export function RealWhatsAppMirror() {
                                 </div>
                                 <span className="text-xs text-gray-400">{formatTime(contact.timestamp)}</span>
                               </div>
-                              <p className="text-sm text-gray-500 truncate mt-1 flex items-center gap-1">
-                                {contact.lastMessage.includes('🎤 [Áudio]') && (
-                                  <Volume2 className="h-3 w-3 text-blue-500" />
-                                )}
-                                {contact.lastMessage}
-                              </p>
-                              <div className="flex items-center justify-between mt-1">
-                                <p className="text-xs text-gray-400">{contact.phone}</p>
+                              <div className="flex items-center justify-between">
+                                <p className="text-sm text-gray-500 truncate pr-2">{contact.lastMessage}</p>
                                 {contact.unread > 0 && (
-                                  <Badge className="bg-green-500 text-white text-xs">{contact.unread}</Badge>
+                                  <Badge variant="destructive" className="text-xs">
+                                    {contact.unread}
+                                  </Badge>
                                 )}
                               </div>
                             </div>
@@ -693,77 +694,77 @@ export function RealWhatsAppMirror() {
             </CardContent>
           </Card>
 
-          {/* Área de Chat REAL */}
+          {/* Área de Chat */}
           <Card className="lg:col-span-2">
             {selectedContact ? (
               <>
                 <CardHeader className="pb-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                      <User className="h-5 w-5 text-green-600" />
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                        <User className="h-5 w-5 text-green-600" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-lg">
+                          {contacts.find(c => c.id === selectedContact)?.name}
+                        </CardTitle>
+                        <p className="text-sm text-gray-500">
+                          {contacts.find(c => c.id === selectedContact)?.phone}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        {contacts.find(c => c.id === selectedContact)?.name}
-                        {isConversationPinned(selectedContact) && (
-                          <Pin className="h-4 w-4 text-yellow-600" />
-                        )}
-                        {isConversationMarkedForAnalysis(selectedContact) && (
-                          <div className="flex items-center gap-1">
-                            <Brain className="h-4 w-4 text-green-600" />
-                            {getPriorityIcon(getAnalysisPriority(selectedContact))}
-                          </div>
-                        )}
-                      </CardTitle>
-                      <p className="text-sm text-gray-500">
-                        {contacts.find(c => c.id === selectedContact)?.phone}
-                      </p>
-                    </div>
+                    <Badge variant="outline">
+                      {messages.filter(m => m.contactId === selectedContact).length} mensagens
+                    </Badge>
                   </div>
                 </CardHeader>
                 
-                <CardContent className="flex flex-col h-[500px]">
-                  <div className="flex-1 overflow-y-auto space-y-3 mb-4">
+                <CardContent className="p-0">
+                  {/* Mensagens */}
+                  <div className="h-[400px] overflow-y-auto p-4 space-y-3">
                     {messages
-                      .filter(msg => msg.contactId === selectedContact)
-                      .map((msg) => (
+                      .filter(m => m.contactId === selectedContact)
+                      .map((message) => (
                         <div
-                          key={msg.id}
-                          className={`flex ${msg.sent ? 'justify-end' : 'justify-start'}`}
+                          key={message.id}
+                          className={`flex ${message.sent ? 'justify-end' : 'justify-start'}`}
                         >
                           <div
-                            className={`rounded-lg px-4 py-2 max-w-[75%] ${
-                              msg.sent
+                            className={`max-w-[70%] px-3 py-2 rounded-lg ${
+                              message.sent
                                 ? 'bg-green-500 text-white'
-                                : 'bg-gray-100 text-gray-800'
+                                : 'bg-gray-100 text-gray-900'
                             }`}
                           >
-                            <p className="text-sm flex items-center gap-2">
-                              {msg.isAudio && (
-                                <Volume2 className="h-4 w-4 text-blue-500" />
-                              )}
-                              {msg.text}
-                            </p>
-                            <div className={`text-xs mt-1 flex items-center justify-between ${
-                              msg.sent ? 'text-green-100' : 'text-gray-500'
-                            }`}>
-                              <span>{formatTime(msg.timestamp)}</span>
-                              {msg.sent && (
-                                <span className="ml-2">{getStatusIcon(msg.status)}</span>
-                              )}
+                            <div className="flex items-start gap-2">
+                              {message.isAudio && <Volume2 className="h-4 w-4 mt-0.5 flex-shrink-0" />}
+                              <div className="flex-1">
+                                <p className="text-sm">{message.text}</p>
+                                <div className="flex items-center justify-between mt-1">
+                                  <span className="text-xs opacity-70">
+                                    {formatTime(message.timestamp)}
+                                  </span>
+                                  {message.sent && (
+                                    <span className="text-xs opacity-70">
+                                      {getStatusIcon(message.status)}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
                             </div>
                           </div>
                         </div>
                       ))}
                     <div ref={messagesEndRef} />
                   </div>
-
-                  <div className="border-t pt-4">
-                    <div className="flex gap-3">
-                      <Input 
-                        placeholder="Digite uma mensagem REAL..."
+                  
+                  {/* Input de Mensagem */}
+                  <div className="border-t p-4">
+                    <div className="flex gap-2">
+                      <Input
                         value={newMessage}
                         onChange={(e) => setNewMessage(e.target.value)}
+                        placeholder="Digite sua mensagem..."
                         onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
                         className="flex-1"
                       />
@@ -781,23 +782,8 @@ export function RealWhatsAppMirror() {
             ) : (
               <CardContent className="flex items-center justify-center h-full">
                 <div className="text-center text-gray-500">
-                  <MessageSquare className="h-16 w-16 mx-auto mb-4 text-gray-300" />
-                  <h3 className="text-lg font-medium mb-2">Selecione uma conversa REAL</h3>
-                  <p className="text-sm">Escolha um contato para ver as mensagens reais</p>
-                  <div className="mt-4 space-y-2 text-xs">
-                    <p className="flex items-center gap-2 justify-center">
-                      <Pin className="h-3 w-3" />
-                      Clique direito para fixar conversas importantes
-                    </p>
-                    <p className="flex items-center gap-2 justify-center">
-                      <Brain className="h-3 w-3" />
-                      Marque conversas para análise da IA
-                    </p>
-                    <p className="flex items-center gap-2 justify-center">
-                      <Volume2 className="h-3 w-3" />
-                      Áudios são transcritos automaticamente
-                    </p>
-                  </div>
+                  <MessageSquare className="h-12 w-12 mx-auto mb-4" />
+                  <p>Selecione uma conversa para começar</p>
                 </div>
               </CardContent>
             )}
