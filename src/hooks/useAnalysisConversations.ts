@@ -14,6 +14,7 @@ interface AnalysisConversation {
   marked_at: string;
   last_analyzed_at?: string;
   analysis_results?: any[];
+  marked_for_analysis: boolean;
 }
 
 export function useAnalysisConversations() {
@@ -24,7 +25,7 @@ export function useAnalysisConversations() {
 
   const loadAnalysisConversations = useCallback(async () => {
     if (!user?.id) {
-      console.warn('useAnalysisConversations: Usuário não autenticado');
+      console.warn('🔒 useAnalysisConversations: Usuário não autenticado');
       return;
     }
 
@@ -32,21 +33,29 @@ export function useAnalysisConversations() {
     console.log('🔍 Carregando conversas marcadas para análise...');
     
     try {
+      // Buscar TODAS as conversas marcadas para análise
       const { data, error } = await supabase
         .from('whatsapp_conversations_analysis')
         .select('*')
         .eq('user_id', user.id)
+        .eq('marked_for_analysis', true)
         .order('marked_at', { ascending: false });
 
       if (error) {
-        console.error('Erro ao buscar conversas:', error);
+        console.error('❌ Erro ao buscar conversas marcadas:', error);
         throw error;
       }
       
-      console.log('📊 Conversas encontradas no banco:', data);
+      console.log('📊 Conversas marcadas encontradas:', data);
       
-      // Converter os dados do Supabase para o tipo esperado
-      const convertedData: AnalysisConversation[] = (data || []).map(item => ({
+      if (!data || data.length === 0) {
+        console.log('⚠️ Nenhuma conversa marcada encontrada');
+        setConversations([]);
+        return;
+      }
+
+      // Converter os dados para o tipo esperado
+      const convertedData: AnalysisConversation[] = data.map(item => ({
         id: item.id,
         chat_id: item.chat_id,
         contact_name: item.contact_name,
@@ -55,10 +64,12 @@ export function useAnalysisConversations() {
         analysis_status: item.analysis_status as 'pending' | 'processing' | 'completed' | 'failed',
         marked_at: item.marked_at,
         last_analyzed_at: item.last_analyzed_at || undefined,
-        analysis_results: item.analysis_results as any[] || []
+        analysis_results: item.analysis_results || [],
+        marked_for_analysis: item.marked_for_analysis
       }));
       
       console.log('✅ Conversas processadas:', convertedData);
+      console.log(`📈 Total de conversas carregadas: ${convertedData.length}`);
       setConversations(convertedData);
       
     } catch (error) {
@@ -68,6 +79,7 @@ export function useAnalysisConversations() {
         description: "Não foi possível carregar as conversas marcadas para análise",
         variant: "destructive"
       });
+      setConversations([]);
     } finally {
       setIsLoading(false);
     }
@@ -103,8 +115,13 @@ export function useAnalysisConversations() {
       console.log(`✅ Status da conversa ${conversationId} atualizado para: ${status}`);
     } catch (error) {
       console.error('❌ Erro ao atualizar status da análise:', error);
+      toast({
+        title: "Erro ao atualizar status",
+        description: "Não foi possível atualizar o status da análise",
+        variant: "destructive"
+      });
     }
-  }, [user?.id]);
+  }, [user?.id, toast]);
 
   return {
     conversations,
