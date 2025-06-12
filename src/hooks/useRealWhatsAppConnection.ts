@@ -412,67 +412,81 @@ export function useRealWhatsAppConnection() {
     
     try {
       const targetPhone = phone;
-      const sendData = {
-        phone: targetPhone,
-        message: message,
-        text: message
-      };
       
-      let endpoint = `${wppConfig.serverUrl}/api/${wppConfig.sessionName}/send-message`;
-      
-      console.log('📤 [WPP] Tentando endpoint 1:', endpoint);
-      console.log('📤 [WPP] Dados:', sendData);
-      
-      let response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${wppConfig.token}`
+      // Lista de endpoints para tentar (diferentes versões do WPPConnect)
+      const endpoints = [
+        {
+          url: `${wppConfig.serverUrl}/api/${wppConfig.sessionName}/send-message`,
+          data: { phone: targetPhone, message: message, text: message }
         },
-        body: JSON.stringify(sendData)
+        {
+          url: `${wppConfig.serverUrl}/api/${wppConfig.sessionName}/send-text`,
+          data: { phone: targetPhone, message: message }
+        },
+        {
+          url: `${wppConfig.serverUrl}/api/${wppConfig.sessionName}/sendText`,
+          data: { phone: targetPhone, message: message }
+        },
+        {
+          url: `${wppConfig.serverUrl}/sendText`,
+          data: { session: wppConfig.sessionName, phone: targetPhone, text: message }
+        },
+        {
+          url: `${wppConfig.serverUrl}/${wppConfig.sessionName}/send-message`,
+          data: { phone: targetPhone, message: message }
+        }
+      ];
+      
+      for (let i = 0; i < endpoints.length; i++) {
+        const endpoint = endpoints[i];
+        console.log(`📤 [WPP] Tentando endpoint ${i + 1}:`, endpoint.url);
+        console.log(`📤 [WPP] Dados:`, endpoint.data);
+        
+        try {
+          const response = await fetch(endpoint.url, {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${wppConfig.token}`,
+              'X-API-KEY': wppConfig.token,
+              'token': wppConfig.token
+            },
+            body: JSON.stringify(endpoint.data)
+          });
+
+          console.log(`📤 [WPP] Resposta endpoint ${i + 1}:`, response.status);
+          
+          if (response.ok) {
+            const result = await response.json();
+            console.log('✅ [WPP] Mensagem enviada com sucesso:', result);
+            
+            toast({
+              title: "✅ Mensagem enviada!",
+              description: `Mensagem enviada via endpoint ${i + 1}`
+            });
+            
+            return true;
+          } else {
+            const errorText = await response.text();
+            console.log(`❌ [WPP] Endpoint ${i + 1} falhou:`, response.status, errorText);
+          }
+        } catch (endpointError) {
+          console.log(`❌ [WPP] Erro no endpoint ${i + 1}:`, endpointError);
+        }
+      }
+      
+      // Se chegou aqui, todos os endpoints falharam
+      console.error('❌ [WPP] Todos os endpoints falharam');
+      
+      toast({
+        title: "❌ Erro ao enviar mensagem",
+        description: "Nenhum endpoint funcionou. Verifique se o WPPConnect está rodando e as configurações estão corretas.",
+        variant: "destructive"
       });
-
-      if (!response.ok) {
-        console.log('📤 [WPP] Tentando endpoint alternativo...');
-        endpoint = `${wppConfig.serverUrl}/api/${wppConfig.sessionName}/send-text`;
-        
-        response = await fetch(endpoint, {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${wppConfig.token}`
-          },
-          body: JSON.stringify({
-            phone: targetPhone,
-            message: message
-          })
-        });
-      }
-
-      if (response.ok) {
-        const result = await response.json();
-        console.log('✅ [WPP] Mensagem enviada com sucesso:', result);
-        
-        // Se for resposta do assistente, não mostrar toast padrão
-        toast({
-          title: "✅ Mensagem enviada!",
-          description: "Mensagem enviada via WPPConnect"
-        });
-        
-        return true;
-      } else {
-        const errorText = await response.text();
-        console.error('❌ [WPP] Erro ao enviar mensagem:', response.status, errorText);
-        
-        toast({
-          title: "❌ Erro ao enviar mensagem",
-          description: `Erro ${response.status}: Verifique o número ou conexão`,
-          variant: "destructive"
-        });
-        return false;
-      }
+      return false;
+      
     } catch (error) {
-      console.error('❌ [WPP] Erro de conexão ao enviar mensagem:', error);
+      console.error('❌ [WPP] Erro geral ao enviar mensagem:', error);
       
       toast({
         title: "❌ Erro de conexão",
