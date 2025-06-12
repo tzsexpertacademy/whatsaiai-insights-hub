@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -53,6 +52,26 @@ export function WPPConnectMirror() {
   const [pinnedConversations, setPinnedConversations] = useState<Set<string>>(new Set());
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Função auxiliar para garantir que chatId seja string
+  const formatChatId = (chatId: any): string => {
+    if (typeof chatId === 'string') {
+      return chatId;
+    }
+    if (typeof chatId === 'object' && chatId !== null) {
+      // Se for um objeto com _serialized, usar essa propriedade
+      if (chatId._serialized) {
+        return chatId._serialized;
+      }
+      // Se for um objeto com user e server, construir o ID
+      if (chatId.user && chatId.server) {
+        return `${chatId.user}@${chatId.server}`;
+      }
+      // Como fallback, tentar JSON.stringify
+      return JSON.stringify(chatId);
+    }
+    return String(chatId);
+  };
+
   // Auto-scroll para última mensagem
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -73,8 +92,9 @@ export function WPPConnectMirror() {
   };
 
   const selectContact = (contact: any) => {
-    setSelectedContact(contact.chatId);
-    loadChatMessages(contact.chatId);
+    const formattedChatId = formatChatId(contact.chatId);
+    setSelectedContact(formattedChatId);
+    loadChatMessages(formattedChatId);
   };
 
   const handleSendMessage = async () => {
@@ -104,13 +124,14 @@ export function WPPConnectMirror() {
   };
 
   const handleTogglePin = (chatId: string) => {
+    const formattedChatId = formatChatId(chatId);
     setPinnedConversations(prev => {
       const newSet = new Set(prev);
-      if (newSet.has(chatId)) {
-        newSet.delete(chatId);
+      if (newSet.has(formattedChatId)) {
+        newSet.delete(formattedChatId);
         toast({ title: "Conversa desfixada" });
       } else {
-        newSet.add(chatId);
+        newSet.add(formattedChatId);
         toast({ title: "Conversa fixada" });
       }
       return newSet;
@@ -118,29 +139,30 @@ export function WPPConnectMirror() {
   };
 
   const handleToggleAnalysis = async (chatId: string, priority?: 'high' | 'medium' | 'low') => {
-    const chat = chats.find(c => c.chatId === chatId);
+    const formattedChatId = formatChatId(chatId);
+    const chat = chats.find(c => formatChatId(c.chatId) === formattedChatId);
     if (!chat) return;
 
-    console.log('🏷️ Toggle análise para:', { chatId, chatName: chat.name, priority });
+    console.log('🏷️ Toggle análise para:', { chatId: formattedChatId, chatName: chat.name, priority });
 
-    if (priority && markedConversations.has(chatId)) {
+    if (priority && markedConversations.has(formattedChatId)) {
       // Atualizar prioridade
-      await updateConversationPriority(chatId, priority);
+      await updateConversationPriority(formattedChatId, priority);
     } else {
       // Marcar/desmarcar para análise
       const isMarked = await markConversationForAnalysis(
-        chatId, 
+        formattedChatId, 
         chat.name, 
-        chat.chatId, // usando chatId como phone por enquanto
+        formattedChatId, // usando chatId formatado como phone
         priority || 'medium'
       );
 
       setMarkedConversations(prev => {
         const newSet = new Set(prev);
         if (isMarked) {
-          newSet.add(chatId);
+          newSet.add(formattedChatId);
         } else {
-          newSet.delete(chatId);
+          newSet.delete(formattedChatId);
         }
         return newSet;
       });
@@ -296,48 +318,54 @@ export function WPPConnectMirror() {
             
             <CardContent className="p-0">
               <div className="space-y-1 max-h-[500px] overflow-y-auto">
-                {chats.map((chat) => (
-                  <ConversationContextMenu
-                    key={chat.chatId}
-                    chatId={chat.chatId}
-                    isPinned={pinnedConversations.has(chat.chatId)}
-                    isMarkedForAnalysis={markedConversations.has(chat.chatId)}
-                    analysisPriority="medium"
-                    onTogglePin={handleTogglePin}
-                    onToggleAnalysis={handleToggleAnalysis}
-                  >
-                    <div 
-                      onClick={() => selectContact(chat)}
-                      className={`p-3 border-b cursor-pointer hover:bg-gray-50 transition-colors ${
-                        selectedContact === chat.chatId ? 'bg-blue-50 border-blue-200' : ''
-                      }`}
+                {chats.map((chat) => {
+                  const formattedChatId = formatChatId(chat.chatId);
+                  return (
+                    <ConversationContextMenu
+                      key={formattedChatId}
+                      chatId={formattedChatId}
+                      isPinned={pinnedConversations.has(formattedChatId)}
+                      isMarkedForAnalysis={markedConversations.has(formattedChatId)}
+                      analysisPriority="medium"
+                      onTogglePin={handleTogglePin}
+                      onToggleAnalysis={handleToggleAnalysis}
                     >
-                      <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                          <User className="h-6 w-6 text-green-600" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium text-sm">{chat.name}</span>
-                              {pinnedConversations.has(chat.chatId) && (
-                                <Star className="h-3 w-3 text-yellow-500 fill-current" />
-                              )}
-                              {markedConversations.has(chat.chatId) && (
-                                <Brain className="h-3 w-3 text-blue-500" />
-                              )}
-                            </div>
-                            <span className="text-xs text-gray-400">{formatTime(chat.timestamp)}</span>
+                      <div 
+                        onClick={() => selectContact(chat)}
+                        className={`p-3 border-b cursor-pointer hover:bg-gray-50 transition-colors ${
+                          selectedContact === formattedChatId ? 'bg-blue-50 border-blue-200' : ''
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                            <User className="h-6 w-6 text-green-600" />
                           </div>
-                          <p className="text-sm text-gray-500 truncate mt-1">{chat.lastMessage}</p>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium text-sm">{chat.name}</span>
+                                {pinnedConversations.has(formattedChatId) && (
+                                  <Star className="h-3 w-3 text-yellow-500 fill-current" />
+                                )}
+                                {markedConversations.has(formattedChatId) && (
+                                  <Brain className="h-3 w-3 text-blue-500" />
+                                )}
+                              </div>
+                              <span className="text-xs text-gray-400">{formatTime(chat.timestamp)}</span>
+                            </div>
+                            <p className="text-sm text-gray-500 truncate mt-1">{chat.lastMessage}</p>
+                            <p className="text-xs text-gray-400 mt-1">
+                              ID: {formattedChatId}
+                            </p>
+                          </div>
+                          {chat.unreadCount > 0 && (
+                            <Badge className="bg-green-500 text-white">{chat.unreadCount}</Badge>
+                          )}
                         </div>
-                        {chat.unreadCount > 0 && (
-                          <Badge className="bg-green-500 text-white">{chat.unreadCount}</Badge>
-                        )}
                       </div>
-                    </div>
-                  </ConversationContextMenu>
-                ))}
+                    </ConversationContextMenu>
+                  );
+                })}
               </div>
             </CardContent>
           </Card>
@@ -353,7 +381,7 @@ export function WPPConnectMirror() {
                     </div>
                     <div className="flex-1">
                       <CardTitle className="text-lg">
-                        {chats.find(c => c.chatId === selectedContact)?.name}
+                        {chats.find(c => formatChatId(c.chatId) === selectedContact)?.name}
                       </CardTitle>
                     </div>
                     <Button
