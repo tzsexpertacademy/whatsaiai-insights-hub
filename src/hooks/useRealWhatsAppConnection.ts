@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { useWPPConnect } from './useWPPConnect';
@@ -23,7 +22,7 @@ interface WPPConfig {
   sessionName: string;
   serverUrl: string;
   secretKey: string;
-  webhookUrl: string;
+  webhookUrl?: string;
 }
 
 export function useRealWhatsAppConnection() {
@@ -51,7 +50,10 @@ export function useRealWhatsAppConnection() {
   });
 
   // Obter configuração do WPPConnect
-  const wppConfig: WPPConfig = getWPPConfig();
+  const wppConfig: WPPConfig = {
+    ...getWPPConfig(),
+    webhookUrl: getWPPConfig().webhookUrl || ''
+  };
   
   // Carregar estado salvo
   useEffect(() => {
