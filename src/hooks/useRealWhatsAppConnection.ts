@@ -564,28 +564,66 @@ export function useRealWhatsAppConnection() {
     
     try {
       const targetPhone = phone;
+      const isGroup = phone.includes('@g.us');
       
+      console.log('📤 [WPP] Tipo de chat:', isGroup ? 'Grupo' : 'Contato Individual');
+      
+      // Verificar se o token é válido
+      if (!wppConfig.token || wppConfig.token === 'THISISMYSECURETOKEN') {
+        toast({
+          title: "❌ Token não configurado",
+          description: "Configure um token válido do WPPConnect",
+          variant: "destructive"
+        });
+        return false;
+      }
+
       // Lista de endpoints para tentar (diferentes versões do WPPConnect)
       const endpoints = [
+        // Endpoint padrão para mensagens (funciona para contatos e grupos)
         {
           url: `${wppConfig.serverUrl}/api/${wppConfig.sessionName}/send-message`,
-          data: { phone: targetPhone, message: message, text: message }
+          data: { 
+            phone: targetPhone, 
+            message: message,
+            isGroup: isGroup
+          }
         },
-        {
-          url: `${wppConfig.serverUrl}/api/${wppConfig.sessionName}/send-text`,
-          data: { phone: targetPhone, message: message }
-        },
+        // Endpoint específico para grupos
+        ...(isGroup ? [{
+          url: `${wppConfig.serverUrl}/api/${wppConfig.sessionName}/send-message-to-group`,
+          data: { 
+            groupId: targetPhone, 
+            message: message 
+          }
+        }] : []),
+        // Endpoint alternativo
         {
           url: `${wppConfig.serverUrl}/api/${wppConfig.sessionName}/sendText`,
-          data: { phone: targetPhone, message: message }
+          data: { 
+            phone: targetPhone, 
+            text: message,
+            isGroup: isGroup
+          }
         },
+        // Formato Evolution API
         {
-          url: `${wppConfig.serverUrl}/sendText`,
-          data: { session: wppConfig.sessionName, phone: targetPhone, text: message }
+          url: `${wppConfig.serverUrl}/message/sendText/${wppConfig.sessionName}`,
+          data: { 
+            number: targetPhone,
+            textMessage: {
+              text: message
+            }
+          }
         },
+        // Formato WPPConnect mais recente
         {
-          url: `${wppConfig.serverUrl}/${wppConfig.sessionName}/send-message`,
-          data: { phone: targetPhone, message: message }
+          url: `${wppConfig.serverUrl}/api/${wppConfig.sessionName}/send-text`,
+          data: { 
+            phone: targetPhone, 
+            message: message,
+            isGroup: isGroup
+          }
         }
       ];
       
@@ -600,8 +638,8 @@ export function useRealWhatsAppConnection() {
             headers: { 
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${wppConfig.token}`,
-              'X-API-KEY': wppConfig.token,
-              'token': wppConfig.token
+              'apikey': wppConfig.token,
+              'X-API-KEY': wppConfig.token
             },
             body: JSON.stringify(endpoint.data)
           });
@@ -614,13 +652,25 @@ export function useRealWhatsAppConnection() {
             
             toast({
               title: "✅ Mensagem enviada!",
-              description: `Mensagem enviada via endpoint ${i + 1}`
+              description: isGroup 
+                ? `Mensagem enviada para o grupo via endpoint ${i + 1}`
+                : `Mensagem enviada para o contato via endpoint ${i + 1}`
             });
             
             return true;
           } else {
             const errorText = await response.text();
             console.log(`❌ [WPP] Endpoint ${i + 1} falhou:`, response.status, errorText);
+            
+            // Se for erro 401, parar de tentar outros endpoints
+            if (response.status === 401) {
+              toast({
+                title: "❌ Token inválido",
+                description: "Verifique o token do WPPConnect nas configurações",
+                variant: "destructive"
+              });
+              return false;
+            }
           }
         } catch (endpointError) {
           console.log(`❌ [WPP] Erro no endpoint ${i + 1}:`, endpointError);
@@ -632,7 +682,9 @@ export function useRealWhatsAppConnection() {
       
       toast({
         title: "❌ Erro ao enviar mensagem",
-        description: "Nenhum endpoint funcionou. Verifique se o WPPConnect está rodando e as configurações estão corretas.",
+        description: isGroup 
+          ? "Não foi possível enviar para o grupo. Verifique se o WPPConnect suporta envio para grupos."
+          : "Nenhum endpoint funcionou. Verifique se o WPPConnect está rodando.",
         variant: "destructive"
       });
       return false;
