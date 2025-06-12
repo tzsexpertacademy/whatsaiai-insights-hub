@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -80,13 +79,22 @@ export function RealWhatsAppMirror() {
   const [showHistoryConfig, setShowHistoryConfig] = useState(false);
   const [tempHistoryLimit, setTempHistoryLimit] = useState(messageHistoryLimit);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [currentConnectionStatus, setCurrentConnectionStatus] = useState<'active' | 'inactive'>('inactive');
   
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoadingChats, setIsLoadingChats] = useState(false);
 
-  const connectionStatus = getConnectionStatus();
   const isConnected = connectionState.isConnected;
+
+  // Check connection status on mount and periodically
+  useEffect(() => {
+    const checkStatus = async () => {
+      const status = await getConnectionStatus();
+      setCurrentConnectionStatus(status.connected ? 'active' : 'inactive');
+    };
+    checkStatus();
+  }, [getConnectionStatus]);
 
   // Helper functions
   const extractPhoneNumber = (phoneData: any): string => {
@@ -396,7 +404,7 @@ export function RealWhatsAppMirror() {
   };
 
   const getConnectionStatusInfo = () => {
-    if (connectionStatus === 'active') {
+    if (currentConnectionStatus === 'active') {
       return {
         icon: <CheckCircle className="h-6 w-6 text-green-500" />,
         text: 'Conectado e Ativo',
