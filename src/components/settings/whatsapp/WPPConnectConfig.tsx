@@ -22,7 +22,8 @@ import {
   Key,
   Globe,
   MessageSquare,
-  AlertTriangle
+  AlertTriangle,
+  Save
 } from 'lucide-react';
 
 export function WPPConnectConfig() {
@@ -106,6 +107,14 @@ export function WPPConnectConfig() {
     });
   };
 
+  const handleSaveConfig = () => {
+    saveWPPConfig(config);
+    toast({
+      title: "Configuração salva! ✅",
+      description: "Token e configurações do WPPConnect atualizados"
+    });
+  };
+
   const isTokenValid = config.secretKey && config.secretKey !== 'THISISMYSECURETOKEN' && config.secretKey.length > 10;
 
   return (
@@ -130,7 +139,7 @@ export function WPPConnectConfig() {
                 <li>Acesse a documentação do WPPConnect para configurar o token</li>
                 <li>O token deve ter pelo menos 10 caracteres</li>
                 <li>Cole o token no campo "Secret Key" abaixo</li>
-                <li>Salve as configurações</li>
+                <li>Clique em "Salvar Configuração"</li>
               </ol>
             </div>
           </CardContent>
@@ -236,7 +245,7 @@ export function WPPConnectConfig() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-gray-700">
             <Server className="h-5 w-5" />
-            WPPConnect Real
+            WPPConnect Real - Configuração do Token
             {isTokenValid && <Badge className="bg-blue-100 text-blue-800">CONFIGURADO</Badge>}
           </CardTitle>
           <CardDescription>
@@ -269,14 +278,33 @@ export function WPPConnectConfig() {
               <Key className="h-4 w-4" />
               Secret Key / Token *
             </Label>
-            <Input
-              id="secretKey"
-              type="password"
-              placeholder="Cole aqui o token do seu WPPConnect"
-              value={config.secretKey}
-              onChange={(e) => setConfig(prev => ({ ...prev, secretKey: e.target.value }))}
-              className={!isTokenValid ? 'border-red-300 focus:border-red-500' : 'border-green-300 focus:border-green-500'}
-            />
+            <div className="space-y-2">
+              <Input
+                id="secretKey"
+                type="password"
+                placeholder="Cole aqui o token do seu WPPConnect"
+                value={config.secretKey}
+                onChange={(e) => setConfig(prev => ({ ...prev, secretKey: e.target.value }))}
+                className={!isTokenValid ? 'border-red-300 focus:border-red-500' : 'border-green-300 focus:border-green-500'}
+              />
+              <div className="flex items-center gap-2">
+                <Button 
+                  onClick={handleSaveConfig} 
+                  variant={isTokenValid ? "default" : "secondary"}
+                  size="sm"
+                  className="flex items-center gap-2"
+                >
+                  <Save className="h-4 w-4" />
+                  Salvar Token
+                </Button>
+                {isTokenValid && (
+                  <Badge variant="outline" className="text-green-600 border-green-300">
+                    ✅ Token válido
+                  </Badge>
+                )}
+              </div>
+            </div>
+            
             {!isTokenValid && (
               <p className="text-sm text-red-600">
                 ⚠️ Configure um token válido do WPPConnect (mínimo 10 caracteres)
@@ -289,14 +317,17 @@ export function WPPConnectConfig() {
             )}
           </div>
 
-          <Button 
-            onClick={() => saveWPPConfig(config)} 
-            className="w-full"
-            variant={isTokenValid ? "default" : "secondary"}
-          >
-            <Settings className="h-4 w-4 mr-2" />
-            Salvar Configuração WPPConnect
-          </Button>
+          <Separator />
+
+          <div className="space-y-2">
+            <Label htmlFor="webhookUrl">Webhook URL (Opcional)</Label>
+            <Input
+              id="webhookUrl"
+              placeholder="https://seu-webhook.com/whatsapp"
+              value={config.webhookUrl}
+              onChange={(e) => setConfig(prev => ({ ...prev, webhookUrl: e.target.value }))}
+            />
+          </div>
 
           {!isTokenValid && (
             <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
@@ -304,6 +335,16 @@ export function WPPConnectConfig() {
               <p className="text-sm text-yellow-700">
                 Para usar o WhatsApp Real você precisa instalar e configurar o WPPConnect Server. 
                 O token é gerado pelo próprio WPPConnect quando você o configura.
+              </p>
+            </div>
+          )}
+
+          {isTokenValid && (
+            <div className="bg-blue-100 p-4 rounded-lg border border-blue-200">
+              <h4 className="font-medium text-blue-900 mb-2">🔄 Atualizar Token:</h4>
+              <p className="text-sm text-blue-700">
+                Quando sua sessão do WPPConnect Server expirar, cole aqui o novo token e clique em "Salvar Token".
+                Isso vai atualizar automaticamente as configurações do sistema.
               </p>
             </div>
           )}
