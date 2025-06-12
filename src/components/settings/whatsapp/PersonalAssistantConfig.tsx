@@ -160,7 +160,7 @@ export function PersonalAssistantConfig() {
           <div className="space-y-2">
             <Label>Assistente Selecionado</Label>
             <AssistantSelector
-              selectedAssistantId={config.selectedAssistantId}
+              selectedAssistant={config.selectedAssistantId}
               onAssistantChange={(assistantId) => updateConfig({ selectedAssistantId: assistantId })}
             />
           </div>
