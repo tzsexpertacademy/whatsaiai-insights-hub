@@ -14,7 +14,7 @@ import { useState, useEffect } from 'react';
 
 export function PersonalAssistantConfig() {
   const { config, updateConfig, recentMessages } = usePersonalAssistant();
-  const { processWebhookMessage, sendMessage, wppConfig, configureWebhookOnWPP, connectionState } = useRealWhatsAppConnection();
+  const { processWebhookMessage, sendMessage, wppConfig, configureWebhookOnWPP } = useRealWhatsAppConnection();
   const [isTestingWebhook, setIsTestingWebhook] = useState(false);
   const [isTestingResponse, setIsTestingResponse] = useState(false);
   const [isMonitoring, setIsMonitoring] = useState(false);
@@ -323,12 +323,12 @@ export function PersonalAssistantConfig() {
               <h4 className="font-medium text-blue-900 mb-2">🔧 Webhook Automático</h4>
               <p className="text-sm text-blue-700 mb-3">
                 Para que o assistente responda automaticamente, é preciso configurar o webhook no WPPConnect. 
-                Clique no botão abaixo para tentar a configuração automática com diferentes formatos.
+                Clique no botão abaixo para configurar automaticamente.
               </p>
               
               <Button
                 onClick={handleConfigureWebhook}
-                disabled={isConfiguringWebhook || !connectionState.isConnected}
+                disabled={isConfiguringWebhook}
                 className="w-full mb-3"
                 variant="default"
               >
@@ -345,16 +345,8 @@ export function PersonalAssistantConfig() {
                 )}
               </Button>
 
-              {!connectionState.isConnected && (
-                <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg mb-3">
-                  <p className="text-sm text-yellow-700">
-                    ⚠️ WhatsApp não está conectado. Conecte primeiro para configurar o webhook.
-                  </p>
-                </div>
-              )}
-
               {testResults.webhookConfig && (
-                <div className={`p-3 rounded-lg border text-sm mb-3 ${
+                <div className={`p-3 rounded-lg border text-sm ${
                   testResults.webhookConfig.success 
                     ? 'bg-green-50 border-green-200 text-green-800' 
                     : 'bg-red-50 border-red-200 text-red-800'
@@ -373,23 +365,15 @@ export function PersonalAssistantConfig() {
                 </div>
               )}
               
-              {/* Instruções manuais detalhadas */}
+              {/* Instruções manuais se automático falhar */}
               <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                 <h5 className="font-medium text-yellow-900 mb-2">📖 Configuração Manual (se automático falhar):</h5>
                 <ol className="text-sm text-yellow-700 space-y-1 list-decimal list-inside">
-                  <li>Acesse: <code className="bg-yellow-100 px-1 rounded">{wppConfig.serverUrl}/api-docs</code></li>
-                  <li>Encontre o endpoint <strong>set-webhook</strong> ou <strong>webhook</strong> da sua sessão</li>
-                  <li>Configure: <code className="bg-yellow-100 px-1 rounded">webhook: https://your-project.supabase.co/functions/v1/whatsapp-autoreply</code></li>
+                  <li>Acesse: <code className="bg-yellow-100 px-1 rounded">http://localhost:21465/api-docs</code></li>
+                  <li>Encontre o endpoint <strong>set-webhook</strong> da sua sessão</li>
+                  <li>Configure: <code className="bg-yellow-100 px-1 rounded">webhook: sua-url-supabase/functions/v1/whatsapp-autoreply</code></li>
                   <li>Events: <code className="bg-yellow-100 px-1 rounded">["message"]</code></li>
-                  <li>Enabled: <code className="bg-yellow-100 px-1 rounded">true</code></li>
                 </ol>
-                
-                <div className="mt-2 p-2 bg-yellow-100 rounded">
-                  <p className="text-xs text-yellow-800 font-medium mb-1">📋 Dados para configuração manual:</p>
-                  <p className="text-xs text-yellow-800">URL do Webhook: <code>https://your-project.supabase.co/functions/v1/whatsapp-autoreply</code></p>
-                  <p className="text-xs text-yellow-800">Events: <code>["message"]</code></p>
-                  <p className="text-xs text-yellow-800">Enabled: <code>true</code></p>
-                </div>
               </div>
             </div>
           </div>
