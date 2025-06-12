@@ -1,13 +1,9 @@
 
 import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Smartphone, Settings, Zap, Globe, Server, Wifi, Brain } from 'lucide-react';
-import { WhatsAppPlatformConfig } from './WhatsAppPlatformConfig';
+import { Server, Brain } from 'lucide-react';
 import { WhatsAppConnectionStatus } from './WhatsAppConnectionStatus';
-import { MakeConfig } from './MakeConfig';
-import { GreenAPISettings } from './GreenAPISettings';
 import { WPPConnectConfig } from './whatsapp/WPPConnectConfig';
-import { RealWhatsAppMirror } from '../whatsapp/RealWhatsAppMirror';
 import { PersonalAssistantConfig } from './whatsapp/PersonalAssistantConfig';
 
 export function WhatsAppConfig() {
@@ -23,56 +19,24 @@ export function WhatsAppConfig() {
       {/* Status da Conexão */}
       <WhatsAppConnectionStatus />
 
-      <Tabs defaultValue="real" className="w-full">
-        <TabsList className="grid w-full grid-cols-6">
-          <TabsTrigger value="real" className="flex items-center gap-2">
-            <Wifi className="h-4 w-4" />
-            WhatsApp Real
+      <Tabs defaultValue="wppconnect" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="wppconnect" className="flex items-center gap-2">
+            <Server className="h-4 w-4" />
+            WPPConnect
           </TabsTrigger>
           <TabsTrigger value="assistant" className="flex items-center gap-2">
             <Brain className="h-4 w-4" />
             Assistente Pessoal
           </TabsTrigger>
-          <TabsTrigger value="wppconnect" className="flex items-center gap-2">
-            <Server className="h-4 w-4" />
-            WPPConnect
-          </TabsTrigger>
-          <TabsTrigger value="greenapi" className="flex items-center gap-2">
-            <Globe className="h-4 w-4" />
-            GREEN-API
-          </TabsTrigger>
-          <TabsTrigger value="platform" className="flex items-center gap-2">
-            <Smartphone className="h-4 w-4" />
-            Outras Plataformas
-          </TabsTrigger>
-          <TabsTrigger value="make" className="flex items-center gap-2">
-            <Zap className="h-4 w-4" />
-            Make.com (Legado)
-          </TabsTrigger>
         </TabsList>
-
-        <TabsContent value="real">
-          <RealWhatsAppMirror />
-        </TabsContent>
-
-        <TabsContent value="assistant">
-          <PersonalAssistantConfig />
-        </TabsContent>
 
         <TabsContent value="wppconnect">
           <WPPConnectConfig />
         </TabsContent>
 
-        <TabsContent value="greenapi">
-          <GreenAPISettings />
-        </TabsContent>
-
-        <TabsContent value="platform">
-          <WhatsAppPlatformConfig />
-        </TabsContent>
-
-        <TabsContent value="make">
-          <MakeConfig />
+        <TabsContent value="assistant">
+          <PersonalAssistantConfig />
         </TabsContent>
       </Tabs>
     </div>
