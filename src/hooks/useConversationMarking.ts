@@ -3,19 +3,28 @@ import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useConversationDatabase } from './useConversationDatabase';
 
 export function useConversationMarking() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { saveConversationToDatabase } = useConversationDatabase();
   const [isMarking, setIsMarking] = useState(false);
 
   const markConversationForAnalysis = async (
     chatId: string,
     contactName: string,
     contactPhone: string,
-    priority: 'high' | 'medium' | 'low' = 'medium'
+    priority: 'high' | 'medium' | 'low' = 'medium',
+    messages: any[] = []
   ) => {
-    console.log('🚀 INÍCIO MARCAÇÃO:', { chatId, contactName, contactPhone, priority });
+    console.log('🚀 INÍCIO MARCAÇÃO COM SALVAMENTO:', { 
+      chatId, 
+      contactName, 
+      contactPhone, 
+      priority,
+      messagesCount: messages.length 
+    });
     console.log('👤 Usuário atual:', { userId: user?.id, userEmail: user?.email });
 
     if (!user?.id) {
@@ -32,7 +41,8 @@ export function useConversationMarking() {
     console.log('🔄 Iniciando processo de marcação...');
 
     try {
-      console.log('🔍 Verificando se conversa já existe...');
+      // 1. Marcar para análise IA na tabela específica
+      console.log('🔍 Verificando se conversa já existe na tabela de análise...');
       const { data: existing, error: selectError } = await supabase
         .from('whatsapp_conversations_analysis')
         .select('id, marked_for_analysis, priority')
@@ -45,10 +55,12 @@ export function useConversationMarking() {
         throw selectError;
       }
 
-      console.log('📊 Resultado da consulta:', { existing, selectError });
+      console.log('📊 Resultado da consulta análise:', { existing, selectError });
+
+      let isMarkedForAnalysis = false;
 
       if (existing) {
-        console.log('✏️ Atualizando conversa existente...');
+        console.log('✏️ Atualizando conversa existente na análise...');
         const newStatus = !existing.marked_for_analysis;
         
         const { data: updateData, error: updateError } = await supabase
@@ -70,6 +82,8 @@ export function useConversationMarking() {
           throw updateError;
         }
 
+        isMarkedForAnalysis = newStatus;
+        
         toast({
           title: newStatus ? "Conversa marcada" : "Conversa desmarcada",
           description: newStatus 
@@ -77,8 +91,6 @@ export function useConversationMarking() {
             : "Conversa removida da análise IA"
         });
 
-        console.log('✅ Conversa atualizada com sucesso:', newStatus ? 'marcada' : 'desmarcada');
-        return newStatus;
       } else {
         console.log('➕ Criando nova conversa marcada...');
         const insertData = {
@@ -91,7 +103,7 @@ export function useConversationMarking() {
           analysis_status: 'pending'
         };
         
-        console.log('📋 Dados para inserção:', insertData);
+        console.log('📋 Dados para inserção na análise:', insertData);
 
         const { data: insertResult, error: insertError } = await supabase
           .from('whatsapp_conversations_analysis')
@@ -105,14 +117,42 @@ export function useConversationMarking() {
           throw insertError;
         }
 
+        isMarkedForAnalysis = true;
+        
         toast({
           title: "Conversa marcada",
           description: "Conversa marcada para análise IA"
         });
-
-        console.log('✅ Nova conversa marcada com sucesso');
-        return true;
       }
+
+      // 2. Se marcada para análise e tem mensagens, salvar no banco principal
+      if (isMarkedForAnalysis && messages.length > 0) {
+        console.log('💾 Salvando conversa no banco principal...');
+        
+        const conversationData = {
+          chatId,
+          contactName,
+          contactPhone,
+          messages,
+          isGroup: chatId.includes('@g.us')
+        };
+
+        const saved = await saveConversationToDatabase(conversationData);
+        
+        if (saved) {
+          console.log('✅ Conversa salva no banco principal com sucesso');
+          toast({
+            title: "💾 Conversa salva no banco",
+            description: `${messages.length} mensagens salvas para análise macro`
+          });
+        } else {
+          console.warn('⚠️ Falha ao salvar no banco principal, mas marcação mantida');
+        }
+      }
+
+      console.log('✅ Processo de marcação concluído:', isMarkedForAnalysis ? 'marcada' : 'desmarcada');
+      return isMarkedForAnalysis;
+
     } catch (error) {
       console.error('❌ ERRO GERAL ao marcar conversa:', error);
       console.error('📋 Detalhes do erro:', {
