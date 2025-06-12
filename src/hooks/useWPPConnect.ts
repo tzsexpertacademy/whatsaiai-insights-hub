@@ -62,8 +62,8 @@ export function useWPPConnect() {
     return {
       sessionName: localStorage.getItem('wpp_session_name') || 'NERDWHATS_AMERICA',
       serverUrl: localStorage.getItem('wpp_server_url') || 'http://localhost:21465',
-      secretKey: localStorage.getItem('wpp_secret_key') || '',
-      token: localStorage.getItem('wpp_token') || '',
+      secretKey: localStorage.getItem('wpp_secret_key') || 'THISISMYSECURETOKEN',
+      token: localStorage.getItem('wpp_token') || '$2b$10$S1aK9kqjlklpoEHjttgnKuaZOw0lTb.c8xSYcQhKjXEUYKnMrH3s2',
       webhookUrl: localStorage.getItem('wpp_webhook_url') || ''
     };
   }, []);
@@ -93,46 +93,52 @@ export function useWPPConnect() {
     }
   }, []);
 
-  // Função centralizada para fazer requisições
+  // Função centralizada para fazer requisições - CORRIGIDA BASEADA NAS SUAS IMAGENS
   const makeWPPRequest = useCallback(async (endpoint: string, options: RequestInit = {}) => {
     const config = getWPPConfig();
     
-    console.log('🔧 Config atual:', {
+    console.log('🔧 Config usado:', {
       sessionName: config.sessionName,
       serverUrl: config.serverUrl,
-      hasSecretKey: !!config.secretKey,
-      hasToken: !!config.token
+      secretKey: config.secretKey,
+      token: config.token ? `***${config.token.slice(-8)}` : 'VAZIO'
     });
-
-    if (!config.secretKey || !config.token) {
-      throw new Error('Token ou Secret Key não configurado. Vá em Configurações → WPPConnect');
-    }
 
     const url = `${config.serverUrl}${endpoint}`;
     console.log(`🌐 WPP Request: ${options.method || 'GET'} ${url}`);
 
+    // HEADERS CORRETOS BASEADOS NAS SUAS IMAGENS
+    const headers = {
+      'Content-Type': 'application/json',
+      'accept': '*/*',
+      ...options.headers,
+    };
+
+    // Adicionar autenticação baseada no endpoint
+    if (endpoint.includes('/start-all')) {
+      // Para /start-all usar secretkey
+      headers['Authorization'] = `Bearer ${config.secretKey}`;
+    } else {
+      // Para outros endpoints usar token
+      headers['Authorization'] = `Bearer ${config.token}`;
+    }
+
+    console.log('📝 Headers enviados:', {
+      ...headers,
+      'Authorization': `Bearer ***${headers['Authorization'].slice(-8)}`
+    });
+
     const response = await fetch(url, {
       ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${config.secretKey}`,
-        'X-API-Key': config.token,
-        ...options.headers,
-      },
+      headers,
     });
+
+    console.log(`📊 Response status: ${response.status}`);
 
     if (!response.ok) {
       const errorText = await response.text();
       console.error(`❌ WPP Request Error (${response.status}):`, errorText);
-      
-      if (response.status === 401) {
-        throw new Error('Token/Secret Key inválido. Verifique as configurações em WPPConnect');
-      }
-      if (response.status === 404) {
-        throw new Error('Endpoint não encontrado. Verifique se o WPPConnect está rodando');
-      }
-      
-      throw new Error(`Erro ${response.status}: ${response.statusText}`);
+      throw new Error(`Erro ${response.status}: ${errorText}`);
     }
 
     const data = await response.json();
@@ -140,31 +146,28 @@ export function useWPPConnect() {
     return data;
   }, [getWPPConfig]);
 
-  // Verificar status da conexão
+  // Verificar status da conexão - ENDPOINT CORRETO
   const checkConnectionStatus = useCallback(async () => {
     try {
-      console.log('🔍 Verificando status da sessão WPP...');
+      console.log('🔍 Verificando status da sessão...');
       
       const config = getWPPConfig();
-      const data = await makeWPPRequest(`/api/${config.sessionName}/check-connection-session`);
+      // ENDPOINT CORRETO baseado nas suas imagens
+      const data = await makeWPPRequest(`/api/${config.sessionName}/qrcode-session`);
       
       console.log('📊 Status da sessão:', data);
       
-      // Verificar diferentes formatos de resposta
-      const isConnected = data.status === true || 
-                         data.status === 'CONNECTED' || 
-                         data.message === 'Connected' ||
+      const isConnected = data.status === 'CONNECTED' || 
                          data.connected === true ||
                          (data.session && data.session.status === 'CONNECTED');
       
       setSessionStatus(prev => ({
         ...prev,
         isConnected,
-        phoneNumber: data.phoneNumber || data.wid?.user || data.session?.phoneNumber || prev.phoneNumber,
+        phoneNumber: data.phoneNumber || data.wid?.user || prev.phoneNumber,
         error: isConnected ? null : 'Sessão não conectada'
       }));
 
-      // Se conectado, carregar conversas automaticamente
       if (isConnected) {
         console.log('✅ Sessão conectada! Carregando conversas...');
         await loadRealChats();
@@ -182,7 +185,7 @@ export function useWPPConnect() {
     }
   }, [makeWPPRequest, getWPPConfig]);
 
-  // Gerar QR Code - ENDPOINT CORRETO
+  // Gerar QR Code - MÉTODO POST CORRETO
   const generateQRCode = useCallback(async () => {
     try {
       setSessionStatus(prev => ({ ...prev, isLoading: true, error: null }));
@@ -190,10 +193,18 @@ export function useWPPConnect() {
       const config = getWPPConfig();
       console.log('🎯 Gerando QR Code para sessão:', config.sessionName);
       
-      // ENDPOINT CORRETO para gerar QR Code
-      const data = await makeWPPRequest(`/api/${config.sessionName}/start-session`);
+      // MÉTODO POST CORRETO baseado nas suas imagens
+      const data = await makeWPPRequest(`/api/${config.sessionName}/start-session`, {
+        method: 'POST',
+        body: JSON.stringify({
+          "webhook": "",
+          "waitQrCode": true
+        })
+      });
       
-      if (data.status === 'SUCCESS' && data.qrcode) {
+      console.log('📱 Resposta start-session:', data);
+      
+      if (data.status === 'success' && data.qrcode) {
         setSessionStatus(prev => ({
           ...prev,
           qrCode: data.qrcode,
@@ -201,11 +212,11 @@ export function useWPPConnect() {
         }));
         
         toast({
-          title: "QR Code gerado!",
+          title: "✅ QR Code gerado!",
           description: "Escaneie com seu WhatsApp Business"
         });
 
-        // Iniciar verificação periódica do status
+        // Verificar status periodicamente
         const checkInterval = setInterval(async () => {
           const isConnected = await checkConnectionStatus();
           if (isConnected) {
@@ -214,7 +225,6 @@ export function useWPPConnect() {
           }
         }, 3000);
 
-        // Limpar intervalo após 2 minutos
         setTimeout(() => clearInterval(checkInterval), 120000);
         
       } else {
@@ -229,7 +239,7 @@ export function useWPPConnect() {
       }));
       
       toast({
-        title: "Erro ao gerar QR Code",
+        title: "❌ Erro ao gerar QR Code",
         description: error.message,
         variant: "destructive"
       });
@@ -240,46 +250,47 @@ export function useWPPConnect() {
   const loadRealChats = useCallback(async (): Promise<Chat[]> => {
     try {
       setIsLoadingChats(true);
-      console.log('📱 Carregando conversas reais...');
+      console.log('📱 Carregando conversas...');
       
       const config = getWPPConfig();
-      // ENDPOINT CORRETO para buscar conversas
-      const data = await makeWPPRequest(`/api/${config.sessionName}/all-chats`);
       
-      console.log('📋 Dados brutos das conversas:', data);
+      // USAR O ENDPOINT /start-all COMO NAS SUAS IMAGENS
+      const data = await makeWPPRequest(`/api/${config.secretKey}/start-all?session=${config.sessionName}&authorization=authorization`);
       
-      if (Array.isArray(data)) {
-        const formattedChats: Chat[] = data.map((chat: any) => ({
-          id: String(chat.id?._serialized || chat.id || chat.chatId || `chat-${Math.random()}`),
-          chatId: String(chat.id?._serialized || chat.id || chat.chatId || ''),
-          name: chat.name || chat.pushname || chat.formattedTitle || chat.contact?.name || 'Sem nome',
-          lastMessage: chat.lastMessage?.body || chat.lastMessage?.content || chat.lastMessage || 'Sem mensagens',
+      console.log('📋 Dados das conversas:', data);
+      
+      // Se start-all funcionou, agora buscar conversas
+      const chatsData = await makeWPPRequest(`/api/${config.sessionName}/all-chats`);
+      
+      if (Array.isArray(chatsData)) {
+        const formattedChats: Chat[] = chatsData.map((chat: any) => ({
+          id: String(chat.id?._serialized || chat.id || `chat-${Math.random()}`),
+          chatId: String(chat.id?._serialized || chat.id || ''),
+          name: chat.name || chat.pushname || chat.formattedTitle || 'Sem nome',
+          lastMessage: chat.lastMessage?.body || 'Sem mensagens',
           timestamp: chat.t ? new Date(chat.t * 1000).toISOString() : new Date().toISOString(),
           unreadCount: chat.unreadCount || 0,
           unread: chat.unreadCount || 0,
           isGroup: chat.isGroup || false,
           phone: chat.id?._serialized || chat.id || ''
-        })).filter(chat => chat.chatId && chat.chatId !== '');
+        })).filter(chat => chat.chatId);
 
         console.log('📋 Conversas formatadas:', formattedChats);
         setChats(formattedChats);
         
         toast({
-          title: "Conversas carregadas! 📱",
+          title: "✅ Conversas carregadas!",
           description: `${formattedChats.length} conversas encontradas`
         });
 
         return formattedChats;
-        
-      } else {
-        console.warn('⚠️ Resposta não é array:', data);
-        setChats([]);
-        return [];
       }
+      
+      return [];
     } catch (error) {
       console.error('❌ Erro ao carregar conversas:', error);
       toast({
-        title: "Erro ao carregar conversas",
+        title: "❌ Erro ao carregar conversas",
         description: error.message,
         variant: "destructive"
       });
@@ -314,14 +325,11 @@ export function useWPPConnect() {
           ...prev.filter(m => m.chatId !== chatId),
           ...formattedMessages
         ]);
-        
-      } else {
-        console.warn('⚠️ Mensagens não é array:', data);
       }
     } catch (error) {
       console.error('❌ Erro ao carregar mensagens:', error);
       toast({
-        title: "Erro ao carregar mensagens",
+        title: "❌ Erro ao carregar mensagens",
         description: error.message,
         variant: "destructive"
       });
@@ -344,12 +352,10 @@ export function useWPPConnect() {
         })
       });
 
-      if (data.status === 'SUCCESS') {
-        // Recarregar mensagens da conversa
+      if (data.status === 'success' || data.success) {
         await loadRealMessages(chatId);
-        
         toast({
-          title: "Mensagem enviada!",
+          title: "✅ Mensagem enviada!",
           description: "A mensagem foi enviada com sucesso"
         });
       } else {
@@ -373,7 +379,7 @@ export function useWPPConnect() {
     (window as any).wppLiveInterval = liveInterval;
     
     toast({
-      title: "Modo Live ativado",
+      title: "🔴 Modo Live ativado",
       description: "Mensagens serão atualizadas automaticamente"
     });
   }, [loadRealMessages, toast]);
@@ -389,7 +395,7 @@ export function useWPPConnect() {
     }
     
     toast({
-      title: "Modo Live desativado",
+      title: "⏹️ Modo Live desativado",
       description: "Atualizações automáticas pausadas"
     });
   }, [toast]);
@@ -415,13 +421,13 @@ export function useWPPConnect() {
       stopLiveMode();
       
       toast({
-        title: "WhatsApp desconectado",
+        title: "📱 WhatsApp desconectado",
         description: "Sessão encerrada com sucesso"
       });
     } catch (error) {
       console.error('❌ Erro ao desconectar:', error);
       toast({
-        title: "Erro ao desconectar",
+        title: "❌ Erro ao desconectar",
         description: error.message,
         variant: "destructive"
       });
@@ -443,7 +449,7 @@ export function useWPPConnect() {
   // Verificar status ao montar o componente
   useEffect(() => {
     const config = getWPPConfig();
-    console.log('🚀 Iniciando verificação de status...');
+    console.log('🚀 Iniciando verificação automática...');
     
     if (config.secretKey && config.token) {
       console.log('🚀 Config encontrada, verificando status...');
@@ -451,8 +457,8 @@ export function useWPPConnect() {
     } else {
       console.log('⚠️ Config WPP não encontrada');
       toast({
-        title: "Configuração necessária",
-        description: "Configure o WPPConnect em Configurações → WPPConnect",
+        title: "⚙️ Configuração necessária",
+        description: "Configure o WPPConnect nas configurações",
         variant: "destructive"
       });
     }
