@@ -30,22 +30,14 @@ import { AdminDashboard } from '@/components/admin/AdminDashboard';
 import { AdminMasterDashboard } from '@/components/admin/AdminMasterDashboard';
 import { AdminRoute } from '@/components/AdminRoute';
 import NotFound from '@/pages/NotFound';
-import ObservatoryLanding from '@/pages/ObservatoryLanding';
-import WelcomeTour from '@/pages/WelcomeTour';
-import SolutionsHub from '@/pages/SolutionsHub';
-import CommercialBrain from '@/pages/CommercialBrain';
-import AdminMaster from '@/pages/AdminMaster';
+import { ObservatoryLanding } from '@/pages/ObservatoryLanding';
+import { WelcomeTour } from '@/pages/WelcomeTour';
+import { SolutionsHub } from '@/pages/SolutionsHub';
+import { CommercialBrain } from '@/pages/CommercialBrain';
+import { AdminMaster } from '@/pages/AdminMaster';
 
 function AppRouter() {
-  const { user, loading } = useAuth();
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
+  const { user } = useAuth();
 
   return (
     <Router>
@@ -56,7 +48,7 @@ function AppRouter() {
         <Route path="/observatory" element={<ObservatoryLanding />} />
         <Route path="/welcome" element={<WelcomeTour />} />
         <Route path="/solutions" element={<SolutionsHub />} />
-        <Route path="/commercial" element={<CommercialBrain />} />
+        <Route path="/commercial/*" element={<CommercialBrain />} />
 
         {/* Protected routes */}
         {user ? (
