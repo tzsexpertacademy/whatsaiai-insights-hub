@@ -1,4 +1,3 @@
-
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -20,6 +19,10 @@ interface WPPConfig {
 interface WebhookConfig {
   url: string;
   events: string[];
+  qrWebhook?: string;
+  statusWebhook?: string;
+  sendMessageWebhook?: string;
+  autoReplyWebhook?: string;
 }
 
 export function useRealWhatsAppConnection() {
@@ -160,6 +163,14 @@ export function useRealWhatsAppConnection() {
         return isConnected;
       } else {
         console.error('❌ Erro ao verificar status:', response.status);
+        
+        setConnectionState(prev => ({
+          ...prev,
+          isConnected: false,
+          lastStatusCheck: new Date().toISOString(),
+          isLoading: false
+        }));
+        
         if (showToast) {
           toast({
             title: "Erro na verificação",
@@ -171,6 +182,14 @@ export function useRealWhatsAppConnection() {
       }
     } catch (error) {
       console.error('❌ Erro na requisição de status:', error);
+      
+      setConnectionState(prev => ({
+        ...prev,
+        isConnected: false,
+        lastStatusCheck: new Date().toISOString(),
+        isLoading: false
+      }));
+      
       if (showToast) {
         toast({
           title: "Erro de conexão",
@@ -454,7 +473,7 @@ export function useRealWhatsAppConnection() {
       setConnectionState(prev => ({ ...prev, isLoading: false }));
       setIsLoading(false);
     }
-  }, [checkSessionStatus, startAutoStatusCheck]);
+  }, [checkSessionStatus]);
 
   // Funções para gerenciar conversas
   const togglePinConversation = useCallback((chatId: string) => {
