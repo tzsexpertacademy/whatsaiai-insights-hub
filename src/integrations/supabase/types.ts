@@ -606,6 +606,54 @@ export type Database = {
         }
         Relationships: []
       }
+      whatsapp_conversations_analysis: {
+        Row: {
+          analysis_results: Json | null
+          analysis_status: string
+          chat_id: string
+          contact_name: string
+          contact_phone: string
+          created_at: string
+          id: string
+          last_analyzed_at: string | null
+          marked_at: string
+          marked_for_analysis: boolean
+          priority: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          analysis_results?: Json | null
+          analysis_status?: string
+          chat_id: string
+          contact_name: string
+          contact_phone: string
+          created_at?: string
+          id?: string
+          last_analyzed_at?: string | null
+          marked_at?: string
+          marked_for_analysis?: boolean
+          priority?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          analysis_results?: Json | null
+          analysis_status?: string
+          chat_id?: string
+          contact_name?: string
+          contact_phone?: string
+          created_at?: string
+          id?: string
+          last_analyzed_at?: string | null
+          marked_at?: string
+          marked_for_analysis?: boolean
+          priority?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       whatsapp_messages: {
         Row: {
           ai_generated: boolean | null

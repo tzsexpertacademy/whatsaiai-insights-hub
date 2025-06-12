@@ -1,4 +1,3 @@
-
 /**
  * SISTEMA PROTEGIDO DE ANÁLISE IA - VERSÃO 2.0
  * 
@@ -88,6 +87,7 @@ export function useProtectedAnalysisSystem() {
       const { data: markedConversations, error: markedError } = await supabase
         .from('whatsapp_conversations_analysis')
         .select('*')
+        .eq('user_id', user.id)
         .eq('marked_for_analysis', true)
         .eq('analysis_status', 'pending');
 
@@ -309,9 +309,9 @@ export function useProtectedAnalysisSystem() {
         conversations.forEach(conv => {
           const marked = markedConversations.find(m => m.chat_id === conv.id);
           if (marked) {
-            conv.markedForAnalysis = true;
-            conv.analysisPriority = marked.priority;
-            conv.markedAt = marked.marked_at;
+            (conv as any).markedForAnalysis = true;
+            (conv as any).analysisPriority = marked.priority;
+            (conv as any).markedAt = marked.marked_at;
           }
         });
       }
