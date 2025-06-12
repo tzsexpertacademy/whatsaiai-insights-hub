@@ -14,7 +14,7 @@ serve(async (req) => {
   }
 
   try {
-    console.log('📱 WhatsApp Auto-Reply - Webhook recebido');
+    console.log('📱 === WEBHOOK WHATSAPP AUTO-REPLY ===');
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -23,33 +23,34 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
     
     const webhookData = await req.json();
-    console.log('📥 Dados do webhook:', JSON.stringify(webhookData, null, 2));
+    console.log('📥 Dados do webhook completos:', JSON.stringify(webhookData, null, 2));
 
     // Processar mensagem do WhatsApp
     if (webhookData.messages && webhookData.messages.length > 0) {
       const message = webhookData.messages[0];
       const contactPhone = message.from;
-      const messageText = message.text?.body || '';
-      const contactName = message.profile?.name || `Contato ${contactPhone}`;
+      const messageText = message.text?.body || message.body || '';
+      const contactName = message.profile?.name || message.pushname || `Contato ${contactPhone}`;
 
       console.log(`💬 Nova mensagem de ${contactName} (${contactPhone}): ${messageText}`);
 
       // Buscar configuração do assistente pessoal do usuário
-      // Aqui você implementaria a lógica para buscar a configuração por usuário
-      // Por exemplo, baseado no número de destino da mensagem
-      
       const toNumber = message.to || webhookData.to;
       console.log('📞 Mensagem destinada para:', toNumber);
 
-      // Simular busca de configuração (você implementaria busca real na base de dados)
+      // IMPORTANTE: Aqui você deve implementar a busca real de configuração por usuário
+      // Por enquanto, usando configuração padrão para testes
       const personalAssistantConfig = {
         enabled: true,
-        masterNumber: '5511987654321', // Número master do usuário
+        masterNumber: '554796451886', // Substitua pelo seu número real
         assistantName: 'Kairon',
         systemPrompt: `Você é Kairon, um assistente pessoal inteligente via WhatsApp. 
-        Seja proativo, eficiente e direto. Mantenha conversas naturais e amigáveis.`,
+        Seja proativo, eficiente e direto. Mantenha conversas naturais e amigáveis.
+        Responda sempre em português brasileiro.`,
         responseDelay: 2
       };
+
+      console.log('⚙️ Configuração do assistente:', personalAssistantConfig);
 
       // Verificar se o assistente está ativo
       if (!personalAssistantConfig.enabled) {
@@ -66,6 +67,10 @@ serve(async (req) => {
         if (cleaned.endsWith('@c.us')) {
           cleaned = cleaned.replace('@c.us', '');
         }
+        // Garantir que tenha o código do país
+        if (cleaned.length >= 11 && !cleaned.startsWith('55')) {
+          cleaned = '55' + cleaned;
+        }
         return cleaned;
       };
 
@@ -75,11 +80,14 @@ serve(async (req) => {
       console.log('🔍 Verificando autorização:', {
         fromPhone: cleanFromPhone,
         masterPhone: cleanMasterPhone,
-        isAuthorized: cleanFromPhone === cleanMasterPhone
+        isAuthorized: cleanFromPhone === cleanMasterPhone,
+        originalFrom: contactPhone,
+        originalMaster: personalAssistantConfig.masterNumber
       });
 
       if (cleanFromPhone !== cleanMasterPhone) {
         console.log('🚫 Mensagem não é do número master autorizado - ignorando');
+        console.log(`🚫 Recebido de: ${cleanFromPhone}, Master: ${cleanMasterPhone}`);
         return new Response(
           JSON.stringify({ success: true, message: 'Não autorizado' }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -98,7 +106,7 @@ serve(async (req) => {
       let conversationId;
       
       if (convError || !conversation) {
-        // Criar nova conversa
+        console.log('📝 Criando nova conversa...');
         const { data: newConv, error: newError } = await supabase
           .from('whatsapp_conversations')
           .insert({
@@ -121,7 +129,7 @@ serve(async (req) => {
         conversationId = newConv.id;
         console.log('✅ Nova conversa criada:', conversationId);
       } else {
-        // Atualizar conversa existente
+        console.log('📝 Atualizando conversa existente...');
         const updatedMessages = [...(conversation.messages || []), {
           text: messageText,
           sender: 'customer',
@@ -158,8 +166,10 @@ serve(async (req) => {
       // Gerar resposta automática usando OpenAI
       if (openaiApiKey && messageText.trim()) {
         console.log('🤖 Gerando resposta automática...');
+        console.log('🤖 Prompt do sistema:', personalAssistantConfig.systemPrompt);
         
         // Aguardar delay configurado antes de responder
+        console.log(`⏳ Aguardando ${personalAssistantConfig.responseDelay} segundos...`);
         await new Promise(resolve => setTimeout(resolve, personalAssistantConfig.responseDelay * 1000));
         
         const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -219,13 +229,14 @@ serve(async (req) => {
                 timestamp: new Date().toISOString()
               });
 
-            console.log('✅ Resposta automática salva');
+            console.log('✅ Resposta automática salva no banco');
           }
 
-          // Aqui você integraria com sua API do WPPConnect para enviar a resposta
-          // Exemplo: await sendWhatsAppMessage(contactPhone, replyText);
+          // AQUI É ONDE VOCÊ PRECISA INTEGRAR COM SUA API DO WPPCONNECT
+          // Por agora, apenas logando que a resposta seria enviada
+          console.log(`📤 RESPOSTA SERIA ENVIADA para ${contactPhone}: ${replyText}`);
+          console.log('⚠️ INTEGRAÇÃO COM WPPCONNECT NECESSÁRIA AQUI!');
           
-          console.log(`📤 Resposta enviada para ${contactPhone}: ${replyText}`);
         } else {
           console.error('❌ Erro na API OpenAI:', await aiResponse.text());
         }

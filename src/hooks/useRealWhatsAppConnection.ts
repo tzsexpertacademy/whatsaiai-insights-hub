@@ -48,7 +48,7 @@ export function useRealWhatsAppConnection() {
   });
   
   const [isLoading, setIsLoading] = useState(false);
-  const [messageHistoryLimit, setMessageHistoryLimit] = useState(50); // Nova configuração
+  const [messageHistoryLimit, setMessageHistoryLimit] = useState(50);
   
   const [webhooks, setWebhooks] = useState<WebhookConfig>(() => {
     const saved = localStorage.getItem('whatsapp_webhooks');
@@ -89,7 +89,7 @@ export function useRealWhatsAppConnection() {
 
   // Helper function to format phone number for WPPConnect
   const formatPhoneNumber = (phone: string): string => {
-    console.log('📞 Formatando número original:', phone);
+    console.log('📞 [WPP] Formatando número original:', phone);
     
     if (phone.includes('@g.us')) {
       return phone;
@@ -102,6 +102,7 @@ export function useRealWhatsAppConnection() {
     let cleanPhone = phone.replace(/\D/g, '');
     const formattedPhone = cleanPhone + '@c.us';
     
+    console.log('📞 [WPP] Número formatado:', formattedPhone);
     return formattedPhone;
   };
 
@@ -404,7 +405,10 @@ export function useRealWhatsAppConnection() {
 
   // Função para enviar mensagem
   const sendMessage = useCallback(async (phone: string, message: string) => {
-    console.log('📤 Enviando mensagem real via WPPConnect...');
+    console.log('📤 [WPP] === ENVIANDO MENSAGEM ===');
+    console.log('📤 [WPP] Para:', phone);
+    console.log('📤 [WPP] Mensagem:', message);
+    console.log('📤 [WPP] Config atual:', wppConfig);
     
     try {
       const targetPhone = phone;
@@ -416,6 +420,9 @@ export function useRealWhatsAppConnection() {
       
       let endpoint = `${wppConfig.serverUrl}/api/${wppConfig.sessionName}/send-message`;
       
+      console.log('📤 [WPP] Tentando endpoint 1:', endpoint);
+      console.log('📤 [WPP] Dados:', sendData);
+      
       let response = await fetch(endpoint, {
         method: 'POST',
         headers: { 
@@ -426,6 +433,7 @@ export function useRealWhatsAppConnection() {
       });
 
       if (!response.ok) {
+        console.log('📤 [WPP] Tentando endpoint alternativo...');
         endpoint = `${wppConfig.serverUrl}/api/${wppConfig.sessionName}/send-text`;
         
         response = await fetch(endpoint, {
@@ -443,7 +451,7 @@ export function useRealWhatsAppConnection() {
 
       if (response.ok) {
         const result = await response.json();
-        console.log('✅ Mensagem enviada com sucesso:', result);
+        console.log('✅ [WPP] Mensagem enviada com sucesso:', result);
         
         // Se for resposta do assistente, não mostrar toast padrão
         if (!message.includes(assistantConfig.assistantName)) {
@@ -456,7 +464,7 @@ export function useRealWhatsAppConnection() {
         return true;
       } else {
         const errorText = await response.text();
-        console.error('❌ Erro ao enviar mensagem:', errorText);
+        console.error('❌ [WPP] Erro ao enviar mensagem:', response.status, errorText);
         
         toast({
           title: "❌ Erro ao enviar mensagem",
@@ -466,7 +474,7 @@ export function useRealWhatsAppConnection() {
         return false;
       }
     } catch (error) {
-      console.error('❌ Erro de conexão ao enviar mensagem:', error);
+      console.error('❌ [WPP] Erro de conexão ao enviar mensagem:', error);
       
       toast({
         title: "❌ Erro de conexão",
@@ -626,14 +634,15 @@ export function useRealWhatsAppConnection() {
 
   // Função para processar webhook de mensagem recebida
   const processWebhookMessage = useCallback(async (webhookData: any) => {
-    console.log('📨 Webhook de mensagem recebida:', webhookData);
+    console.log('📨 [WPP] === WEBHOOK RECEBIDO ===');
+    console.log('📨 [WPP] Dados completos:', JSON.stringify(webhookData, null, 2));
     
     try {
       // Extrair dados da mensagem do webhook
       const messageData = webhookData.message || webhookData.messages?.[0] || webhookData;
       
       if (!messageData) {
-        console.log('❌ Dados de mensagem não encontrados no webhook');
+        console.log('❌ [WPP] Dados de mensagem não encontrados no webhook');
         return;
       }
 
@@ -641,29 +650,41 @@ export function useRealWhatsAppConnection() {
       const toNumber = messageData.to || messageData.chatId || connectionState.phoneNumber;
       const messageText = messageData.body || messageData.text || messageData.message || '';
 
-      console.log('📋 Dados extraídos:', {
+      console.log('📋 [WPP] Dados extraídos:', {
         from: fromNumber,
         to: toNumber,
-        text: messageText
+        text: messageText,
+        assistantEnabled: assistantConfig.enabled,
+        assistantMaster: assistantConfig.masterNumber
       });
 
       if (!fromNumber || !messageText.trim()) {
-        console.log('❌ Dados incompletos na mensagem');
+        console.log('❌ [WPP] Dados incompletos na mensagem');
         return;
       }
 
       // Processar com o assistente pessoal
-      await processIncomingMessage(
+      console.log('🔄 [WPP] Enviando para o assistente processar...');
+      const result = await processIncomingMessage(
         fromNumber,
         toNumber,
         messageText,
         sendMessage // Função para enviar resposta
       );
+      
+      console.log('📋 [WPP] Resultado do processamento:', result);
 
     } catch (error) {
-      console.error('❌ Erro ao processar webhook de mensagem:', error);
+      console.error('❌ [WPP] Erro ao processar webhook de mensagem:', error);
     }
-  }, [processIncomingMessage, connectionState.phoneNumber]);
+  }, [processIncomingMessage, connectionState.phoneNumber, assistantConfig, sendMessage]);
+
+  // Log do estado atual quando o hook é usado
+  console.log('🔧 [WPP] Hook inicializado:', {
+    connectionState,
+    assistantConfig: assistantConfig,
+    wppConfig
+  });
 
   return {
     connectionState,
@@ -672,10 +693,10 @@ export function useRealWhatsAppConnection() {
     wppConfig,
     pinnedConversations,
     conversationsForAnalysis,
-    messageHistoryLimit, // Nova propriedade
+    messageHistoryLimit,
     updateWebhooks,
     updateWPPConfig,
-    updateMessageHistoryLimit, // Nova função
+    updateMessageHistoryLimit,
     generateQRCode,
     checkConnectionStatus,
     disconnectWhatsApp,
@@ -689,7 +710,7 @@ export function useRealWhatsAppConnection() {
     isConversationPinned,
     isConversationMarkedForAnalysis,
     getAnalysisPriority,
-    processWebhookMessage, // Nova função para processar webhooks
-    assistantConfig // Configuração do assistente
+    processWebhookMessage,
+    assistantConfig
   };
 }
