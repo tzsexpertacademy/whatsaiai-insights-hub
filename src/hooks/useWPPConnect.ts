@@ -143,7 +143,7 @@ export function useWPPConnect() {
     }
   }, [getWPPConfig]);
 
-  // Função para normalizar ID do chat para a API
+  // Função para normalizar ID do chat
   const normalizeChatId = useCallback((chatId: string): string => {
     console.log('🔧 Normalizando chatId para envio:', chatId);
     
@@ -442,7 +442,7 @@ export function useWPPConnect() {
     }
   }, [makeWPPRequest, getWPPConfig, toast, normalizeChatId]);
 
-  // Carregar mensagens de uma conversa - CORRIGIDO
+  // Carregar mensagens de uma conversa
   const loadRealMessages = useCallback(async (chatId: string) => {
     try {
       setIsLoadingMessages(true);
@@ -568,7 +568,7 @@ export function useWPPConnect() {
     }
   }, [makeWPPRequest, getWPPConfig, toast, messageHistoryLimit, normalizeChatId]);
 
-  // Enviar mensagem - CORRIGIDO ESPECIFICAMENTE PARA GRUPOS
+  // Enviar mensagem - VERSÃO CORRIGIDA PARA GRUPOS
   const sendMessage = useCallback(async (chatId: string, message: string) => {
     if (!message.trim()) {
       toast({
@@ -586,57 +586,83 @@ export function useWPPConnect() {
       
       // Detectar se é grupo ou contato individual
       const isGroup = chatId.includes('@g.us') || chatId.includes('group');
-      console.log('🔍 Tipo de chat detectado:', { chatId, isGroup });
+      console.log('🔍 Tipo de chat detectado:', { chatId, isGroup, message: message.substring(0, 50) });
       
-      // Tentar diferentes endpoints até um funcionar
-      const sendEndpoints = [
-        // Endpoint principal para grupos e contatos
-        {
-          url: `/api/${config.sessionName}/send-message`,
-          payload: {
-            phone: chatId,
-            message: message
-          }
-        },
-        // Endpoint alternativo usando chatId
-        {
-          url: `/api/${config.sessionName}/send-message`,
-          payload: {
-            chatId: chatId,
-            message: message
-          }
-        },
-        // Endpoint para sendText
-        {
-          url: `/api/${config.sessionName}/sendText`,
-          payload: {
-            chatId: chatId,
-            text: message
-          }
-        },
-        // Endpoint específico para grupos se for grupo
-        ...(isGroup ? [{
-          url: `/api/${config.sessionName}/send-group-message`,
-          payload: {
-            groupId: chatId,
-            message: message
-          }
-        }] : [])
+      // Preparar diferentes formatos de chatId para testar
+      const chatIdVariations = [
+        chatId, // Original
+        chatId.includes('@') ? chatId : `${chatId}@${isGroup ? 'g.us' : 'c.us'}`, // Com sufixo
+        chatId.replace('@c.us', '').replace('@g.us', ''), // Sem sufixo
+        chatId.replace('@c.us', '@g.us'), // Forçar grupo se for contato
+        chatId.replace('@g.us', '@c.us'), // Forçar contato se for grupo
       ];
+      
+      console.log('🔄 Variações de chatId para testar:', chatIdVariations);
+      
+      // Lista de endpoints e payloads para testar
+      const sendAttempts = [
+        // Tentativa 1: send-message com phone
+        {
+          endpoint: `/api/${config.sessionName}/send-message`,
+          payload: { phone: chatId, message: message },
+          description: 'send-message com phone original'
+        },
+        // Tentativa 2: send-message com chatId
+        {
+          endpoint: `/api/${config.sessionName}/send-message`,
+          payload: { chatId: chatId, message: message },
+          description: 'send-message com chatId original'
+        },
+        // Tentativa 3: sendText
+        {
+          endpoint: `/api/${config.sessionName}/sendText`,
+          payload: { chatId: chatId, text: message },
+          description: 'sendText com chatId original'
+        },
+        // Tentativa 4: send-text
+        {
+          endpoint: `/api/${config.sessionName}/send-text`,
+          payload: { chatId: chatId, text: message },
+          description: 'send-text com chatId original'
+        }
+      ];
+
+      // Se for grupo, adicionar tentativas específicas para grupos
+      if (isGroup) {
+        sendAttempts.push(
+          {
+            endpoint: `/api/${config.sessionName}/send-group-message`,
+            payload: { groupId: chatId, message: message },
+            description: 'send-group-message específico'
+          },
+          {
+            endpoint: `/api/${config.sessionName}/send-group-text`,
+            payload: { groupId: chatId, text: message },
+            description: 'send-group-text específico'
+          }
+        );
+      }
+
+      console.log(`📤 Tentando ${sendAttempts.length} métodos de envio...`);
 
       let success = false;
       let lastError = null;
+      let successfulMethod = null;
 
-      for (const { url, payload } of sendEndpoints) {
+      for (let i = 0; i < sendAttempts.length; i++) {
+        const { endpoint, payload, description } = sendAttempts[i];
+        
         try {
-          console.log(`📤 Tentando endpoint: ${url}`, payload);
+          console.log(`📤 Tentativa ${i + 1}/${sendAttempts.length}: ${description}`);
+          console.log(`📤 Endpoint: ${endpoint}`);
+          console.log(`📤 Payload:`, payload);
           
-          const response = await makeWPPRequest(url, {
+          const response = await makeWPPRequest(endpoint, {
             method: 'POST',
             body: JSON.stringify(payload)
           });
 
-          console.log('📤 Resposta da API:', response);
+          console.log(`📤 Resposta tentativa ${i + 1}:`, response);
 
           // Verificar se a mensagem foi enviada com sucesso
           if (response && (
@@ -644,37 +670,52 @@ export function useWPPConnect() {
             response.success === true ||
             response.sent === true ||
             response.result === true ||
-            response.error === false ||
+            response.message === 'Message sent successfully' ||
             response.status !== 'error' ||
             !response.error
           )) {
-            console.log('✅ Mensagem enviada com sucesso!');
+            console.log(`✅ SUCESSO na tentativa ${i + 1}: ${description}`);
             success = true;
+            successfulMethod = description;
+            
+            // Adicionar mensagem ao estado imediatamente
+            const newMessage: Message = {
+              id: `temp-${Date.now()}`,
+              chatId: chatId,
+              text: message,
+              sender: 'user',
+              timestamp: new Date().toISOString(),
+              fromMe: true
+            };
+            
+            setMessages(prev => [...prev, newMessage]);
             
             toast({
               title: "✅ Mensagem enviada!",
-              description: isGroup ? "Sua mensagem foi enviada para o grupo" : "Sua mensagem foi enviada"
+              description: isGroup ? `Mensagem enviada para o grupo via ${successfulMethod}` : "Sua mensagem foi enviada"
             });
 
-            // Recarregar mensagens após 1 segundo
+            // Recarregar mensagens após 2 segundos
             setTimeout(() => {
+              console.log('🔄 Recarregando mensagens após envio bem-sucedido');
               loadRealMessages(chatId);
-            }, 1000);
+            }, 2000);
 
             break;
           } else {
-            console.log('⚠️ Resposta não indica sucesso:', response);
-            lastError = new Error(response.message || response.error || 'Resposta da API não indica sucesso');
+            console.log(`⚠️ Tentativa ${i + 1} não retornou sucesso:`, response);
+            lastError = new Error(`${description}: ${response.message || response.error || 'Resposta não indica sucesso'}`);
           }
         } catch (error) {
-          console.log(`❌ Erro no endpoint ${url}:`, error.message);
+          console.log(`❌ Erro na tentativa ${i + 1} (${description}):`, error.message);
           lastError = error;
           continue;
         }
       }
 
       if (!success) {
-        throw lastError || new Error('Todos os endpoints de envio falharam');
+        console.error('❌ TODAS as tentativas de envio falharam');
+        throw lastError || new Error('Todos os métodos de envio falharam');
       }
 
     } catch (error) {
@@ -682,7 +723,7 @@ export function useWPPConnect() {
       
       toast({
         title: "❌ Erro ao enviar mensagem",
-        description: `Não foi possível enviar: ${error.message}`,
+        description: `Não foi possível enviar: ${error.message}. Verifique se é um grupo ativo.`,
         variant: "destructive"
       });
     }
