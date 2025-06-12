@@ -20,7 +20,9 @@ import {
   BarChart3,
   RefreshCw,
   AlertTriangle,
-  Star
+  Star,
+  CheckCircle,
+  XCircle
 } from 'lucide-react';
 
 export function ConversationAnalysisDashboard() {
@@ -37,6 +39,7 @@ export function ConversationAnalysisDashboard() {
   } = useProtectedAnalysisData();
 
   const [hasInitialized, setHasInitialized] = useState(false);
+  const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   const loadingRef = useRef(false);
 
   // Inicializar dados apenas uma vez
@@ -52,6 +55,7 @@ export function ConversationAnalysisDashboard() {
             refreshData()
           ]);
           setHasInitialized(true);
+          setLastRefresh(new Date());
         } catch (error) {
           console.error('❌ Erro na inicialização:', error);
         } finally {
@@ -62,6 +66,19 @@ export function ConversationAnalysisDashboard() {
       initializeData();
     }
   }, [hasInitialized, loadAnalysisConversations, refreshData]);
+
+  // Auto-refresh a cada 30 segundos para capturar novas conversas marcadas
+  useEffect(() => {
+    if (!hasInitialized) return;
+
+    const interval = setInterval(() => {
+      console.log('🔄 Auto-refresh do dashboard...');
+      loadAnalysisConversations();
+      setLastRefresh(new Date());
+    }, 30000); // 30 segundos
+
+    return () => clearInterval(interval);
+  }, [hasInitialized, loadAnalysisConversations]);
 
   const handleRefreshAll = async () => {
     if (loadingRef.current) {
@@ -77,6 +94,7 @@ export function ConversationAnalysisDashboard() {
         loadAnalysisConversations(),
         refreshData()
       ]);
+      setLastRefresh(new Date());
     } catch (error) {
       console.error('❌ Erro no refresh:', error);
     } finally {
@@ -87,6 +105,25 @@ export function ConversationAnalysisDashboard() {
   const completedConversations = conversations.filter(c => c.analysis_status === 'completed');
   const pendingConversations = conversations.filter(c => c.analysis_status === 'pending');
   const processingConversations = conversations.filter(c => c.analysis_status === 'processing');
+  const failedConversations = conversations.filter(c => c.analysis_status === 'failed');
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'completed': return <CheckCircle className="h-4 w-4 text-green-500" />;
+      case 'processing': return <RefreshCw className="h-4 w-4 text-blue-500 animate-spin" />;
+      case 'failed': return <XCircle className="h-4 w-4 text-red-500" />;
+      default: return <Clock className="h-4 w-4 text-yellow-500" />;
+    }
+  };
+
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'completed': return 'Concluída';
+      case 'processing': return 'Processando';
+      case 'failed': return 'Falhou';
+      default: return 'Pendente';
+    }
+  };
 
   const headerActions = (
     <div className="flex items-center gap-3">
@@ -127,10 +164,16 @@ export function ConversationAnalysisDashboard() {
             <div className="text-xs">
               <p><strong>Status:</strong> {conversations.length} conversas marcadas | {insights.length} insights gerados</p>
               <p><strong>Carregamento:</strong> {isLoading ? 'Em andamento...' : 'Concluído'}</p>
+              <p><strong>Última atualização:</strong> {lastRefresh.toLocaleTimeString('pt-BR')}</p>
               {conversations.length === 0 && !isLoading && (
-                <p className="text-red-600 font-medium mt-1">
-                  ⚠️ Nenhuma conversa marcada no banco. Vá ao WhatsApp Mirror e marque conversas para análise.
-                </p>
+                <div className="mt-2 p-2 bg-yellow-50 rounded border border-yellow-200">
+                  <p className="text-yellow-700 font-medium">
+                    ⚠️ Nenhuma conversa marcada encontrada!
+                  </p>
+                  <p className="text-yellow-600 text-xs mt-1">
+                    Vá ao WhatsApp Mirror, clique com botão direito nas conversas e marque para análise IA.
+                  </p>
+                </div>
               )}
             </div>
           </div>
@@ -138,13 +181,13 @@ export function ConversationAnalysisDashboard() {
       </Card>
 
       {/* Cards de Métricas */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2">
               <MessageSquare className="h-5 w-5 text-blue-500" />
               <div>
-                <p className="text-sm text-gray-600">Total Conversas</p>
+                <p className="text-sm text-gray-600">Total</p>
                 <p className="text-2xl font-bold">{conversations.length}</p>
               </div>
             </div>
@@ -178,10 +221,22 @@ export function ConversationAnalysisDashboard() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-green-500" />
+              <CheckCircle className="h-5 w-5 text-green-500" />
               <div>
                 <p className="text-sm text-gray-600">Concluídas</p>
                 <p className="text-2xl font-bold">{completedConversations.length}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2">
+              <XCircle className="h-5 w-5 text-red-500" />
+              <div>
+                <p className="text-sm text-gray-600">Falharam</p>
+                <p className="text-2xl font-bold">{failedConversations.length}</p>
               </div>
             </div>
           </CardContent>
@@ -228,7 +283,12 @@ export function ConversationAnalysisDashboard() {
                   <div className="text-center py-8 text-gray-500">
                     <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-50" />
                     <p className="text-lg font-medium">Nenhuma conversa marcada para análise</p>
-                    <p className="text-sm mt-2">Vá para o WhatsApp Mirror e marque conversas para análise</p>
+                    <div className="text-sm mt-2 space-y-1">
+                      <p>Para marcar conversas:</p>
+                      <p>1. Vá para o WhatsApp Mirror</p>
+                      <p>2. Clique com botão direito nas conversas</p>
+                      <p>3. Selecione "Marcar para análise IA"</p>
+                    </div>
                     <Button 
                       onClick={handleRefreshAll} 
                       variant="outline" 
@@ -236,7 +296,7 @@ export function ConversationAnalysisDashboard() {
                       disabled={loadingRef.current}
                     >
                       <RefreshCw className={`h-4 w-4 mr-2 ${loadingRef.current ? 'animate-spin' : ''}`} />
-                      Tentar Carregar Novamente
+                      Verificar Novamente
                     </Button>
                   </div>
                 ) : (
@@ -271,19 +331,19 @@ export function ConversationAnalysisDashboard() {
                           >
                             {conv.priority}
                           </Badge>
-                          <Badge 
-                            variant={
-                              conv.analysis_status === 'completed' ? 'default' :
-                              conv.analysis_status === 'processing' ? 'secondary' :
-                              conv.analysis_status === 'failed' ? 'destructive' : 
-                              'outline'
-                            }
-                          >
-                            {conv.analysis_status === 'pending' ? 'Pendente' :
-                             conv.analysis_status === 'processing' ? 'Processando' :
-                             conv.analysis_status === 'completed' ? 'Concluída' :
-                             'Falhou'}
-                          </Badge>
+                          <div className="flex items-center gap-1">
+                            {getStatusIcon(conv.analysis_status)}
+                            <Badge 
+                              variant={
+                                conv.analysis_status === 'completed' ? 'default' :
+                                conv.analysis_status === 'processing' ? 'secondary' :
+                                conv.analysis_status === 'failed' ? 'destructive' : 
+                                'outline'
+                              }
+                            >
+                              {getStatusText(conv.analysis_status)}
+                            </Badge>
+                          </div>
                         </div>
                       </div>
                     ))}
