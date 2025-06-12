@@ -35,7 +35,20 @@ export function useAnalysisConversations() {
 
       if (error) throw error;
       
-      setConversations(data || []);
+      // Converter os dados do Supabase para o tipo esperado
+      const convertedData: AnalysisConversation[] = (data || []).map(item => ({
+        id: item.id,
+        chat_id: item.chat_id,
+        contact_name: item.contact_name,
+        contact_phone: item.contact_phone,
+        priority: item.priority as 'high' | 'medium' | 'low',
+        analysis_status: item.analysis_status as 'pending' | 'processing' | 'completed' | 'failed',
+        marked_at: item.marked_at,
+        last_analyzed_at: item.last_analyzed_at || undefined,
+        analysis_results: item.analysis_results as any[] || []
+      }));
+      
+      setConversations(convertedData);
     } catch (error) {
       console.error('Erro ao carregar conversas para análise:', error);
       toast({

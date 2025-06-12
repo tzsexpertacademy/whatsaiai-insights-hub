@@ -229,9 +229,16 @@ export function useProtectedAnalysisSystem() {
     } catch (error: any) {
       console.error('🔒 SISTEMA PROTEGIDO: Erro na análise:', error);
       
+      // Buscar conversas marcadas novamente para poder marcar como failed
+      const { data: conversationsToUpdate } = await supabase
+        .from('whatsapp_conversations_analysis')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('analysis_status', 'processing');
+      
       // Marcar conversas como failed se houver erro
-      if (markedConversations && markedConversations.length > 0) {
-        for (const conversation of markedConversations) {
+      if (conversationsToUpdate && conversationsToUpdate.length > 0) {
+        for (const conversation of conversationsToUpdate) {
           await supabase
             .from('whatsapp_conversations_analysis')
             .update({ analysis_status: 'failed' })
