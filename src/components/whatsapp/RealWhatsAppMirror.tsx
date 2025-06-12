@@ -47,10 +47,29 @@ export function RealWhatsAppMirror() {
     isConversationPinned,
     isConversationMarkedForAnalysis,
     getAnalysisPriority,
-    pinnedConversations
+    pinnedConversations,
+    messageHistoryLimit,
+    updateMessageHistoryLimit
   } = useRealWhatsAppConnection();
   
   const { verifyConversationInDatabase, savePinnedConversations } = useConversationPersistence();
+
+  // Helper function to get chat display name
+  const getChatDisplayName = (chat: any) => {
+    return chat.name || 
+           chat.formattedName || 
+           chat.pushname || 
+           chat.shortName || 
+           chat.verifiedName || 
+           chat.contact || 
+           chat.id || 
+           'Contato sem nome';
+  };
+
+  // Helper function to get chat ID
+  const getChatId = (chat: any) => {
+    return chat.id || chat.contact || chat.chatId;
+  };
 
   // Função para verificar se conversas fixadas estão no banco
   const checkPinnedConversationsInDatabase = async () => {
@@ -58,7 +77,7 @@ export function RealWhatsAppMirror() {
     
     const pinnedChats = chats.filter(chat => 
       pinnedConversations.some(pinned => 
-        pinned.chatId === chat.id || pinned.chatId === chat.contact
+        pinned.chatId === getChatId(chat)
       )
     );
 
@@ -70,7 +89,7 @@ export function RealWhatsAppMirror() {
     console.log(`📌 Verificando ${pinnedChats.length} conversas fixadas...`);
 
     for (const chat of pinnedChats) {
-      const chatId = chat.id || chat.contact;
+      const chatId = getChatId(chat);
       const isInDatabase = await verifyConversationInDatabase(chatId);
       
       if (!isInDatabase) {
@@ -133,7 +152,7 @@ export function RealWhatsAppMirror() {
   const handleChatClick = async (chat: any) => {
     setSelectedChat(chat);
     try {
-      const contactId = chat.id || chat.contact;
+      const contactId = getChatId(chat);
       const loadedMessages = await loadRealMessages(contactId);
       setMessages(loadedMessages);
     } catch (error) {
@@ -223,6 +242,33 @@ export function RealWhatsAppMirror() {
         </CardContent>
       </Card>
 
+      {/* Configuração de Histórico */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Configuração de Histórico</CardTitle>
+          <CardDescription>Ajuste quantas mensagens carregar por conversa</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="history-limit">
+              Limite de mensagens: {messageHistoryLimit}
+            </Label>
+            <Slider
+              id="history-limit"
+              min={10}
+              max={1000}
+              step={10}
+              value={[messageHistoryLimit]}
+              onValueChange={(value) => updateMessageHistoryLimit(value[0])}
+              className="w-full"
+            />
+            <p className="text-xs text-gray-500">
+              Valores maiores podem demorar mais para carregar
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Configurações */}
       <Card>
         <CardHeader>
@@ -265,40 +311,48 @@ export function RealWhatsAppMirror() {
             </CardHeader>
             <CardContent className="h-[400px] overflow-y-auto">
               <ul className="space-y-2">
-                {chats.map((chat) => (
-                  <li key={chat.id || chat.contact}>
-                    <Button
-                      variant="ghost"
-                      className="w-full justify-start rounded-md hover:bg-accent hover:text-accent-foreground"
-                      onClick={() => handleChatClick(chat)}
-                    >
-                      <ConversationContextMenu
-                        chatId={chat.id || chat.contact}
-                        isPinned={isConversationPinned(chat.id || chat.contact)}
-                        isMarkedForAnalysis={isConversationMarkedForAnalysis(chat.id || chat.contact)}
-                        analysisPriority={getAnalysisPriority(chat.id || chat.contact)}
-                        onTogglePin={togglePinConversation}
-                        onToggleAnalysis={toggleAnalysisConversation}
+                {chats.map((chat, index) => {
+                  const chatId = getChatId(chat);
+                  const displayName = getChatDisplayName(chat);
+                  
+                  return (
+                    <li key={chatId || index}>
+                      <Button
+                        variant="ghost"
+                        className="w-full justify-start rounded-md hover:bg-accent hover:text-accent-foreground"
+                        onClick={() => handleChatClick(chat)}
                       >
-                        <div className="flex items-center justify-between w-full">
-                          <div className="flex items-center gap-2">
-                            {isConversationPinned(chat.id || chat.contact) && (
-                              <Pin className="h-4 w-4 text-blue-500" />
+                        <ConversationContextMenu
+                          chatId={chatId}
+                          isPinned={isConversationPinned(chatId)}
+                          isMarkedForAnalysis={isConversationMarkedForAnalysis(chatId)}
+                          analysisPriority={getAnalysisPriority(chatId)}
+                          onTogglePin={togglePinConversation}
+                          onToggleAnalysis={toggleAnalysisConversation}
+                        >
+                          <div className="flex items-center justify-between w-full">
+                            <div className="flex items-center gap-2">
+                              {isConversationPinned(chatId) && (
+                                <Pin className="h-4 w-4 text-blue-500" />
+                              )}
+                              {isConversationMarkedForAnalysis(chatId) && (
+                                <Brain className="h-4 w-4 text-green-500" />
+                              )}
+                              <span className="truncate">{displayName}</span>
+                            </div>
+                            {/* Badge com o tipo de contato */}
+                            {(chat.isGroup || chat.type === 'group') && (
+                              <Badge variant="secondary">Grupo</Badge>
                             )}
-                            {isConversationMarkedForAnalysis(chat.id || chat.contact) && (
-                              <Brain className="h-4 w-4 text-green-500" />
+                            {chat.isBusiness && (
+                              <Badge variant="outline">Business</Badge>
                             )}
-                            <span>{chat.name || chat.contact}</span>
                           </div>
-                          {/* Badge com o tipo de contato */}
-                          {chat.isGroup && (
-                            <Badge variant="secondary">Grupo</Badge>
-                          )}
-                        </div>
-                      </ConversationContextMenu>
-                    </Button>
-                  </li>
-                ))}
+                        </ConversationContextMenu>
+                      </Button>
+                    </li>
+                  );
+                })}
               </ul>
             </CardContent>
           </Card>
@@ -309,7 +363,7 @@ export function RealWhatsAppMirror() {
           <Card>
             <CardHeader>
               <CardTitle>
-                {selectedChat ? `Mensagens de ${selectedChat.name || selectedChat.contact}` : 'Selecione uma conversa'}
+                {selectedChat ? `Mensagens de ${getChatDisplayName(selectedChat)}` : 'Selecione uma conversa'}
               </CardTitle>
             </CardHeader>
             <CardContent className="h-[400px] overflow-y-auto">
