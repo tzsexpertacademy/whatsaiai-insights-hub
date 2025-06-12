@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -56,19 +55,34 @@ export function RealWhatsAppMirror() {
 
   // Helper function to get chat display name
   const getChatDisplayName = (chat: any) => {
-    return chat.name || 
-           chat.formattedName || 
-           chat.pushname || 
-           chat.shortName || 
-           chat.verifiedName || 
-           chat.contact || 
-           chat.id || 
-           'Contato sem nome';
+    if (!chat) return 'Contato sem nome';
+    
+    // Try to get a meaningful name, prioritizing human-readable names
+    const name = chat.name || 
+                 chat.formattedName || 
+                 chat.pushname || 
+                 chat.shortName || 
+                 chat.verifiedName || 
+                 chat.contact || 
+                 chat.id;
+    
+    // Ensure we return a string, not an object
+    if (typeof name === 'string' && name.trim()) {
+      return name.trim();
+    }
+    
+    // Fallback to a safe string
+    return 'Contato sem nome';
   };
 
-  // Helper function to get chat ID
+  // Helper function to get chat ID safely
   const getChatId = (chat: any) => {
-    return chat.id || chat.contact || chat.chatId;
+    if (!chat) return '';
+    
+    const id = chat.id || chat.contact || chat.chatId || '';
+    
+    // Ensure we return a string
+    return typeof id === 'string' ? id : String(id);
   };
 
   // Função para verificar se conversas fixadas estão no banco
@@ -315,8 +329,11 @@ export function RealWhatsAppMirror() {
                   const chatId = getChatId(chat);
                   const displayName = getChatDisplayName(chat);
                   
+                  // Use a combination of chatId and index for unique keys
+                  const uniqueKey = chatId ? `chat-${chatId}` : `chat-index-${index}`;
+                  
                   return (
-                    <li key={chatId || index}>
+                    <li key={uniqueKey}>
                       <Button
                         variant="ghost"
                         className="w-full justify-start rounded-md hover:bg-accent hover:text-accent-foreground"
