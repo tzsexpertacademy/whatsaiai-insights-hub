@@ -1,4 +1,3 @@
-
 import { useState, useCallback, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -42,39 +41,77 @@ export function useAnalysisConversations() {
     
     try {
       console.log('📡 Fazendo query no Supabase...');
+      console.log('🎯 Query params:', { 
+        table: 'whatsapp_conversations_analysis',
+        userId: user.id,
+        markedFilter: true 
+      });
       
-      // QUERY MELHORADA - ordem por created_at também
-      const { data, error } = await supabase
+      // QUERY DETALHADA COM LOGS
+      const { data, error, count } = await supabase
         .from('whatsapp_conversations_analysis')
-        .select('*')
+        .select('*', { count: 'exact' })
         .eq('user_id', user.id)
         .eq('marked_for_analysis', true)
         .order('created_at', { ascending: false })
         .order('marked_at', { ascending: false });
 
-      console.log('📊 Resultado da query:', { data, error });
+      console.log('📊 Resultado COMPLETO da query:', { 
+        data, 
+        error, 
+        count,
+        dataLength: data?.length || 0,
+        hasData: !!data,
+        isArray: Array.isArray(data)
+      });
 
       if (error) {
         console.error('❌ Erro na query:', error);
-        console.error('📋 Detalhes do erro:', {
+        console.error('📋 Detalhes COMPLETOS do erro:', {
           message: error.message,
           code: error.code,
           details: error.details,
-          hint: error.hint
+          hint: error.hint,
+          stack: error.stack
         });
         throw error;
       }
       
-      console.log('📈 Raw data recebida:', data);
+      console.log('📈 Raw data DETALHADA:', {
+        totalResults: count,
+        dataArray: data,
+        firstItem: data?.[0],
+        dataType: typeof data,
+        isArrayCheck: Array.isArray(data)
+      });
       
       if (!data || data.length === 0) {
-        console.log('⚠️ Nenhuma conversa marcada encontrada no banco');
+        console.log('⚠️ NENHUMA conversa marcada encontrada!');
+        console.log('🔍 Verificando se existem dados SEM filtro...');
+        
+        // TESTE: buscar TODOS os dados do usuário para debug
+        const { data: allUserData, error: allError } = await supabase
+          .from('whatsapp_conversations_analysis')
+          .select('*')
+          .eq('user_id', user.id);
+          
+        console.log('🔍 TODOS os dados do usuário:', { allUserData, allError });
+        
         setConversations([]);
         return;
       }
 
+      console.log('🔄 Convertendo dados...');
       const convertedData: AnalysisConversation[] = data.map((item, index) => {
-        console.log(`📋 Convertendo item ${index}:`, item);
+        console.log(`📋 Convertendo item ${index}:`, {
+          id: item.id,
+          chatId: item.chat_id,
+          contactName: item.contact_name,
+          markedForAnalysis: item.marked_for_analysis,
+          analysisStatus: item.analysis_status,
+          originalItem: item
+        });
+        
         return {
           id: item.id,
           chat_id: item.chat_id,
@@ -89,12 +126,26 @@ export function useAnalysisConversations() {
         };
       });
       
-      console.log('✅ Conversas processadas:', convertedData);
-      console.log(`📈 Total de conversas carregadas: ${convertedData.length}`);
+      console.log('✅ Conversas FINAIS processadas:', {
+        totalProcessed: convertedData.length,
+        conversations: convertedData,
+        firstConversation: convertedData[0]
+      });
+      
       setConversations(convertedData);
       
+      // LOG FINAL DO ESTADO
+      setTimeout(() => {
+        console.log('🎯 Estado FINAL setado:', {
+          conversationsLength: convertedData.length,
+          stateWillBe: convertedData
+        });
+      }, 100);
+      
     } catch (error) {
-      console.error('❌ Erro GERAL ao carregar conversas:', error);
+      console.error('❌ ERRO GERAL ao carregar conversas:', error);
+      console.error('📋 Stack trace completo:', error?.stack);
+      
       toast({
         title: "Erro ao carregar conversas",
         description: `Erro: ${error.message || 'Não foi possível carregar as conversas'}`,

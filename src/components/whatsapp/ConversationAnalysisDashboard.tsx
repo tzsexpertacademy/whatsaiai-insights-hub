@@ -48,6 +48,62 @@ export function ConversationAnalysisDashboard() {
   const [debugInfo, setDebugInfo] = useState<any>(null);
   const loadingRef = useRef(false);
 
+  // Debug específico da QUERY
+  const testSpecificQuery = async () => {
+    console.log('🔧 TESTE ESPECÍFICO DA QUERY...');
+    
+    if (!user?.id) {
+      console.error('❌ Usuário não logado para teste');
+      return;
+    }
+
+    try {
+      console.log('🎯 Testando query EXATA que deveria funcionar...');
+      
+      // Teste EXATO da query usada no hook
+      const { data: queryData, error: queryError, count } = await supabase
+        .from('whatsapp_conversations_analysis')
+        .select('*', { count: 'exact' })
+        .eq('user_id', user.id)
+        .eq('marked_for_analysis', true)
+        .order('created_at', { ascending: false });
+      
+      console.log('📊 Resultado da query EXATA:', { 
+        queryData, 
+        queryError, 
+        count,
+        length: queryData?.length || 0 
+      });
+
+      // Teste sem filtro de marked_for_analysis
+      const { data: allMarked, error: allError } = await supabase
+        .from('whatsapp_conversations_analysis')
+        .select('*')
+        .eq('user_id', user.id);
+      
+      console.log('📊 TODOS os registros do usuário:', { 
+        allMarked, 
+        allError,
+        totalCount: allMarked?.length || 0,
+        markedTrue: allMarked?.filter(item => item.marked_for_analysis === true)?.length || 0,
+        markedFalse: allMarked?.filter(item => item.marked_for_analysis === false)?.length || 0
+      });
+
+      toast({
+        title: "Debug Query Executado",
+        description: `Query: ${queryData?.length || 0} resultados | Total: ${allMarked?.length || 0} registros`,
+      });
+
+    } catch (error) {
+      console.error('❌ ERRO no teste da query:', error);
+      toast({
+        title: "Erro no Debug Query",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  };
+
   // Debug direto no banco - CORRIGIDO
   const testDatabaseConnection = async () => {
     console.log('🔧 TESTE DIRETO NO BANCO...');
@@ -269,6 +325,15 @@ export function ConversationAnalysisDashboard() {
         {completedConversations.length} Analisadas
       </Badge>
       <Button 
+        onClick={testSpecificQuery} 
+        variant="outline" 
+        size="sm"
+        className="border-purple-200 text-purple-600 hover:bg-purple-50"
+      >
+        <Bug className="h-4 w-4 mr-1" />
+        Debug Query
+      </Button>
+      <Button 
         onClick={testDatabaseConnection} 
         variant="outline" 
         size="sm"
@@ -359,6 +424,24 @@ export function ConversationAnalysisDashboard() {
                   <p className="text-yellow-600 text-xs mt-1">
                     Vá ao WhatsApp Mirror, clique com botão direito nas conversas e marque para análise IA.
                   </p>
+                  <div className="mt-2 flex gap-2">
+                    <Button 
+                      onClick={testSpecificQuery} 
+                      size="sm" 
+                      variant="outline"
+                      className="text-xs"
+                    >
+                      Debug Query
+                    </Button>
+                    <Button 
+                      onClick={forceReload} 
+                      size="sm" 
+                      variant="outline"
+                      className="text-xs"
+                    >
+                      Force Reload
+                    </Button>
+                  </div>
                 </div>
               )}
             </div>
@@ -475,15 +558,24 @@ export function ConversationAnalysisDashboard() {
                       <p>2. Clique com botão direito nas conversas</p>
                       <p>3. Selecione "Marcar para análise IA"</p>
                     </div>
-                    <Button 
-                      onClick={handleRefreshAll} 
-                      variant="outline" 
-                      className="mt-4"
-                      disabled={loadingRef.current}
-                    >
-                      <RefreshCw className={`h-4 w-4 mr-2 ${loadingRef.current ? 'animate-spin' : ''}`} />
-                      Verificar Novamente
-                    </Button>
+                    <div className="mt-4 flex gap-2 justify-center">
+                      <Button 
+                        onClick={testSpecificQuery} 
+                        variant="outline" 
+                        size="sm"
+                      >
+                        <Bug className="h-4 w-4 mr-2" />
+                        Debug Query
+                      </Button>
+                      <Button 
+                        onClick={handleRefreshAll} 
+                        variant="outline" 
+                        disabled={loadingRef.current}
+                      >
+                        <RefreshCw className={`h-4 w-4 mr-2 ${loadingRef.current ? 'animate-spin' : ''}`} />
+                        Verificar Novamente
+                      </Button>
+                    </div>
                   </div>
                 ) : (
                   <div className="space-y-3">
