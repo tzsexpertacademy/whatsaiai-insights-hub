@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useWPPConnect } from "@/hooks/useWPPConnect";
+import { useConversationMarking } from "@/hooks/useConversationMarking";
+import { ConversationContextMenu } from "./ConversationContextMenu";
 import { 
   QrCode, 
   Smartphone, 
@@ -19,7 +21,9 @@ import {
   RefreshCw,
   Play,
   Square,
-  Settings
+  Settings,
+  Brain,
+  Star
 } from 'lucide-react';
 
 export function WPPConnectMirror() {
@@ -31,18 +35,22 @@ export function WPPConnectMirror() {
     isLoadingMessages,
     isLiveMode,
     currentChatId,
-    createSession, 
-    checkSessionStatus,
-    loadChats,
-    loadChatMessages,
+    generateQRCode, 
+    checkConnectionStatus,
+    loadRealChats,
+    loadRealMessages,
     sendMessage,
     startLiveMode,
     stopLiveMode,
-    disconnect
+    disconnectWhatsApp
   } = useWPPConnect();
+  
+  const { markConversationForAnalysis, updateConversationPriority, isMarking } = useConversationMarking();
   
   const [selectedContact, setSelectedContact] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState('');
+  const [markedConversations, setMarkedConversations] = useState<Set<string>>(new Set());
+  const [pinnedConversations, setPinnedConversations] = useState<Set<string>>(new Set());
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll para última mensagem
@@ -52,8 +60,8 @@ export function WPPConnectMirror() {
 
   // Verificar status ao montar
   useEffect(() => {
-    checkSessionStatus();
-  }, [checkSessionStatus]);
+    checkConnectionStatus();
+  }, [checkConnectionStatus]);
 
   const handleCreateSession = async () => {
     toast({
@@ -61,20 +69,26 @@ export function WPPConnectMirror() {
       description: "Aguarde enquanto geramos o QR Code"
     });
     
-    await createSession();
+    await generateQRCode();
   };
 
   const selectContact = (contact: any) => {
     setSelectedContact(contact.chatId);
-    loadChatMessages(contact.chatId);
+    loadRealMessages(contact.chatId);
   };
 
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !selectedContact) return;
 
-    const success = await sendMessage(selectedContact, newMessage);
-    if (success) {
+    try {
+      await sendMessage(selectedContact, newMessage);
       setNewMessage('');
+    } catch (error) {
+      toast({
+        title: "Erro ao enviar mensagem",
+        description: "Não foi possível enviar a mensagem",
+        variant: "destructive"
+      });
     }
   };
 
@@ -92,6 +106,50 @@ export function WPPConnectMirror() {
       stopLiveMode();
     } else {
       startLiveMode(selectedContact);
+    }
+  };
+
+  const handleTogglePin = (chatId: string) => {
+    setPinnedConversations(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(chatId)) {
+        newSet.delete(chatId);
+        toast({ title: "Conversa desfixada" });
+      } else {
+        newSet.add(chatId);
+        toast({ title: "Conversa fixada" });
+      }
+      return newSet;
+    });
+  };
+
+  const handleToggleAnalysis = async (chatId: string, priority?: 'high' | 'medium' | 'low') => {
+    const chat = chats.find(c => c.chatId === chatId);
+    if (!chat) return;
+
+    console.log('🏷️ Toggle análise para:', { chatId, chatName: chat.name, priority });
+
+    if (priority && markedConversations.has(chatId)) {
+      // Atualizar prioridade
+      await updateConversationPriority(chatId, priority);
+    } else {
+      // Marcar/desmarcar para análise
+      const isMarked = await markConversationForAnalysis(
+        chatId, 
+        chat.name, 
+        chat.chatId, // usando chatId como phone por enquanto
+        priority || 'medium'
+      );
+
+      setMarkedConversations(prev => {
+        const newSet = new Set(prev);
+        if (isMarked) {
+          newSet.add(chatId);
+        } else {
+          newSet.delete(chatId);
+        }
+        return newSet;
+      });
     }
   };
 
@@ -145,10 +203,10 @@ export function WPPConnectMirror() {
             <div className="flex gap-2">
               {sessionStatus.isConnected && (
                 <>
-                  <Button onClick={disconnect} variant="outline" size="sm">
+                  <Button onClick={disconnectWhatsApp} variant="outline" size="sm">
                     Desconectar
                   </Button>
-                  <Button onClick={() => loadChats()} variant="outline" size="sm">
+                  <Button onClick={() => loadRealChats()} variant="outline" size="sm">
                     <RefreshCw className="h-4 w-4 mr-1" />
                     Atualizar
                   </Button>
@@ -232,6 +290,12 @@ export function WPPConnectMirror() {
                     </div>
                   )}
                   <Badge variant="secondary">{chats.length}</Badge>
+                  {markedConversations.size > 0 && (
+                    <Badge variant="outline" className="bg-blue-50">
+                      <Brain className="h-3 w-3 mr-1" />
+                      {markedConversations.size}
+                    </Badge>
+                  )}
                 </div>
               </div>
             </CardHeader>
@@ -239,29 +303,46 @@ export function WPPConnectMirror() {
             <CardContent className="p-0">
               <div className="space-y-1 max-h-[500px] overflow-y-auto">
                 {chats.map((chat) => (
-                  <div 
+                  <ConversationContextMenu
                     key={chat.chatId}
-                    onClick={() => selectContact(chat)}
-                    className={`p-3 border-b cursor-pointer hover:bg-gray-50 transition-colors ${
-                      selectedContact === chat.chatId ? 'bg-blue-50 border-blue-200' : ''
-                    }`}
+                    chatId={chat.chatId}
+                    isPinned={pinnedConversations.has(chat.chatId)}
+                    isMarkedForAnalysis={markedConversations.has(chat.chatId)}
+                    analysisPriority="medium"
+                    onTogglePin={handleTogglePin}
+                    onToggleAnalysis={handleToggleAnalysis}
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                        <User className="h-6 w-6 text-green-600" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between">
-                          <span className="font-medium text-sm">{chat.name}</span>
-                          <span className="text-xs text-gray-400">{formatTime(chat.timestamp)}</span>
+                    <div 
+                      onClick={() => selectContact(chat)}
+                      className={`p-3 border-b cursor-pointer hover:bg-gray-50 transition-colors ${
+                        selectedContact === chat.chatId ? 'bg-blue-50 border-blue-200' : ''
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                          <User className="h-6 w-6 text-green-600" />
                         </div>
-                        <p className="text-sm text-gray-500 truncate mt-1">{chat.lastMessage}</p>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-sm">{chat.name}</span>
+                              {pinnedConversations.has(chat.chatId) && (
+                                <Star className="h-3 w-3 text-yellow-500 fill-current" />
+                              )}
+                              {markedConversations.has(chat.chatId) && (
+                                <Brain className="h-3 w-3 text-blue-500" />
+                              )}
+                            </div>
+                            <span className="text-xs text-gray-400">{formatTime(chat.timestamp)}</span>
+                          </div>
+                          <p className="text-sm text-gray-500 truncate mt-1">{chat.lastMessage}</p>
+                        </div>
+                        {chat.unreadCount > 0 && (
+                          <Badge className="bg-green-500 text-white">{chat.unreadCount}</Badge>
+                        )}
                       </div>
-                      {chat.unreadCount > 0 && (
-                        <Badge className="bg-green-500 text-white">{chat.unreadCount}</Badge>
-                      )}
                     </div>
-                  </div>
+                  </ConversationContextMenu>
                 ))}
               </div>
             </CardContent>
@@ -364,6 +445,9 @@ export function WPPConnectMirror() {
                   <MessageSquare className="h-16 w-16 mx-auto mb-4 text-gray-300" />
                   <h3 className="text-lg font-medium mb-2">Selecione uma conversa</h3>
                   <p className="text-sm">Escolha um contato para ver as mensagens</p>
+                  <p className="text-xs mt-2 text-blue-600">
+                    💡 Clique com o botão direito nas conversas para marcar para análise IA
+                  </p>
                 </div>
               </CardContent>
             )}
@@ -382,10 +466,13 @@ export function WPPConnectMirror() {
               <strong>✅ Funcionando:</strong> Sistema conectado com sua API WPPConnect local
             </p>
             <p className="mb-2">
-              <strong>🔧 Configuração:</strong> localhost:21465 com token "MySecretKeyToGenerateToken"
+              <strong>🔧 Configuração:</strong> localhost:21465 com token configurado
+            </p>
+            <p className="mb-2">
+              <strong>📱 Status:</strong> {sessionStatus.isConnected ? 'Conectado e funcionando' : 'Pronto para conectar'}
             </p>
             <p>
-              <strong>📱 Status:</strong> {sessionStatus.isConnected ? 'Conectado e funcionando' : 'Pronto para conectar'}
+              <strong>🤖 IA:</strong> Clique com botão direito nas conversas para marcar para análise IA
             </p>
           </div>
         </CardContent>
