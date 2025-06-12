@@ -54,6 +54,33 @@ export function useRealWhatsAppConnection() {
     };
   });
 
+  // Helper function to format phone number for WPPConnect
+  const formatPhoneNumber = (phone: string): string => {
+    // Remove caracteres especiais
+    let cleanPhone = phone.replace(/\D/g, '');
+    
+    // Se o número já termina com @c.us, extrair apenas os números
+    if (phone.includes('@c.us')) {
+      cleanPhone = phone.split('@')[0];
+    }
+    
+    // Se o número já termina com @g.us (grupo), manter como está
+    if (phone.includes('@g.us')) {
+      return phone;
+    }
+    
+    // Adicionar código do país se necessário (Brasil = 55)
+    if (cleanPhone.length === 11 && cleanPhone.startsWith('0')) {
+      cleanPhone = '55' + cleanPhone.substring(1);
+    } else if (cleanPhone.length === 10) {
+      cleanPhone = '55' + cleanPhone;
+    } else if (cleanPhone.length === 11 && !cleanPhone.startsWith('55')) {
+      cleanPhone = '55' + cleanPhone;
+    }
+    
+    return cleanPhone;
+  };
+
   const updateWPPConfig = useCallback((newConfig: Partial<WPPConfig>) => {
     const updated = { ...wppConfig, ...newConfig };
     setWppConfig(updated);
@@ -296,16 +323,21 @@ export function useRealWhatsAppConnection() {
 
   const sendMessage = useCallback(async (phone: string, message: string) => {
     console.log('📤 Enviando mensagem real via WPPConnect...');
+    console.log('📞 Telefone original:', phone);
     
     try {
-      const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/send-message`, {
+      // Formatar número corretamente
+      const formattedPhone = formatPhoneNumber(phone);
+      console.log('📞 Telefone formatado:', formattedPhone);
+      
+      const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/send-text`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${wppConfig.token}`
         },
         body: JSON.stringify({
-          phone: phone,
+          phone: formattedPhone,
           message: message
         })
       });
@@ -396,13 +428,13 @@ export function useRealWhatsAppConnection() {
     }
   }, [wppConfig]);
 
-  // NOVA FUNÇÃO: Carregar mensagens de uma conversa
+  // NOVA FUNÇÃO CORRIGIDA: Carregar mensagens de uma conversa
   const loadRealMessages = useCallback(async (contactId: string) => {
     console.log('📤 Carregando mensagens reais para:', contactId);
     
     try {
-      // CORRIGIDO: URL correta da API
-      const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/get-messages/${contactId}`, {
+      // Usar endpoint correto: get-messages com parâmetros
+      const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/get-messages/${contactId}?count=50`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -411,12 +443,31 @@ export function useRealWhatsAppConnection() {
       });
 
       if (response.ok) {
-        const messagesData = await response.json();
-        console.log('✅ Mensagens carregadas:', messagesData);
-        return messagesData;
+        const responseData = await response.json();
+        console.log('✅ Mensagens recebidas:', responseData);
+        
+        // Verificar diferentes formatos de resposta
+        let messagesArray = [];
+        
+        if (Array.isArray(responseData)) {
+          messagesArray = responseData;
+        } else if (responseData.messages && Array.isArray(responseData.messages)) {
+          messagesArray = responseData.messages;
+        } else if (responseData.data && Array.isArray(responseData.data)) {
+          messagesArray = responseData.data;
+        } else if (responseData.response && Array.isArray(responseData.response)) {
+          messagesArray = responseData.response;
+        } else {
+          console.warn('⚠️ Formato de mensagens não reconhecido:', responseData);
+          return [];
+        }
+        
+        return messagesArray;
       } else {
         console.error('❌ Erro ao carregar mensagens:', response.status);
-        throw new Error(`Erro ${response.status}: ${await response.text()}`);
+        const errorText = await response.text();
+        console.error('❌ Detalhes do erro:', errorText);
+        throw new Error(`Erro ${response.status}: ${errorText}`);
       }
     } catch (error) {
       console.error('❌ Erro ao carregar mensagens:', error);

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -95,6 +94,23 @@ export function RealWhatsAppMirror() {
     return 'Contato sem nome';
   };
 
+  // Helper function to safely extract phone from chat ID for sending
+  const extractPhoneForSending = (contact: Contact): string => {
+    let phone = contact.phone;
+    
+    // Se já tem @c.us, extrair apenas o número
+    if (phone.includes('@c.us')) {
+      phone = phone.split('@')[0];
+    }
+    
+    // Se já tem @g.us (grupo), manter como está
+    if (phone.includes('@g.us')) {
+      return phone;
+    }
+    
+    return phone;
+  };
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -179,16 +195,31 @@ export function RealWhatsAppMirror() {
 
   const handleLoadRealMessages = async (contactId: string) => {
     try {
+      console.log('📤 Carregando mensagens para contato:', contactId);
+      
       const messagesData = await loadRealMessages(contactId);
+      console.log('📥 Mensagens recebidas:', messagesData);
+      
+      if (!Array.isArray(messagesData)) {
+        console.warn('⚠️ Dados de mensagens não são um array:', messagesData);
+        toast({
+          title: "Erro ao carregar mensagens",
+          description: "Formato de dados inválido",
+          variant: "destructive"
+        });
+        return;
+      }
       
       const realMessages: Message[] = messagesData.map((msg: any, index: number) => ({
         id: msg.id || `msg_${index}`,
         contactId: contactId,
-        text: msg.body || msg.text || 'Mensagem sem texto',
+        text: msg.body || msg.text || msg.content || 'Mensagem sem texto',
         sent: msg.fromMe || false,
-        timestamp: msg.timestamp || new Date().toISOString(),
+        timestamp: msg.timestamp ? new Date(msg.timestamp * 1000).toISOString() : new Date().toISOString(),
         status: msg.ack ? 'delivered' : 'sent'
       }));
+      
+      console.log('✅ Mensagens processadas:', realMessages);
       
       setMessages(prev => [
         ...prev.filter(m => m.contactId !== contactId),
@@ -248,7 +279,11 @@ export function RealWhatsAppMirror() {
     setNewMessage('');
 
     try {
-      const success = await sendWhatsAppMessage(contact.phone, messageText);
+      // Usar telefone formatado corretamente
+      const phoneForSending = extractPhoneForSending(contact);
+      console.log('📞 Enviando para telefone:', phoneForSending);
+      
+      const success = await sendWhatsAppMessage(phoneForSending, messageText);
       
       if (success) {
         setMessages(prev => prev.map(msg => 
