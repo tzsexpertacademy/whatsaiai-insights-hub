@@ -1,22 +1,21 @@
-import { useState, useEffect } from 'react';
-import { useToast } from "@/hooks/use-toast";
+
+import { useState, useCallback, useEffect } from 'react';
+import { useToast } from '@/hooks/use-toast';
 
 interface WPPConfig {
   sessionName: string;
   serverUrl: string;
   secretKey: string;
   token: string;
-  webhookUrl?: string;
+  webhookUrl: string;
 }
 
 interface SessionStatus {
   isConnected: boolean;
-  qrCode: string;
-  phoneNumber: string;
-  sessionId: string;
-  lastConnected: string;
-  isLoading?: boolean;
-  status: 'disconnected' | 'connecting' | 'connected' | 'error';
+  isLoading: boolean;
+  qrCode: string | null;
+  phoneNumber: string | null;
+  error: string | null;
 }
 
 interface Chat {
@@ -25,7 +24,7 @@ interface Chat {
   lastMessage: string;
   timestamp: string;
   unreadCount: number;
-  lastMessageTimestamp?: number;
+  isGroup: boolean;
 }
 
 interface Message {
@@ -34,872 +33,388 @@ interface Message {
   text: string;
   sender: 'user' | 'contact';
   timestamp: string;
-  status?: 'sending' | 'sent' | 'delivered' | 'read';
-  isAudio?: boolean;
-}
-
-interface Contact {
-  id: string;
-  name: string;
-  phone: string;
-  lastMessage: string;
-  timestamp: string;
-  unread: number;
-  lastMessageTimestamp?: number;
+  fromMe: boolean;
 }
 
 export function useWPPConnect() {
   const { toast } = useToast();
-  
   const [sessionStatus, setSessionStatus] = useState<SessionStatus>({
     isConnected: false,
-    qrCode: '',
-    phoneNumber: '',
-    sessionId: '',
-    lastConnected: '',
     isLoading: false,
-    status: 'disconnected'
+    qrCode: null,
+    phoneNumber: null,
+    error: null
   });
 
   const [chats, setChats] = useState<Chat[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [contacts, setContacts] = useState<Contact[]>([]);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
-  const [isLoadingChats, setIsLoadingChats] = useState(false);
   const [isLiveMode, setIsLiveMode] = useState(false);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
-  const [messageHistoryLimit, setMessageHistoryLimit] = useState(50);
 
-  // Carregar estado salvo na inicialização
-  useEffect(() => {
-    console.log('🔄 Carregando estado salvo do WPPConnect...');
-    const saved = localStorage.getItem('wpp_session_status');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        setSessionStatus(parsed);
-        console.log('✅ Estado carregado:', parsed);
-      } catch (error) {
-        console.log('❌ Erro ao carregar estado:', error);
+  // Função para obter configuração WPP
+  const getWPPConfig = useCallback((): WPPConfig => {
+    return {
+      sessionName: localStorage.getItem('wpp_session_name') || 'NERDWHATS_AMERICA',
+      serverUrl: localStorage.getItem('wpp_server_url') || 'http://localhost:21465',
+      secretKey: localStorage.getItem('wpp_secret_key') || '',
+      token: localStorage.getItem('wpp_token') || '',
+      webhookUrl: localStorage.getItem('wpp_webhook_url') || ''
+    };
+  }, []);
+
+  // Função para salvar configuração WPP
+  const saveWPPConfig = useCallback((config: Partial<WPPConfig>): boolean => {
+    try {
+      if (config.sessionName !== undefined) {
+        localStorage.setItem('wpp_session_name', config.sessionName);
       }
+      if (config.serverUrl !== undefined) {
+        localStorage.setItem('wpp_server_url', config.serverUrl);
+      }
+      if (config.secretKey !== undefined) {
+        localStorage.setItem('wpp_secret_key', config.secretKey);
+      }
+      if (config.token !== undefined) {
+        localStorage.setItem('wpp_token', config.token);
+      }
+      if (config.webhookUrl !== undefined) {
+        localStorage.setItem('wpp_webhook_url', config.webhookUrl);
+      }
+      return true;
+    } catch (error) {
+      console.error('❌ Erro ao salvar config WPP:', error);
+      return false;
     }
   }, []);
 
-  // Salvar estado quando mudar
-  useEffect(() => {
-    if (sessionStatus.qrCode || sessionStatus.isConnected) {
-      localStorage.setItem('wpp_session_status', JSON.stringify(sessionStatus));
-      console.log('💾 Estado salvo:', sessionStatus);
-    }
-  }, [sessionStatus]);
-
-  // Carregar conversas automaticamente quando conectar
-  useEffect(() => {
-    if (sessionStatus.isConnected && sessionStatus.status === 'connected') {
-      console.log('🔄 Conexão estabelecida - carregando conversas automaticamente...');
-      loadRealChats().catch(error => {
-        console.error('❌ Erro ao carregar conversas automaticamente:', error);
-      });
-    }
-  }, [sessionStatus.isConnected, sessionStatus.status]);
-
-  // FORÇAR carregamento de conversas quando conectar - versão mais agressiva
-  useEffect(() => {
-    if (sessionStatus.isConnected && sessionStatus.status === 'connected') {
-      console.log('🔥 SESSÃO CONECTADA - FORÇANDO CARREGAMENTO DE CONVERSAS...');
-      
-      // Tentar múltiplas vezes se necessário
-      const attemptLoadChats = async (attempt = 1) => {
-        try {
-          console.log(`🚀 Tentativa ${attempt} de carregar conversas...`);
-          await loadRealChats();
-          console.log('✅ Conversas carregadas com sucesso!');
-        } catch (error) {
-          console.error(`❌ Tentativa ${attempt} falhou:`, error);
-          if (attempt < 3) {
-            console.log(`🔄 Tentando novamente em 2 segundos... (tentativa ${attempt + 1})`);
-            setTimeout(() => attemptLoadChats(attempt + 1), 2000);
-          } else {
-            console.error('❌ Todas as tentativas falharam');
-            toast({
-              title: "❌ Erro persistente",
-              description: "Não foi possível carregar as conversas após 3 tentativas",
-              variant: "destructive"
-            });
-          }
-        }
-      };
-
-      // Iniciar tentativas após 1 segundo
-      setTimeout(() => attemptLoadChats(), 1000);
-    }
-  }, [sessionStatus.isConnected, sessionStatus.status]);
-
-  const getWPPConfig = (): WPPConfig => {
-    try {
-      const config = {
-        sessionName: localStorage.getItem('wpp_session_name') || 'NERDWHATS_AMERICA',
-        serverUrl: localStorage.getItem('wpp_server_url') || 'http://localhost:21465',
-        secretKey: localStorage.getItem('wpp_secret_key') || '',
-        token: localStorage.getItem('wpp_token') || '',
-        webhookUrl: localStorage.getItem('wpp_webhook_url') || ''
-      };
-      
-      console.log('🔧 Config WPPConnect carregado:', {
-        ...config,
-        secretKey: config.secretKey ? `***${config.secretKey.slice(-4)}***` : 'NOT_SET',
-        token: config.token ? `***${config.token.slice(-4)}***` : 'NOT_SET'
-      });
-      
-      return config;
-    } catch (error) {
-      console.error('❌ Erro ao carregar config WPPConnect:', error);
-      return {
-        sessionName: 'NERDWHATS_AMERICA',
-        serverUrl: 'http://localhost:21465',
-        secretKey: '',
-        token: '',
-        webhookUrl: ''
-      };
-    }
-  };
-
-  const saveWPPConfig = (config: WPPConfig) => {
-    try {
-      // Lista de tokens inválidos (ACEITA THISISMYSECURETOKEN)
-      const INVALID_TOKENS = [
-        'YOUR_SECRET_KEY_HERE',
-        'YOUR_TOKEN_HERE',
-        'DEFAULT_TOKEN',
-        'CHANGE_ME',
-        '',
-        undefined,
-        null
-      ];
-
-      // Validar se os tokens não são valores inválidos
-      if (INVALID_TOKENS.includes(config.secretKey)) {
-        console.error('❌ Secret Key inválido detectado:', config.secretKey);
-        toast({
-          title: "❌ Secret Key Inválido",
-          description: "O Secret Key não pode estar vazio ou ser um valor padrão inválido.",
-          variant: "destructive"
-        });
-        return false;
-      }
-
-      if (INVALID_TOKENS.includes(config.token)) {
-        console.error('❌ Token inválido detectado:', config.token);
-        toast({
-          title: "❌ Token Inválido", 
-          description: "O Token não pode estar vazio ou ser um valor padrão inválido.",
-          variant: "destructive"
-        });
-        return false;
-      }
-
-      localStorage.setItem('wpp_session_name', config.sessionName);
-      localStorage.setItem('wpp_server_url', config.serverUrl);
-      localStorage.setItem('wpp_secret_key', config.secretKey);
-      localStorage.setItem('wpp_token', config.token);
-      localStorage.setItem('wpp_webhook_url', config.webhookUrl || '');
-      
-      console.log('💾 Config WPPConnect salvo com tokens válidos');
-      return true;
-    } catch (error) {
-      console.error('❌ Erro ao salvar config WPPConnect:', error);
-      return false;
-    }
-  };
-
-  const isTokenValid = () => {
+  // Função centralizada para fazer requisições
+  const makeWPPRequest = useCallback(async (endpoint: string, options: RequestInit = {}) => {
     const config = getWPPConfig();
-    const INVALID_TOKENS = [
-      'YOUR_SECRET_KEY_HERE',
-      'YOUR_TOKEN_HERE', 
-      'DEFAULT_TOKEN',
-      'CHANGE_ME',
-      '',
-      undefined,
-      null
-    ];
     
-    const isSecretKeyValid = !INVALID_TOKENS.includes(config.secretKey) && 
-                            config.secretKey && 
-                            config.secretKey.length > 0;
-    
-    const isTokenValid = !INVALID_TOKENS.includes(config.token) && 
-                        config.token && 
-                        config.token.length > 0;
+    if (!config.secretKey || !config.token) {
+      throw new Error('Token ou Secret Key não configurado');
+    }
 
-    console.log('🔍 Validação de tokens:', {
-      secretKeyValid: isSecretKeyValid,
-      tokenValid: isTokenValid,
-      secretKeyLength: config.secretKey?.length || 0,
-      tokenLength: config.token?.length || 0
+    const url = `${config.serverUrl}${endpoint}`;
+    console.log(`🌐 WPP Request: ${options.method || 'GET'} ${url}`);
+
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${config.secretKey}`,
+        'X-API-Key': config.token,
+        ...options.headers,
+      },
     });
 
-    return isSecretKeyValid && isTokenValid;
-  };
-
-  const generateQRCode = async (): Promise<string | null> => {
-    console.log('🔄 Gerando QR Code WPPConnect...');
-    
-    if (!isTokenValid()) {
-      toast({
-        title: "❌ Configuração incompleta",
-        description: "Configure Secret Key e Token válidos do WPPConnect primeiro",
-        variant: "destructive"
-      });
-      return null;
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`❌ WPP Request Error (${response.status}):`, errorText);
+      throw new Error(`Erro ${response.status}: ${response.statusText}`);
     }
 
-    const config = getWPPConfig();
-    setSessionStatus(prev => ({ ...prev, isLoading: true, status: 'connecting' }));
+    const data = await response.json();
+    console.log(`✅ WPP Response:`, data);
+    return data;
+  }, [getWPPConfig]);
 
+  // Verificar status da conexão
+  const checkConnectionStatus = useCallback(async () => {
     try {
-      // Primeiro, gerar token se necessário
-      console.log('🔑 Gerando token de sessão...');
-      const tokenResponse = await fetch(`${config.serverUrl}/api/${config.secretKey}/generate-token`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': '*/*'
-        },
-        body: JSON.stringify({
-          session: config.sessionName,
-          secretkey: config.secretKey
-        })
-      });
-
-      let sessionToken = config.token;
-      if (tokenResponse.ok) {
-        const tokenData = await tokenResponse.json();
-        if (tokenData.token) {
-          sessionToken = tokenData.token;
-          // Salvar o novo token
-          localStorage.setItem('wpp_token', sessionToken);
-          console.log('✅ Token de sessão gerado/atualizado');
-        }
-      }
-
-      // Agora iniciar a sessão
-      console.log('📱 Iniciando sessão WPPConnect...');
-      const response = await fetch(`${config.serverUrl}/api/${config.sessionName}/start-session`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${sessionToken}`
-        },
-        body: JSON.stringify({
-          webhook: config.webhookUrl || undefined,
-          waitQrCode: true
-        })
-      });
-
-      console.log('📊 Resposta da sessão:', {
-        status: response.status,
-        statusText: response.statusText,
-        ok: response.ok
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.log('⚠️ Erro na criação de sessão:', errorText);
-        
-        if (response.status === 401) {
-          throw new Error('Token/Secret Key inválido. Verifique suas credenciais na aba WPPConnect.');
-        }
-        
-        throw new Error(`Erro HTTP: ${response.status} - ${errorText}`);
-      }
-
-      const data = await response.json();
-      console.log('📋 Resposta da sessão:', data);
+      console.log('🔍 Verificando status da sessão WPP...');
       
-      // Verificar diferentes formatos de resposta do QR Code
-      if (data.qrcode || data.qr || data.base64 || data.qr_code) {
-        const qrCode = data.qrcode || data.qr || data.base64 || data.qr_code;
+      const config = getWPPConfig();
+      const data = await makeWPPRequest(`/api/${config.sessionName}/check-connection-session`);
+      
+      console.log('📊 Status da sessão:', data);
+      
+      // Atualizar estado baseado na resposta
+      const isConnected = data.status === true || data.status === 'CONNECTED' || data.message === 'Connected';
+      
+      setSessionStatus(prev => ({
+        ...prev,
+        isConnected,
+        phoneNumber: data.phoneNumber || data.wid?.user || prev.phoneNumber,
+        error: isConnected ? null : 'Sessão não conectada'
+      }));
+
+      // Se conectado, carregar conversas automaticamente
+      if (isConnected) {
+        console.log('✅ Sessão conectada! Carregando conversas...');
+        await loadRealChats();
+      }
+
+      return isConnected;
+    } catch (error) {
+      console.error('❌ Erro ao verificar status:', error);
+      setSessionStatus(prev => ({
+        ...prev,
+        isConnected: false,
+        error: error.message
+      }));
+      return false;
+    }
+  }, [makeWPPRequest, getWPPConfig]);
+
+  // Gerar QR Code
+  const generateQRCode = useCallback(async () => {
+    try {
+      setSessionStatus(prev => ({ ...prev, isLoading: true, error: null }));
+      
+      const config = getWPPConfig();
+      console.log('🎯 Gerando QR Code para sessão:', config.sessionName);
+      
+      const data = await makeWPPRequest(`/api/${config.sessionName}/generate-token`);
+      
+      if (data.status === 'SUCCESS' && data.qrcode) {
         setSessionStatus(prev => ({
           ...prev,
-          qrCode: qrCode,
-          sessionId: config.sessionName,
-          isLoading: false,
-          status: 'connecting'
-        }));
-        
-        toast({
-          title: "✅ QR Code gerado!",
-          description: "Escaneie com seu WhatsApp Business"
-        });
-
-        // Iniciar verificação de status
-        startStatusCheck();
-        
-        return qrCode;
-      }
-      
-      // Se não há QR Code, talvez a sessão já esteja conectada
-      if (data.connected || data.status === 'connected') {
-        setSessionStatus(prev => ({
-          ...prev,
-          isConnected: true,
-          phoneNumber: data.phoneNumber || data.number || 'Conectado',
-          lastConnected: new Date().toISOString(),
-          status: 'connected',
+          qrCode: data.qrcode,
           isLoading: false
         }));
         
         toast({
-          title: "🎉 WhatsApp já conectado!",
-          description: `Sessão ativa: ${data.phoneNumber || data.number || 'sucesso'}`
+          title: "QR Code gerado!",
+          description: "Escaneie com seu WhatsApp Business"
         });
+
+        // Iniciar verificação periódica do status
+        const checkInterval = setInterval(async () => {
+          const isConnected = await checkConnectionStatus();
+          if (isConnected) {
+            clearInterval(checkInterval);
+            setSessionStatus(prev => ({ ...prev, qrCode: null }));
+          }
+        }, 3000);
+
+        // Limpar intervalo após 2 minutos
+        setTimeout(() => clearInterval(checkInterval), 120000);
         
-        return null;
+      } else {
+        throw new Error(data.message || 'Falha ao gerar QR Code');
       }
-      
-      throw new Error('QR Code não encontrado na resposta');
     } catch (error) {
       console.error('❌ Erro ao gerar QR Code:', error);
-      setSessionStatus(prev => ({ ...prev, isLoading: false, status: 'error' }));
-      
-      toast({
-        title: "❌ Erro ao gerar QR Code",
-        description: error instanceof Error ? error.message : "Verifique se o WPPConnect está funcionando e se os tokens estão corretos",
-        variant: "destructive"
-      });
-      
-      return null;
-    }
-  };
-
-  const startStatusCheck = () => {
-    let attempts = 0;
-    const maxAttempts = 40; // 2 minutos
-    
-    const checkInterval = setInterval(async () => {
-      attempts++;
-      console.log(`🔍 Verificando conexão - tentativa ${attempts}/${maxAttempts}`);
-      
-      if (attempts > maxAttempts) {
-        clearInterval(checkInterval);
-        setSessionStatus(prev => ({ ...prev, status: 'error' }));
-        toast({
-          title: "⏰ Timeout",
-          description: "QR Code expirado. Gere um novo.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      const isConnected = await checkConnectionStatus();
-      if (isConnected) {
-        clearInterval(checkInterval);
-      }
-    }, 3000);
-  };
-
-  const checkConnectionStatus = async (): Promise<boolean> => {
-    if (!isTokenValid()) {
-      return false;
-    }
-
-    const config = getWPPConfig();
-
-    try {
-      const response = await fetch(`${config.serverUrl}/api/${config.sessionName}/check-connection-session`, {
-        headers: {
-          'Authorization': `Bearer ${config.token}`
-        }
-      });
-
-      if (!response.ok) {
-        // Tentar endpoint alternativo
-        const altResponse = await fetch(`${config.serverUrl}/api/${config.sessionName}/status-session`, {
-          headers: {
-            'Authorization': `Bearer ${config.token}`
-          }
-        });
-        
-        if (!altResponse.ok) {
-          return false;
-        }
-        
-        const altData = await altResponse.json();
-        if (altData.connected || altData.status === 'connected') {
-          setSessionStatus(prev => ({
-            ...prev,
-            isConnected: true,
-            qrCode: '',
-            phoneNumber: altData.phoneNumber || altData.number || 'Conectado',
-            lastConnected: new Date().toISOString(),
-            status: 'connected'
-          }));
-          
-          toast({
-            title: "🎉 WhatsApp conectado!",
-            description: `Conectado com ${altData.phoneNumber || altData.number || 'sucesso'}`
-          });
-          
-          return true;
-        }
-        
-        return false;
-      }
-
-      const data = await response.json();
-      console.log('📊 Status da sessão:', data);
-      
-      if (data.connected || data.status === 'connected' || data.session === 'CONNECTED') {
-        setSessionStatus(prev => ({
-          ...prev,
-          isConnected: true,
-          qrCode: '',
-          phoneNumber: data.phoneNumber || data.number || data.phone || 'Conectado',
-          lastConnected: new Date().toISOString(),
-          status: 'connected'
-        }));
-        
-        toast({
-          title: "🎉 WhatsApp conectado!",
-          description: `Conectado com ${data.phoneNumber || data.number || 'sucesso'}`
-        });
-        
-        return true;
-      }
-      
-      return false;
-    } catch (error) {
-      console.error('❌ Erro ao verificar status:', error);
-      return false;
-    }
-  };
-
-  const loadRealChats = async () => {
-    console.log('🔍 INICIANDO loadRealChats...');
-    console.log('📊 Status atual:', {
-      isTokenValid: isTokenValid(),
-      isConnected: sessionStatus.isConnected,
-      status: sessionStatus.status
-    });
-
-    if (!isTokenValid()) {
-      const errorMsg = 'Secret Key e Token não configurados corretamente';
-      console.error('❌ Erro de configuração:', errorMsg);
-      toast({
-        title: "❌ Configuração inválida",
-        description: errorMsg,
-        variant: "destructive"
-      });
-      throw new Error(errorMsg);
-    }
-
-    if (!sessionStatus.isConnected) {
-      const errorMsg = 'WhatsApp não está conectado';
-      console.error('❌ Erro de conexão:', errorMsg);
-      toast({
-        title: "❌ WhatsApp desconectado",
-        description: "Conecte o WhatsApp primeiro",
-        variant: "destructive"
-      });
-      throw new Error(errorMsg);
-    }
-
-    const config = getWPPConfig();
-    console.log('🔧 Usando configuração:', {
-      serverUrl: config.serverUrl,
-      sessionName: config.sessionName,
-      hasToken: !!config.token
-    });
-
-    setIsLoadingChats(true);
-
-    try {
-      console.log('📞 Fazendo requisição para carregar conversas...');
-      console.log('🔗 URL:', `${config.serverUrl}/api/${config.sessionName}/all-chats`);
-      
-      const response = await fetch(`${config.serverUrl}/api/${config.sessionName}/all-chats`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${config.token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      console.log('📊 Resposta da API:', {
-        status: response.status,
-        statusText: response.statusText,
-        ok: response.ok,
-        headers: Object.fromEntries(response.headers.entries())
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ Erro HTTP completo:', {
-          status: response.status,
-          statusText: response.statusText,
-          body: errorText
-        });
-        throw new Error(`Erro HTTP: ${response.status} - ${response.statusText}\nDetalhes: ${errorText}`);
-      }
-
-      const data = await response.json();
-      console.log('📋 Dados brutos recebidos:', data);
-      console.log('📏 Tipo de dados:', typeof data, 'É array?', Array.isArray(data));
-      
-      if (!Array.isArray(data)) {
-        console.error('❌ Formato inesperado:', data);
-        throw new Error(`Formato de dados inválido - esperado array, recebido: ${typeof data}`);
-      }
-
-      console.log(`📊 ${data.length} itens de conversa recebidos`);
-
-      // Transformar dados da API em formato padronizado
-      const formattedChats: Chat[] = data.map((chat: any, index: number) => {
-        console.log(`🔄 Processando chat ${index}:`, chat);
-        
-        const chatId = chat.id?._serialized || chat.id || `chat_${index}`;
-        const phoneNumber = extractPhoneNumber(chat.id || chat.contact?.id || chat.phone);
-        const lastMessageTimestamp = extractTimestamp(chat);
-        
-        const formattedChat = {
-          chatId: String(chatId),
-          name: extractContactName(chat),
-          lastMessage: String(chat.lastMessage?.body || chat.lastMessage?.text || 'Sem mensagens'),
-          timestamp: new Date(lastMessageTimestamp).toISOString(),
-          unreadCount: Number(chat.unreadCount || 0),
-          lastMessageTimestamp: lastMessageTimestamp
-        };
-        
-        console.log(`✅ Chat ${index} formatado:`, formattedChat);
-        return formattedChat;
-      });
-
-      // Também criar formato Contact para compatibilidade
-      const formattedContacts: Contact[] = formattedChats.map(chat => ({
-        id: chat.chatId,
-        name: chat.name,
-        phone: extractPhoneNumber(chat.chatId),
-        lastMessage: chat.lastMessage,
-        timestamp: chat.timestamp,
-        unread: chat.unreadCount,
-        lastMessageTimestamp: chat.lastMessageTimestamp
+      setSessionStatus(prev => ({
+        ...prev,
+        isLoading: false,
+        error: error.message
       }));
-
-      console.log('🎯 ATUALIZANDO ESTADO COM AS CONVERSAS...');
-      setChats(formattedChats);
-      setContacts(formattedContacts);
-      
-      console.log(`🎉 ${formattedChats.length} conversas carregadas e definidas no estado!`);
       
       toast({
-        title: "📞 Conversas carregadas!",
-        description: `${formattedChats.length} conversas encontradas e carregadas com sucesso`,
-        duration: 5000
+        title: "Erro ao gerar QR Code",
+        description: error.message,
+        variant: "destructive"
       });
-      
-      return formattedChats;
-      
-    } catch (error) {
-      console.error('❌ ERRO DETALHADO ao carregar conversas:', error);
-      console.error('❌ Stack trace:', error instanceof Error ? error.stack : 'N/A');
-      
-      toast({
-        title: "❌ Erro ao carregar conversas",
-        description: error instanceof Error ? error.message : "Erro desconhecido - verifique o console",
-        variant: "destructive",
-        duration: 10000
-      });
-      throw error;
-    } finally {
-      setIsLoadingChats(false);
-      console.log('🏁 loadRealChats finalizado');
     }
-  };
+  }, [makeWPPRequest, getWPPConfig, toast, checkConnectionStatus]);
 
-  const loadRealMessages = async (chatId: string) => {
-    if (!isTokenValid()) {
-      throw new Error('Secret Key e Token não configurados');
-    }
-
-    const config = getWPPConfig();
-    setIsLoadingMessages(true);
-
+  // Carregar conversas reais
+  const loadRealChats = useCallback(async () => {
     try {
+      console.log('📱 Carregando conversas reais...');
+      
+      const config = getWPPConfig();
+      const data = await makeWPPRequest(`/api/${config.sessionName}/all-chats`);
+      
+      if (Array.isArray(data)) {
+        const formattedChats: Chat[] = data.map((chat: any) => ({
+          chatId: String(chat.id?._serialized || chat.id || chat.chatId || ''),
+          name: chat.name || chat.pushname || chat.formattedTitle || 'Sem nome',
+          lastMessage: chat.lastMessage?.body || chat.lastMessage || 'Sem mensagens',
+          timestamp: chat.t ? new Date(chat.t * 1000).toISOString() : new Date().toISOString(),
+          unreadCount: chat.unreadCount || 0,
+          isGroup: chat.isGroup || false
+        })).filter(chat => chat.chatId && chat.chatId !== '');
+
+        console.log('📋 Conversas formatadas:', formattedChats);
+        setChats(formattedChats);
+        
+        toast({
+          title: "Conversas carregadas!",
+          description: `${formattedChats.length} conversas encontradas`
+        });
+        
+      } else {
+        console.warn('⚠️ Resposta não é array:', data);
+        setChats([]);
+      }
+    } catch (error) {
+      console.error('❌ Erro ao carregar conversas:', error);
+      toast({
+        title: "Erro ao carregar conversas",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  }, [makeWPPRequest, getWPPConfig, toast]);
+
+  // Carregar mensagens de uma conversa
+  const loadRealMessages = useCallback(async (chatId: string) => {
+    try {
+      setIsLoadingMessages(true);
       console.log('💬 Carregando mensagens para:', chatId);
       
-      const response = await fetch(`${config.serverUrl}/api/${config.sessionName}/all-messages-in-chat`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${config.token}`
-        },
-        body: JSON.stringify({
-          phone: chatId,
-          count: messageHistoryLimit
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`Erro HTTP: ${response.status}`);
-      }
-
-      const data = await response.json();
+      const config = getWPPConfig();
+      const data = await makeWPPRequest(`/api/${config.sessionName}/all-messages-in-chat/${encodeURIComponent(chatId)}`);
       
-      if (!Array.isArray(data)) {
-        throw new Error('Formato de dados inválido');
-      }
-      
-      // Transformar mensagens da API
-      const formattedMessages: Message[] = data.map((msg: any, index: number) => {
-        const text = msg.processedText || msg.body || msg.text || msg.content || 'Mensagem sem texto';
-        const isAudio = String(text).includes('🎤 [Áudio]');
-        
-        return {
-          id: String(msg.id || `msg_${index}`),
-          chatId: String(chatId),
-          text: String(text),
+      if (Array.isArray(data)) {
+        const formattedMessages: Message[] = data.map((msg: any, index: number) => ({
+          id: msg.id?._serialized || msg.id || `msg-${index}`,
+          chatId: chatId,
+          text: msg.body || msg.content || '',
           sender: msg.fromMe ? 'user' : 'contact',
-          timestamp: msg.timestamp ? new Date(msg.timestamp * 1000).toISOString() : new Date().toISOString(),
-          status: msg.ack ? 'delivered' : 'sent',
-          isAudio: isAudio
-        };
-      });
+          timestamp: msg.t ? new Date(msg.t * 1000).toISOString() : new Date().toISOString(),
+          fromMe: msg.fromMe || false
+        }));
 
-      setMessages(prev => [
-        ...prev.filter(m => m.chatId !== chatId),
-        ...formattedMessages
-      ]);
-      
-      return formattedMessages;
+        setMessages(prev => [
+          ...prev.filter(m => m.chatId !== chatId),
+          ...formattedMessages
+        ]);
+        
+      } else {
+        console.warn('⚠️ Mensagens não é array:', data);
+      }
     } catch (error) {
       console.error('❌ Erro ao carregar mensagens:', error);
-      throw error;
+      toast({
+        title: "Erro ao carregar mensagens",
+        description: error.message,
+        variant: "destructive"
+      });
     } finally {
       setIsLoadingMessages(false);
     }
-  };
+  }, [makeWPPRequest, getWPPConfig, toast]);
 
-  const sendMessage = async (chatId: string, message: string): Promise<boolean> => {
-    if (!isTokenValid()) {
-      throw new Error('Secret Key e Token não configurados');
-    }
-
-    const config = getWPPConfig();
-
+  // Enviar mensagem
+  const sendMessage = useCallback(async (chatId: string, message: string) => {
     try {
-      console.log('📤 Enviando mensagem para:', chatId);
+      console.log('📤 Enviando mensagem:', { chatId, message });
       
-      const response = await fetch(`${config.serverUrl}/api/${config.sessionName}/send-message`, {
+      const config = getWPPConfig();
+      const data = await makeWPPRequest(`/api/${config.sessionName}/send-message`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${config.token}`
-        },
         body: JSON.stringify({
-          phone: chatId,
+          chatId: chatId,
           message: message
         })
       });
 
-      if (!response.ok) {
-        throw new Error(`Erro HTTP: ${response.status}`);
+      if (data.status === 'SUCCESS') {
+        // Recarregar mensagens da conversa
+        await loadRealMessages(chatId);
+        
+        toast({
+          title: "Mensagem enviada!",
+          description: "A mensagem foi enviada com sucesso"
+        });
+      } else {
+        throw new Error(data.message || 'Falha ao enviar mensagem');
       }
-
-      // Adicionar mensagem localmente
-      const newMessage: Message = {
-        id: `msg_${Date.now()}`,
-        chatId: chatId,
-        text: message,
-        sender: 'user',
-        timestamp: new Date().toISOString(),
-        status: 'sent'
-      };
-
-      setMessages(prev => [...prev, newMessage]);
-      
-      return true;
     } catch (error) {
       console.error('❌ Erro ao enviar mensagem:', error);
       throw error;
     }
-  };
+  }, [makeWPPRequest, getWPPConfig, loadRealMessages, toast]);
 
-  const disconnectWhatsApp = async () => {
-    const config = getWPPConfig();
+  // Iniciar modo live
+  const startLiveMode = useCallback((chatId: string) => {
+    setIsLiveMode(true);
+    setCurrentChatId(chatId);
     
-    if (isTokenValid()) {
-      try {
-        await fetch(`${config.serverUrl}/api/${config.sessionName}/close-session`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${config.token}`
-          }
-        });
-      } catch (error) {
-        console.log('Erro ao fechar sessão:', error);
-      }
-    }
+    // Atualizar mensagens a cada 3 segundos
+    const liveInterval = setInterval(() => {
+      loadRealMessages(chatId);
+    }, 3000);
 
-    setSessionStatus({
-      isConnected: false,
-      qrCode: '',
-      phoneNumber: '',
-      sessionId: '',
-      lastConnected: '',
-      isLoading: false,
-      status: 'disconnected'
+    // Salvar referência do intervalo
+    (window as any).wppLiveInterval = liveInterval;
+    
+    toast({
+      title: "Modo Live ativado",
+      description: "Mensagens serão atualizadas automaticamente"
     });
+  }, [loadRealMessages, toast]);
 
-    setChats([]);
-    setMessages([]);
-    setContacts([]);
+  // Parar modo live
+  const stopLiveMode = useCallback(() => {
     setIsLiveMode(false);
     setCurrentChatId(null);
     
-    localStorage.removeItem('wpp_session_status');
+    if ((window as any).wppLiveInterval) {
+      clearInterval((window as any).wppLiveInterval);
+      (window as any).wppLiveInterval = null;
+    }
     
     toast({
-      title: "🔌 Desconectado",
-      description: "WhatsApp foi desconectado"
+      title: "Modo Live desativado",
+      description: "Atualizações automáticas pausadas"
     });
-  };
+  }, [toast]);
 
-  // Funções helper
-  const extractPhoneNumber = (phoneData: any): string => {
-    if (typeof phoneData === 'string') {
-      return phoneData;
+  // Desconectar WhatsApp
+  const disconnectWhatsApp = useCallback(async () => {
+    try {
+      const config = getWPPConfig();
+      await makeWPPRequest(`/api/${config.sessionName}/logout-session`, {
+        method: 'POST'
+      });
+      
+      setSessionStatus({
+        isConnected: false,
+        isLoading: false,
+        qrCode: null,
+        phoneNumber: null,
+        error: null
+      });
+      
+      setChats([]);
+      setMessages([]);
+      stopLiveMode();
+      
+      toast({
+        title: "WhatsApp desconectado",
+        description: "Sessão encerrada com sucesso"
+      });
+    } catch (error) {
+      console.error('❌ Erro ao desconectar:', error);
+      toast({
+        title: "Erro ao desconectar",
+        description: error.message,
+        variant: "destructive"
+      });
     }
-    if (phoneData && typeof phoneData === 'object') {
-      if (phoneData._serialized) return String(phoneData._serialized);
-      if (phoneData.user) return String(phoneData.user);
-      if (phoneData.number) return String(phoneData.number);
-      if (phoneData.server && phoneData.user) {
-        return `${phoneData.user}@${phoneData.server}`;
-      }
+  }, [makeWPPRequest, getWPPConfig, stopLiveMode, toast]);
+
+  // Verificar status ao montar o componente
+  useEffect(() => {
+    const config = getWPPConfig();
+    if (config.secretKey && config.token) {
+      console.log('🚀 Verificando status inicial...');
+      checkConnectionStatus();
     }
-    return 'Número não disponível';
-  };
-
-  const extractContactName = (chat: any): string => {
-    if (chat.name) return String(chat.name);
-    if (chat.contact?.name) return String(chat.contact.name);
-    if (chat.contact?.formattedName) return String(chat.contact.formattedName);
-    if (chat.contact?.pushname) return String(chat.contact.pushname);
-    if (chat.title) return String(chat.title);
-    
-    const phoneNumber = extractPhoneNumber(chat.id || chat.contact?.id || chat.phone);
-    if (phoneNumber && phoneNumber !== 'Número não disponível') {
-      if (phoneNumber.includes('@g.us')) {
-        return chat.id ? String(chat.id) : 'Grupo sem nome';
-      }
-      const cleanNumber = phoneNumber.replace('@c.us', '');
-      return `+${cleanNumber}`;
-    }
-    
-    return 'Contato sem nome';
-  };
-
-  const extractTimestamp = (chat: any): number => {
-    if (chat.lastMessage?.timestamp) {
-      return typeof chat.lastMessage.timestamp === 'number' 
-        ? chat.lastMessage.timestamp 
-        : new Date(chat.lastMessage.timestamp).getTime();
-    }
-    
-    if (chat.timestamp) {
-      return typeof chat.timestamp === 'number'
-        ? chat.timestamp
-        : new Date(chat.timestamp).getTime();
-    }
-    
-    if (chat.t) {
-      return chat.t * 1000;
-    }
-    
-    return new Date().getTime();
-  };
-
-  const getConnectionStatus = () => {
-    if (!sessionStatus.isConnected) return 'disconnected';
-    
-    const lastConnected = new Date(sessionStatus.lastConnected);
-    const now = new Date();
-    const minutesDiff = (now.getTime() - lastConnected.getTime()) / (1000 * 60);
-    
-    if (minutesDiff > 30) return 'idle';
-    return 'active';
-  };
-
-  // Funções de compatibilidade para análise
-  const togglePinConversation = (chatId: string) => {
-    console.log('Toggle pin conversation:', chatId);
-  };
-
-  const toggleAnalysisConversation = (chatId: string) => {
-    console.log('Toggle analysis conversation:', chatId);
-  };
-
-  const isConversationPinned = (chatId: string) => {
-    return false;
-  };
-
-  const isConversationMarkedForAnalysis = (chatId: string) => {
-    return false;
-  };
-
-  const getAnalysisPriority = (chatId: string): 'high' | 'medium' | 'low' => {
-    return 'medium';
-  };
+  }, [checkConnectionStatus]);
 
   return {
-    // Estado principal
     sessionStatus,
     chats,
     messages,
-    contacts,
     isLoadingMessages,
-    isLoadingChats,
     isLiveMode,
     currentChatId,
-    messageHistoryLimit,
-    
-    // Configuração
     getWPPConfig,
     saveWPPConfig,
-    
-    // Conexão
     generateQRCode,
     checkConnectionStatus,
-    disconnectWhatsApp,
-    getConnectionStatus,
-    
-    // Chat e mensagens
     loadRealChats,
     loadRealMessages,
     sendMessage,
-    
-    // Compatibilidade
-    togglePinConversation,
-    toggleAnalysisConversation,
-    isConversationPinned,
-    isConversationMarkedForAnalysis,
-    getAnalysisPriority,
-    
-    // Estados de compatibilidade
-    connectionState: sessionStatus,
-    isLoading: sessionStatus.isLoading || false,
-    wppConfig: getWPPConfig(),
-    
-    // Funções de compatibilidade
-    updateMessageHistoryLimit: (limit: number) => setMessageHistoryLimit(limit),
-    startLiveMode: (chatId: string) => {
-      setIsLiveMode(true);
-      setCurrentChatId(chatId);
-    },
-    stopLiveMode: () => {
-      setIsLiveMode(false);
-      setCurrentChatId(null);
-    }
+    startLiveMode,
+    stopLiveMode,
+    disconnectWhatsApp
   };
 }
