@@ -112,38 +112,100 @@ export function useRealWhatsAppConnection() {
     
     try {
       // URL do webhook que aponta para a edge function do Supabase
-      const webhookUrl = `${window.location.origin.includes('localhost') ? 'https://your-project.supabase.co' : window.location.origin}/functions/v1/whatsapp-autoreply`;
+      const webhookUrl = `https://your-project.supabase.co/functions/v1/whatsapp-autoreply`;
       
       console.log('🔧 [WPP] URL do webhook:', webhookUrl);
       console.log('🔧 [WPP] Configurações atuais:', wppConfig);
       
-      // Lista de endpoints para tentar (diferentes versões do WPPConnect)
+      // Lista expandida de endpoints para tentar (diferentes versões do WPPConnect)
       const webhookEndpoints = [
+        // Formato mais comum do WPPConnect
         {
           url: `${wppConfig.serverUrl}/api/${wppConfig.sessionName}/set-webhook`,
           method: 'POST',
-          body: { webhook: webhookUrl, events: ['message'] }
+          body: { 
+            webhook: webhookUrl,
+            events: ['message'],
+            enabled: true
+          }
         },
+        // Formato alternativo com 'url' em vez de 'webhook'
+        {
+          url: `${wppConfig.serverUrl}/api/${wppConfig.sessionName}/set-webhook`,
+          method: 'POST',
+          body: { 
+            url: webhookUrl,
+            events: ['message'],
+            enabled: true
+          }
+        },
+        // Formato com 'webhookUrl'
+        {
+          url: `${wppConfig.serverUrl}/api/${wppConfig.sessionName}/set-webhook`,
+          method: 'POST',
+          body: { 
+            webhookUrl: webhookUrl,
+            events: ['message']
+          }
+        },
+        // Endpoint webhook direto
         {
           url: `${wppConfig.serverUrl}/api/${wppConfig.sessionName}/webhook`,
           method: 'POST', 
-          body: { url: webhookUrl, enabled: true, events: ['message'] }
+          body: { 
+            url: webhookUrl, 
+            enabled: true, 
+            events: ['message', 'onMessage']
+          }
         },
+        // Formato de configuração geral
+        {
+          url: `${wppConfig.serverUrl}/api/${wppConfig.sessionName}/config`,
+          method: 'POST',
+          body: { 
+            webhook: {
+              url: webhookUrl,
+              events: ['message'],
+              enabled: true
+            }
+          }
+        },
+        // Tentativa com endpoint mais simples
         {
           url: `${wppConfig.serverUrl}/webhook/${wppConfig.sessionName}`,
           method: 'POST',
-          body: { webhookUrl: webhookUrl }
+          body: { 
+            webhookUrl: webhookUrl,
+            events: ['message']
+          }
         },
+        // Formato com configuração completa
         {
           url: `${wppConfig.serverUrl}/api/${wppConfig.sessionName}/config-webhook`,
           method: 'PUT',
-          body: { webhook: webhookUrl }
+          body: { 
+            webhook: webhookUrl,
+            events: ['message', 'onMessage'],
+            enabled: true
+          }
+        },
+        // Tentativa com endpoint de settings
+        {
+          url: `${wppConfig.serverUrl}/api/${wppConfig.sessionName}/settings`,
+          method: 'POST',
+          body: { 
+            webhook: {
+              url: webhookUrl,
+              events: ['message']
+            }
+          }
         }
       ];
 
       for (let i = 0; i < webhookEndpoints.length; i++) {
         const endpoint = webhookEndpoints[i];
-        console.log(`🔧 [WPP] Tentando endpoint ${i + 1}:`, endpoint.url);
+        console.log(`🔧 [WPP] Tentando endpoint ${i + 1}/${webhookEndpoints.length}:`, endpoint.url);
+        console.log(`🔧 [WPP] Body:`, JSON.stringify(endpoint.body, null, 2));
         
         try {
           const response = await fetch(endpoint.url, {
@@ -152,12 +214,14 @@ export function useRealWhatsAppConnection() {
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${wppConfig.token}`,
               'X-API-KEY': wppConfig.token,
-              'token': wppConfig.token
+              'token': wppConfig.token,
+              'apikey': wppConfig.token,
+              'secretkey': wppConfig.secretKey
             },
             body: JSON.stringify(endpoint.body)
           });
 
-          console.log(`🔧 [WPP] Resposta endpoint ${i + 1}:`, response.status);
+          console.log(`🔧 [WPP] Resposta endpoint ${i + 1}:`, response.status, response.statusText);
           
           if (response.ok) {
             const result = await response.json();
@@ -172,9 +236,15 @@ export function useRealWhatsAppConnection() {
           } else {
             const errorText = await response.text();
             console.log(`❌ [WPP] Endpoint ${i + 1} falhou:`, response.status, errorText);
+            
+            // Se for erro 404, tentar próximo endpoint
+            if (response.status === 404) {
+              continue;
+            }
           }
         } catch (endpointError) {
           console.log(`❌ [WPP] Erro no endpoint ${i + 1}:`, endpointError);
+          continue;
         }
       }
       
@@ -182,8 +252,8 @@ export function useRealWhatsAppConnection() {
       console.error('❌ [WPP] Todos os endpoints de webhook falharam');
       
       toast({
-        title: "❌ Erro no webhook",
-        description: "Não foi possível configurar webhook automático. Verifique se o WPPConnect está rodando e configure manualmente via Swagger.",
+        title: "❌ Configuração automática falhou",
+        description: "Não foi possível configurar webhook automaticamente. Use a configuração manual via Swagger.",
         variant: "destructive"
       });
       
