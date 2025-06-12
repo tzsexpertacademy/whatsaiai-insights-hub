@@ -70,7 +70,7 @@ export function useWPPConnect() {
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const [messageHistoryLimit, setMessageHistoryLimit] = useState(50);
 
-  // Lista REDUZIDA de tokens inválidos - removendo THISISMYSECURETOKEN
+  // Lista REDUZIDA de tokens inválidos - ACEITA THISISMYSECURETOKEN
   const INVALID_TOKENS = [
     'YOUR_SECRET_KEY_HERE',
     'YOUR_TOKEN_HERE',
@@ -180,7 +180,7 @@ export function useWPPConnect() {
   const isTokenValid = () => {
     const config = getWPPConfig();
     
-    // Verificar se os valores não são inválidos (mas aceitar THISISMYSECURETOKEN)
+    // Verificar se os valores não são inválidos (ACEITA THISISMYSECURETOKEN)
     const isSecretKeyValid = !INVALID_TOKENS.includes(config.secretKey) && 
                             config.secretKey && 
                             config.secretKey.length > 0;
@@ -226,71 +226,42 @@ export function useWPPConnect() {
     setSessionStatus(prev => ({ ...prev, isLoading: true, status: 'connecting' }));
 
     try {
-      // Primeiro tenta criar a sessão
-      console.log('📱 Criando sessão WPPConnect...');
-      const createResponse = await fetch(`${config.serverUrl}/api/${config.sessionName}/start-session`, {
+      // CORREÇÃO: Usar headers corretos conforme mostrado na API
+      console.log('📱 Gerando QR Code via WPPConnect...');
+      const qrResponse = await fetch(`${config.serverUrl}/api/${config.sessionName}/qrcode-session`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${config.secretKey}`,
-          'X-Session-Token': config.token
+          'Authorization': `Bearer ${config.secretKey}`
         },
         body: JSON.stringify({
-          session: config.sessionName,
-          webhook: config.webhookUrl || undefined
+          webhook: config.webhookUrl || undefined,
+          waitQrCode: true
         })
       });
 
-      console.log('📊 Resposta de criação de sessão:', {
-        status: createResponse.status,
-        statusText: createResponse.statusText,
-        ok: createResponse.ok
-      });
-
-      if (!createResponse.ok) {
-        const errorText = await createResponse.text();
-        console.log('⚠️ Erro na criação de sessão:', errorText);
-        
-        if (createResponse.status === 401) {
-          throw new Error('Token ou Secret Key inválidos. Verifique suas credenciais na aba WPPConnect.');
-        }
-      }
-
-      // Tenta obter o QR Code
-      console.log('🔍 Obtendo QR Code...');
-      const qrResponse = await fetch(`${config.serverUrl}/api/${config.sessionName}/start-session`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${config.secretKey}`,
-          'X-Session-Token': config.token
-        },
-        body: JSON.stringify({
-          session: config.sessionName,
-          webhook: config.webhookUrl || undefined
-        })
+      console.log('📊 Resposta do QR Code:', {
+        status: qrResponse.status,
+        statusText: qrResponse.statusText,
+        ok: qrResponse.ok
       });
 
       if (!qrResponse.ok) {
         const errorText = await qrResponse.text();
-        console.error('❌ Erro HTTP ao obter QR Code:', {
-          status: qrResponse.status,
-          statusText: qrResponse.statusText,
-          error: errorText
-        });
-
+        console.log('⚠️ Erro na geração de QR Code:', errorText);
+        
         if (qrResponse.status === 401) {
-          throw new Error('Erro de autenticação. Verifique Secret Key e Token na aba WPPConnect.');
+          throw new Error('Secret Key inválido. Verifique suas credenciais na aba WPPConnect.');
         }
         
         throw new Error(`Erro HTTP: ${qrResponse.status} - ${errorText}`);
       }
 
       const data = await qrResponse.json();
-      console.log('📋 Resposta do servidor:', data);
+      console.log('📋 Resposta do QR Code:', data);
       
-      if (data.qrcode || data.qr) {
-        const qrCode = data.qrcode || data.qr;
+      if (data.qrcode || data.qr || data.base64) {
+        const qrCode = data.qrcode || data.qr || data.base64;
         setSessionStatus(prev => ({
           ...prev,
           qrCode: qrCode,
@@ -359,10 +330,10 @@ export function useWPPConnect() {
     const config = getWPPConfig();
 
     try {
+      // CORREÇÃO: Usar endpoint correto para verificar status
       const response = await fetch(`${config.serverUrl}/api/${config.sessionName}/status-session`, {
         headers: {
-          'Authorization': `Bearer ${config.secretKey}`,
-          'X-Session-Token': config.token
+          'Authorization': `Bearer ${config.secretKey}`
         }
       });
 
