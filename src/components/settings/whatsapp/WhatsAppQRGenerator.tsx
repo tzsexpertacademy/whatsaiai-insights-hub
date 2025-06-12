@@ -107,7 +107,7 @@ export function WhatsAppQRGenerator() {
                 </div>
                 <div className="text-sm text-gray-600 space-y-1">
                   <p>📱 <strong>Abra o WhatsApp Business</strong> no seu celular</p>
-                  <p>⚙️ Vá em <strong>Configurações > Dispositivos conectados</strong></p>
+                  <p>⚙️ Vá em <strong>Configurações → Dispositivos conectados</strong></p>
                   <p>📷 Toque em <strong>Conectar um dispositivo</strong> e escaneie o código</p>
                 </div>
               </div>
@@ -171,7 +171,7 @@ export function WhatsAppQRGenerator() {
             <ol className="text-sm text-blue-700 space-y-1 list-decimal list-inside">
               <li>Clique em "Gerar QR Code" acima</li>
               <li>Abra o WhatsApp Business no seu celular</li>
-              <li>Vá em Configurações > Dispositivos conectados</li>
+              <li>Vá em Configurações → Dispositivos conectados</li>
               <li>Toque em "Conectar um dispositivo"</li>
               <li>Escaneie o QR Code que apareceu acima</li>
               <li>Aguarde a confirmação de conexão</li>
