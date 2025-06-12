@@ -376,6 +376,9 @@ export function WPPConnectMirror() {
                               {markedConversations.has(chat.chatId) && (
                                 <Brain className="h-3 w-3 text-blue-500" />
                               )}
+                              {chat.isGroup && (
+                                <Badge variant="outline" className="text-xs">Grupo</Badge>
+                              )}
                             </div>
                             <span className="text-xs text-gray-400">{formatTime(chat.timestamp)}</span>
                           </div>
@@ -414,9 +417,12 @@ export function WPPConnectMirror() {
                       <CardTitle className="text-lg">
                         {chats.find(c => c.chatId === selectedContact)?.name}
                       </CardTitle>
-                      <p className="text-sm text-gray-500">
-                        {messages.filter(m => m.chatId === selectedContact).length} mensagens carregadas
-                      </p>
+                      <div className="flex items-center gap-2 text-sm text-gray-500">
+                        <span>{messages.filter(m => m.chatId === selectedContact).length} mensagens carregadas</span>
+                        {chats.find(c => c.chatId === selectedContact)?.isGroup && (
+                          <Badge variant="outline" className="text-xs">Grupo</Badge>
+                        )}
+                      </div>
                     </div>
                     <Button
                       variant={isLiveMode && currentChatId === selectedContact ? "destructive" : "default"}
@@ -544,6 +550,9 @@ export function WPPConnectMirror() {
             </p>
             <p className="mb-2">
               <strong>📱 Status:</strong> {sessionStatus.isConnected ? 'Conectado e funcionando' : 'Pronto para conectar'}
+            </p>
+            <p className="mb-2">
+              <strong>👥 Grupos:</strong> Suporte completo para envio de mensagens em grupos
             </p>
             <p>
               <strong>🤖 IA:</strong> Clique com botão direito nas conversas para marcar para análise IA

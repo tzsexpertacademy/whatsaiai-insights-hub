@@ -588,162 +588,93 @@ export function useWPPConnect() {
       const isGroup = chatId.includes('@g.us') || chatId.includes('group');
       console.log('🔍 Tipo de chat detectado:', { chatId, isGroup });
       
-      // Para grupos, usar endpoints específicos
-      if (isGroup) {
-        console.log('👥 Enviando para GRUPO:', chatId);
-        
-        const groupEndpoints = [
-          {
-            url: `/api/${config.sessionName}/send-message`,
-            payload: {
-              chatId: chatId,
-              message: message,
-              isGroup: true
-            }
-          },
-          {
-            url: `/api/${config.sessionName}/sendText`,
-            payload: {
-              chatId: chatId,
-              text: message
-            }
-          },
-          {
-            url: `/api/${config.sessionName}/send-message`,
-            payload: {
-              phone: chatId,
-              message: message
-            }
+      // Tentar diferentes endpoints até um funcionar
+      const sendEndpoints = [
+        // Endpoint principal para grupos e contatos
+        {
+          url: `/api/${config.sessionName}/send-message`,
+          payload: {
+            phone: chatId,
+            message: message
           }
-        ];
+        },
+        // Endpoint alternativo usando chatId
+        {
+          url: `/api/${config.sessionName}/send-message`,
+          payload: {
+            chatId: chatId,
+            message: message
+          }
+        },
+        // Endpoint para sendText
+        {
+          url: `/api/${config.sessionName}/sendText`,
+          payload: {
+            chatId: chatId,
+            text: message
+          }
+        },
+        // Endpoint específico para grupos se for grupo
+        ...(isGroup ? [{
+          url: `/api/${config.sessionName}/send-group-message`,
+          payload: {
+            groupId: chatId,
+            message: message
+          }
+        }] : [])
+      ];
 
-        let success = false;
-        let lastError = null;
+      let success = false;
+      let lastError = null;
 
-        for (const { url, payload } of groupEndpoints) {
-          try {
-            console.log(`📤 [GRUPO] Tentando endpoint: ${url}`, payload);
+      for (const { url, payload } of sendEndpoints) {
+        try {
+          console.log(`📤 Tentando endpoint: ${url}`, payload);
+          
+          const response = await makeWPPRequest(url, {
+            method: 'POST',
+            body: JSON.stringify(payload)
+          });
+
+          console.log('📤 Resposta da API:', response);
+
+          // Verificar se a mensagem foi enviada com sucesso
+          if (response && (
+            response.status === 'success' || 
+            response.success === true ||
+            response.sent === true ||
+            response.result === true ||
+            response.error === false ||
+            response.status !== 'error' ||
+            !response.error
+          )) {
+            console.log('✅ Mensagem enviada com sucesso!');
+            success = true;
             
-            const response = await makeWPPRequest(url, {
-              method: 'POST',
-              body: JSON.stringify(payload)
+            toast({
+              title: "✅ Mensagem enviada!",
+              description: isGroup ? "Sua mensagem foi enviada para o grupo" : "Sua mensagem foi enviada"
             });
 
-            console.log('📤 [GRUPO] Resposta da API:', response);
+            // Recarregar mensagens após 1 segundo
+            setTimeout(() => {
+              loadRealMessages(chatId);
+            }, 1000);
 
-            if (response && (
-              response.status === 'success' || 
-              response.success === true ||
-              response.sent === true ||
-              response.result === true ||
-              response.error === false ||
-              (response.status !== 'error' && !response.error)
-            )) {
-              console.log('✅ [GRUPO] Mensagem enviada com sucesso!');
-              success = true;
-              
-              toast({
-                title: "✅ Mensagem enviada para o grupo!",
-                description: "Sua mensagem foi enviada com sucesso"
-              });
-
-              setTimeout(() => {
-                loadRealMessages(chatId);
-              }, 1000);
-
-              break;
-            } else {
-              console.log('⚠️ [GRUPO] Resposta não indica sucesso:', response);
-              lastError = new Error(response.message || 'Resposta da API não indica sucesso');
-            }
-          } catch (error) {
-            console.log(`❌ [GRUPO] Erro no endpoint ${url}:`, error.message);
-            lastError = error;
-            continue;
+            break;
+          } else {
+            console.log('⚠️ Resposta não indica sucesso:', response);
+            lastError = new Error(response.message || response.error || 'Resposta da API não indica sucesso');
           }
+        } catch (error) {
+          console.log(`❌ Erro no endpoint ${url}:`, error.message);
+          lastError = error;
+          continue;
         }
+      }
 
-        if (!success) {
-          throw lastError || new Error('Todos os endpoints de grupo falharam');
-        }
-
-      } else {
-        // Para contatos individuais
-        console.log('👤 Enviando para CONTATO INDIVIDUAL:', chatId);
-        
-        const individualEndpoints = [
-          {
-            url: `/api/${config.sessionName}/send-message`,
-            payload: {
-              phone: chatId,
-              message: message
-            }
-          },
-          {
-            url: `/api/${config.sessionName}/send-message`,
-            payload: {
-              chatId: chatId,
-              message: message
-            }
-          },
-          {
-            url: `/api/${config.sessionName}/sendText`,
-            payload: {
-              chatId: normalizeChatId(chatId),
-              text: message
-            }
-          }
-        ];
-
-        let success = false;
-        let lastError = null;
-
-        for (const { url, payload } of individualEndpoints) {
-          try {
-            console.log(`📤 [INDIVIDUAL] Tentando endpoint: ${url}`, payload);
-            
-            const response = await makeWPPRequest(url, {
-              method: 'POST',
-              body: JSON.stringify(payload)
-            });
-
-            console.log('📤 [INDIVIDUAL] Resposta da API:', response);
-
-            if (response && (
-              response.status === 'success' || 
-              response.success === true ||
-              response.sent === true ||
-              response.result === true ||
-              response.error === false ||
-              (response.status !== 'error' && !response.error)
-            )) {
-              console.log('✅ [INDIVIDUAL] Mensagem enviada com sucesso!');
-              success = true;
-              
-              toast({
-                title: "✅ Mensagem enviada!",
-                description: "Sua mensagem foi enviada com sucesso"
-              });
-
-              setTimeout(() => {
-                loadRealMessages(chatId);
-              }, 1000);
-
-              break;
-            } else {
-              console.log('⚠️ [INDIVIDUAL] Resposta não indica sucesso:', response);
-              lastError = new Error(response.message || 'Resposta da API não indica sucesso');
-            }
-          } catch (error) {
-            console.log(`❌ [INDIVIDUAL] Erro no endpoint ${url}:`, error.message);
-            lastError = error;
-            continue;
-          }
-        }
-
-        if (!success) {
-          throw lastError || new Error('Todos os endpoints individuais falharam');
-        }
+      if (!success) {
+        throw lastError || new Error('Todos os endpoints de envio falharam');
       }
 
     } catch (error) {
@@ -755,7 +686,7 @@ export function useWPPConnect() {
         variant: "destructive"
       });
     }
-  }, [makeWPPRequest, getWPPConfig, loadRealMessages, toast, normalizeChatId]);
+  }, [makeWPPRequest, getWPPConfig, loadRealMessages, toast]);
 
   // Iniciar modo live
   const startLiveMode = useCallback((chatId: string) => {
