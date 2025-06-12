@@ -62,11 +62,7 @@ export function useProtectedAnalysisSystem() {
 
   /**
    * FUNÇÃO PRINCIPAL DE ANÁLISE PROTEGIDA
-   * Esta função garante que:
-   * - Apenas dados reais são analisados
-   * - Cache é usado para evitar duplicações
-   * - Custos são controlados
-   * - Sistema é robusto contra mudanças
+   * Agora busca conversas marcadas para análise no banco
    */
   const executeProtectedAnalysis = useCallback(async (
     config: ProtectedAnalysisConfig
@@ -86,8 +82,21 @@ export function useProtectedAnalysisSystem() {
     console.log('🔒 SISTEMA PROTEGIDO: Iniciando análise segura...');
 
     try {
-      // PASSO 1: Buscar dados reais do banco
-      const realData = await fetchRealUserData(user.id);
+      // PASSO 1: Buscar conversas marcadas para análise do banco
+      console.log('🔍 SISTEMA PROTEGIDO: Buscando conversas marcadas para análise...');
+      
+      const { data: markedConversations, error: markedError } = await supabase
+        .from('whatsapp_conversations_analysis')
+        .select('*')
+        .eq('marked_for_analysis', true)
+        .eq('analysis_status', 'pending');
+
+      if (markedError) {
+        console.error('🔒 SISTEMA PROTEGIDO: Erro ao buscar conversas marcadas:', markedError);
+      }
+
+      // PASSO 2: Buscar dados reais do banco (incluindo conversas marcadas)
+      const realData = await fetchRealUserData(user.id, markedConversations || []);
       
       if (!realData || (realData.conversations.length === 0 && realData.chatHistory.length === 0)) {
         console.warn('🔒 SISTEMA PROTEGIDO: Nenhum dado real encontrado');
@@ -103,7 +112,13 @@ export function useProtectedAnalysisSystem() {
         };
       }
 
-      // PASSO 2: Verificar cache se habilitado
+      // Verificar se há conversas marcadas especificamente
+      const hasMarkedConversations = markedConversations && markedConversations.length > 0;
+      if (hasMarkedConversations) {
+        console.log(`🎯 SISTEMA PROTEGIDO: ${markedConversations.length} conversas marcadas para análise prioritária`);
+      }
+
+      // PASSO 3: Verificar cache se habilitado
       if (config.useCache !== false) {
         console.log('🔒 SISTEMA PROTEGIDO: Verificando cache...');
         const cacheResult = await checkAnalysisCache(
@@ -112,7 +127,7 @@ export function useProtectedAnalysisSystem() {
           config.analysisType
         );
 
-        if (cacheResult?.cached) {
+        if (cacheResult?.cached && !hasMarkedConversations) {
           console.log('🔒 SISTEMA PROTEGIDO: Usando dados do cache');
           return {
             success: true,
@@ -132,7 +147,7 @@ export function useProtectedAnalysisSystem() {
         }
       }
 
-      // PASSO 3: Executar análise com assistentes reais
+      // PASSO 4: Executar análise com assistentes reais
       console.log('🔒 SISTEMA PROTEGIDO: Executando nova análise...');
       const startTime = Date.now();
       
@@ -143,10 +158,21 @@ export function useProtectedAnalysisSystem() {
         analysisType: config.analysisType,
         conversationsData: realData.conversations,
         chatHistoryData: realData.chatHistory,
+        markedConversations: markedConversations || [],
         useCache: config.useCache !== false,
         onlyRealData: config.onlyRealData !== false,
         timestamp: new Date().toISOString()
       };
+
+      // Atualizar status das conversas marcadas para "processing"
+      if (hasMarkedConversations) {
+        for (const conversation of markedConversations) {
+          await supabase
+            .from('whatsapp_conversations_analysis')
+            .update({ analysis_status: 'processing' })
+            .eq('id', conversation.id);
+        }
+      }
 
       // Chamar função Edge protegida
       const response = await fetch('/api/analyze-conversation', {
@@ -165,7 +191,22 @@ export function useProtectedAnalysisSystem() {
       const result = await response.json();
       const processingTime = Date.now() - startTime;
 
-      console.log('🔒 SISTEMA PROTEGIDO: Análise concluída com sucesso');
+      // PASSO 5: Atualizar status das conversas analisadas
+      if (hasMarkedConversations && result.success) {
+        for (const conversation of markedConversations) {
+          await supabase
+            .from('whatsapp_conversations_analysis')
+            .update({ 
+              analysis_status: 'completed',
+              last_analyzed_at: new Date().toISOString(),
+              analysis_results: result.insights || []
+            })
+            .eq('id', conversation.id);
+        }
+        console.log('✅ SISTEMA PROTEGIDO: Status das conversas marcadas atualizado');
+      }
+
+      console.log('✅ SISTEMA PROTEGIDO: Análise concluída com sucesso');
       
       return {
         success: true,
@@ -180,11 +221,24 @@ export function useProtectedAnalysisSystem() {
         },
         processingTime,
         dataHash: result.dataHash || '',
-        message: result.message || 'Análise realizada com sucesso'
+        message: hasMarkedConversations 
+          ? `Análise realizada com ${markedConversations.length} conversas marcadas prioritariamente`
+          : result.message || 'Análise realizada com sucesso'
       };
 
     } catch (error: any) {
       console.error('🔒 SISTEMA PROTEGIDO: Erro na análise:', error);
+      
+      // Marcar conversas como failed se houver erro
+      if (markedConversations && markedConversations.length > 0) {
+        for (const conversation of markedConversations) {
+          await supabase
+            .from('whatsapp_conversations_analysis')
+            .update({ analysis_status: 'failed' })
+            .eq('id', conversation.id);
+        }
+      }
+      
       return {
         success: false,
         fromCache: false,
@@ -202,9 +256,9 @@ export function useProtectedAnalysisSystem() {
 
   /**
    * FUNÇÃO PROTEGIDA PARA BUSCAR DADOS REAIS
-   * Garante que apenas dados reais do usuário sejam usados
+   * Agora inclui conversas marcadas para análise
    */
-  const fetchRealUserData = useCallback(async (userId: string) => {
+  const fetchRealUserData = useCallback(async (userId: string, markedConversations: any[] = []) => {
     console.log('🔒 SISTEMA PROTEGIDO: Buscando dados reais do usuário...');
     
     try {
@@ -248,6 +302,19 @@ export function useProtectedAnalysisSystem() {
         ...(whatsappConversations || []),
         ...(commercialConversations || [])
       ];
+
+      // Adicionar informações das conversas marcadas
+      if (markedConversations.length > 0) {
+        console.log(`🎯 SISTEMA PROTEGIDO: Priorizando ${markedConversations.length} conversas marcadas`);
+        conversations.forEach(conv => {
+          const marked = markedConversations.find(m => m.chat_id === conv.id);
+          if (marked) {
+            conv.markedForAnalysis = true;
+            conv.analysisPriority = marked.priority;
+            conv.markedAt = marked.marked_at;
+          }
+        });
+      }
 
       console.log(`🔒 SISTEMA PROTEGIDO: Dados reais carregados - ${conversations.length} conversas, ${(chatHistory || []).length} mensagens`);
 
