@@ -1,5 +1,4 @@
 
-// Nada mudou, mantendo arquivo como está
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useClientConfig } from '@/contexts/ClientConfigContext';
@@ -279,4 +278,3 @@ export function useVoiceTranscription() {
     isTranscribing
   };
 }
-

@@ -1,394 +1,809 @@
-
-import React, { useState, useEffect, useRef } from 'react';
-import { useRealWhatsAppConnection } from '@/hooks/useRealWhatsAppConnection';
-import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Send, Search, PinIcon, AlertCircle, ArrowLeft } from "lucide-react";
-import { ConversationContextMenu } from './ConversationContextMenu';
-import { useParams, useNavigate } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
+import { useRealWhatsAppConnection } from "@/hooks/useRealWhatsAppConnection";
+import { ConversationContextMenu } from "./ConversationContextMenu";
+import { 
+  QrCode, 
+  Smartphone, 
+  CheckCircle, 
+  MessageSquare, 
+  Send,
+  Wifi,
+  Clock,
+  User,
+  AlertCircle,
+  RefreshCw,
+  Settings,
+  Key,
+  Server,
+  Lock,
+  Pin,
+  Brain,
+  Star,
+  TrendingUp,
+  AlertTriangle,
+  Search,
+  Volume2
+} from 'lucide-react';
+
+interface Contact {
+  id: string;
+  name: string;
+  phone: string;
+  lastMessage: string;
+  timestamp: string;
+  unread: number;
+  lastMessageTimestamp?: number; // Timestamp numérico para ordenação
+}
+
+interface Message {
+  id: string;
+  contactId: string;
+  text: string;
+  sent: boolean;
+  timestamp: string;
+  status: 'sending' | 'sent' | 'delivered' | 'read';
+  isAudio?: boolean;
+}
 
 export function RealWhatsAppMirror() {
-  const [activeChat, setActiveChat] = useState<string | null>(null);
-  const [activeChatName, setActiveChatName] = useState<string>('');
-  const [chats, setChats] = useState<any[]>([]);
-  const [messages, setMessages] = useState<any[]>([]);
+  const { toast } = useToast();
+  const { 
+    connectionState, 
+    isLoading, 
+    webhooks, 
+    wppConfig,
+    updateWebhooks, 
+    updateWPPConfig,
+    generateQRCode, 
+    checkConnectionStatus,
+    disconnectWhatsApp,
+    sendMessage: sendWhatsAppMessage,
+    loadRealChats,
+    loadRealMessages,
+    getConnectionStatus,
+    // Novas funções
+    togglePinConversation,
+    toggleAnalysisConversation,
+    isConversationPinned,
+    isConversationMarkedForAnalysis,
+    getAnalysisPriority
+  } = useRealWhatsAppConnection();
+  
+  const [selectedContact, setSelectedContact] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState('');
-  const [isLoadingChats, setIsLoadingChats] = useState(false);
-  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
-  const [isSendingMessage, setIsSendingMessage] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-
-  // Referência para scroll automático
+  const [showConfig, setShowConfig] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  const { sendMessage, loadRealChats, loadRealMessages, isConversationPinned, 
-    isConversationMarkedForAnalysis, getAnalysisPriority, isTranscribing } = useRealWhatsAppConnection();
   
-  const navigate = useNavigate();
-  
-  // Carregar conversas ao iniciar
-  useEffect(() => {
-    loadChats();
-  }, []);
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [isLoadingChats, setIsLoadingChats] = useState(false);
 
-  // Rolagem automática quando mensagens são carregadas
-  useEffect(() => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+  const connectionStatus = getConnectionStatus();
+  const isConnected = connectionState.isConnected;
+
+  // Helper function to safely extract phone number
+  const extractPhoneNumber = (phoneData: any): string => {
+    if (typeof phoneData === 'string') {
+      return phoneData;
     }
+    if (phoneData && typeof phoneData === 'object') {
+      if (phoneData._serialized) return phoneData._serialized;
+      if (phoneData.user) return phoneData.user;
+      if (phoneData.number) return phoneData.number;
+    }
+    return 'Número não disponível';
+  };
+
+  // Helper function to safely extract contact name
+  const extractContactName = (chat: any): string => {
+    if (chat.name) return chat.name;
+    if (chat.contact?.name) return chat.contact.name;
+    if (chat.contact?.formattedName) return chat.contact.formattedName;
+    if (chat.contact?.pushname) return chat.contact.pushname;
+    if (chat.title) return chat.title;
+    
+    // Se não tem nome, tentar extrair do ID do chat
+    const phoneNumber = extractPhoneNumber(chat.id || chat.contact?.id || chat.phone);
+    if (phoneNumber && phoneNumber !== 'Número não disponível') {
+      // Para grupos, manter como está
+      if (phoneNumber.includes('@g.us')) {
+        return chat.id || 'Grupo sem nome';
+      }
+      // Para contatos individuais, mostrar o número formatado
+      const cleanNumber = phoneNumber.replace('@c.us', '');
+      return `+${cleanNumber}`;
+    }
+    
+    return 'Contato sem nome';
+  };
+
+  // Helper function to safely extract phone from chat ID for sending
+  const extractPhoneForSending = (contact: Contact): string => {
+    return contact.phone; // Usar o phone já formatado
+  };
+
+  // Helper function to extract timestamp for sorting (WhatsApp order)
+  const extractTimestamp = (chat: any): number => {
+    // Tentar várias propriedades de timestamp
+    if (chat.lastMessage?.timestamp) {
+      return typeof chat.lastMessage.timestamp === 'number' 
+        ? chat.lastMessage.timestamp 
+        : new Date(chat.lastMessage.timestamp).getTime();
+    }
+    
+    if (chat.timestamp) {
+      return typeof chat.timestamp === 'number'
+        ? chat.timestamp
+        : new Date(chat.timestamp).getTime();
+    }
+    
+    if (chat.t) {
+      return chat.t * 1000; // Converter segundos para millisegundos
+    }
+    
+    if (chat.lastMessageTime) {
+      return typeof chat.lastMessageTime === 'number'
+        ? chat.lastMessageTime
+        : new Date(chat.lastMessageTime).getTime();
+    }
+    
+    // Se não encontrar timestamp, usar timestamp atual para conversas sem mensagens
+    return new Date().getTime();
+  };
+
+  // Função para filtrar e ordenar conversas (ordem do WhatsApp)
+  const filteredAndSortedContacts = useMemo(() => {
+    let filtered = contacts;
+    
+    // Aplicar filtro de pesquisa
+    if (searchTerm.trim()) {
+      filtered = contacts.filter(contact =>
+        contact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        contact.phone.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+    
+    // Ordenar: fixadas primeiro, depois por timestamp da última mensagem (mais recente primeiro)
+    return [...filtered].sort((a, b) => {
+      const aPinned = isConversationPinned(a.id);
+      const bPinned = isConversationPinned(b.id);
+      
+      // Fixadas primeiro
+      if (aPinned && !bPinned) return -1;
+      if (!aPinned && bPinned) return 1;
+      
+      // Depois por timestamp da última mensagem (mais recente primeiro) - ordem do WhatsApp
+      const aTime = a.lastMessageTimestamp || new Date(a.timestamp).getTime();
+      const bTime = b.lastMessageTimestamp || new Date(b.timestamp).getTime();
+      
+      return bTime - aTime; // Mais recente primeiro
+    });
+  }, [contacts, searchTerm, isConversationPinned]);
+
+  // Função para obter ícone de prioridade
+  const getPriorityIcon = (priority: 'high' | 'medium' | 'low') => {
+    switch (priority) {
+      case 'high': return <AlertTriangle className="h-3 w-3 text-red-500" />;
+      case 'medium': return <TrendingUp className="h-3 w-3 text-yellow-500" />;
+      case 'low': return <Star className="h-3 w-3 text-blue-500" />;
+    }
+  };
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Função para carregar conversas
-  const loadChats = async () => {
+  useEffect(() => {
+    if (isConnected) {
+      handleLoadRealChats();
+    }
+  }, [isConnected]);
+
+  const handleLoadRealChats = async () => {
+    if (!isConnected) {
+      toast({
+        title: "WhatsApp não conectado",
+        description: "Conecte seu WhatsApp primeiro",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsLoadingChats(true);
+    
     try {
-      setIsLoadingChats(true);
-      const loadedChats = await loadRealChats();
+      console.log('🔄 Iniciando carregamento de conversas...');
+      const chatsData = await loadRealChats();
       
-      // Ordenar as conversas: primeiro as fixadas e depois por data da última mensagem
-      const sortedChats = loadedChats
-        .map((chat: any) => {
-          // Extrair timestamp da última mensagem ou usar 0
-          const lastMsgTime = chat.lastMessageTime || 
-                               chat.t || 
-                               (chat.timestamp ? new Date(chat.timestamp).getTime() : 0) ||
-                               (chat.lastTime ? new Date(chat.lastTime).getTime() : 0) || 
-                               0;
-          
-          return {
-            ...chat,
-            isGroupChat: chat.id?.endsWith('@g.us') || chat.isGroup === true,
-            contactId: chat.id || chat.jid,
-            isPinned: isConversationPinned(chat.id || chat.jid),
-            sortTimestamp: lastMsgTime
-          };
-        })
-        .sort((a: any, b: any) => {
-          // Primeiro, ordenar por fixados
-          if (a.isPinned && !b.isPinned) return -1;
-          if (!a.isPinned && b.isPinned) return 1;
-          
-          // Depois, ordenar por timestamp da última mensagem (mais recente primeiro)
-          return b.sortTimestamp - a.sortTimestamp;
+      console.log('📋 Dados recebidos:', chatsData);
+      
+      if (!chatsData || chatsData.length === 0) {
+        console.log('⚠️ Nenhuma conversa encontrada');
+        setContacts([]);
+        toast({
+          title: "Nenhuma conversa encontrada",
+          description: "Não há conversas disponíveis no momento",
+          variant: "destructive"
         });
+        return;
+      }
       
-      setChats(sortedChats);
+      const realContacts: Contact[] = chatsData.map((chat: any, index: number) => {
+        console.log(`📱 Processando chat ${index}:`, chat);
+        
+        const chatId = chat.id?._serialized || chat.id || chat.chatId || `chat_${index}`;
+        const phoneNumber = extractPhoneNumber(chat.id || chat.contact?.id || chat.phone);
+        const lastMessageTimestamp = extractTimestamp(chat);
+        
+        return {
+          id: chatId,
+          name: extractContactName(chat),
+          phone: phoneNumber,
+          lastMessage: chat.lastMessage?.body || chat.lastMessage?.text || chat.chatlistPreview?.reactionText || 'Sem mensagens',
+          timestamp: new Date(lastMessageTimestamp).toISOString(),
+          lastMessageTimestamp: lastMessageTimestamp, // Para ordenação
+          unread: chat.unreadCount || chat.unread || 0
+        };
+      });
+      
+      console.log('✅ Conversas processadas:', realContacts);
+      setContacts(realContacts);
+      
+      toast({
+        title: "Conversas carregadas! 📱",
+        description: `${realContacts.length} conversas encontradas`
+      });
+      
     } catch (error) {
-      console.error('Erro ao carregar conversas:', error);
+      console.error('❌ Erro ao carregar conversas:', error);
+      
+      setContacts([]);
+      
+      toast({
+        title: "Erro ao carregar conversas",
+        description: error instanceof Error ? error.message : "Verifique se o WPPConnect está rodando corretamente",
+        variant: "destructive"
+      });
     } finally {
       setIsLoadingChats(false);
     }
   };
 
-  // Função para filtrar conversas pelo nome ou telefone
-  const filteredChats = chats.filter(chat => {
-    if (!searchQuery) return true;
-    
-    const searchLower = searchQuery.toLowerCase();
-    const name = (chat.name || chat.title || chat.contact?.name || 'Sem nome').toLowerCase();
-    const phone = ((chat.id || chat.jid || '').replace('@c.us', '').replace('@g.us', '')).toLowerCase();
-    
-    return name.includes(searchLower) || phone.includes(searchLower);
-  });
-
-  // Função para carregar mensagens de uma conversa
-  const handleChatClick = async (chatId: string, chatName: string) => {
-    setActiveChat(chatId);
-    setActiveChatName(chatName);
-    setMessages([]);
-    setIsLoadingMessages(true);
-    
+  const handleLoadRealMessages = async (contactId: string) => {
     try {
-      const loadedMessages = await loadRealMessages(chatId);
-      setMessages(loadedMessages);
+      console.log('📤 Carregando mensagens para contato:', contactId);
+      
+      const messagesData = await loadRealMessages(contactId);
+      console.log('📥 Mensagens recebidas:', messagesData);
+      
+      if (!Array.isArray(messagesData)) {
+        console.warn('⚠️ Dados de mensagens não são um array:', messagesData);
+        toast({
+          title: "Erro ao carregar mensagens",
+          description: "Formato de dados inválido",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      const realMessages: Message[] = messagesData.map((msg: any, index: number) => {
+        // Usar texto processado se disponível (com transcrição de áudio)
+        const text = msg.processedText || msg.body || msg.text || msg.content || 'Mensagem sem texto';
+        const isAudio = text.includes('🎤 [Áudio]');
+        
+        return {
+          id: msg.id || `msg_${index}`,
+          contactId: contactId,
+          text: text,
+          sent: msg.fromMe || false,
+          timestamp: msg.timestamp ? new Date(msg.timestamp * 1000).toISOString() : new Date().toISOString(),
+          status: msg.ack ? 'delivered' : 'sent',
+          isAudio: isAudio
+        };
+      });
+      
+      console.log('✅ Mensagens processadas:', realMessages);
+      
+      setMessages(prev => [
+        ...prev.filter(m => m.contactId !== contactId),
+        ...realMessages
+      ]);
+      
     } catch (error) {
-      console.error('Erro ao carregar mensagens:', error);
-    } finally {
-      setIsLoadingMessages(false);
+      console.error('❌ Erro ao carregar mensagens:', error);
+      toast({
+        title: "Erro ao carregar mensagens",
+        description: "Não foi possível carregar as mensagens",
+        variant: "destructive"
+      });
     }
   };
 
-  // Função para enviar mensagem
-  const handleSendMessage = async () => {
-    if (!activeChat || !newMessage.trim()) return;
+  const handleGenerateQR = async () => {
+    const qrUrl = await generateQRCode();
+    if (qrUrl) {
+      toast({
+        title: "QR Code gerado! 📱",
+        description: "Escaneie com WhatsApp Business para conectar"
+      });
+    }
+  };
+
+  const selectContact = (contact: Contact) => {
+    console.log('📱 Selecionando contato:', contact.name);
+    setSelectedContact(contact.id);
     
-    setIsSendingMessage(true);
+    handleLoadRealMessages(contact.id);
     
+    setContacts(prev => prev.map(c => 
+      c.id === contact.id ? { ...c, unread: 0 } : c
+    ));
+  };
+
+  const sendMessage = async () => {
+    if (!newMessage.trim() || !selectedContact) return;
+
+    const contact = contacts.find(c => c.id === selectedContact);
+    if (!contact) return;
+
+    console.log('📤 Enviando mensagem real via WPPConnect...');
+    console.log('📱 Contato selecionado:', contact);
+
+    const message: Message = {
+      id: Date.now().toString(),
+      contactId: selectedContact,
+      text: newMessage,
+      sent: true,
+      timestamp: new Date().toISOString(),
+      status: 'sending'
+    };
+
+    setMessages(prev => [...prev, message]);
+    const messageText = newMessage;
+    setNewMessage('');
+
     try {
-      // Tentar enviar a mensagem
-      const success = await sendMessage(activeChat, newMessage.trim());
+      const phoneForSending = extractPhoneForSending(contact);
+      console.log('📞 Enviando para telefone:', phoneForSending);
+      console.log('💬 Texto da mensagem:', messageText);
+      
+      const success = await sendWhatsAppMessage(phoneForSending, messageText);
       
       if (success) {
-        // Adicionar a mensagem localmente
-        const localMessage = {
-          id: `local_${Date.now()}`,
-          fromMe: true,
-          body: newMessage.trim(),
-          processedText: newMessage.trim(),
-          timestamp: new Date().getTime() / 1000
-        };
+        setMessages(prev => prev.map(msg => 
+          msg.id === message.id ? { ...msg, status: 'delivered' } : msg
+        ));
         
-        setMessages([...messages, localMessage]);
-        setNewMessage('');
+        console.log('✅ Mensagem enviada com sucesso!');
+      } else {
+        setMessages(prev => prev.map(msg => 
+          msg.id === message.id ? { ...msg, status: 'sent', text: `❌ ${msg.text} (Erro no envio)` } : msg
+        ));
+        
+        console.error('❌ Falha no envio da mensagem');
       }
     } catch (error) {
-      console.error('Erro ao enviar mensagem:', error);
-    } finally {
-      setIsSendingMessage(false);
+      console.error('❌ Erro ao enviar mensagem:', error);
+      
+      setMessages(prev => prev.map(msg => 
+        msg.id === message.id ? { ...msg, status: 'sent', text: `❌ ${msg.text} (Erro de conexão)` } : msg
+      ));
+      
+      toast({
+        title: "❌ Erro ao enviar",
+        description: "Verifique se o WPPConnect está rodando e conectado",
+        variant: "destructive"
+      });
     }
   };
 
-  // Obter iniciais do nome para avatar
-  const getNameInitials = (name: string): string => {
-    const parts = name.split(' ');
-    if (parts.length >= 2) {
-      return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
-    }
-    return (name[0] || '?').toUpperCase();
-  };
-
-  // Formatar data/hora da mensagem
-  const formatMessageTime = (timestamp: number): string => {
-    if (!timestamp) return '';
+  const handleCheckStatus = async () => {
+    console.log('🔍 Verificando status manualmente...');
+    toast({
+      title: "Verificando status...",
+      description: "Consultando servidor WPPConnect"
+    });
     
-    const date = new Date(timestamp * 1000);
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    await checkConnectionStatus();
   };
 
-  // Determinar o nome de exibição para um chat
-  const getChatDisplayName = (chat: any): string => {
-    // Tentar vários caminhos possíveis para o nome
-    return chat.name || 
-           chat.title || 
-           chat.contact?.name || 
-           chat.contact?.pushname || 
-           (chat.id || chat.jid || '').replace('@c.us', '').replace('@g.us', '') || 
-           'Sem nome';
+  const formatTime = (timestamp: string) => {
+    return new Date(timestamp).toLocaleTimeString('pt-BR', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
-  // Função para obter a cor do indicador de prioridade
-  const getPriorityColor = (chatId: string): string => {
-    if (!isConversationMarkedForAnalysis(chatId)) return '';
-    
-    const priority = getAnalysisPriority(chatId);
-    switch (priority) {
-      case 'high': return 'bg-red-500';
-      case 'medium': return 'bg-amber-500';
-      case 'low': return 'bg-blue-500';
-      default: return 'bg-gray-400';
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'sending': return '🕐';
+      case 'sent': return '✓';
+      case 'delivered': return '✓✓';
+      case 'read': return '✓✓';
+      default: return '';
     }
   };
 
-  // Função para sair da conversa
-  const handleBackToList = () => {
-    setActiveChat(null);
-    setMessages([]);
+  const getConnectionStatusInfo = () => {
+    if (connectionStatus === 'active') {
+      return {
+        icon: <CheckCircle className="h-6 w-6 text-green-500" />,
+        text: 'Conectado e Ativo',
+        color: 'text-green-600'
+      };
+    }
+    return {
+      icon: <AlertCircle className="h-6 w-6 text-gray-400" />,
+      text: 'Desconectado',
+      color: 'text-gray-600'
+    };
   };
+
+  const statusInfo = getConnectionStatusInfo();
 
   return (
-    <div className="w-full h-[calc(100vh-12rem)] max-h-[calc(100vh-12rem)] bg-gray-100 rounded-lg overflow-hidden">
-      <div className="flex h-full">
-        {/* Lista de Chats (visível apenas quando nenhum chat estiver ativo em modo móvel) */}
-        <div className={`w-full md:w-1/3 border-r border-gray-200 bg-white ${activeChat && 'hidden md:block'}`}>
-          <div className="p-4 border-b border-gray-200">
-            <div className="mb-3 relative">
-              <Search className="absolute top-3 left-3 h-4 w-4 text-gray-500" />
-              <Input
-                placeholder="Pesquisar conversas..."
-                className="pl-10"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
+    <div className="space-y-6">
+      {/* Header com Status */}
+      <Card className="bg-green-50 border-green-200">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-green-900">
+            <Smartphone className="h-5 w-5" />
+            WPPConnect Real - {wppConfig.sessionName}
+            {isConnected && <CheckCircle className="h-5 w-5 text-green-500" />}
+          </CardTitle>
+          <CardDescription className="text-green-700">
+            Conecta seu WhatsApp via WPPConnect API ({wppConfig.serverUrl})
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              {statusInfo.icon}
+              <div>
+                <span className={`font-medium ${statusInfo.color}`}>{statusInfo.text}</span>
+                {connectionState.phoneNumber && (
+                  <p className="text-sm text-gray-500">{connectionState.phoneNumber}</p>
+                )}
+              </div>
             </div>
-            <Button 
-              variant="outline" 
-              className="w-full"
-              onClick={loadChats}
-              disabled={isLoadingChats}
-            >
-              {isLoadingChats ? (
+            
+            <div className="flex gap-2">
+              <Button onClick={handleCheckStatus} variant="outline" size="sm">
+                <RefreshCw className="h-4 w-4 mr-1" />
+                Verificar Status
+              </Button>
+              
+              {isConnected && (
                 <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Atualizando...
+                  <Button 
+                    onClick={handleLoadRealChats} 
+                    variant="outline" 
+                    size="sm"
+                    disabled={isLoadingChats}
+                  >
+                    <RefreshCw className={`h-4 w-4 mr-1 ${isLoadingChats ? 'animate-spin' : ''}`} />
+                    {isLoadingChats ? 'Carregando...' : 'Carregar Conversas'}
+                  </Button>
+                  <Button onClick={disconnectWhatsApp} variant="outline" size="sm">
+                    Desconectar
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
+
+          {!isConnected && !connectionState.qrCode && (
+            <Button 
+              onClick={handleGenerateQR} 
+              className="w-full bg-green-600 hover:bg-green-700"
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  Gerando QR Code...
                 </>
               ) : (
-                'Atualizar conversas'
+                <>
+                  <QrCode className="h-4 w-4 mr-2" />
+                  Conectar WPPConnect Real
+                </>
               )}
             </Button>
-          </div>
-          <ScrollArea className="h-[calc(100%-5rem)] p-2">
-            {filteredChats.map((chat) => (
-              <ConversationContextMenu
-                key={chat.contactId}
-                chatId={chat.contactId}
-                chatName={getChatDisplayName(chat)}
-              >
-                <div
-                  className={`flex items-start p-3 mb-1 rounded-lg cursor-pointer hover:bg-gray-100 relative 
-                    ${chat.contactId === activeChat ? 'bg-gray-100' : ''}`}
-                  onClick={() => handleChatClick(
-                    chat.contactId, 
-                    getChatDisplayName(chat)
-                  )}
+          )}
+        </CardContent>
+      </Card>
+
+      {/* QR Code para Conexão */}
+      {connectionState.qrCode && !isConnected && (
+        <Card className="border-blue-200 bg-blue-50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-blue-900">
+              <QrCode className="h-5 w-5" />
+              Escaneie com WhatsApp Business
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="text-center">
+            <div className="bg-white p-6 rounded-lg inline-block mb-4 shadow-lg">
+              <img 
+                src={connectionState.qrCode} 
+                alt="QR Code WhatsApp Business" 
+                className="w-80 h-80 mx-auto"
+              />
+            </div>
+            <div className="space-y-3">
+              <div className="text-sm text-blue-700 space-y-2">
+                <p><strong>1.</strong> Abra o WhatsApp Business no seu celular</p>
+                <p><strong>2.</strong> Toque em <strong>Menu (⋮) → Dispositivos conectados</strong></p>
+                <p><strong>3.</strong> Toque em <strong>"Conectar um dispositivo"</strong></p>
+                <p><strong>4.</strong> Escaneie este código QR</p>
+              </div>
+              <div className="mt-4 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                <p className="text-yellow-700 text-sm font-medium">
+                  🔄 Aguardando você escanear o QR Code...
+                </p>
+                <Button 
+                  onClick={handleCheckStatus} 
+                  variant="outline" 
+                  size="sm"
+                  className="mt-2"
                 >
-                  {/* Indicador de prioridade para análise */}
-                  {isConversationMarkedForAnalysis(chat.contactId) && (
-                    <div 
-                      className={`absolute left-0 top-0 bottom-0 w-1 rounded-l-lg ${getPriorityColor(chat.contactId)}`} 
-                    />
-                  )}
-                  
-                  <Avatar className="h-12 w-12 mr-3">
-                    <AvatarFallback className={chat.isGroupChat ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}>
-                      {getNameInitials(getChatDisplayName(chat))}
-                    </AvatarFallback>
-                  </Avatar>
-                  
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between mb-1">
-                      <h4 className="text-sm font-medium truncate">
-                        {getChatDisplayName(chat)}
-                        {chat.isPinned && (
-                          <PinIcon className="h-3 w-3 ml-1 inline-block text-gray-500" />
-                        )}
-                      </h4>
-                      <span className="text-xs text-gray-500">
-                        {chat.lastMessageTime ? new Date(chat.lastMessageTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''}
-                      </span>
-                    </div>
-                    
-                    <p className="text-xs text-gray-600 truncate">
-                      {chat.lastMessage || chat.contact?.status || ''}
-                    </p>
-                    
-                    {isConversationMarkedForAnalysis(chat.contactId) && (
-                      <Badge className="mt-1 text-xs bg-gray-100 text-gray-800 border border-gray-300">
-                        <AlertCircle className="h-3 w-3 mr-1" />
-                        Análise IA
-                      </Badge>
+                  <RefreshCw className="h-4 w-4 mr-1" />
+                  Verificar se conectou
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Interface de Conversas REAL */}
+      {isConnected && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 h-[600px]">
+          {/* Lista de Contatos REAL com Pesquisa */}
+          <Card className="lg:col-span-1">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <MessageSquare className="h-5 w-5" />
+                  Conversas REAIS
+                </CardTitle>
+                <Badge variant="secondary">{filteredAndSortedContacts.length}</Badge>
+              </div>
+              
+              {/* Barra de Pesquisa */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Pesquisar conversas..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              
+              <div className="flex items-center gap-2 text-xs text-gray-500">
+                <Pin className="h-3 w-3" />
+                <span>Clique direito para fixar/analisar</span>
+              </div>
+            </CardHeader>
+            
+            <CardContent className="p-0">
+              <div className="space-y-1 max-h-[500px] overflow-y-auto">
+                {filteredAndSortedContacts.length === 0 ? (
+                  <div className="p-4 text-center text-gray-500">
+                    {searchTerm ? (
+                      <>
+                        <Search className="h-8 w-8 mx-auto mb-2" />
+                        <p>Nenhuma conversa encontrada</p>
+                        <p className="text-xs">para "{searchTerm}"</p>
+                      </>
+                    ) : (
+                      <>
+                        <MessageSquare className="h-8 w-8 mx-auto mb-2" />
+                        <p>Nenhuma conversa encontrada</p>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={handleLoadRealChats}
+                          disabled={isLoadingChats}
+                          className="mt-2"
+                        >
+                          {isLoadingChats ? (
+                            <>
+                              <RefreshCw className="h-4 w-4 mr-1 animate-spin" />
+                              Carregando...
+                            </>
+                          ) : (
+                            'Carregar Conversas'
+                          )}
+                        </Button>
+                      </>
                     )}
+                  </div>
+                ) : (
+                  filteredAndSortedContacts.map((contact) => {
+                    const isPinned = isConversationPinned(contact.id);
+                    const isMarkedForAnalysis = isConversationMarkedForAnalysis(contact.id);
+                    const analysisPriority = getAnalysisPriority(contact.id);
+
+                    return (
+                      <ConversationContextMenu
+                        key={contact.id}
+                        chatId={contact.id}
+                        isPinned={isPinned}
+                        isMarkedForAnalysis={isMarkedForAnalysis}
+                        analysisPriority={analysisPriority}
+                        onTogglePin={togglePinConversation}
+                        onToggleAnalysis={toggleAnalysisConversation}
+                      >
+                        <div 
+                          onClick={() => selectContact(contact)}
+                          className={`p-3 border-b cursor-pointer hover:bg-gray-50 transition-colors ${
+                            selectedContact === contact.id ? 'bg-blue-50 border-blue-200' : ''
+                          } ${isPinned ? 'bg-yellow-50 border-l-4 border-l-yellow-400' : ''}`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center relative">
+                              <User className="h-6 w-6 text-green-600" />
+                              {isPinned && (
+                                <Pin className="absolute -top-1 -right-1 h-4 w-4 text-yellow-600 fill-current" />
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium text-sm">{contact.name}</span>
+                                  {isMarkedForAnalysis && (
+                                    <div className="flex items-center gap-1">
+                                      <Brain className="h-3 w-3 text-green-600" />
+                                      {getPriorityIcon(analysisPriority)}
+                                    </div>
+                                  )}
+                                </div>
+                                <span className="text-xs text-gray-400">{formatTime(contact.timestamp)}</span>
+                              </div>
+                              <p className="text-sm text-gray-500 truncate mt-1 flex items-center gap-1">
+                                {contact.lastMessage.includes('🎤 [Áudio]') && (
+                                  <Volume2 className="h-3 w-3 text-blue-500" />
+                                )}
+                                {contact.lastMessage}
+                              </p>
+                              <div className="flex items-center justify-between mt-1">
+                                <p className="text-xs text-gray-400">{contact.phone}</p>
+                                {contact.unread > 0 && (
+                                  <Badge className="bg-green-500 text-white text-xs">{contact.unread}</Badge>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </ConversationContextMenu>
+                    );
+                  })
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Área de Chat REAL */}
+          <Card className="lg:col-span-2">
+            {selectedContact ? (
+              <>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                      <User className="h-5 w-5 text-green-600" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        {contacts.find(c => c.id === selectedContact)?.name}
+                        {isConversationPinned(selectedContact) && (
+                          <Pin className="h-4 w-4 text-yellow-600" />
+                        )}
+                        {isConversationMarkedForAnalysis(selectedContact) && (
+                          <div className="flex items-center gap-1">
+                            <Brain className="h-4 w-4 text-green-600" />
+                            {getPriorityIcon(getAnalysisPriority(selectedContact))}
+                          </div>
+                        )}
+                      </CardTitle>
+                      <p className="text-sm text-gray-500">
+                        {contacts.find(c => c.id === selectedContact)?.phone}
+                      </p>
+                    </div>
+                  </div>
+                </CardHeader>
+                
+                <CardContent className="flex flex-col h-[500px]">
+                  <div className="flex-1 overflow-y-auto space-y-3 mb-4">
+                    {messages
+                      .filter(msg => msg.contactId === selectedContact)
+                      .map((msg) => (
+                        <div
+                          key={msg.id}
+                          className={`flex ${msg.sent ? 'justify-end' : 'justify-start'}`}
+                        >
+                          <div
+                            className={`rounded-lg px-4 py-2 max-w-[75%] ${
+                              msg.sent
+                                ? 'bg-green-500 text-white'
+                                : 'bg-gray-100 text-gray-800'
+                            }`}
+                          >
+                            <p className="text-sm flex items-center gap-2">
+                              {msg.isAudio && (
+                                <Volume2 className="h-4 w-4 text-blue-500" />
+                              )}
+                              {msg.text}
+                            </p>
+                            <div className={`text-xs mt-1 flex items-center justify-between ${
+                              msg.sent ? 'text-green-100' : 'text-gray-500'
+                            }`}>
+                              <span>{formatTime(msg.timestamp)}</span>
+                              {msg.sent && (
+                                <span className="ml-2">{getStatusIcon(msg.status)}</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    <div ref={messagesEndRef} />
+                  </div>
+
+                  <div className="border-t pt-4">
+                    <div className="flex gap-3">
+                      <Input 
+                        placeholder="Digite uma mensagem REAL..."
+                        value={newMessage}
+                        onChange={(e) => setNewMessage(e.target.value)}
+                        onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+                        className="flex-1"
+                      />
+                      <Button 
+                        onClick={sendMessage}
+                        disabled={!newMessage.trim()}
+                        className="bg-green-600 hover:bg-green-700"
+                      >
+                        <Send className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </>
+            ) : (
+              <CardContent className="flex items-center justify-center h-full">
+                <div className="text-center text-gray-500">
+                  <MessageSquare className="h-16 w-16 mx-auto mb-4 text-gray-300" />
+                  <h3 className="text-lg font-medium mb-2">Selecione uma conversa REAL</h3>
+                  <p className="text-sm">Escolha um contato para ver as mensagens reais</p>
+                  <div className="mt-4 space-y-2 text-xs">
+                    <p className="flex items-center gap-2 justify-center">
+                      <Pin className="h-3 w-3" />
+                      Clique direito para fixar conversas importantes
+                    </p>
+                    <p className="flex items-center gap-2 justify-center">
+                      <Brain className="h-3 w-3" />
+                      Marque conversas para análise da IA
+                    </p>
+                    <p className="flex items-center gap-2 justify-center">
+                      <Volume2 className="h-3 w-3" />
+                      Áudios são transcritos automaticamente
+                    </p>
                   </div>
                 </div>
-              </ConversationContextMenu>
-            ))}
-            
-            {isLoadingChats && filteredChats.length === 0 && (
-              <div className="p-4 text-center text-gray-500">
-                <Loader2 className="h-8 w-8 mb-2 mx-auto animate-spin" />
-                <p>Carregando conversas...</p>
-              </div>
+              </CardContent>
             )}
-            
-            {!isLoadingChats && filteredChats.length === 0 && (
-              <div className="p-4 text-center text-gray-500">
-                <p>Nenhuma conversa encontrada</p>
-              </div>
-            )}
-          </ScrollArea>
+          </Card>
         </div>
-
-        {/* Área de Chat (visível quando chat é selecionado, ou tela cheia em modo móvel) */}
-        <div className={`w-full md:w-2/3 flex flex-col h-full ${!activeChat && 'hidden md:flex'} bg-white`}>
-          {activeChat ? (
-            <>
-              <div className="p-4 border-b border-gray-200 bg-white flex items-center">
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="mr-2 md:hidden" 
-                  onClick={handleBackToList}
-                >
-                  <ArrowLeft className="h-5 w-5" />
-                </Button>
-                <h2 className="font-semibold flex-1">{activeChatName}</h2>
-                {isTranscribing && (
-                  <Badge className="bg-blue-100 text-blue-800 text-xs">
-                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                    Transcrevendo áudio...
-                  </Badge>
-                )}
-              </div>
-              
-              <ScrollArea className="flex-1 p-4 bg-gray-50">
-                {messages.length === 0 && isLoadingMessages && (
-                  <div className="flex justify-center py-10">
-                    <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
-                  </div>
-                )}
-                
-                {messages.length === 0 && !isLoadingMessages && (
-                  <div className="flex justify-center py-10">
-                    <p className="text-gray-500">Nenhuma mensagem encontrada.</p>
-                  </div>
-                )}
-                
-                {messages.map((message) => (
-                  <div 
-                    key={message.id} 
-                    className={`flex mb-3 ${message.fromMe ? 'justify-end' : 'justify-start'}`}
-                  >
-                    <div 
-                      className={`max-w-[80%] p-3 rounded-lg whitespace-pre-wrap ${
-                        message.fromMe 
-                          ? 'bg-green-500 text-white rounded-br-none' 
-                          : 'bg-white border border-gray-200 rounded-bl-none'
-                      }`}
-                    >
-                      {message.processedText || message.body || message.text || message.content || 'Mensagem sem texto'}
-                      <div className={`text-xs mt-1 text-right ${message.fromMe ? 'text-green-100' : 'text-gray-500'}`}>
-                        {formatMessageTime(message.timestamp)}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-                <div ref={messagesEndRef} />
-              </ScrollArea>
-              
-              <div className="p-3 border-t border-gray-200 bg-white">
-                <form 
-                  className="flex items-center"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    handleSendMessage();
-                  }}
-                >
-                  <Input
-                    placeholder="Digite sua mensagem..."
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    className="flex-1 mr-2"
-                    disabled={isSendingMessage}
-                  />
-                  <Button 
-                    type="submit" 
-                    size="icon" 
-                    disabled={isSendingMessage || !newMessage.trim()}
-                  >
-                    {isSendingMessage ? (
-                      <Loader2 className="h-5 w-5 animate-spin" />
-                    ) : (
-                      <Send className="h-5 w-5" />
-                    )}
-                  </Button>
-                </form>
-              </div>
-            </>
-          ) : (
-            <div className="flex flex-col items-center justify-center h-full p-4 text-center">
-              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-                <img src="/placeholder.svg" alt="WhatsApp" className="w-8 h-8 opacity-50" />
-              </div>
-              <h3 className="text-xl font-semibold mb-2">WhatsApp Conectado</h3>
-              <p className="text-gray-500 max-w-md mb-4">
-                Selecione uma conversa à esquerda para começar a interagir.
-              </p>
-            </div>
-          )}
-        </div>
-      </div>
+      )}
     </div>
   );
 }

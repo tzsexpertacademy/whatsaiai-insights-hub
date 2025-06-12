@@ -1,7 +1,5 @@
-
 import { useState, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { useVoiceTranscription } from '@/hooks/useVoiceTranscription';
 
 interface ConnectionState {
   isConnected: boolean;
@@ -37,7 +35,6 @@ interface ConversationForAnalysis {
 
 export function useRealWhatsAppConnection() {
   const { toast } = useToast();
-  const { transcribeAudio, isTranscribing } = useVoiceTranscription();
   
   const [connectionState, setConnectionState] = useState<ConnectionState>({
     isConnected: false,
@@ -48,12 +45,6 @@ export function useRealWhatsAppConnection() {
   
   const [isLoading, setIsLoading] = useState(false);
   
-  // Cache de conversas no localStorage
-  const [cachedChats, setCachedChats] = useState<any[]>(() => {
-    const saved = localStorage.getItem('whatsapp_cached_chats');
-    return saved ? JSON.parse(saved) : [];
-  });
-
   const [webhooks, setWebhooks] = useState<WebhookConfig>(() => {
     const saved = localStorage.getItem('whatsapp_webhooks');
     return saved ? JSON.parse(saved) : {
@@ -112,26 +103,35 @@ export function useRealWhatsAppConnection() {
     return formattedPhone;
   };
 
-  // Função para transcrever áudio - agora usa o hook especializado
-  const transcribeAudioMessage = useCallback(async (audioBase64: string): Promise<string> => {
+  // Função para transcrever áudio
+  const transcribeAudio = useCallback(async (audioBase64: string): Promise<string> => {
     try {
-      console.log('🎤 Iniciando transcrição de áudio via hook especializado...');
+      console.log('🎤 Iniciando transcrição de áudio...');
       
-      // Usar o hook especializado para transcrição
-      const transcription = await transcribeAudio(audioBase64);
-      
-      if (transcription) {
-        console.log('✅ Áudio transcrito com sucesso:', transcription);
-        return transcription;
+      const response = await fetch('/functions/v1/voice-to-text', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+        },
+        body: JSON.stringify({
+          audio: audioBase64
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ Áudio transcrito:', data.text);
+        return data.text || 'Não foi possível transcrever o áudio';
       } else {
-        console.error('❌ Erro: Transcrição retornou nula');
+        console.error('❌ Erro na transcrição:', response.status);
         return '[Áudio - transcrição não disponível]';
       }
     } catch (error) {
       console.error('❌ Erro ao transcrever áudio:', error);
       return '[Áudio - erro na transcrição]';
     }
-  }, [transcribeAudio]);
+  }, []);
 
   // Função para fixar/desfixar conversa
   const togglePinConversation = useCallback((chatId: string) => {
@@ -443,29 +443,32 @@ export function useRealWhatsAppConnection() {
     }
   }, [toast, wppConfig]);
 
-  // Função para enviar mensagem - revisada e aprimorada
+  // Função para enviar mensagem
   const sendMessage = useCallback(async (phone: string, message: string) => {
     console.log('📤 Enviando mensagem real via WPPConnect...');
     console.log('📞 Telefone recebido:', phone);
     console.log('💬 Mensagem:', message);
     
     try {
-      // Formatar o número do telefone se necessário
-      const targetPhone = formatPhoneNumber(phone);
-      console.log('📞 Telefone formatado para envio:', targetPhone);
+      // Usar o phone como recebido (já formatado)
+      const targetPhone = phone;
+      console.log('📞 Telefone para envio:', targetPhone);
       
-      // Dados básicos para envio com ambos os formatos possíveis
+      // Dados básicos para envio
       const sendData = {
         phone: targetPhone,
-        chatId: targetPhone, // Usar ambos para maior compatibilidade
         message: message,
-        text: message // Alguns endpoints usam text em vez de message
+        text: message // Adicionar também o campo text
       };
       
       console.log('📤 Dados de envio:', sendData);
       
-      // Primeiro tentamos o endpoint /send-message
-      let response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/send-message`, {
+      // Tentar primeiro o endpoint /send-message
+      let endpoint = `${wppConfig.serverUrl}/api/${wppConfig.sessionName}/send-message`;
+      
+      console.log('📤 Tentando endpoint send-message:', endpoint);
+      
+      let response = await fetch(endpoint, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -474,40 +477,47 @@ export function useRealWhatsAppConnection() {
         body: JSON.stringify(sendData)
       });
 
-      console.log('📤 Resposta send-message:', response.status);
+      console.log('📤 Response status send-message:', response.status);
 
-      // Se falhar, tentamos outros endpoints conhecidos
+      // Se deu erro, tentar o endpoint /send-text
       if (!response.ok) {
-        // Tentar o endpoint /send-text
         console.log('📤 Tentando endpoint send-text...');
-        response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/send-text`, {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${wppConfig.token}`
-          },
-          body: JSON.stringify(sendData)
-        });
+        endpoint = `${wppConfig.serverUrl}/api/${wppConfig.sessionName}/send-text`;
         
-        console.log('📤 Resposta send-text:', response.status);
-      }
-
-      // Se ainda não funcionou, tentar um terceiro formato
-      if (!response.ok) {
-        console.log('📤 Tentando com formato alternativo...');
-        response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/send-message`, {
+        response = await fetch(endpoint, {
           method: 'POST',
           headers: { 
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${wppConfig.token}`
           },
           body: JSON.stringify({
-            to: targetPhone,
-            body: message
+            phone: targetPhone,
+            message: message
           })
         });
         
-        console.log('📤 Resposta formato alternativo:', response.status);
+        console.log('📤 Response status send-text:', response.status);
+      }
+
+      // Se ainda deu erro, tentar com chatId
+      if (!response.ok) {
+        console.log('📤 Tentando com chatId...');
+        endpoint = `${wppConfig.serverUrl}/api/${wppConfig.sessionName}/send-message`;
+        
+        response = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${wppConfig.token}`
+          },
+          body: JSON.stringify({
+            chatId: targetPhone,
+            message: message,
+            text: message
+          })
+        });
+        
+        console.log('📤 Response status com chatId:', response.status);
       }
 
       if (response.ok) {
@@ -524,7 +534,9 @@ export function useRealWhatsAppConnection() {
         console.error('❌ Erro ao enviar mensagem:', {
           status: response.status,
           statusText: response.statusText,
-          error: errorText
+          error: errorText,
+          endpoint: endpoint,
+          phone: targetPhone
         });
         
         toast({
@@ -544,222 +556,129 @@ export function useRealWhatsAppConnection() {
       });
       return false;
     }
-  }, [toast, wppConfig, formatPhoneNumber]);
+  }, [toast, wppConfig]);
 
   // Função para carregar conversas reais
   const loadRealChats = useCallback(async () => {
     console.log('📱 Carregando conversas reais da API WPPConnect...');
     
     try {
-      // Primeiro, verificar se existe cache local
-      if (cachedChats.length > 0) {
-        console.log('🗂️ Usando cache local de conversas:', cachedChats.length);
-        // Atualizar em segundo plano sem bloquear UI
-        setTimeout(() => refreshChatsInBackground(), 500);
-        return cachedChats;
-      }
-      
-      // Se não tiver cache, buscar da API
-      const chats = await fetchChatsFromAPI();
-      
-      // Salvar no cache local
-      setCachedChats(chats);
-      localStorage.setItem('whatsapp_cached_chats', JSON.stringify(chats));
-      
-      return chats;
-    } catch (error) {
-      console.error('❌ Erro ao carregar conversas:', error);
-      toast({
-        title: "❌ Erro ao carregar conversas",
-        description: "Verifique sua conexão e tente novamente",
-        variant: "destructive"
+      const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/all-chats`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${wppConfig.token}`
+        }
       });
-      throw error;
-    }
-  }, [cachedChats]);
 
-  // Função auxiliar para buscar conversas da API
-  const fetchChatsFromAPI = useCallback(async () => {
-    const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/all-chats`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${wppConfig.token}`
-      }
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('❌ Erro ao buscar conversas da API:', response.status, errorText);
-      throw new Error(`Erro ${response.status}: ${errorText}`);
-    }
-
-    const responseData = await response.json();
-    console.log('✅ Resposta da API de conversas:', responseData);
-    
-    // Extrair array de chats da resposta
-    let chatsArray = [];
-    
-    if (Array.isArray(responseData)) {
-      chatsArray = responseData;
-    } else if (responseData.chats && Array.isArray(responseData.chats)) {
-      chatsArray = responseData.chats;
-    } else if (responseData.data && Array.isArray(responseData.data)) {
-      chatsArray = responseData.data;
-    } else if (responseData.response && Array.isArray(responseData.response)) {
-      chatsArray = responseData.response;
-    } else {
-      console.warn('⚠️ Formato de resposta não reconhecido:', responseData);
-      throw new Error('Formato de dados não suportado. Verifique a resposta da API.');
-    }
-    
-    console.log('📋 Chats encontrados:', chatsArray.length);
-    return chatsArray;
-  }, [wppConfig]);
-
-  // Função para atualizar chats em segundo plano sem bloquear UI
-  const refreshChatsInBackground = useCallback(async () => {
-    console.log('🔄 Atualizando conversas em segundo plano...');
-    
-    try {
-      const freshChats = await fetchChatsFromAPI();
-      console.log('✅ Conversas atualizadas em segundo plano:', freshChats.length);
-      
-      setCachedChats(freshChats);
-      localStorage.setItem('whatsapp_cached_chats', JSON.stringify(freshChats));
-    } catch (error) {
-      console.error('❌ Erro ao atualizar conversas em segundo plano:', error);
-    }
-  }, [fetchChatsFromAPI]);
-
-  // Função para carregar mensagens de uma conversa - com suporte a cache e quantidade maior
-  const loadRealMessages = useCallback(async (contactId: string) => {
-    console.log('📤 Carregando mensagens para:', contactId);
-    
-    // Chave do cache
-    const cacheKey = `whatsapp_messages_${contactId}`;
-    
-    try {
-      // Verificar primeiro se existe em cache
-      const cachedMessages = localStorage.getItem(cacheKey);
-      
-      if (cachedMessages) {
-        const parsed = JSON.parse(cachedMessages);
-        console.log('🗂️ Mensagens carregadas do cache:', parsed.length);
+      if (response.ok) {
+        const responseData = await response.json();
+        console.log('✅ Resposta da API:', responseData);
         
-        // Atualizar em segundo plano
-        setTimeout(() => refreshMessagesInBackground(contactId, cacheKey), 500);
+        let chatsArray = [];
         
-        return parsed;
-      }
-      
-      // Se não tem cache, buscar da API - aumentamos para 100 mensagens
-      const messages = await fetchMessagesFromAPI(contactId);
-      
-      // Salvar no cache
-      localStorage.setItem(cacheKey, JSON.stringify(messages));
-      
-      return messages;
-    } catch (error) {
-      console.error('❌ Erro ao carregar mensagens:', error);
-      toast({
-        title: "❌ Erro ao carregar mensagens",
-        description: "Verifique sua conexão e tente novamente",
-        variant: "destructive"
-      });
-      throw error;
-    }
-  }, []);
-
-  // Função auxiliar para buscar mensagens da API
-  const fetchMessagesFromAPI = useCallback(async (contactId: string) => {
-    // Aumentamos para 100 mensagens no histórico
-    const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/get-messages/${contactId}?count=100`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${wppConfig.token}`
-      }
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('❌ Erro ao buscar mensagens da API:', response.status, errorText);
-      throw new Error(`Erro ${response.status}: ${errorText}`);
-    }
-
-    const responseData = await response.json();
-    
-    // Extrair array de mensagens da resposta
-    let messagesArray = [];
-    
-    if (Array.isArray(responseData)) {
-      messagesArray = responseData;
-    } else if (responseData.messages && Array.isArray(responseData.messages)) {
-      messagesArray = responseData.messages;
-    } else if (responseData.data && Array.isArray(responseData.data)) {
-      messagesArray = responseData.data;
-    } else if (responseData.response && Array.isArray(responseData.response)) {
-      messagesArray = responseData.response;
-    } else {
-      console.warn('⚠️ Formato de resposta de mensagens não reconhecido:', responseData);
-      return [];
-    }
-    
-    // Processar mensagens com transcrição de áudio
-    const processedMessages = await Promise.all(
-      messagesArray.map(async (msg: any) => {
-        let text = msg.body || msg.text || msg.content || 'Mensagem sem texto';
-        
-        // Verificar se é mensagem de áudio
-        if (msg.type === 'audio' || msg.type === 'ptt' || (msg.mimetype && msg.mimetype.includes('audio'))) {
-          console.log('🎤 Mensagem de áudio detectada:', msg.id);
-          
-          if (msg.body && msg.body.startsWith('data:audio')) {
-            // Extrair base64 do áudio
-            const base64Audio = msg.body.split(',')[1];
-            try {
-              const transcription = await transcribeAudioMessage(base64Audio);
-              text = `🎤 [Áudio]: ${transcription}`;
-            } catch (error) {
-              text = '🎤 [Áudio - transcrição não disponível]';
-            }
-          } else if (msg.mediaData && msg.mediaData.base64) {
-            try {
-              const transcription = await transcribeAudioMessage(msg.mediaData.base64);
-              text = `🎤 [Áudio]: ${transcription}`;
-            } catch (error) {
-              text = '🎤 [Áudio - transcrição não disponível]';
-            }
-          } else {
-            text = '🎤 [Áudio - dados não disponíveis para transcrição]';
-          }
+        if (Array.isArray(responseData)) {
+          chatsArray = responseData;
+        } else if (responseData.chats && Array.isArray(responseData.chats)) {
+          chatsArray = responseData.chats;
+        } else if (responseData.data && Array.isArray(responseData.data)) {
+          chatsArray = responseData.data;
+        } else if (responseData.response && Array.isArray(responseData.response)) {
+          chatsArray = responseData.response;
+        } else {
+          console.warn('⚠️ Formato de resposta não reconhecido:', responseData);
+          throw new Error('Formato de dados não suportado. Verifique se o WPPConnect está retornando os chats corretamente.');
         }
         
-        return {
-          ...msg,
-          processedText: text
-        };
-      })
-    );
-    
-    console.log('📋 Mensagens processadas:', processedMessages.length);
-    return processedMessages;
-  }, [wppConfig, transcribeAudioMessage]);
+        console.log('📋 Array de chats encontrado:', chatsArray);
+        
+        if (chatsArray.length === 0) {
+          console.log('⚠️ Nenhuma conversa encontrada');
+          return [];
+        }
+        
+        return chatsArray;
+      } else {
+        const errorText = await response.text();
+        console.error('❌ Erro ao carregar conversas:', response.status, errorText);
+        throw new Error(`Erro ${response.status}: ${errorText}`);
+      }
+    } catch (error) {
+      console.error('❌ Erro de conexão ao carregar conversas:', error);
+      throw error;
+    }
+  }, [wppConfig]);
 
-  // Função para atualizar mensagens em segundo plano
-  const refreshMessagesInBackground = useCallback(async (contactId: string, cacheKey: string) => {
-    console.log('🔄 Atualizando mensagens em segundo plano para:', contactId);
+  // Função para carregar mensagens de uma conversa
+  const loadRealMessages = useCallback(async (contactId: string) => {
+    console.log('📤 Carregando mensagens reais para:', contactId);
     
     try {
-      const freshMessages = await fetchMessagesFromAPI(contactId);
-      console.log('✅ Mensagens atualizadas em segundo plano:', freshMessages.length);
-      
-      localStorage.setItem(cacheKey, JSON.stringify(freshMessages));
+      const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/get-messages/${contactId}?count=50`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${wppConfig.token}`
+        }
+      });
+
+      if (response.ok) {
+        const responseData = await response.json();
+        console.log('✅ Mensagens recebidas:', responseData);
+        
+        let messagesArray = [];
+        
+        if (Array.isArray(responseData)) {
+          messagesArray = responseData;
+        } else if (responseData.messages && Array.isArray(responseData.messages)) {
+          messagesArray = responseData.messages;
+        } else if (responseData.data && Array.isArray(responseData.data)) {
+          messagesArray = responseData.data;
+        } else if (responseData.response && Array.isArray(responseData.response)) {
+          messagesArray = responseData.response;
+        } else {
+          console.warn('⚠️ Formato de mensagens não reconhecido:', responseData);
+          return [];
+        }
+        
+        // Processar mensagens com transcrição de áudio
+        const processedMessages = await Promise.all(
+          messagesArray.map(async (msg: any) => {
+            let text = msg.body || msg.text || msg.content || 'Mensagem sem texto';
+            
+            // Verificar se é mensagem de áudio
+            if (msg.type === 'audio' || msg.type === 'ptt' || (msg.mimetype && msg.mimetype.includes('audio'))) {
+              console.log('🎤 Mensagem de áudio detectada:', msg);
+              
+              if (msg.body && msg.body.startsWith('data:audio')) {
+                // Extrair base64 do áudio
+                const base64Audio = msg.body.split(',')[1];
+                const transcription = await transcribeAudio(base64Audio);
+                text = `🎤 [Áudio]: ${transcription}`;
+              } else {
+                text = '🎤 [Áudio - transcrição não disponível]';
+              }
+            }
+            
+            return {
+              ...msg,
+              processedText: text
+            };
+          })
+        );
+        
+        return processedMessages;
+      } else {
+        console.error('❌ Erro ao carregar mensagens:', response.status);
+        const errorText = await response.text();
+        console.error('❌ Detalhes do erro:', errorText);
+        throw new Error(`Erro ${response.status}: ${errorText}`);
+      }
     } catch (error) {
-      console.error('❌ Erro ao atualizar mensagens em segundo plano:', error);
+      console.error('❌ Erro ao carregar mensagens:', error);
+      throw error;
     }
-  }, [fetchMessagesFromAPI]);
+  }, [wppConfig, transcribeAudio]);
 
   const getConnectionStatus = useCallback(() => {
     if (connectionState.isConnected) {
@@ -784,7 +703,7 @@ export function useRealWhatsAppConnection() {
     loadRealChats,
     loadRealMessages,
     getConnectionStatus,
-    isTranscribing,
+    transcribeAudio,
     // Funções para fixar e marcar para análise
     togglePinConversation,
     toggleAnalysisConversation,
@@ -793,4 +712,3 @@ export function useRealWhatsAppConnection() {
     getAnalysisPriority
   };
 }
-
