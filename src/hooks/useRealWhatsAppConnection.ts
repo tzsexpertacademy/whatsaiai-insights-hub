@@ -36,6 +36,25 @@ interface ConversationForAnalysis {
   priority: 'high' | 'medium' | 'low';
 }
 
+// Validações para blindar o código
+const validateWPPConfig = (config: WPPConfig): boolean => {
+  return !!(
+    config.serverUrl && 
+    config.sessionName && 
+    config.token && 
+    config.token !== 'THISISMYSECURETOKEN' &&
+    config.token !== 'YOUR_TOKEN_HERE'
+  );
+};
+
+const validatePhoneNumber = (phone: string): boolean => {
+  return !!(phone && (phone.includes('@c.us') || phone.includes('@g.us')));
+};
+
+const isValidMessage = (message: string): boolean => {
+  return !!(message && message.trim().length > 0);
+};
+
 export function useRealWhatsAppConnection() {
   const { toast } = useToast();
   const { transcribeAudio } = useVoiceTranscription();
@@ -147,9 +166,9 @@ export function useRealWhatsAppConnection() {
     console.log('🔧 [WPP] Configurando webhook automático no WPPConnect...');
     
     try {
-      // Verificar se o token é válido primeiro
-      if (!wppConfig.token || wppConfig.token === 'YOUR_TOKEN_HERE') {
-        throw new Error('Token do WPPConnect não configurado. Configure um token válido nas configurações.');
+      // Validação robusta
+      if (!validateWPPConfig(wppConfig)) {
+        throw new Error('Configuração WPPConnect inválida. Verifique servidor, sessão e token.');
       }
 
       // URL do webhook que aponta para a edge function do Supabase
@@ -317,9 +336,9 @@ export function useRealWhatsAppConnection() {
     setIsLoading(true);
     
     try {
-      // Verificar se o token é válido
-      if (!wppConfig.token || wppConfig.token === 'YOUR_TOKEN_HERE') {
-        throw new Error('Token do WPPConnect não configurado. Vá para a aba WPPConnect e configure um token válido.');
+      // Validação robusta antes de continuar
+      if (!validateWPPConfig(wppConfig)) {
+        throw new Error('Configuração WPPConnect inválida. Vá para a aba WPPConnect e configure um token válido.');
       }
 
       const startSessionResponse = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/start-session`, {
@@ -456,9 +475,9 @@ export function useRealWhatsAppConnection() {
     console.log('🔍 [WPP] Verificando status da conexão...');
     
     try {
-      // Verificar se o token é válido
-      if (!wppConfig.token || wppConfig.token === 'YOUR_TOKEN_HERE') {
-        console.log('❌ [WPP] Token não configurado');
+      // Validação robusta
+      if (!validateWPPConfig(wppConfig)) {
+        console.log('❌ [WPP] Configuração inválida');
         return false;
       }
 
@@ -555,28 +574,50 @@ export function useRealWhatsAppConnection() {
     }
   }, [toast, wppConfig]);
 
-  // Função para enviar mensagem
+  // Função para enviar mensagem - BLINDADA E ROBUSTA
   const sendMessage = useCallback(async (phone: string, message: string) => {
     console.log('📤 [WPP] === ENVIANDO MENSAGEM ===');
     console.log('📤 [WPP] Para:', phone);
     console.log('📤 [WPP] Mensagem:', message);
-    console.log('📤 [WPP] Config atual:', wppConfig);
     
     try {
-      const targetPhone = phone;
-      const isGroup = phone.includes('@g.us');
-      
-      console.log('📤 [WPP] Tipo de chat:', isGroup ? 'Grupo' : 'Contato Individual');
-      
-      // Verificar se o token é válido
-      if (!wppConfig.token || wppConfig.token === 'THISISMYSECURETOKEN') {
+      // VALIDAÇÕES ROBUSTAS
+      if (!validateWPPConfig(wppConfig)) {
         toast({
-          title: "❌ Token não configurado",
-          description: "Configure um token válido do WPPConnect",
+          title: "❌ Configuração inválida",
+          description: "Configure o WPPConnect corretamente antes de enviar mensagens",
           variant: "destructive"
         });
         return false;
       }
+
+      if (!validatePhoneNumber(phone)) {
+        toast({
+          title: "❌ Número inválido",
+          description: "Número de telefone deve ter formato válido (@c.us ou @g.us)",
+          variant: "destructive"
+        });
+        return false;
+      }
+
+      if (!isValidMessage(message)) {
+        toast({
+          title: "❌ Mensagem inválida",
+          description: "A mensagem não pode estar vazia",
+          variant: "destructive"
+        });
+        return false;
+      }
+
+      const targetPhone = phone;
+      const isGroup = phone.includes('@g.us');
+      
+      console.log('📤 [WPP] Tipo de chat:', isGroup ? 'Grupo' : 'Contato Individual');
+      console.log('📤 [WPP] Config atual:', { 
+        serverUrl: wppConfig.serverUrl,
+        sessionName: wppConfig.sessionName,
+        tokenLength: wppConfig.token.length
+      });
 
       // Lista de endpoints para tentar (diferentes versões do WPPConnect)
       const endpoints = [
@@ -705,9 +746,9 @@ export function useRealWhatsAppConnection() {
     console.log('📱 Carregando conversas reais da API WPPConnect...');
     
     try {
-      // Verificar se o token é válido
-      if (!wppConfig.token || wppConfig.token === 'YOUR_TOKEN_HERE') {
-        throw new Error('Token não configurado');
+      // Validação robusta
+      if (!validateWPPConfig(wppConfig)) {
+        throw new Error('Configuração WPPConnect inválida');
       }
 
       const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/all-chats`, {
@@ -777,6 +818,15 @@ export function useRealWhatsAppConnection() {
     console.log('📤 Carregando mensagens reais para:', contactId);
     
     try {
+      // Validação robusta
+      if (!validateWPPConfig(wppConfig)) {
+        throw new Error('Configuração WPPConnect inválida');
+      }
+
+      if (!validatePhoneNumber(contactId)) {
+        throw new Error('ID de contato inválido');
+      }
+
       const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/get-messages/${contactId}?count=${messageHistoryLimit}`, {
         method: 'GET',
         headers: {
