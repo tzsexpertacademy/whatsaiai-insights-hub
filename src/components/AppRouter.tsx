@@ -1,137 +1,122 @@
 
 import React from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { LoginPage } from './auth/LoginPage';
-import { SolutionsHub } from '@/pages/SolutionsHub';
-import { ObservatoryLanding } from '@/pages/ObservatoryLanding';
-import { WelcomeTour } from '@/pages/WelcomeTour';
 import Index from '@/pages/Index';
-import { CommercialBrain } from '@/pages/CommercialBrain';
-import { AdminDashboard } from './admin/AdminDashboard';
+import { LoginPage } from '@/components/auth/LoginPage';
+import { DashboardMain } from '@/components/dashboard/DashboardMain';
+import { BehavioralProfile } from '@/components/BehavioralProfile';
+import { AreasOfLife } from '@/components/AreasOfLife';
+import { DailyRoutine } from '@/components/DailyRoutine';
+import { VoiceChatInterface } from '@/components/VoiceChatInterface';
+import { PainPointsAnalysis } from '@/components/PainPointsAnalysis';
+import { DocumentAnalysis } from '@/components/DocumentAnalysis';
+import { InsightsDashboard } from '@/components/InsightsDashboard';
+import { Recommendations } from '@/components/Recommendations';
+import { SettingsPage } from '@/components/SettingsPage';
+import { ProfilePage } from '@/components/ProfilePage';
+import { RoutinePage } from '@/components/RoutinePage';
+import { NotificationsPage } from '@/components/NotificationsPage';
+import { AnalyticsPage } from '@/components/AnalyticsPage';
+import { ObservatoryTimeline } from '@/components/ObservatoryTimeline';
+import { ChatWithAssistants } from '@/components/ChatWithAssistants';
+import { WhatsAppConnection } from '@/components/WhatsAppConnection';
+import { ChatInterface } from '@/components/ChatInterface';
+import { ConversationAnalysisDashboard } from '@/components/whatsapp/ConversationAnalysisDashboard';
+import { IndividualConversationAnalysis } from '@/components/whatsapp/IndividualConversationAnalysis';
+import { CommercialDashboard } from '@/components/commercial/CommercialDashboard';
+import { CommercialSettingsPage } from '@/components/commercial/CommercialSettingsPage';
+import { AdminDashboard } from '@/components/admin/AdminDashboard';
+import { AdminMasterDashboard } from '@/components/admin/AdminMasterDashboard';
+import { AdminRoute } from '@/components/AdminRoute';
+import NotFound from '@/pages/NotFound';
+import ObservatoryLanding from '@/pages/ObservatoryLanding';
+import WelcomeTour from '@/pages/WelcomeTour';
+import SolutionsHub from '@/pages/SolutionsHub';
+import CommercialBrain from '@/pages/CommercialBrain';
 import AdminMaster from '@/pages/AdminMaster';
-import { AdminRoute } from './AdminRoute';
-import { TrialExpirationReminder } from './TrialExpirationReminder';
 
-export function AppRouter() {
-  const { isAuthenticated, isLoading, user } = useAuth();
+function AppRouter() {
+  const { user, loading } = useAuth();
 
-  console.log('🌐 AppRouter - Estado:', {
-    isAuthenticated,
-    isLoading,
-    currentPath: window.location.pathname
-  });
-
-  if (isLoading) {
+  if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-          <p className="text-white">Carregando sua experiência...</p>
-        </div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
       </div>
     );
   }
 
-  // Verificar se deve mostrar o tour de boas vindas
-  const shouldShowWelcomeTour = () => {
-    if (!isAuthenticated || !user) return false;
-    
-    // Verificar se é um novo usuário que deve ver o tour
-    const showTour = localStorage.getItem('show_welcome_tour') === 'true';
-    const tourCompleted = localStorage.getItem('welcome_tour_completed') === 'true';
-    
-    // Verificar se é um usuário muito novo (criado há menos de 10 minutos)
-    const userCreatedAt = new Date(user.createdAt);
-    const now = new Date();
-    const minutesSinceCreation = (now.getTime() - userCreatedAt.getTime()) / (1000 * 60);
-    const isVeryNewUser = minutesSinceCreation < 10;
-    
-    console.log('🎯 Verificando tour:', { 
-      showTour, 
-      tourCompleted, 
-      isVeryNewUser,
-      minutesSinceCreation,
-      userCreatedAt: userCreatedAt.toISOString(),
-      shouldShow: (showTour || isVeryNewUser) && !tourCompleted
-    });
-    
-    return (showTour || isVeryNewUser) && !tourCompleted;
-  };
-
   return (
-    <>
-      {/* Sistema de lembretes para trial expirado */}
-      {isAuthenticated && <TrialExpirationReminder />}
-      
+    <Router>
       <Routes>
-        <Route 
-          path="/auth" 
-          element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginPage />} 
-        />
-        <Route 
-          path="/welcome" 
-          element={isAuthenticated ? <WelcomeTour /> : <Navigate to="/auth" replace />} 
-        />
-        <Route 
-          path="/admin" 
-          element={
-            isAuthenticated ? (
+        {/* Public routes */}
+        <Route path="/" element={<Index />} />
+        <Route path="/auth/login" element={<LoginPage />} />
+        <Route path="/observatory" element={<ObservatoryLanding />} />
+        <Route path="/welcome" element={<WelcomeTour />} />
+        <Route path="/solutions" element={<SolutionsHub />} />
+        <Route path="/commercial" element={<CommercialBrain />} />
+
+        {/* Protected routes */}
+        {user ? (
+          <>
+            {/* Main Dashboard */}
+            <Route path="/dashboard" element={<DashboardMain />} />
+            
+            {/* Behavioral Analysis */}
+            <Route path="/dashboard/behavioral" element={<BehavioralProfile />} />
+            <Route path="/dashboard/areas" element={<AreasOfLife />} />
+            <Route path="/dashboard/routine" element={<DailyRoutine />} />
+            <Route path="/dashboard/voice-chat" element={<VoiceChatInterface />} />
+            <Route path="/dashboard/pain-points" element={<PainPointsAnalysis />} />
+            <Route path="/dashboard/documents" element={<DocumentAnalysis />} />
+            <Route path="/dashboard/insights" element={<InsightsDashboard />} />
+            <Route path="/dashboard/recommendations" element={<Recommendations />} />
+            
+            {/* WhatsApp Integration */}
+            <Route path="/dashboard/whatsapp" element={<WhatsAppConnection />} />
+            <Route path="/dashboard/chat" element={<ChatInterface />} />
+            <Route path="/dashboard/conversation-analysis" element={<ConversationAnalysisDashboard />} />
+            <Route path="/dashboard/conversation-analysis/individual/:conversationId" element={<IndividualConversationAnalysis />} />
+            
+            {/* AI Interaction */}
+            <Route path="/dashboard/chat-assistants" element={<ChatWithAssistants />} />
+            <Route path="/dashboard/timeline" element={<ObservatoryTimeline />} />
+            
+            {/* Profile & Settings */}
+            <Route path="/dashboard/profile" element={<ProfilePage />} />
+            <Route path="/dashboard/routine-page" element={<RoutinePage />} />
+            <Route path="/dashboard/notifications" element={<NotificationsPage />} />
+            <Route path="/dashboard/analytics" element={<AnalyticsPage />} />
+            <Route path="/dashboard/settings" element={<SettingsPage />} />
+            
+            {/* Commercial Routes */}
+            <Route path="/commercial/dashboard" element={<CommercialDashboard />} />
+            <Route path="/commercial/settings" element={<CommercialSettingsPage />} />
+            
+            {/* Admin Routes */}
+            <Route path="/admin" element={
               <AdminRoute>
                 <AdminDashboard />
               </AdminRoute>
-            ) : (
-              <Navigate to="/auth" replace />
-            )
-          } 
-        />
-        <Route 
-          path="/admin/master" 
-          element={
-            isAuthenticated ? (
-              <AdminRoute requiredLevel="super">
-                <AdminMaster />
+            } />
+            <Route path="/admin/master" element={
+              <AdminRoute>
+                <AdminMasterDashboard />
               </AdminRoute>
-            ) : (
-              <Navigate to="/auth" replace />
-            )
-          } 
-        />
-        <Route 
-          path="/dashboard/*" 
-          element={
-            isAuthenticated ? (
-              shouldShowWelcomeTour() ? (
-                <Navigate to="/welcome" replace />
-              ) : (
-                <Index />
-              )
-            ) : (
-              <Navigate to="/auth" replace />
-            )
-          } 
-        />
-        <Route 
-          path="/commercial/*" 
-          element={isAuthenticated ? <CommercialBrain /> : <Navigate to="/auth" replace />} 
-        />
-        <Route 
-          path="/hub" 
-          element={isAuthenticated ? <SolutionsHub /> : <Navigate to="/auth" replace />} 
-        />
-        <Route 
-          path="/observatory" 
-          element={<ObservatoryLanding />} 
-        />
-        <Route 
-          path="/" 
-          element={<ObservatoryLanding />} 
-        />
-        <Route 
-          path="*" 
-          element={<Navigate to="/" replace />} 
-        />
+            } />
+            <Route path="/master" element={<AdminMaster />} />
+          </>
+        ) : (
+          <Route path="*" element={<Navigate to="/auth/login" replace />} />
+        )}
+        
+        {/* Catch all route */}
+        <Route path="*" element={<NotFound />} />
       </Routes>
-    </>
+    </Router>
   );
 }
+
+export default AppRouter;
