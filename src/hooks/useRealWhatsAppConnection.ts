@@ -116,7 +116,102 @@ export function useRealWhatsAppConnection() {
     });
   }, [toast]);
 
-  // Função para fixar/desfixar conversa
+  // Função para carregar mensagens de uma conversa - MOVED BEFORE IT'S USED
+  const loadRealMessages = useCallback(async (contactId: string) => {
+    console.log('📤 Carregando mensagens reais para:', contactId);
+    
+    try {
+      const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/get-messages/${contactId}?count=${messageHistoryLimit}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${wppConfig.token}`
+        }
+      });
+
+      if (response.ok) {
+        const responseData = await response.json();
+        
+        let messagesArray = [];
+        
+        if (Array.isArray(responseData)) {
+          messagesArray = responseData;
+        } else if (responseData.messages && Array.isArray(responseData.messages)) {
+          messagesArray = responseData.messages;
+        } else if (responseData.data && Array.isArray(responseData.data)) {
+          messagesArray = responseData.data;
+        } else if (responseData.response && Array.isArray(responseData.response)) {
+          messagesArray = responseData.response;
+        } else {
+          return [];
+        }
+        
+        // Processar mensagens com transcrição de áudio
+        const processedMessages = await Promise.all(
+          messagesArray.map(async (msg: any) => {
+            let text = msg.body || msg.text || msg.content || 'Mensagem sem texto';
+            
+            // Verificar se é mensagem de áudio
+            if (msg.type === 'audio' || msg.type === 'ptt' || (msg.mimetype && msg.mimetype.includes('audio'))) {
+              console.log('🎤 Mensagem de áudio detectada:', msg);
+              
+              if (msg.body && msg.body.startsWith('data:audio')) {
+                try {
+                  const base64Audio = msg.body.split(',')[1];
+                  const transcription = await transcribeAudio(base64Audio);
+                  text = transcription ? `🎤 [Áudio]: ${transcription}` : '🎤 [Áudio - transcrição não disponível]';
+                } catch (error) {
+                  console.error('❌ Erro na transcrição:', error);
+                  text = '🎤 [Áudio - erro na transcrição]';
+                }
+              } else {
+                text = '🎤 [Áudio - transcrição não disponível]';
+              }
+            }
+            
+            return {
+              ...msg,
+              processedText: text
+            };
+          })
+        );
+        
+        // Verificar se conversa fixada está no banco
+        const isPinned = pinnedConversations.some(p => p.chatId === contactId);
+        if (isPinned) {
+          console.log('🔍 Verificando se conversa fixada está no banco...', contactId);
+          const isInDatabase = await verifyConversationInDatabase(contactId);
+          
+          if (!isInDatabase && processedMessages.length > 0) {
+            console.log('💾 Conversa fixada não encontrada no banco, salvando...', contactId);
+            const chatData = cachedChats.find(chat => 
+              chat.id?.includes(contactId) || chat.contact?.includes(contactId)
+            );
+            
+            if (chatData) {
+              await saveConversationToDatabase(
+                contactId,
+                chatData.name || chatData.contact || 'Contato',
+                processedMessages,
+                true
+              );
+            }
+          }
+        }
+        
+        return processedMessages;
+      } else {
+        console.error('❌ Erro ao carregar mensagens:', response.status);
+        const errorText = await response.text();
+        throw new Error(`Erro ${response.status}: ${errorText}`);
+      }
+    } catch (error) {
+      console.error('❌ Erro ao carregar mensagens:', error);
+      throw error;
+    }
+  }, [wppConfig, transcribeAudio, messageHistoryLimit, verifyConversationInDatabase, saveConversationToDatabase, pinnedConversations, cachedChats]);
+
+  // Função para fixar/desfixar conversa - NOW loadRealMessages IS AVAILABLE
   const togglePinConversation = useCallback(async (chatId: string) => {
     setPinnedConversations(prev => {
       const isPinned = prev.some(p => p.chatId === chatId);
@@ -570,101 +665,6 @@ export function useRealWhatsAppConnection() {
       throw error;
     }
   }, [wppConfig, cachedChats, toast]);
-
-  // Função para carregar mensagens de uma conversa
-  const loadRealMessages = useCallback(async (contactId: string) => {
-    console.log('📤 Carregando mensagens reais para:', contactId);
-    
-    try {
-      const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/get-messages/${contactId}?count=${messageHistoryLimit}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${wppConfig.token}`
-        }
-      });
-
-      if (response.ok) {
-        const responseData = await response.json();
-        
-        let messagesArray = [];
-        
-        if (Array.isArray(responseData)) {
-          messagesArray = responseData;
-        } else if (responseData.messages && Array.isArray(responseData.messages)) {
-          messagesArray = responseData.messages;
-        } else if (responseData.data && Array.isArray(responseData.data)) {
-          messagesArray = responseData.data;
-        } else if (responseData.response && Array.isArray(responseData.response)) {
-          messagesArray = responseData.response;
-        } else {
-          return [];
-        }
-        
-        // Processar mensagens com transcrição de áudio
-        const processedMessages = await Promise.all(
-          messagesArray.map(async (msg: any) => {
-            let text = msg.body || msg.text || msg.content || 'Mensagem sem texto';
-            
-            // Verificar se é mensagem de áudio
-            if (msg.type === 'audio' || msg.type === 'ptt' || (msg.mimetype && msg.mimetype.includes('audio'))) {
-              console.log('🎤 Mensagem de áudio detectada:', msg);
-              
-              if (msg.body && msg.body.startsWith('data:audio')) {
-                try {
-                  const base64Audio = msg.body.split(',')[1];
-                  const transcription = await transcribeAudio(base64Audio);
-                  text = transcription ? `🎤 [Áudio]: ${transcription}` : '🎤 [Áudio - transcrição não disponível]';
-                } catch (error) {
-                  console.error('❌ Erro na transcrição:', error);
-                  text = '🎤 [Áudio - erro na transcrição]';
-                }
-              } else {
-                text = '🎤 [Áudio - transcrição não disponível]';
-              }
-            }
-            
-            return {
-              ...msg,
-              processedText: text
-            };
-          })
-        );
-        
-        // Verificar se conversa fixada está no banco
-        const isPinned = pinnedConversations.some(p => p.chatId === contactId);
-        if (isPinned) {
-          console.log('🔍 Verificando se conversa fixada está no banco...', contactId);
-          const isInDatabase = await verifyConversationInDatabase(contactId);
-          
-          if (!isInDatabase && processedMessages.length > 0) {
-            console.log('💾 Conversa fixada não encontrada no banco, salvando...', contactId);
-            const chatData = cachedChats.find(chat => 
-              chat.id?.includes(contactId) || chat.contact?.includes(contactId)
-            );
-            
-            if (chatData) {
-              await saveConversationToDatabase(
-                contactId,
-                chatData.name || chatData.contact || 'Contato',
-                processedMessages,
-                true
-              );
-            }
-          }
-        }
-        
-        return processedMessages;
-      } else {
-        console.error('❌ Erro ao carregar mensagens:', response.status);
-        const errorText = await response.text();
-        throw new Error(`Erro ${response.status}: ${errorText}`);
-      }
-    } catch (error) {
-      console.error('❌ Erro ao carregar mensagens:', error);
-      throw error;
-    }
-  }, [wppConfig, transcribeAudio, messageHistoryLimit, verifyConversationInDatabase, saveConversationToDatabase, pinnedConversations, cachedChats]);
 
   const getConnectionStatus = useCallback(() => {
     if (connectionState.isConnected) {
