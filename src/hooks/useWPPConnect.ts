@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useToast } from "@/hooks/use-toast";
 
@@ -71,6 +70,18 @@ export function useWPPConnect() {
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const [messageHistoryLimit, setMessageHistoryLimit] = useState(50);
 
+  // Lista de tokens inválidos que devem ser rejeitados
+  const INVALID_TOKENS = [
+    'THISISMYSECURETOKEN',
+    'YOUR_SECRET_KEY_HERE',
+    'YOUR_TOKEN_HERE',
+    'DEFAULT_TOKEN',
+    'CHANGE_ME',
+    '',
+    undefined,
+    null
+  ];
+
   // Carregar estado salvo na inicialização
   useEffect(() => {
     console.log('🔄 Carregando estado salvo do WPPConnect...');
@@ -125,13 +136,34 @@ export function useWPPConnect() {
 
   const saveWPPConfig = (config: WPPConfig) => {
     try {
+      // Validar se os tokens não são valores padrão inválidos
+      if (INVALID_TOKENS.includes(config.secretKey)) {
+        console.error('❌ Secret Key inválido detectado:', config.secretKey);
+        toast({
+          title: "❌ Secret Key Inválido",
+          description: "O Secret Key não pode ser o valor padrão. Configure um valor real.",
+          variant: "destructive"
+        });
+        return false;
+      }
+
+      if (INVALID_TOKENS.includes(config.token)) {
+        console.error('❌ Token inválido detectado:', config.token);
+        toast({
+          title: "❌ Token Inválido", 
+          description: "O Token não pode ser o valor padrão. Configure um valor real.",
+          variant: "destructive"
+        });
+        return false;
+      }
+
       localStorage.setItem('wpp_session_name', config.sessionName);
       localStorage.setItem('wpp_server_url', config.serverUrl);
       localStorage.setItem('wpp_secret_key', config.secretKey);
       localStorage.setItem('wpp_token', config.token);
       localStorage.setItem('wpp_webhook_url', config.webhookUrl || '');
       
-      console.log('💾 Config WPPConnect salvo:', {
+      console.log('💾 Config WPPConnect salvo com tokens válidos:', {
         sessionName: config.sessionName,
         serverUrl: config.serverUrl,
         secretKey: config.secretKey ? `***${config.secretKey.slice(-4)}***` : 'NOT_SET',
@@ -148,19 +180,44 @@ export function useWPPConnect() {
 
   const isTokenValid = () => {
     const config = getWPPConfig();
-    return config.secretKey && 
-           config.secretKey.length > 10 &&
-           config.token &&
-           config.token.length > 10;
+    
+    // Verificar se os valores não são inválidos
+    const isSecretKeyValid = !INVALID_TOKENS.includes(config.secretKey) && 
+                            config.secretKey && 
+                            config.secretKey.length > 10;
+    
+    const isTokenValid = !INVALID_TOKENS.includes(config.token) && 
+                        config.token && 
+                        config.token.length > 10;
+
+    console.log('🔍 Validação de tokens:', {
+      secretKeyValid: isSecretKeyValid,
+      tokenValid: isTokenValid,
+      secretKeyLength: config.secretKey?.length || 0,
+      tokenLength: config.token?.length || 0,
+      secretKeyValue: config.secretKey === 'THISISMYSECURETOKEN' ? 'VALOR_PADRAO_DETECTADO' : 'OK'
+    });
+
+    return isSecretKeyValid && isTokenValid;
   };
 
   const generateQRCode = async (): Promise<string | null> => {
     console.log('🔄 Gerando QR Code WPPConnect...');
     
+    // Verificação rigorosa de tokens
     if (!isTokenValid()) {
+      const config = getWPPConfig();
+      let errorMessage = "Configure Secret Key e Token válidos do WPPConnect primeiro";
+      
+      if (INVALID_TOKENS.includes(config.secretKey)) {
+        errorMessage = "Secret Key ainda está com valor padrão. Configure um valor real na aba WPPConnect.";
+      } else if (INVALID_TOKENS.includes(config.token)) {
+        errorMessage = "Token ainda está com valor padrão. Configure um valor real na aba WPPConnect.";
+      }
+      
       toast({
         title: "❌ Configuração incompleta",
-        description: "Configure Secret Key e Token do WPPConnect primeiro",
+        description: errorMessage,
         variant: "destructive"
       });
       return null;
@@ -176,7 +233,8 @@ export function useWPPConnect() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${config.secretKey}`
+          'Authorization': `Bearer ${config.secretKey}`,
+          'X-Session-Token': config.token
         },
         body: JSON.stringify({
           session: config.sessionName,
@@ -184,8 +242,23 @@ export function useWPPConnect() {
         })
       });
 
+      console.log('📊 Resposta de criação de sessão:', {
+        status: createResponse.status,
+        statusText: createResponse.statusText,
+        ok: createResponse.ok
+      });
+
       if (!createResponse.ok) {
-        console.log('⚠️ Sessão pode já existir, tentando obter QR Code...');
+        const errorText = await createResponse.text();
+        console.log('⚠️ Erro na criação de sessão:', errorText);
+        
+        if (createResponse.status === 401) {
+          // Forçar limpeza de tokens inválidos
+          localStorage.removeItem('wpp_secret_key');
+          localStorage.removeItem('wpp_token');
+          
+          throw new Error('Token ou Secret Key inválidos. Por favor, reconfigure na aba WPPConnect com valores reais (não padrão).');
+        }
       }
 
       // Tenta obter o QR Code
@@ -194,7 +267,8 @@ export function useWPPConnect() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${config.secretKey}`
+          'Authorization': `Bearer ${config.secretKey}`,
+          'X-Session-Token': config.token
         },
         body: JSON.stringify({
           session: config.sessionName,
@@ -203,7 +277,22 @@ export function useWPPConnect() {
       });
 
       if (!qrResponse.ok) {
-        throw new Error(`Erro HTTP: ${qrResponse.status}`);
+        const errorText = await qrResponse.text();
+        console.error('❌ Erro HTTP ao obter QR Code:', {
+          status: qrResponse.status,
+          statusText: qrResponse.statusText,
+          error: errorText
+        });
+
+        if (qrResponse.status === 401) {
+          // Forçar limpeza de tokens inválidos
+          localStorage.removeItem('wpp_secret_key');
+          localStorage.removeItem('wpp_token');
+          
+          throw new Error('Erro de autenticação. Reconfigure Secret Key e Token na aba WPPConnect.');
+        }
+        
+        throw new Error(`Erro HTTP: ${qrResponse.status} - ${errorText}`);
       }
 
       const data = await qrResponse.json();
@@ -237,7 +326,7 @@ export function useWPPConnect() {
       
       toast({
         title: "❌ Erro ao gerar QR Code",
-        description: error instanceof Error ? error.message : "Verifique se o WPPConnect está funcionando",
+        description: error instanceof Error ? error.message : "Verifique se o WPPConnect está funcionando e se os tokens estão corretos",
         variant: "destructive"
       });
       
@@ -281,7 +370,8 @@ export function useWPPConnect() {
     try {
       const response = await fetch(`${config.serverUrl}/api/${config.sessionName}/status-session`, {
         headers: {
-          'Authorization': `Bearer ${config.secretKey}`
+          'Authorization': `Bearer ${config.secretKey}`,
+          'X-Session-Token': config.token
         }
       });
 
@@ -333,7 +423,8 @@ export function useWPPConnect() {
       console.log('📞 Carregando conversas reais...');
       const response = await fetch(`${config.serverUrl}/api/${config.sessionName}/all-chats`, {
         headers: {
-          'Authorization': `Bearer ${config.secretKey}`
+          'Authorization': `Bearer ${config.secretKey}`,
+          'X-Session-Token': config.token
         }
       });
 
@@ -403,7 +494,8 @@ export function useWPPConnect() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${config.secretKey}`
+          'Authorization': `Bearer ${config.secretKey}`,
+          'X-Session-Token': config.token
         },
         body: JSON.stringify({
           phone: chatId,
@@ -465,7 +557,8 @@ export function useWPPConnect() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${config.secretKey}`
+          'Authorization': `Bearer ${config.secretKey}`,
+          'X-Session-Token': config.token
         },
         body: JSON.stringify({
           phone: chatId,
@@ -504,7 +597,8 @@ export function useWPPConnect() {
         await fetch(`${config.serverUrl}/api/${config.sessionName}/close-session`, {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${config.secretKey}`
+            'Authorization': `Bearer ${config.secretKey}`,
+            'X-Session-Token': config.token
           }
         });
       } catch (error) {
