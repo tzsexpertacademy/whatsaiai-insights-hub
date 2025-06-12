@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useRealWhatsAppConnection } from "@/hooks/useRealWhatsAppConnection";
+import { ConversationContextMenu } from "./ConversationContextMenu";
 import { 
   QrCode, 
   Smartphone, 
@@ -20,7 +21,12 @@ import {
   Settings,
   Key,
   Server,
-  Lock
+  Lock,
+  Pin,
+  Brain,
+  Star,
+  TrendingUp,
+  AlertTriangle
 } from 'lucide-react';
 
 interface Contact {
@@ -56,7 +62,13 @@ export function RealWhatsAppMirror() {
     sendMessage: sendWhatsAppMessage,
     loadRealChats,
     loadRealMessages,
-    getConnectionStatus 
+    getConnectionStatus,
+    // Novas funções
+    togglePinConversation,
+    toggleAnalysisConversation,
+    isConversationPinned,
+    isConversationMarkedForAnalysis,
+    getAnalysisPriority
   } = useRealWhatsAppConnection();
   
   const [selectedContact, setSelectedContact] = useState<string | null>(null);
@@ -98,17 +110,39 @@ export function RealWhatsAppMirror() {
   const extractPhoneForSending = (contact: Contact): string => {
     let phone = contact.phone;
     
-    // Se já tem @c.us, extrair apenas o número
     if (phone.includes('@c.us')) {
       phone = phone.split('@')[0];
     }
     
-    // Se já tem @g.us (grupo), manter como está
     if (phone.includes('@g.us')) {
       return phone;
     }
     
     return phone;
+  };
+
+  // Função para ordenar conversas (fixadas primeiro, depois por timestamp)
+  const sortedContacts = React.useMemo(() => {
+    return [...contacts].sort((a, b) => {
+      const aPinned = isConversationPinned(a.id);
+      const bPinned = isConversationPinned(b.id);
+      
+      // Fixadas primeiro
+      if (aPinned && !bPinned) return -1;
+      if (!aPinned && bPinned) return 1;
+      
+      // Depois por timestamp (mais recente primeiro)
+      return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+    });
+  }, [contacts, isConversationPinned]);
+
+  // Função para obter ícone de prioridade
+  const getPriorityIcon = (priority: 'high' | 'medium' | 'low') => {
+    switch (priority) {
+      case 'high': return <AlertTriangle className="h-3 w-3 text-red-500" />;
+      case 'medium': return <TrendingUp className="h-3 w-3 text-yellow-500" />;
+      case 'low': return <Star className="h-3 w-3 text-blue-500" />;
+    }
   };
 
   useEffect(() => {
@@ -153,10 +187,8 @@ export function RealWhatsAppMirror() {
       const realContacts: Contact[] = chatsData.map((chat: any, index: number) => {
         console.log(`📱 Processando chat ${index}:`, chat);
         
-        // Extrair ID do chat de forma segura
         const chatId = chat.id?._serialized || chat.id || chat.chatId || `chat_${index}`;
         
-        // Extrair telefone de forma segura
         const phoneNumber = extractPhoneNumber(chat.id || chat.contact?.id || chat.phone);
         
         return {
@@ -180,7 +212,6 @@ export function RealWhatsAppMirror() {
     } catch (error) {
       console.error('❌ Erro ao carregar conversas:', error);
       
-      // Limpar estado em caso de erro
       setContacts([]);
       
       toast({
@@ -280,7 +311,6 @@ export function RealWhatsAppMirror() {
     setNewMessage('');
 
     try {
-      // Usar telefone formatado corretamente para envio
       const phoneForSending = extractPhoneForSending(contact);
       console.log('📞 Enviando para telefone:', phoneForSending);
       console.log('💬 Texto da mensagem:', messageText);
@@ -294,7 +324,6 @@ export function RealWhatsAppMirror() {
         
         console.log('✅ Mensagem enviada com sucesso!');
       } else {
-        // Marcar como erro se não foi enviada
         setMessages(prev => prev.map(msg => 
           msg.id === message.id ? { ...msg, status: 'sent', text: `❌ ${msg.text} (Erro no envio)` } : msg
         ));
@@ -304,7 +333,6 @@ export function RealWhatsAppMirror() {
     } catch (error) {
       console.error('❌ Erro ao enviar mensagem:', error);
       
-      // Marcar mensagem com erro
       setMessages(prev => prev.map(msg => 
         msg.id === message.id ? { ...msg, status: 'sent', text: `❌ ${msg.text} (Erro de conexão)` } : msg
       ));
@@ -480,7 +508,7 @@ export function RealWhatsAppMirror() {
       {/* Interface de Conversas REAL */}
       {isConnected && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 h-[600px]">
-          {/* Lista de Contatos REAL */}
+          {/* Lista de Contatos REAL com Menu de Contexto */}
           <Card className="lg:col-span-1">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
@@ -490,11 +518,15 @@ export function RealWhatsAppMirror() {
                 </CardTitle>
                 <Badge variant="secondary">{contacts.length}</Badge>
               </div>
+              <div className="flex items-center gap-2 text-xs text-gray-500">
+                <Pin className="h-3 w-3" />
+                <span>Clique direito para fixar/analisar</span>
+              </div>
             </CardHeader>
             
             <CardContent className="p-0">
               <div className="space-y-1 max-h-[500px] overflow-y-auto">
-                {contacts.length === 0 ? (
+                {sortedContacts.length === 0 ? (
                   <div className="p-4 text-center text-gray-500">
                     <MessageSquare className="h-8 w-8 mx-auto mb-2" />
                     <p>Nenhuma conversa encontrada</p>
@@ -516,32 +548,60 @@ export function RealWhatsAppMirror() {
                     </Button>
                   </div>
                 ) : (
-                  contacts.map((contact) => (
-                    <div 
-                      key={contact.id}
-                      onClick={() => selectContact(contact)}
-                      className={`p-3 border-b cursor-pointer hover:bg-gray-50 transition-colors ${
-                        selectedContact === contact.id ? 'bg-blue-50 border-blue-200' : ''
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                          <User className="h-6 w-6 text-green-600" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between">
-                            <span className="font-medium text-sm">{contact.name}</span>
-                            <span className="text-xs text-gray-400">{formatTime(contact.timestamp)}</span>
+                  sortedContacts.map((contact) => {
+                    const isPinned = isConversationPinned(contact.id);
+                    const isMarkedForAnalysis = isConversationMarkedForAnalysis(contact.id);
+                    const analysisPriority = getAnalysisPriority(contact.id);
+
+                    return (
+                      <ConversationContextMenu
+                        key={contact.id}
+                        chatId={contact.id}
+                        isPinned={isPinned}
+                        isMarkedForAnalysis={isMarkedForAnalysis}
+                        analysisPriority={analysisPriority}
+                        onTogglePin={togglePinConversation}
+                        onToggleAnalysis={toggleAnalysisConversation}
+                      >
+                        <div 
+                          onClick={() => selectContact(contact)}
+                          className={`p-3 border-b cursor-pointer hover:bg-gray-50 transition-colors ${
+                            selectedContact === contact.id ? 'bg-blue-50 border-blue-200' : ''
+                          } ${isPinned ? 'bg-yellow-50 border-l-4 border-l-yellow-400' : ''}`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center relative">
+                              <User className="h-6 w-6 text-green-600" />
+                              {isPinned && (
+                                <Pin className="absolute -top-1 -right-1 h-4 w-4 text-yellow-600 fill-current" />
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium text-sm">{contact.name}</span>
+                                  {isMarkedForAnalysis && (
+                                    <div className="flex items-center gap-1">
+                                      <Brain className="h-3 w-3 text-green-600" />
+                                      {getPriorityIcon(analysisPriority)}
+                                    </div>
+                                  )}
+                                </div>
+                                <span className="text-xs text-gray-400">{formatTime(contact.timestamp)}</span>
+                              </div>
+                              <p className="text-sm text-gray-500 truncate mt-1">{contact.lastMessage}</p>
+                              <div className="flex items-center justify-between mt-1">
+                                <p className="text-xs text-gray-400">{contact.phone}</p>
+                                {contact.unread > 0 && (
+                                  <Badge className="bg-green-500 text-white text-xs">{contact.unread}</Badge>
+                                )}
+                              </div>
+                            </div>
                           </div>
-                          <p className="text-sm text-gray-500 truncate mt-1">{contact.lastMessage}</p>
-                          <p className="text-xs text-gray-400">{contact.phone}</p>
                         </div>
-                        {contact.unread > 0 && (
-                          <Badge className="bg-green-500 text-white">{contact.unread}</Badge>
-                        )}
-                      </div>
-                    </div>
-                  ))
+                      </ConversationContextMenu>
+                    );
+                  })
                 )}
               </div>
             </CardContent>
@@ -557,8 +617,17 @@ export function RealWhatsAppMirror() {
                       <User className="h-5 w-5 text-green-600" />
                     </div>
                     <div>
-                      <CardTitle className="text-lg">
+                      <CardTitle className="text-lg flex items-center gap-2">
                         {contacts.find(c => c.id === selectedContact)?.name}
+                        {isConversationPinned(selectedContact) && (
+                          <Pin className="h-4 w-4 text-yellow-600" />
+                        )}
+                        {isConversationMarkedForAnalysis(selectedContact) && (
+                          <div className="flex items-center gap-1">
+                            <Brain className="h-4 w-4 text-green-600" />
+                            {getPriorityIcon(getAnalysisPriority(selectedContact))}
+                          </div>
+                        )}
                       </CardTitle>
                       <p className="text-sm text-gray-500">
                         {contacts.find(c => c.id === selectedContact)?.phone}
@@ -624,7 +693,16 @@ export function RealWhatsAppMirror() {
                   <MessageSquare className="h-16 w-16 mx-auto mb-4 text-gray-300" />
                   <h3 className="text-lg font-medium mb-2">Selecione uma conversa REAL</h3>
                   <p className="text-sm">Escolha um contato para ver as mensagens reais</p>
-                  <p className="text-xs mt-2">💡 Conectado via WPPConnect API</p>
+                  <div className="mt-4 space-y-2 text-xs">
+                    <p className="flex items-center gap-2 justify-center">
+                      <Pin className="h-3 w-3" />
+                      Clique direito para fixar conversas importantes
+                    </p>
+                    <p className="flex items-center gap-2 justify-center">
+                      <Brain className="h-3 w-3" />
+                      Marque conversas para análise da IA
+                    </p>
+                  </div>
                 </div>
               </CardContent>
             )}
