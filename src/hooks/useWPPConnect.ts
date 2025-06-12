@@ -56,7 +56,7 @@ export function useWPPConnect() {
   const [isLoadingChats, setIsLoadingChats] = useState(false);
   const [isLiveMode, setIsLiveMode] = useState(false);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
-  const [messageHistoryLimit, setMessageHistoryLimit] = useState(50); // Novo estado para controle de mensagens
+  const [messageHistoryLimit, setMessageHistoryLimit] = useState(50);
 
   // Função para obter configuração WPP
   const getWPPConfig = useCallback((): WPPConfig => {
@@ -338,7 +338,7 @@ export function useWPPConnect() {
     }
   }, [makeWPPRequest, getWPPConfig, toast, checkConnectionStatus]);
 
-  // Carregar conversas reais com melhor tratamento de erros
+  // Carregar conversas reais
   const loadRealChats = useCallback(async (): Promise<Chat[]> => {
     try {
       setIsLoadingChats(true);
@@ -346,7 +346,6 @@ export function useWPPConnect() {
       
       const config = getWPPConfig();
       
-      // Use only the all-chats endpoint that we know works
       console.log(`🔍 Carregando de: /api/${config.sessionName}/all-chats`);
       const response = await makeWPPRequest(`/api/${config.sessionName}/all-chats`);
       
@@ -412,7 +411,7 @@ export function useWPPConnect() {
     }
   }, [makeWPPRequest, getWPPConfig, toast]);
 
-  // Carregar mensagens de uma conversa
+  // Carregar mensagens de uma conversa - USANDO APENAS O ENDPOINT QUE FUNCIONA
   const loadRealMessages = useCallback(async (chatId: string) => {
     try {
       setIsLoadingMessages(true);
@@ -420,69 +419,53 @@ export function useWPPConnect() {
       
       const config = getWPPConfig();
       
-      // Tentar diferentes endpoints para mensagens
+      // Usar apenas o endpoint que funciona: all-messages-in-chat com GET
+      const endpoint = `/api/${config.sessionName}/all-messages-in-chat/${encodeURIComponent(chatId)}?count=${messageHistoryLimit}`;
+      console.log(`🔍 Tentando carregar mensagens de: ${endpoint}`);
+      
       let messagesData;
-      const endpoints = [
-        `/api/${config.sessionName}/all-messages-in-chat/${encodeURIComponent(chatId)}`,
-        `/api/${config.sessionName}/get-messages/${encodeURIComponent(chatId)}`,
-        `/api/${config.sessionName}/chat-messages/${encodeURIComponent(chatId)}`
-      ];
-      
-      for (const endpoint of endpoints) {
-        try {
-          console.log(`🔍 Tentando carregar mensagens de: ${endpoint}`);
-          
-          // Para alguns endpoints, precisamos enviar dados no body
-          if (endpoint.includes('get-messages') || endpoint.includes('chat-messages')) {
-            messagesData = await makeWPPRequest(endpoint, {
-              method: 'POST',
-              body: JSON.stringify({
-                chatId: chatId,
-                count: messageHistoryLimit,
-                page: 1
-              })
-            });
-          } else {
-            // Para o endpoint all-messages-in-chat, usar GET com query params
-            const urlWithParams = `${endpoint}?count=${messageHistoryLimit}`;
-            messagesData = await makeWPPRequest(urlWithParams);
-          }
-          
-          console.log(`✅ Resposta de mensagens de ${endpoint}:`, messagesData);
-          
-          // Verificar se obtivemos dados válidos
-          if (messagesData) {
-            // Extrair array de mensagens da resposta
-            if (Array.isArray(messagesData)) {
-              break;
-            } else if (messagesData.messages && Array.isArray(messagesData.messages)) {
-              messagesData = messagesData.messages;
-              break;
-            } else if (messagesData.data && Array.isArray(messagesData.data)) {
-              messagesData = messagesData.data;
-              break;
-            } else if (messagesData.response && Array.isArray(messagesData.response)) {
-              messagesData = messagesData.response;
-              break;
-            }
-          }
-          
-        } catch (error) {
-          console.log(`❌ Falhou endpoint de mensagens ${endpoint}:`, error.message);
-          if (endpoint === endpoints[endpoints.length - 1]) {
-            throw new Error(`Falha ao carregar mensagens. Último erro: ${error.message}`);
-          }
-        }
+      try {
+        messagesData = await makeWPPRequest(endpoint);
+        console.log(`✅ Resposta de mensagens:`, messagesData);
+      } catch (error) {
+        console.error(`❌ Erro ao carregar mensagens:`, error);
+        
+        // Se o endpoint principal falhar, mostrar erro amigável
+        toast({
+          title: "❌ Erro ao carregar mensagens",
+          description: "Esta conversa não suporta carregamento de mensagens ou não há mensagens disponíveis",
+          variant: "destructive"
+        });
+        
+        // Limpar mensagens desta conversa se houver erro
+        setMessages(prev => prev.filter(m => m.chatId !== chatId));
+        return;
       }
       
-      if (!Array.isArray(messagesData)) {
-        console.error('❌ Nenhum endpoint de mensagens funcionou:', messagesData);
-        throw new Error('Não foi possível carregar as mensagens desta conversa');
+      // Extrair array de mensagens da resposta
+      let messagesList = [];
+      if (Array.isArray(messagesData)) {
+        messagesList = messagesData;
+      } else if (messagesData && messagesData.response && Array.isArray(messagesData.response)) {
+        messagesList = messagesData.response;
+      } else if (messagesData && messagesData.messages && Array.isArray(messagesData.messages)) {
+        messagesList = messagesData.messages;
+      } else if (messagesData && messagesData.data && Array.isArray(messagesData.data)) {
+        messagesList = messagesData.data;
+      } else {
+        console.log('📭 Nenhuma mensagem encontrada para esta conversa ou formato inválido');
+        setMessages(prev => prev.filter(m => m.chatId !== chatId));
+        
+        toast({
+          title: "📭 Conversa sem mensagens",
+          description: "Esta conversa não possui mensagens ou não foi possível carregá-las"
+        });
+        return;
       }
 
-      console.log(`📬 ${messagesData.length} mensagens encontradas para ${chatId}`);
+      console.log(`📬 ${messagesList.length} mensagens encontradas para ${chatId}`);
 
-      if (messagesData.length === 0) {
+      if (messagesList.length === 0) {
         console.log('📭 Nenhuma mensagem encontrada para esta conversa');
         setMessages(prev => prev.filter(m => m.chatId !== chatId));
         
@@ -493,7 +476,7 @@ export function useWPPConnect() {
         return;
       }
 
-      const formattedMessages: Message[] = messagesData.map((msg: any, index: number) => ({
+      const formattedMessages: Message[] = messagesList.map((msg: any, index: number) => ({
         id: msg.id?._serialized || msg.id || `msg-${chatId}-${index}`,
         chatId: chatId,
         text: msg.body || msg.content || msg.text || msg.message || 'Mensagem sem texto',
@@ -689,7 +672,7 @@ export function useWPPConnect() {
     isLoadingChats,
     isLiveMode,
     currentChatId,
-    messageHistoryLimit, // Novo retorno
+    messageHistoryLimit,
     getWPPConfig,
     saveWPPConfig,
     generateQRCode,
@@ -701,6 +684,6 @@ export function useWPPConnect() {
     stopLiveMode,
     disconnectWhatsApp,
     getConnectionStatus,
-    updateMessageHistoryLimit // Nova função
+    updateMessageHistoryLimit
   };
 }
