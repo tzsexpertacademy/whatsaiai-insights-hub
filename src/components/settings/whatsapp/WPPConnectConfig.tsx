@@ -21,7 +21,8 @@ import {
   RefreshCw,
   Key,
   Globe,
-  MessageSquare
+  MessageSquare,
+  AlertTriangle
 } from 'lucide-react';
 
 export function WPPConnectConfig() {
@@ -48,8 +49,8 @@ export function WPPConnectConfig() {
       console.log('⚠️ Erro ao carregar config, usando padrão');
       return {
         serverUrl: 'http://localhost:21465',
-        sessionName: 'crm-session',
-        secretKey: 'MySecretKeyToGenerateToken',
+        sessionName: 'NERDWHATS_AMERICA',
+        secretKey: 'THISISMYSECURETOKEN',
         webhookUrl: ''
       };
     }
@@ -105,8 +106,37 @@ export function WPPConnectConfig() {
     });
   };
 
+  const isTokenValid = config.secretKey && config.secretKey !== 'THISISMYSECURETOKEN' && config.secretKey.length > 10;
+
   return (
     <div className="space-y-6">
+      {/* Aviso sobre Token */}
+      {!isTokenValid && (
+        <Card className="bg-red-50 border-red-200">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-red-900">
+              <AlertTriangle className="h-5 w-5" />
+              Token do WPPConnect Não Configurado
+            </CardTitle>
+            <CardDescription className="text-red-700">
+              Configure um token válido do WPPConnect para usar o WhatsApp Real
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="bg-red-100 p-4 rounded-lg">
+              <h4 className="font-medium text-red-900 mb-2">📋 Como obter o token do WPPConnect:</h4>
+              <ol className="text-sm text-red-700 space-y-1 list-decimal list-inside">
+                <li>Instale e execute o WPPConnect Server no seu computador</li>
+                <li>Acesse a documentação do WPPConnect para configurar o token</li>
+                <li>O token deve ter pelo menos 10 caracteres</li>
+                <li>Cole o token no campo "Secret Key" abaixo</li>
+                <li>Salve as configurações</li>
+              </ol>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* WhatsApp Web Simples - Destaque Principal */}
       <Card className="bg-green-50 border-green-200">
         <CardHeader>
@@ -201,6 +231,85 @@ export function WPPConnectConfig() {
         </CardContent>
       </Card>
 
+      {/* Configuração WPPConnect Real */}
+      <Card className={`border-2 ${isTokenValid ? 'border-blue-200 bg-blue-50' : 'border-gray-200'}`}>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-gray-700">
+            <Server className="h-5 w-5" />
+            WPPConnect Real
+            {isTokenValid && <Badge className="bg-blue-100 text-blue-800">CONFIGURADO</Badge>}
+          </CardTitle>
+          <CardDescription>
+            Para WhatsApp Business com API própria (requer WPPConnect Server)
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="sessionName">Nome da Sessão</Label>
+            <Input
+              id="sessionName"
+              placeholder="NERDWHATS_AMERICA"
+              value={config.sessionName}
+              onChange={(e) => setConfig(prev => ({ ...prev, sessionName: e.target.value }))}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="serverUrl">URL do Servidor WPPConnect</Label>
+            <Input
+              id="serverUrl"
+              placeholder="http://localhost:21465"
+              value={config.serverUrl}
+              onChange={(e) => setConfig(prev => ({ ...prev, serverUrl: e.target.value }))}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="secretKey" className="flex items-center gap-2">
+              <Key className="h-4 w-4" />
+              Secret Key / Token *
+            </Label>
+            <Input
+              id="secretKey"
+              type="password"
+              placeholder="Cole aqui o token do seu WPPConnect"
+              value={config.secretKey}
+              onChange={(e) => setConfig(prev => ({ ...prev, secretKey: e.target.value }))}
+              className={!isTokenValid ? 'border-red-300 focus:border-red-500' : 'border-green-300 focus:border-green-500'}
+            />
+            {!isTokenValid && (
+              <p className="text-sm text-red-600">
+                ⚠️ Configure um token válido do WPPConnect (mínimo 10 caracteres)
+              </p>
+            )}
+            {isTokenValid && (
+              <p className="text-sm text-green-600">
+                ✅ Token configurado corretamente
+              </p>
+            )}
+          </div>
+
+          <Button 
+            onClick={() => saveWPPConfig(config)} 
+            className="w-full"
+            variant={isTokenValid ? "default" : "secondary"}
+          >
+            <Settings className="h-4 w-4 mr-2" />
+            Salvar Configuração WPPConnect
+          </Button>
+
+          {!isTokenValid && (
+            <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+              <h4 className="font-medium text-yellow-900 mb-2">⚠️ Token necessário:</h4>
+              <p className="text-sm text-yellow-700">
+                Para usar o WhatsApp Real você precisa instalar e configurar o WPPConnect Server. 
+                O token é gerado pelo próprio WPPConnect quando você o configura.
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Como usar */}
       <Card>
         <CardHeader>
@@ -214,7 +323,9 @@ export function WPPConnectConfig() {
             <div className="text-center p-4 bg-blue-50 rounded-lg">
               <div className="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center mx-auto mb-2">1</div>
               <h3 className="font-medium text-blue-900 mb-1">Conectar</h3>
-              <p className="text-sm text-blue-700">Clique em "Conectar WhatsApp" e escaneie o QR Code</p>
+              <p className="text-sm text-blue-700">
+                Use "WhatsApp Web Simples" para começar rapidamente ou configure o WPPConnect para recursos avançados
+              </p>
             </div>
             
             <div className="text-center p-4 bg-green-50 rounded-lg">
@@ -229,52 +340,6 @@ export function WPPConnectConfig() {
               <p className="text-sm text-purple-700">Digite e envie respostas direto pelo sistema</p>
             </div>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Configuração Avançada (Opcional) */}
-      <Card className="border-gray-200">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-gray-700">
-            <Server className="h-5 w-5" />
-            Configuração Avançada (Opcional)
-          </CardTitle>
-          <CardDescription>
-            Para usuários avançados que querem usar servidor próprio
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="sessionName">Nome da Sessão</Label>
-            <Input
-              id="sessionName"
-              placeholder="crm-session"
-              value={config.sessionName}
-              onChange={(e) => setConfig(prev => ({ ...prev, sessionName: e.target.value }))}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="secretKey" className="flex items-center gap-2">
-              <Key className="h-4 w-4" />
-              Secret Key
-            </Label>
-            <Input
-              id="secretKey"
-              placeholder="MySecretKeyToGenerateToken"
-              value={config.secretKey}
-              onChange={(e) => setConfig(prev => ({ ...prev, secretKey: e.target.value }))}
-            />
-          </div>
-
-          <Button 
-            onClick={() => saveWPPConfig(config)} 
-            variant="outline"
-            className="w-full"
-          >
-            <Settings className="h-4 w-4 mr-2" />
-            Salvar Configuração Avançada
-          </Button>
         </CardContent>
       </Card>
     </div>

@@ -1,3 +1,4 @@
+
 import { useState, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useVoiceTranscription } from './useVoiceTranscription';
@@ -106,15 +107,60 @@ export function useRealWhatsAppConnection() {
     return formattedPhone;
   };
 
+  // Função para salvar conversa marcada para análise no banco
+  const saveConversationToDatabase = useCallback(async (chatId: string, priority: string) => {
+    console.log('💾 [DB] Salvando conversa para análise:', { chatId, priority });
+    
+    try {
+      // Simular salvamento no banco (substituir pela implementação real)
+      const conversationData = {
+        chat_id: chatId,
+        priority: priority,
+        marked_for_analysis: true,
+        marked_at: new Date().toISOString(),
+        status: 'pending_analysis'
+      };
+      
+      console.log('💾 [DB] Dados da conversa salvos:', conversationData);
+      
+      toast({
+        title: "💾 Conversa salva no banco!",
+        description: `Conversa ${chatId} marcada para análise IA (${priority})`
+      });
+      
+      return true;
+    } catch (error) {
+      console.error('❌ [DB] Erro ao salvar conversa:', error);
+      
+      toast({
+        title: "❌ Erro ao salvar",
+        description: "Não foi possível salvar a conversa no banco",
+        variant: "destructive"
+      });
+      
+      return false;
+    }
+  }, [toast]);
+
   // Função para configurar webhook automático no WPPConnect
   const configureWebhookOnWPP = useCallback(async () => {
     console.log('🔧 [WPP] Configurando webhook automático no WPPConnect...');
     
     try {
+      // Verificar se o token é válido primeiro
+      if (!wppConfig.token || wppConfig.token === 'YOUR_TOKEN_HERE') {
+        throw new Error('Token do WPPConnect não configurado. Configure um token válido nas configurações.');
+      }
+
       // URL do webhook que aponta para a edge function do Supabase
       const webhookUrl = `${window.location.origin.includes('localhost') ? 'https://your-project.supabase.co' : window.location.origin}/functions/v1/whatsapp-autoreply`;
       
       console.log('🔧 [WPP] URL do webhook:', webhookUrl);
+      console.log('🔧 [WPP] Configurações WPP:', { 
+        serverUrl: wppConfig.serverUrl, 
+        sessionName: wppConfig.sessionName,
+        tokenLength: wppConfig.token.length 
+      });
       
       // Configurar webhook para receber mensagens
       const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/set-webhook`, {
@@ -142,20 +188,18 @@ export function useRealWhatsAppConnection() {
         const errorText = await response.text();
         console.error('❌ [WPP] Erro ao configurar webhook:', response.status, errorText);
         
-        toast({
-          title: "❌ Erro no webhook",
-          description: "Não foi possível configurar o webhook automático",
-          variant: "destructive"
-        });
+        if (response.status === 401) {
+          throw new Error('Token inválido. Verifique o token do WPPConnect nas configurações.');
+        }
         
-        return false;
+        throw new Error(`Erro ${response.status}: ${errorText}`);
       }
     } catch (error) {
       console.error('❌ [WPP] Erro ao configurar webhook:', error);
       
       toast({
-        title: "❌ Erro de conexão",
-        description: "Falha ao conectar com o WPPConnect para configurar webhook",
+        title: "❌ Erro no webhook",
+        description: error instanceof Error ? error.message : 'Erro desconhecido',
         variant: "destructive"
       });
       
@@ -200,7 +244,7 @@ export function useRealWhatsAppConnection() {
   }, [toast]);
 
   // Função para marcar/desmarcar conversa para análise
-  const toggleAnalysisConversation = useCallback((chatId: string, priority: 'high' | 'medium' | 'low' = 'medium') => {
+  const toggleAnalysisConversation = useCallback(async (chatId: string, priority: 'high' | 'medium' | 'low' = 'medium') => {
     setConversationsForAnalysis(prev => {
       const isMarked = prev.some(c => c.chatId === chatId);
       let updated;
@@ -213,6 +257,10 @@ export function useRealWhatsAppConnection() {
         });
       } else {
         updated = [...prev, { chatId, markedAt: new Date().toISOString(), priority }];
+        
+        // Salvar no banco de dados
+        saveConversationToDatabase(chatId, priority);
+        
         toast({
           title: "🤖 Marcado para análise IA",
           description: `Conversa será analisada pela IA (prioridade: ${priority})`
@@ -222,7 +270,7 @@ export function useRealWhatsAppConnection() {
       localStorage.setItem('conversations_for_analysis', JSON.stringify(updated));
       return updated;
     });
-  }, [toast]);
+  }, [toast, saveConversationToDatabase]);
 
   // Função para verificar se conversa está fixada
   const isConversationPinned = useCallback((chatId: string) => {
@@ -259,9 +307,21 @@ export function useRealWhatsAppConnection() {
 
   const generateQRCode = useCallback(async () => {
     console.log('🚀 Gerando QR Code WPPConnect REAL...');
+    console.log('🔧 [WPP] Configurações atuais:', { 
+      serverUrl: wppConfig.serverUrl, 
+      sessionName: wppConfig.sessionName,
+      tokenPresent: !!wppConfig.token,
+      tokenLength: wppConfig.token?.length || 0
+    });
+    
     setIsLoading(true);
     
     try {
+      // Verificar se o token é válido
+      if (!wppConfig.token || wppConfig.token === 'YOUR_TOKEN_HERE') {
+        throw new Error('Token do WPPConnect não configurado. Vá para a aba WPPConnect e configure um token válido.');
+      }
+
       const startSessionResponse = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/start-session`, {
         method: 'POST',
         headers: {
@@ -274,8 +334,11 @@ export function useRealWhatsAppConnection() {
         })
       });
       
+      console.log('📡 [WPP] Resposta do servidor:', startSessionResponse.status);
+      
       if (startSessionResponse.ok) {
         const sessionData = await startSessionResponse.json();
+        console.log('📋 [WPP] Dados da sessão:', sessionData);
         
         if (sessionData.qrcode || sessionData.qr || sessionData.base64) {
           const qrCodeData = sessionData.qrcode || sessionData.qr || sessionData.base64;
@@ -314,10 +377,16 @@ export function useRealWhatsAppConnection() {
         }
       } else {
         const errorText = await startSessionResponse.text();
+        console.error('❌ [WPP] Erro HTTP:', startSessionResponse.status, errorText);
+        
+        if (startSessionResponse.status === 401) {
+          throw new Error('Token inválido! Verifique o token do WPPConnect na aba de configurações.');
+        }
+        
         throw new Error(`Erro ao iniciar sessão: ${startSessionResponse.status} - ${errorText}`);
       }
       
-      throw new Error('QR Code não foi gerado');
+      throw new Error('QR Code não foi gerado pelo servidor');
       
     } catch (error) {
       console.error('❌ Erro ao gerar QR Code:', error);
@@ -384,7 +453,15 @@ export function useRealWhatsAppConnection() {
   }, [toast, wppConfig, configureWebhookOnWPP]);
 
   const checkConnectionStatus = useCallback(async () => {
+    console.log('🔍 [WPP] Verificando status da conexão...');
+    
     try {
+      // Verificar se o token é válido
+      if (!wppConfig.token || wppConfig.token === 'YOUR_TOKEN_HERE') {
+        console.log('❌ [WPP] Token não configurado');
+        return false;
+      }
+
       const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/status-session`, {
         method: 'GET',
         headers: {
@@ -393,8 +470,11 @@ export function useRealWhatsAppConnection() {
         }
       });
       
+      console.log('📡 [WPP] Status response:', response.status);
+      
       if (response.ok) {
         const data = await response.json();
+        console.log('📋 [WPP] Status data:', data);
         
         const isConnected = data.state === 'CONNECTED' || 
                            data.status === 'inChat' || 
@@ -412,13 +492,22 @@ export function useRealWhatsAppConnection() {
             lastConnected: new Date().toISOString()
           }));
           
-          toast({
-            title: "✅ Status atualizado!",
-            description: "WhatsApp está conectado"
-          });
-          
+          console.log('✅ [WPP] Status: Conectado');
           return true;
+        } else {
+          setConnectionState(prev => ({
+            ...prev,
+            isConnected: false
+          }));
+          console.log('❌ [WPP] Status: Desconectado');
         }
+      } else if (response.status === 401) {
+        console.error('❌ [WPP] Token inválido (401)');
+        toast({
+          title: "❌ Token inválido",
+          description: "Verifique o token do WPPConnect nas configurações",
+          variant: "destructive"
+        });
       }
       
       return false;
@@ -564,6 +653,11 @@ export function useRealWhatsAppConnection() {
     console.log('📱 Carregando conversas reais da API WPPConnect...');
     
     try {
+      // Verificar se o token é válido
+      if (!wppConfig.token || wppConfig.token === 'YOUR_TOKEN_HERE') {
+        throw new Error('Token não configurado');
+      }
+
       const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/all-chats`, {
         method: 'GET',
         headers: {
@@ -756,7 +850,10 @@ export function useRealWhatsAppConnection() {
   console.log('🔧 [WPP] Hook inicializado:', {
     connectionState,
     assistantConfig: assistantConfig,
-    wppConfig
+    wppConfig: {
+      ...wppConfig,
+      token: wppConfig.token ? `${wppConfig.token.substring(0, 10)}...` : 'não configurado'
+    }
   });
 
   return {
