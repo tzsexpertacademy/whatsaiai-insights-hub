@@ -15,7 +15,11 @@ export function useConversationMarking() {
     contactPhone: string,
     priority: 'high' | 'medium' | 'low' = 'medium'
   ) => {
+    console.log('🚀 INÍCIO MARCAÇÃO:', { chatId, contactName, contactPhone, priority });
+    console.log('👤 Usuário atual:', { userId: user?.id, userEmail: user?.email });
+
     if (!user?.id) {
+      console.error('❌ ERRO: Usuário não autenticado', { user });
       toast({
         title: "Erro",
         description: "Usuário não autenticado",
@@ -25,75 +29,108 @@ export function useConversationMarking() {
     }
 
     setIsMarking(true);
-    console.log('🏷️ Marcando conversa para análise:', { chatId, contactName, contactPhone, priority });
+    console.log('🔄 Iniciando processo de marcação...');
 
     try {
-      // Verificar se já existe
-      const { data: existing } = await supabase
+      console.log('🔍 Verificando se conversa já existe...');
+      const { data: existing, error: selectError } = await supabase
         .from('whatsapp_conversations_analysis')
-        .select('id, marked_for_analysis')
+        .select('id, marked_for_analysis, priority')
         .eq('user_id', user.id)
         .eq('chat_id', chatId)
         .single();
 
+      if (selectError && selectError.code !== 'PGRST116') {
+        console.error('❌ ERRO na consulta:', selectError);
+        throw selectError;
+      }
+
+      console.log('📊 Resultado da consulta:', { existing, selectError });
+
       if (existing) {
-        // Atualizar registro existente
-        const { error } = await supabase
+        console.log('✏️ Atualizando conversa existente...');
+        const newStatus = !existing.marked_for_analysis;
+        
+        const { data: updateData, error: updateError } = await supabase
           .from('whatsapp_conversations_analysis')
           .update({
-            marked_for_analysis: !existing.marked_for_analysis,
+            marked_for_analysis: newStatus,
             priority,
             contact_name: contactName,
             contact_phone: contactPhone,
             updated_at: new Date().toISOString()
           })
-          .eq('id', existing.id);
+          .eq('id', existing.id)
+          .select();
 
-        if (error) throw error;
+        console.log('📝 Resultado da atualização:', { updateData, updateError });
+
+        if (updateError) {
+          console.error('❌ ERRO na atualização:', updateError);
+          throw updateError;
+        }
 
         toast({
-          title: existing.marked_for_analysis ? "Conversa desmarcada" : "Conversa marcada",
-          description: existing.marked_for_analysis 
-            ? "Conversa removida da análise IA" 
-            : "Conversa marcada para análise IA"
+          title: newStatus ? "Conversa marcada" : "Conversa desmarcada",
+          description: newStatus 
+            ? "Conversa marcada para análise IA" 
+            : "Conversa removida da análise IA"
         });
 
-        console.log('✅ Conversa atualizada:', existing.marked_for_analysis ? 'desmarcada' : 'marcada');
-        return !existing.marked_for_analysis;
+        console.log('✅ Conversa atualizada com sucesso:', newStatus ? 'marcada' : 'desmarcada');
+        return newStatus;
       } else {
-        // Criar novo registro
-        const { error } = await supabase
-          .from('whatsapp_conversations_analysis')
-          .insert({
-            user_id: user.id,
-            chat_id: chatId,
-            contact_name: contactName,
-            contact_phone: contactPhone,
-            priority,
-            marked_for_analysis: true,
-            analysis_status: 'pending'
-          });
+        console.log('➕ Criando nova conversa marcada...');
+        const insertData = {
+          user_id: user.id,
+          chat_id: chatId,
+          contact_name: contactName,
+          contact_phone: contactPhone,
+          priority,
+          marked_for_analysis: true,
+          analysis_status: 'pending'
+        };
+        
+        console.log('📋 Dados para inserção:', insertData);
 
-        if (error) throw error;
+        const { data: insertResult, error: insertError } = await supabase
+          .from('whatsapp_conversations_analysis')
+          .insert(insertData)
+          .select();
+
+        console.log('📝 Resultado da inserção:', { insertResult, insertError });
+
+        if (insertError) {
+          console.error('❌ ERRO na inserção:', insertError);
+          throw insertError;
+        }
 
         toast({
           title: "Conversa marcada",
           description: "Conversa marcada para análise IA"
         });
 
-        console.log('✅ Nova conversa marcada para análise');
+        console.log('✅ Nova conversa marcada com sucesso');
         return true;
       }
     } catch (error) {
-      console.error('❌ Erro ao marcar conversa:', error);
+      console.error('❌ ERRO GERAL ao marcar conversa:', error);
+      console.error('📋 Detalhes do erro:', {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint
+      });
+      
       toast({
         title: "Erro ao marcar conversa",
-        description: "Não foi possível marcar a conversa para análise",
+        description: `Erro: ${error.message || 'Não foi possível marcar a conversa'}`,
         variant: "destructive"
       });
       return false;
     } finally {
       setIsMarking(false);
+      console.log('🏁 Finalizando processo de marcação');
     }
   };
 
@@ -103,6 +140,8 @@ export function useConversationMarking() {
   ) => {
     if (!user?.id) return false;
 
+    console.log('🎯 Atualizando prioridade:', { chatId, priority, userId: user.id });
+
     try {
       const { error } = await supabase
         .from('whatsapp_conversations_analysis')
@@ -110,13 +149,17 @@ export function useConversationMarking() {
         .eq('user_id', user.id)
         .eq('chat_id', chatId);
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Erro ao atualizar prioridade:', error);
+        throw error;
+      }
 
       toast({
         title: "Prioridade atualizada",
         description: `Prioridade alterada para ${priority}`
       });
 
+      console.log('✅ Prioridade atualizada com sucesso');
       return true;
     } catch (error) {
       console.error('❌ Erro ao atualizar prioridade:', error);

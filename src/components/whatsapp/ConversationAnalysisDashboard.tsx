@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -6,6 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAnalysisConversations } from '@/hooks/useAnalysisConversations';
 import { useProtectedAnalysisData } from '@/hooks/useProtectedAnalysisData';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { ConversationInsights } from './ConversationInsights';
 import { ConversationMetrics } from './ConversationMetrics';
@@ -22,10 +24,13 @@ import {
   AlertTriangle,
   Star,
   CheckCircle,
-  XCircle
+  XCircle,
+  Bug
 } from 'lucide-react';
 
 export function ConversationAnalysisDashboard() {
+  const { user } = useAuth();
+  const { toast } = useToast();
   const { 
     conversations, 
     isLoading, 
@@ -40,7 +45,102 @@ export function ConversationAnalysisDashboard() {
 
   const [hasInitialized, setHasInitialized] = useState(false);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
+  const [debugInfo, setDebugInfo] = useState<any>(null);
   const loadingRef = useRef(false);
+
+  // Debug direto no banco
+  const testDatabaseConnection = async () => {
+    console.log('🔧 TESTE DIRETO NO BANCO...');
+    
+    if (!user?.id) {
+      console.error('❌ Usuário não logado para teste');
+      toast({
+        title: "Erro",
+        description: "Usuário não logado",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      // Teste 1: Verificar se a tabela existe
+      console.log('🔍 Teste 1: Verificando tabela...');
+      const { data: tableTest, error: tableError } = await supabase
+        .from('whatsapp_conversations_analysis')
+        .select('count(*)');
+      
+      console.log('📊 Resultado teste tabela:', { tableTest, tableError });
+
+      // Teste 2: Buscar TODOS os registros do usuário
+      console.log('🔍 Teste 2: Buscando TODOS registros do usuário...');
+      const { data: allUserData, error: allUserError } = await supabase
+        .from('whatsapp_conversations_analysis')
+        .select('*')
+        .eq('user_id', user.id);
+      
+      console.log('📊 Resultado TODOS registros:', { allUserData, allUserError });
+
+      // Teste 3: Buscar apenas marcados
+      console.log('🔍 Teste 3: Buscando apenas marcados...');
+      const { data: markedData, error: markedError } = await supabase
+        .from('whatsapp_conversations_analysis')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('marked_for_analysis', true);
+      
+      console.log('📊 Resultado marcados:', { markedData, markedError });
+
+      // Teste 4: Inserir um registro de teste
+      console.log('🔍 Teste 4: Inserindo registro de teste...');
+      const testRecord = {
+        user_id: user.id,
+        chat_id: 'TEST_' + Date.now(),
+        contact_name: 'Teste Debug',
+        contact_phone: '5511999999999',
+        priority: 'medium' as const,
+        marked_for_analysis: true,
+        analysis_status: 'pending' as const
+      };
+
+      const { data: insertTest, error: insertError } = await supabase
+        .from('whatsapp_conversations_analysis')
+        .insert(testRecord)
+        .select();
+      
+      console.log('📊 Resultado inserção teste:', { insertTest, insertError });
+
+      const debugResult = {
+        userId: user.id,
+        tableExists: !tableError,
+        totalRecords: allUserData?.length || 0,
+        markedRecords: markedData?.length || 0,
+        insertSuccess: !insertError,
+        errors: {
+          table: tableError?.message,
+          allUser: allUserError?.message,
+          marked: markedError?.message,
+          insert: insertError?.message
+        },
+        testRecord: insertTest?.[0]
+      };
+
+      setDebugInfo(debugResult);
+      console.log('🔧 DEBUG COMPLETO:', debugResult);
+
+      toast({
+        title: "Debug Concluído",
+        description: `Total: ${debugResult.totalRecords}, Marcados: ${debugResult.markedRecords}`,
+      });
+
+    } catch (error) {
+      console.error('❌ ERRO no teste do banco:', error);
+      toast({
+        title: "Erro no Debug",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  };
 
   // Inicializar dados apenas uma vez
   useEffect(() => {
@@ -136,6 +236,15 @@ export function ConversationAnalysisDashboard() {
         {completedConversations.length} Analisadas
       </Badge>
       <Button 
+        onClick={testDatabaseConnection} 
+        variant="outline" 
+        size="sm"
+        className="border-red-200 text-red-600 hover:bg-red-50"
+      >
+        <Bug className="h-4 w-4 mr-1" />
+        Debug DB
+      </Button>
+      <Button 
         onClick={handleRefreshAll} 
         variant="outline" 
         size="sm" 
@@ -156,6 +265,32 @@ export function ConversationAnalysisDashboard() {
       backUrl="/dashboard/behavioral"
       headerActions={headerActions}
     >
+      {/* Debug Info */}
+      {debugInfo && (
+        <Card className="mb-4 bg-red-50 border-red-200">
+          <CardHeader>
+            <CardTitle className="text-red-700">🔧 Debug Database Info</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-sm text-red-600 space-y-1">
+              <p><strong>User ID:</strong> {debugInfo.userId}</p>
+              <p><strong>Tabela existe:</strong> {debugInfo.tableExists ? '✅' : '❌'}</p>
+              <p><strong>Total registros:</strong> {debugInfo.totalRecords}</p>
+              <p><strong>Registros marcados:</strong> {debugInfo.markedRecords}</p>
+              <p><strong>Inserção teste:</strong> {debugInfo.insertSuccess ? '✅' : '❌'}</p>
+              {Object.entries(debugInfo.errors).some(([_, error]) => error) && (
+                <div className="mt-2 p-2 bg-red-100 rounded">
+                  <p><strong>Erros:</strong></p>
+                  {Object.entries(debugInfo.errors).map(([key, error]) => 
+                    error && <p key={key}>• {key}: {String(error)}</p>
+                  )}
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Status do Sistema */}
       <Card className="mb-4 bg-blue-50 border-blue-200">
         <CardContent className="p-4">
