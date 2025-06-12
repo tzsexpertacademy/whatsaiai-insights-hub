@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -52,24 +53,64 @@ export function WPPConnectMirror() {
   const [pinnedConversations, setPinnedConversations] = useState<Set<string>>(new Set());
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Função auxiliar para garantir que chatId seja string
+  // Função auxiliar para garantir que chatId seja string - MAIS ROBUSTA
   const formatChatId = (chatId: any): string => {
+    console.log('🔧 formatChatId - Input:', chatId, 'Type:', typeof chatId);
+    
+    // Se já for string, retornar
     if (typeof chatId === 'string') {
+      console.log('✅ já é string:', chatId);
       return chatId;
     }
-    if (typeof chatId === 'object' && chatId !== null) {
-      // Se for um objeto com _serialized, usar essa propriedade
-      if (chatId._serialized) {
+    
+    // Se for null ou undefined
+    if (chatId === null || chatId === undefined) {
+      console.log('⚠️ chatId é null/undefined');
+      return 'unknown';
+    }
+    
+    // Se for um objeto
+    if (typeof chatId === 'object') {
+      // Tentar _serialized primeiro
+      if (chatId._serialized && typeof chatId._serialized === 'string') {
+        console.log('✅ usando _serialized:', chatId._serialized);
         return chatId._serialized;
       }
-      // Se for um objeto com user e server, construir o ID
+      
+      // Tentar user@server
       if (chatId.user && chatId.server) {
-        return `${chatId.user}@${chatId.server}`;
+        const formatted = `${chatId.user}@${chatId.server}`;
+        console.log('✅ construído user@server:', formatted);
+        return formatted;
       }
-      // Como fallback, tentar JSON.stringify
-      return JSON.stringify(chatId);
+      
+      // Tentar id
+      if (chatId.id && typeof chatId.id === 'string') {
+        console.log('✅ usando id:', chatId.id);
+        return chatId.id;
+      }
+      
+      // Se tem id como objeto, tentar _serialized dele
+      if (chatId.id && chatId.id._serialized) {
+        console.log('✅ usando id._serialized:', chatId.id._serialized);
+        return chatId.id._serialized;
+      }
+      
+      // Como último recurso, tentar JSON.stringify mas de forma segura
+      try {
+        const stringified = JSON.stringify(chatId);
+        console.log('⚠️ usando JSON.stringify:', stringified);
+        return stringified;
+      } catch (error) {
+        console.error('❌ Erro ao fazer JSON.stringify:', error);
+        return 'invalid-id';
+      }
     }
-    return String(chatId);
+    
+    // Para qualquer outro tipo, converter para string
+    const fallback = String(chatId);
+    console.log('⚠️ usando String():', fallback);
+    return fallback;
   };
 
   // Auto-scroll para última mensagem
@@ -92,7 +133,8 @@ export function WPPConnectMirror() {
   };
 
   const selectContact = (contact: any) => {
-    const formattedChatId = formatChatId(contact.chatId);
+    const formattedChatId = formatChatId(contact.chatId || contact.id);
+    console.log('🎯 selectContact - Original:', contact.chatId || contact.id, 'Formatted:', formattedChatId);
     setSelectedContact(formattedChatId);
     loadChatMessages(formattedChatId);
   };
@@ -140,7 +182,7 @@ export function WPPConnectMirror() {
 
   const handleToggleAnalysis = async (chatId: string, priority?: 'high' | 'medium' | 'low') => {
     const formattedChatId = formatChatId(chatId);
-    const chat = chats.find(c => formatChatId(c.chatId) === formattedChatId);
+    const chat = chats.find(c => formatChatId(c.chatId || c.id) === formattedChatId);
     if (!chat) return;
 
     console.log('🏷️ Toggle análise para:', { chatId: formattedChatId, chatName: chat.name, priority });
@@ -318,11 +360,15 @@ export function WPPConnectMirror() {
             
             <CardContent className="p-0">
               <div className="space-y-1 max-h-[500px] overflow-y-auto">
-                {chats.map((chat) => {
-                  const formattedChatId = formatChatId(chat.chatId);
+                {chats.map((chat, index) => {
+                  const formattedChatId = formatChatId(chat.chatId || chat.id);
+                  const chatKey = formattedChatId || `chat-${index}`;
+                  
+                  console.log('🔄 Renderizing chat:', { originalId: chat.chatId || chat.id, formattedId: formattedChatId, name: chat.name });
+                  
                   return (
                     <ConversationContextMenu
-                      key={formattedChatId}
+                      key={chatKey}
                       chatId={formattedChatId}
                       isPinned={pinnedConversations.has(formattedChatId)}
                       isMarkedForAnalysis={markedConversations.has(formattedChatId)}
@@ -343,7 +389,7 @@ export function WPPConnectMirror() {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-2">
-                                <span className="font-medium text-sm">{chat.name}</span>
+                                <span className="font-medium text-sm">{chat.name || 'Conversa sem nome'}</span>
                                 {pinnedConversations.has(formattedChatId) && (
                                   <Star className="h-3 w-3 text-yellow-500 fill-current" />
                                 )}
@@ -351,9 +397,9 @@ export function WPPConnectMirror() {
                                   <Brain className="h-3 w-3 text-blue-500" />
                                 )}
                               </div>
-                              <span className="text-xs text-gray-400">{formatTime(chat.timestamp)}</span>
+                              <span className="text-xs text-gray-400">{formatTime(chat.timestamp || new Date().toISOString())}</span>
                             </div>
-                            <p className="text-sm text-gray-500 truncate mt-1">{chat.lastMessage}</p>
+                            <p className="text-sm text-gray-500 truncate mt-1">{chat.lastMessage || 'Sem mensagens'}</p>
                             <p className="text-xs text-gray-400 mt-1">
                               ID: {formattedChatId}
                             </p>
@@ -381,7 +427,7 @@ export function WPPConnectMirror() {
                     </div>
                     <div className="flex-1">
                       <CardTitle className="text-lg">
-                        {chats.find(c => formatChatId(c.chatId) === selectedContact)?.name}
+                        {chats.find(c => formatChatId(c.chatId || c.id) === selectedContact)?.name || 'Conversa'}
                       </CardTitle>
                     </div>
                     <Button
@@ -415,9 +461,9 @@ export function WPPConnectMirror() {
                     ) : (
                       messages
                         .filter(msg => msg.chatId === selectedContact)
-                        .map((msg) => (
+                        .map((msg, index) => (
                           <div
-                            key={msg.id}
+                            key={msg.id || `msg-${index}`}
                             className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
                           >
                             <div
@@ -427,11 +473,11 @@ export function WPPConnectMirror() {
                                   : 'bg-gray-100 text-gray-800'
                               }`}
                             >
-                              <p className="text-sm">{msg.text}</p>
+                              <p className="text-sm">{msg.text || '[Mensagem sem texto]'}</p>
                               <div className={`text-xs mt-1 ${
                                 msg.sender === 'user' ? 'text-green-100' : 'text-gray-500'
                               }`}>
-                                {formatTime(msg.timestamp)}
+                                {formatTime(msg.timestamp || new Date().toISOString())}
                               </div>
                             </div>
                           </div>
