@@ -35,14 +35,14 @@ export function WPPConnectMirror() {
     isLoadingMessages,
     isLiveMode,
     currentChatId,
-    createSession, 
-    checkSessionStatus,
-    loadChats,
-    loadChatMessages,
+    generateQRCode, 
+    checkConnectionStatus,
+    loadRealChats,
+    loadRealMessages,
     sendMessage,
     startLiveMode,
     stopLiveMode,
-    disconnect
+    disconnectWhatsApp
   } = useWPPConnect();
   
   const { markConversationForAnalysis, updateConversationPriority, isMarking } = useConversationMarking();
@@ -60,8 +60,8 @@ export function WPPConnectMirror() {
 
   // Verificar status ao montar
   useEffect(() => {
-    checkSessionStatus();
-  }, [checkSessionStatus]);
+    checkConnectionStatus();
+  }, [checkConnectionStatus]);
 
   const handleCreateSession = async () => {
     toast({
@@ -69,20 +69,26 @@ export function WPPConnectMirror() {
       description: "Aguarde enquanto geramos o QR Code"
     });
     
-    await createSession();
+    await generateQRCode();
   };
 
   const selectContact = (contact: any) => {
     setSelectedContact(contact.chatId);
-    loadChatMessages(contact.chatId);
+    loadRealMessages(contact.chatId);
   };
 
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !selectedContact) return;
 
-    const success = await sendMessage(selectedContact, newMessage);
-    if (success) {
+    try {
+      await sendMessage(selectedContact, newMessage);
       setNewMessage('');
+    } catch (error) {
+      toast({
+        title: "Erro ao enviar mensagem",
+        description: "Não foi possível enviar a mensagem",
+        variant: "destructive"
+      });
     }
   };
 
@@ -197,10 +203,10 @@ export function WPPConnectMirror() {
             <div className="flex gap-2">
               {sessionStatus.isConnected && (
                 <>
-                  <Button onClick={disconnect} variant="outline" size="sm">
+                  <Button onClick={disconnectWhatsApp} variant="outline" size="sm">
                     Desconectar
                   </Button>
-                  <Button onClick={() => loadChats()} variant="outline" size="sm">
+                  <Button onClick={() => loadRealChats()} variant="outline" size="sm">
                     <RefreshCw className="h-4 w-4 mr-1" />
                     Atualizar
                   </Button>
@@ -460,7 +466,7 @@ export function WPPConnectMirror() {
               <strong>✅ Funcionando:</strong> Sistema conectado com sua API WPPConnect local
             </p>
             <p className="mb-2">
-              <strong>🔧 Configuração:</strong> localhost:21465 com token "MySecretKeyToGenerateToken"
+              <strong>🔧 Configuração:</strong> localhost:21465 com token configurado
             </p>
             <p className="mb-2">
               <strong>📱 Status:</strong> {sessionStatus.isConnected ? 'Conectado e funcionando' : 'Pronto para conectar'}

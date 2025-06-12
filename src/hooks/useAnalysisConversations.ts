@@ -1,3 +1,4 @@
+
 import { useState, useCallback, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -23,7 +24,7 @@ export function useAnalysisConversations() {
   const [isLoading, setIsLoading] = useState(false);
 
   const loadAnalysisConversations = useCallback(async () => {
-    console.log('🔍 CARREGANDO CONVERSAS MARCADAS...');
+    console.log('🔍 CARREGANDO CONVERSAS MARCADAS (SEM DADOS DE TESTE)...');
     console.log('👤 Usuário:', { userId: user?.id, userEmail: user?.email });
 
     if (!user?.id) {
@@ -40,76 +41,66 @@ export function useAnalysisConversations() {
     setIsLoading(true);
     
     try {
-      console.log('📡 Fazendo query no Supabase...');
-      console.log('🎯 Query params:', { 
-        table: 'whatsapp_conversations_analysis',
-        userId: user.id,
-        markedFilter: true 
-      });
+      console.log('📡 Fazendo query NO SUPABASE (FILTRANDO DADOS DE TESTE)...');
       
-      // QUERY DETALHADA COM LOGS
+      // QUERY FILTRANDO DADOS DE TESTE
       const { data, error, count } = await supabase
         .from('whatsapp_conversations_analysis')
         .select('*', { count: 'exact' })
         .eq('user_id', user.id)
         .eq('marked_for_analysis', true)
+        .not('chat_id', 'like', 'TEST_%') // FILTRAR DADOS DE TESTE
+        .not('contact_name', 'like', '%Teste%') // FILTRAR NOMES DE TESTE
+        .not('contact_name', 'like', '%Debug%') // FILTRAR NOMES DE DEBUG
         .order('created_at', { ascending: false })
         .order('marked_at', { ascending: false });
 
-      console.log('📊 Resultado COMPLETO da query:', { 
+      console.log('📊 Resultado da query (SEM TESTE):', { 
         data, 
         error, 
         count,
         dataLength: data?.length || 0,
-        hasData: !!data,
-        isArray: Array.isArray(data)
+        hasRealData: !!data && data.length > 0
       });
 
       if (error) {
         console.error('❌ Erro na query:', error);
-        console.error('📋 Detalhes COMPLETOS do erro:', {
-          message: error.message,
-          code: error.code,
-          details: error.details,
-          hint: error.hint,
-          stack: error.stack
-        });
         throw error;
       }
       
-      console.log('📈 Raw data DETALHADA:', {
-        totalResults: count,
-        dataArray: data,
-        firstItem: data?.[0],
-        dataType: typeof data,
-        isArrayCheck: Array.isArray(data)
-      });
-      
       if (!data || data.length === 0) {
-        console.log('⚠️ NENHUMA conversa marcada encontrada!');
-        console.log('🔍 Verificando se existem dados SEM filtro...');
+        console.log('⚠️ NENHUMA conversa REAL marcada encontrada!');
+        console.log('🔍 Verificando se existem conversas reais marcadas...');
         
-        // TESTE: buscar TODOS os dados do usuário para debug
-        const { data: allUserData, error: allError } = await supabase
+        // BUSCAR TODAS as conversas REAIS (não de teste) do usuário
+        const { data: allRealData, error: allError } = await supabase
           .from('whatsapp_conversations_analysis')
           .select('*')
-          .eq('user_id', user.id);
+          .eq('user_id', user.id)
+          .not('chat_id', 'like', 'TEST_%')
+          .not('contact_name', 'like', '%Teste%')
+          .not('contact_name', 'like', '%Debug%');
           
-        console.log('🔍 TODOS os dados do usuário:', { allUserData, allError });
+        console.log('🔍 CONVERSAS REAIS do usuário:', { 
+          allRealData, 
+          allError,
+          totalReal: allRealData?.length || 0,
+          markedReal: allRealData?.filter(item => item.marked_for_analysis === true)?.length || 0
+        });
         
         setConversations([]);
         return;
       }
 
-      console.log('🔄 Convertendo dados...');
+      console.log('🔄 Convertendo conversas REAIS...');
       const convertedData: AnalysisConversation[] = data.map((item, index) => {
-        console.log(`📋 Convertendo item ${index}:`, {
+        console.log(`📋 Conversa REAL ${index}:`, {
           id: item.id,
           chatId: item.chat_id,
           contactName: item.contact_name,
+          phone: item.contact_phone,
           markedForAnalysis: item.marked_for_analysis,
-          analysisStatus: item.analysis_status,
-          originalItem: item
+          analysisStatus: item.analysis_status
         });
         
         return {
@@ -126,25 +117,15 @@ export function useAnalysisConversations() {
         };
       });
       
-      console.log('✅ Conversas FINAIS processadas:', {
+      console.log('✅ Conversas REAIS processadas:', {
         totalProcessed: convertedData.length,
-        conversations: convertedData,
-        firstConversation: convertedData[0]
+        conversations: convertedData
       });
       
       setConversations(convertedData);
       
-      // LOG FINAL DO ESTADO
-      setTimeout(() => {
-        console.log('🎯 Estado FINAL setado:', {
-          conversationsLength: convertedData.length,
-          stateWillBe: convertedData
-        });
-      }, 100);
-      
     } catch (error) {
-      console.error('❌ ERRO GERAL ao carregar conversas:', error);
-      console.error('📋 Stack trace completo:', error?.stack);
+      console.error('❌ ERRO ao carregar conversas REAIS:', error);
       
       toast({
         title: "Erro ao carregar conversas",
@@ -154,7 +135,7 @@ export function useAnalysisConversations() {
       setConversations([]);
     } finally {
       setIsLoading(false);
-      console.log('🏁 Finalizando carregamento de conversas');
+      console.log('🏁 Finalizando carregamento de conversas REAIS');
     }
   }, [user?.id, toast, isLoading]);
 
