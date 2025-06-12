@@ -345,69 +345,24 @@ export function useWPPConnect() {
       
       const config = getWPPConfig();
       
-      // Tentar diferentes endpoints para conversas com retry
-      let chatsData;
-      const endpoints = [
-        `/api/${config.sessionName}/all-chats`,
-        `/api/${config.sessionName}/list-chats`,
-        `/api/${config.sessionName}/get-chats`
-      ];
+      // Use only the all-chats endpoint that we know works
+      console.log(`🔍 Carregando de: /api/${config.sessionName}/all-chats`);
+      const response = await makeWPPRequest(`/api/${config.sessionName}/all-chats`);
       
-      for (const endpoint of endpoints) {
-        try {
-          console.log(`🔍 Tentando endpoint: ${endpoint}`);
-          chatsData = await makeWPPRequest(endpoint);
-          console.log(`✅ Sucesso com endpoint: ${endpoint}`, typeof chatsData, chatsData);
-          
-          // Verificar se a resposta é válida
-          if (chatsData && typeof chatsData === 'object') {
-            // Se a resposta é um objeto com propriedade que contém o array
-            if (chatsData.chats && Array.isArray(chatsData.chats)) {
-              chatsData = chatsData.chats;
-              break;
-            }
-            // Se a resposta é um objeto com propriedade data
-            if (chatsData.data && Array.isArray(chatsData.data)) {
-              chatsData = chatsData.data;
-              break;
-            }
-            // Se a resposta é um objeto com propriedade result
-            if (chatsData.result && Array.isArray(chatsData.result)) {
-              chatsData = chatsData.result;
-              break;
-            }
-            // Se a resposta é diretamente um array
-            if (Array.isArray(chatsData)) {
-              break;
-            }
-          }
-          
-          console.log(`⚠️ Formato inesperado de ${endpoint}:`, chatsData);
-        } catch (error) {
-          console.log(`❌ Falhou endpoint ${endpoint}:`, error.message);
-          if (endpoint === endpoints[endpoints.length - 1]) {
-            throw new Error(`Todos os endpoints falharam. Último erro: ${error.message}`);
-          }
-        }
+      console.log('✅ Resposta completa da API:', response);
+      
+      // Handle the API response structure
+      let chatsData;
+      if (response && response.response && Array.isArray(response.response)) {
+        chatsData = response.response;
+      } else if (response && Array.isArray(response)) {
+        chatsData = response;
+      } else {
+        console.error('❌ Formato inesperado da resposta:', response);
+        throw new Error('Formato de resposta inválido da API');
       }
       
       console.log('📋 Dados das conversas processados:', chatsData);
-      
-      // Verificar se conseguimos obter um array válido
-      if (!Array.isArray(chatsData)) {
-        console.error('❌ Resposta não é um array:', typeof chatsData, chatsData);
-        
-        // Tentar aguardar mais um pouco se estiver sincronizando
-        if (sessionStatus.error?.includes('Sincronizando')) {
-          console.log('🔄 Ainda sincronizando, tentando novamente em 5 segundos...');
-          setTimeout(() => {
-            loadRealChats();
-          }, 5000);
-          return [];
-        }
-        
-        throw new Error(`Formato de resposta inválido: esperado array, recebido ${typeof chatsData}`);
-      }
       
       if (chatsData.length === 0) {
         console.log('📭 Nenhuma conversa encontrada (array vazio)');
@@ -447,14 +402,14 @@ export function useWPPConnect() {
       console.error('❌ Erro ao carregar conversas:', error);
       toast({
         title: "❌ Erro ao carregar conversas",
-        description: `${error.message}. Tente novamente em alguns segundos.`,
+        description: `${error.message}. Verifique se o WPPConnect está funcionando.`,
         variant: "destructive"
       });
       return [];
     } finally {
       setIsLoadingChats(false);
     }
-  }, [makeWPPRequest, getWPPConfig, toast, sessionStatus.error]);
+  }, [makeWPPRequest, getWPPConfig, toast]);
 
   // Carregar mensagens de uma conversa
   const loadRealMessages = useCallback(async (chatId: string) => {
