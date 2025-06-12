@@ -1,4 +1,3 @@
-
 import { useState, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -57,17 +56,17 @@ export function useRealWhatsAppConnection() {
 
   // Helper function to format phone number for WPPConnect
   const formatPhoneNumber = (phone: string): string => {
+    // Para grupos, manter o formato original
+    if (phone.includes('@g.us')) {
+      return phone;
+    }
+    
     // Remove caracteres especiais
     let cleanPhone = phone.replace(/\D/g, '');
     
     // Se o número já termina com @c.us, extrair apenas os números
     if (phone.includes('@c.us')) {
       cleanPhone = phone.split('@')[0];
-    }
-    
-    // Se o número já termina com @g.us (grupo), manter como está
-    if (phone.includes('@g.us')) {
-      return phone;
     }
     
     // Adicionar código do país se necessário (Brasil = 55)
@@ -327,26 +326,39 @@ export function useRealWhatsAppConnection() {
     console.log('📞 Telefone original:', phone);
     
     try {
-      // Formatar número corretamente
-      const formattedPhone = formatPhoneNumber(phone);
-      console.log('📞 Telefone formatado:', formattedPhone);
+      // Determinar se é grupo ou conversa individual
+      const isGroup = phone.includes('@g.us');
+      let targetPhone = phone;
       
-      // Usar endpoint correto do WPPConnect
+      if (isGroup) {
+        // Para grupos, usar o ID exato
+        console.log('📞 Enviando para grupo:', phone);
+        targetPhone = phone;
+      } else {
+        // Para conversas individuais, formatar número
+        targetPhone = formatPhoneNumber(phone);
+        console.log('📞 Telefone formatado:', targetPhone);
+      }
+      
+      // Tentar primeiro endpoint padrão
+      const sendData = {
+        phone: targetPhone,
+        message: message,
+        isGroup: isGroup
+      };
+      
+      console.log('📤 Dados de envio:', sendData);
+      
       const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/send-message`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${wppConfig.token}`
         },
-        body: JSON.stringify({
-          phone: formattedPhone,
-          message: message,
-          isGroup: false
-        })
+        body: JSON.stringify(sendData)
       });
 
       console.log('📤 Send message response status:', response.status);
-      console.log('📤 Send message response headers:', response.headers);
 
       if (response.ok) {
         const result = await response.json();
@@ -365,41 +377,42 @@ export function useRealWhatsAppConnection() {
           error: errorText
         });
         
-        // Tentar endpoint alternativo se o primeiro falhar
-        console.log('🔄 Tentando endpoint alternativo...');
-        
-        const altResponse = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/send-text`, {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${wppConfig.token}`
-          },
-          body: JSON.stringify({
-            phone: formattedPhone,
+        // Tentar endpoint alternativo para grupos
+        if (isGroup) {
+          console.log('🔄 Tentando endpoint para grupo...');
+          
+          const groupData = {
+            groupId: targetPhone,
             message: message
-          })
-        });
+          };
+          
+          const altResponse = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/send-message-group`, {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${wppConfig.token}`
+            },
+            body: JSON.stringify(groupData)
+          });
 
-        if (altResponse.ok) {
-          const altResult = await altResponse.json();
-          console.log('✅ Mensagem enviada com endpoint alternativo:', altResult);
-          
-          toast({
-            title: "✅ Mensagem enviada!",
-            description: "Mensagem enviada via WPPConnect"
-          });
-          return true;
-        } else {
-          const altErrorText = await altResponse.text();
-          console.error('❌ Erro no endpoint alternativo:', altErrorText);
-          
-          toast({
-            title: "❌ Erro ao enviar mensagem",
-            description: `Erro ${response.status}: Verifique se o WPPConnect está funcionando`,
-            variant: "destructive"
-          });
-          return false;
+          if (altResponse.ok) {
+            const altResult = await altResponse.json();
+            console.log('✅ Mensagem enviada para grupo:', altResult);
+            
+            toast({
+              title: "✅ Mensagem enviada!",
+              description: "Mensagem enviada para o grupo"
+            });
+            return true;
+          }
         }
+        
+        toast({
+          title: "❌ Erro ao enviar mensagem",
+          description: `Erro ${response.status}: Verifique se o WPPConnect está funcionando`,
+          variant: "destructive"
+        });
+        return false;
       }
     } catch (error) {
       console.error('❌ Erro de conexão ao enviar mensagem:', error);
