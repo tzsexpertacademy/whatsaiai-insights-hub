@@ -164,13 +164,7 @@ export function RealWhatsAppMirror() {
   };
 
   const handleGenerateQR = async () => {
-    const qrUrl = await generateQRCode();
-    if (qrUrl) {
-      toast({
-        title: "QR Code gerado! 📱",
-        description: "Escaneie com WhatsApp Business para conectar"
-      });
-    }
+    await generateQRCode();
   };
 
   const selectContact = (contact: any) => {

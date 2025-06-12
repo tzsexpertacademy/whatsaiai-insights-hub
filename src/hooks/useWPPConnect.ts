@@ -19,6 +19,7 @@ interface SessionStatus {
 }
 
 interface Chat {
+  id: string; // Adicionando id que estava faltando
   chatId: string;
   name: string;
   lastMessage: string;
@@ -217,7 +218,7 @@ export function useWPPConnect() {
   }, [makeWPPRequest, getWPPConfig, toast, checkConnectionStatus]);
 
   // Carregar conversas reais
-  const loadRealChats = useCallback(async () => {
+  const loadRealChats = useCallback(async (): Promise<Chat[]> => {
     try {
       setIsLoadingChats(true);
       console.log('📱 Carregando conversas reais...');
@@ -227,6 +228,7 @@ export function useWPPConnect() {
       
       if (Array.isArray(data)) {
         const formattedChats: Chat[] = data.map((chat: any) => ({
+          id: String(chat.id?._serialized || chat.id || chat.chatId || ''), // Garantindo que id existe
           chatId: String(chat.id?._serialized || chat.id || chat.chatId || ''),
           name: chat.name || chat.pushname || chat.formattedTitle || 'Sem nome',
           lastMessage: chat.lastMessage?.body || chat.lastMessage || 'Sem mensagens',
