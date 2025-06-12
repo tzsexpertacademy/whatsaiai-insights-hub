@@ -1,3 +1,4 @@
+
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -212,6 +213,18 @@ export function useRealWhatsAppConnection() {
     }
   }, [wppConfig, toast, startAutoStatusCheck]);
 
+  // Função para obter status de conexão
+  const getConnectionStatus = useCallback(() => {
+    if (!connectionState.isConnected) return 'disconnected';
+    
+    const lastCheck = new Date(connectionState.lastStatusCheck);
+    const now = new Date();
+    const minutesDiff = (now.getTime() - lastCheck.getTime()) / (1000 * 60);
+    
+    if (minutesDiff > 5) return 'idle';
+    return 'active';
+  }, [connectionState.isConnected, connectionState.lastStatusCheck]);
+
   const processWebhookMessage = useCallback(async (webhookData: any) => {
     console.log('📨 Processando mensagem do webhook:', webhookData);
     // Implementação existente permanece igual
@@ -301,15 +314,97 @@ export function useRealWhatsAppConnection() {
     return isConnected;
   }, [checkSessionStatus, startAutoStatusCheck]);
 
+  // Funções para carregar conversas e mensagens (placeholders)
+  const loadRealChats = useCallback(async () => {
+    console.log('📱 Carregando conversas reais...');
+    try {
+      const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/all-chats`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${wppConfig.token}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        return data.response || data.chats || data || [];
+      }
+      return [];
+    } catch (error) {
+      console.error('❌ Erro ao carregar conversas:', error);
+      return [];
+    }
+  }, [wppConfig]);
+
+  const loadRealMessages = useCallback(async (contactId: string) => {
+    console.log('📱 Carregando mensagens para:', contactId);
+    try {
+      const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/get-messages/${contactId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${wppConfig.token}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        return data.response || data.messages || data || [];
+      }
+      return [];
+    } catch (error) {
+      console.error('❌ Erro ao carregar mensagens:', error);
+      return [];
+    }
+  }, [wppConfig]);
+
+  // Funções para fixar e analisar conversas (placeholders)
+  const togglePinConversation = useCallback((chatId: string) => {
+    console.log('📌 Alternando fixação da conversa:', chatId);
+  }, []);
+
+  const toggleAnalysisConversation = useCallback((chatId: string) => {
+    console.log('🧠 Alternando análise da conversa:', chatId);
+  }, []);
+
+  const isConversationPinned = useCallback((chatId: string) => {
+    return false; // Placeholder
+  }, []);
+
+  const isConversationMarkedForAnalysis = useCallback((chatId: string) => {
+    return false; // Placeholder
+  }, []);
+
+  const getAnalysisPriority = useCallback((chatId: string): 'high' | 'medium' | 'low' => {
+    return 'medium'; // Placeholder
+  }, []);
+
   return {
     connectionState,
     wppConfig,
     generateQRCode,
     checkSessionStatus: forceStatusCheck,
+    getConnectionStatus,
     processWebhookMessage,
     sendMessage,
     configureWebhookOnWPP,
     startAutoStatusCheck,
-    stopAutoStatusCheck
+    stopAutoStatusCheck,
+    loadRealChats,
+    loadRealMessages,
+    togglePinConversation,
+    toggleAnalysisConversation,
+    isConversationPinned,
+    isConversationMarkedForAnalysis,
+    getAnalysisPriority,
+    // Propriedades que alguns componentes esperam
+    isLoading: connectionState.isLoading,
+    webhooks: {},
+    messageHistoryLimit: 50,
+    updateWebhooks: () => {},
+    updateWPPConfig: () => {},
+    updateMessageHistoryLimit: () => {},
+    disconnectWhatsApp: () => {}
   };
 }
