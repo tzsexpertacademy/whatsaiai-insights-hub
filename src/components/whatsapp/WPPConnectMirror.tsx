@@ -4,6 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useWPPConnect } from "@/hooks/useWPPConnect";
 import { useConversationMarking } from "@/hooks/useConversationMarking";
@@ -23,7 +25,9 @@ import {
   Square,
   Settings,
   Brain,
-  Star
+  Star,
+  MessageCircle,
+  History
 } from 'lucide-react';
 
 export function WPPConnectMirror() {
@@ -35,6 +39,7 @@ export function WPPConnectMirror() {
     isLoadingMessages,
     isLiveMode,
     currentChatId,
+    messageHistoryLimit,
     generateQRCode, 
     checkConnectionStatus,
     loadRealChats,
@@ -42,7 +47,8 @@ export function WPPConnectMirror() {
     sendMessage,
     startLiveMode,
     stopLiveMode,
-    disconnectWhatsApp
+    disconnectWhatsApp,
+    updateMessageHistoryLimit
   } = useWPPConnect();
   
   const { markConversationForAnalysis, updateConversationPriority, isMarking } = useConversationMarking();
@@ -73,7 +79,14 @@ export function WPPConnectMirror() {
   };
 
   const selectContact = (contact: any) => {
+    console.log('👆 Selecionando contato:', contact.name, contact.chatId);
     setSelectedContact(contact.chatId);
+    
+    toast({
+      title: "📱 Carregando mensagens...",
+      description: `Buscando ${messageHistoryLimit} mensagens de ${contact.name}`
+    });
+    
     loadRealMessages(contact.chatId);
   };
 
@@ -189,6 +202,37 @@ export function WPPConnectMirror() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {/* Controle de Histórico de Mensagens */}
+          {sessionStatus.isConnected && (
+            <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+              <div className="flex items-center gap-4">
+                <Label htmlFor="messageLimit" className="flex items-center gap-2 text-blue-900 font-medium">
+                  <History className="h-4 w-4" />
+                  Mensagens por conversa:
+                </Label>
+                <Select 
+                  value={messageHistoryLimit.toString()} 
+                  onValueChange={(value) => updateMessageHistoryLimit(parseInt(value))}
+                >
+                  <SelectTrigger className="w-32">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="10">10 mensagens</SelectItem>
+                    <SelectItem value="25">25 mensagens</SelectItem>
+                    <SelectItem value="50">50 mensagens</SelectItem>
+                    <SelectItem value="100">100 mensagens</SelectItem>
+                    <SelectItem value="200">200 mensagens</SelectItem>
+                    <SelectItem value="500">500 mensagens</SelectItem>
+                  </SelectContent>
+                </Select>
+                <span className="text-sm text-blue-700">
+                  Carregando {messageHistoryLimit} mensagens por conversa
+                </span>
+              </div>
+            </div>
+          )}
+
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
               {getStatusIcon()}
@@ -336,6 +380,15 @@ export function WPPConnectMirror() {
                             <span className="text-xs text-gray-400">{formatTime(chat.timestamp)}</span>
                           </div>
                           <p className="text-sm text-gray-500 truncate mt-1">{chat.lastMessage}</p>
+                          {/* Indicador de mensagens carregadas */}
+                          {selectedContact === chat.chatId && messages.filter(m => m.chatId === chat.chatId).length > 0 && (
+                            <div className="flex items-center gap-1 mt-1">
+                              <MessageCircle className="h-3 w-3 text-blue-500" />
+                              <span className="text-xs text-blue-600">
+                                {messages.filter(m => m.chatId === chat.chatId).length} mensagens
+                              </span>
+                            </div>
+                          )}
                         </div>
                         {chat.unreadCount > 0 && (
                           <Badge className="bg-green-500 text-white">{chat.unreadCount}</Badge>
@@ -361,6 +414,9 @@ export function WPPConnectMirror() {
                       <CardTitle className="text-lg">
                         {chats.find(c => c.chatId === selectedContact)?.name}
                       </CardTitle>
+                      <p className="text-sm text-gray-500">
+                        {messages.filter(m => m.chatId === selectedContact).length} mensagens carregadas
+                      </p>
                     </div>
                     <Button
                       variant={isLiveMode && currentChatId === selectedContact ? "destructive" : "default"}
@@ -389,31 +445,46 @@ export function WPPConnectMirror() {
                       <div className="text-center text-gray-500 py-8">
                         <RefreshCw className="h-8 w-8 mx-auto mb-2 animate-spin" />
                         <p>Carregando mensagens...</p>
+                        <p className="text-sm text-gray-400 mt-1">
+                          Buscando {messageHistoryLimit} mensagens mais recentes
+                        </p>
                       </div>
                     ) : (
-                      messages
-                        .filter(msg => msg.chatId === selectedContact)
-                        .map((msg) => (
-                          <div
-                            key={msg.id}
-                            className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-                          >
-                            <div
-                              className={`rounded-lg px-4 py-2 max-w-[75%] ${
-                                msg.sender === 'user'
-                                  ? 'bg-green-500 text-white'
-                                  : 'bg-gray-100 text-gray-800'
-                              }`}
-                            >
-                              <p className="text-sm">{msg.text}</p>
-                              <div className={`text-xs mt-1 ${
-                                msg.sender === 'user' ? 'text-green-100' : 'text-gray-500'
-                              }`}>
-                                {formatTime(msg.timestamp)}
-                              </div>
-                            </div>
+                      <>
+                        {messages.filter(msg => msg.chatId === selectedContact).length === 0 ? (
+                          <div className="text-center text-gray-500 py-8">
+                            <MessageCircle className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+                            <p>Nenhuma mensagem encontrada</p>
+                            <p className="text-sm text-gray-400 mt-1">
+                              Esta conversa pode estar vazia ou as mensagens não puderam ser carregadas
+                            </p>
                           </div>
-                        ))
+                        ) : (
+                          messages
+                            .filter(msg => msg.chatId === selectedContact)
+                            .map((msg) => (
+                              <div
+                                key={msg.id}
+                                className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                              >
+                                <div
+                                  className={`rounded-lg px-4 py-2 max-w-[75%] ${
+                                    msg.sender === 'user'
+                                      ? 'bg-green-500 text-white'
+                                      : 'bg-gray-100 text-gray-800'
+                                  }`}
+                                >
+                                  <p className="text-sm">{msg.text}</p>
+                                  <div className={`text-xs mt-1 ${
+                                    msg.sender === 'user' ? 'text-green-100' : 'text-gray-500'
+                                  }`}>
+                                    {formatTime(msg.timestamp)}
+                                  </div>
+                                </div>
+                              </div>
+                            ))
+                        )}
+                      </>
                     )}
                     <div ref={messagesEndRef} />
                   </div>
@@ -447,6 +518,9 @@ export function WPPConnectMirror() {
                   <p className="text-sm">Escolha um contato para ver as mensagens</p>
                   <p className="text-xs mt-2 text-blue-600">
                     💡 Clique com o botão direito nas conversas para marcar para análise IA
+                  </p>
+                  <p className="text-xs mt-1 text-green-600">
+                    📊 Configure quantas mensagens carregar no controle acima
                   </p>
                 </div>
               </CardContent>
