@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -36,24 +36,52 @@ export function ConversationAnalysisDashboard() {
     refreshData 
   } = useProtectedAnalysisData();
 
-  // Log para debugging
-  console.log('=== ConversationAnalysisDashboard Debug ===');
-  console.log('Conversas carregadas:', conversations);
-  console.log('Total de conversas:', conversations.length);
-  console.log('Insights carregados:', insights);
-  console.log('Stats protegidas:', protectedStats);
-  console.log('Loading state:', isLoading);
+  const [hasInitialized, setHasInitialized] = useState(false);
+  const loadingRef = useRef(false);
 
+  // Inicializar dados apenas uma vez
   useEffect(() => {
-    console.log('🚀 Iniciando carregamento do dashboard...');
-    loadAnalysisConversations();
-    refreshData();
-  }, [loadAnalysisConversations, refreshData]);
+    if (!hasInitialized && !loadingRef.current) {
+      loadingRef.current = true;
+      console.log('🚀 Iniciando carregamento inicial do dashboard...');
+      
+      const initializeData = async () => {
+        try {
+          await Promise.all([
+            loadAnalysisConversations(),
+            refreshData()
+          ]);
+          setHasInitialized(true);
+        } catch (error) {
+          console.error('❌ Erro na inicialização:', error);
+        } finally {
+          loadingRef.current = false;
+        }
+      };
+
+      initializeData();
+    }
+  }, [hasInitialized, loadAnalysisConversations, refreshData]);
 
   const handleRefreshAll = async () => {
+    if (loadingRef.current) {
+      console.log('⏳ Carregamento já em andamento, ignorando refresh');
+      return;
+    }
+    
+    loadingRef.current = true;
     console.log('🔄 Atualizando todos os dados...');
-    await loadAnalysisConversations();
-    await refreshData();
+    
+    try {
+      await Promise.all([
+        loadAnalysisConversations(),
+        refreshData()
+      ]);
+    } catch (error) {
+      console.error('❌ Erro no refresh:', error);
+    } finally {
+      loadingRef.current = false;
+    }
   };
 
   const completedConversations = conversations.filter(c => c.analysis_status === 'completed');
@@ -70,8 +98,13 @@ export function ConversationAnalysisDashboard() {
         <TrendingUp className="h-3 w-3 mr-1" />
         {completedConversations.length} Analisadas
       </Badge>
-      <Button onClick={handleRefreshAll} variant="outline" size="sm" disabled={isLoading}>
-        <RefreshCw className={`h-4 w-4 mr-1 ${isLoading ? 'animate-spin' : ''}`} />
+      <Button 
+        onClick={handleRefreshAll} 
+        variant="outline" 
+        size="sm" 
+        disabled={isLoading || loadingRef.current}
+      >
+        <RefreshCw className={`h-4 w-4 mr-1 ${(isLoading || loadingRef.current) ? 'animate-spin' : ''}`} />
         Atualizar
       </Button>
       <AIAnalysisButton />
@@ -86,18 +119,18 @@ export function ConversationAnalysisDashboard() {
       backUrl="/dashboard/behavioral"
       headerActions={headerActions}
     >
-      {/* Debug Info - Mostrar sempre em desenvolvimento */}
-      <Card className="mb-4 bg-yellow-50 border-yellow-200">
+      {/* Status do Sistema */}
+      <Card className="mb-4 bg-blue-50 border-blue-200">
         <CardContent className="p-4">
           <div className="flex items-start gap-2">
-            <AlertTriangle className="h-4 w-4 text-yellow-600 mt-0.5" />
+            <AlertTriangle className="h-4 w-4 text-blue-600 mt-0.5" />
             <div className="text-xs">
-              <p><strong>Status do Sistema:</strong></p>
-              <p>Conversas Marcadas: {conversations.length} | Insights: {insights.length}</p>
-              <p>Loading: {isLoading ? 'Carregando...' : 'Concluído'}</p>
-              <p>Última atualização: {new Date().toLocaleTimeString()}</p>
+              <p><strong>Status:</strong> {conversations.length} conversas marcadas | {insights.length} insights gerados</p>
+              <p><strong>Carregamento:</strong> {isLoading ? 'Em andamento...' : 'Concluído'}</p>
               {conversations.length === 0 && !isLoading && (
-                <p className="text-red-600 font-medium">⚠️ Nenhuma conversa marcada encontrada no banco!</p>
+                <p className="text-red-600 font-medium mt-1">
+                  ⚠️ Nenhuma conversa marcada no banco. Vá ao WhatsApp Mirror e marque conversas para análise.
+                </p>
               )}
             </div>
           </div>
@@ -200,8 +233,9 @@ export function ConversationAnalysisDashboard() {
                       onClick={handleRefreshAll} 
                       variant="outline" 
                       className="mt-4"
+                      disabled={loadingRef.current}
                     >
-                      <RefreshCw className="h-4 w-4 mr-2" />
+                      <RefreshCw className={`h-4 w-4 mr-2 ${loadingRef.current ? 'animate-spin' : ''}`} />
                       Tentar Carregar Novamente
                     </Button>
                   </div>

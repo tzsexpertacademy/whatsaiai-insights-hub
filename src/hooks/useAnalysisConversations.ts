@@ -1,5 +1,5 @@
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -26,6 +26,12 @@ export function useAnalysisConversations() {
   const loadAnalysisConversations = useCallback(async () => {
     if (!user?.id) {
       console.warn('🔒 useAnalysisConversations: Usuário não autenticado');
+      setConversations([]);
+      return;
+    }
+
+    if (isLoading) {
+      console.log('⏳ Carregamento já em andamento, ignorando chamada duplicada');
       return;
     }
 
@@ -33,7 +39,6 @@ export function useAnalysisConversations() {
     console.log('🔍 Carregando conversas marcadas para análise...');
     
     try {
-      // Buscar TODAS as conversas marcadas para análise
       const { data, error } = await supabase
         .from('whatsapp_conversations_analysis')
         .select('*')
@@ -46,7 +51,7 @@ export function useAnalysisConversations() {
         throw error;
       }
       
-      console.log('📊 Conversas marcadas encontradas:', data);
+      console.log('📊 Conversas marcadas encontradas:', data || []);
       
       if (!data || data.length === 0) {
         console.log('⚠️ Nenhuma conversa marcada encontrada');
@@ -54,7 +59,6 @@ export function useAnalysisConversations() {
         return;
       }
 
-      // Converter os dados para o tipo esperado com tratamento correto do analysis_results
       const convertedData: AnalysisConversation[] = data.map(item => ({
         id: item.id,
         chat_id: item.chat_id,
@@ -83,7 +87,7 @@ export function useAnalysisConversations() {
     } finally {
       setIsLoading(false);
     }
-  }, [user?.id, toast]);
+  }, [user?.id, toast, isLoading]);
 
   const updateAnalysisStatus = useCallback(async (conversationId: string, status: 'pending' | 'processing' | 'completed' | 'failed') => {
     if (!user?.id) return;
@@ -103,11 +107,14 @@ export function useAnalysisConversations() {
 
       if (error) throw error;
       
-      // Atualizar o estado local
       setConversations(prev => 
         prev.map(conv => 
           conv.id === conversationId 
-            ? { ...conv, analysis_status: status, ...(status === 'completed' && { last_analyzed_at: new Date().toISOString() }) }
+            ? { 
+                ...conv, 
+                analysis_status: status, 
+                ...(status === 'completed' && { last_analyzed_at: new Date().toISOString() }) 
+              }
             : conv
         )
       );
@@ -123,10 +130,13 @@ export function useAnalysisConversations() {
     }
   }, [user?.id, toast]);
 
-  return {
+  // Memoizar os valores de retorno para evitar re-renders desnecessários
+  const memoizedReturn = useMemo(() => ({
     conversations,
     isLoading,
     loadAnalysisConversations,
     updateAnalysisStatus
-  };
+  }), [conversations, isLoading, loadAnalysisConversations, updateAnalysisStatus]);
+
+  return memoizedReturn;
 }
