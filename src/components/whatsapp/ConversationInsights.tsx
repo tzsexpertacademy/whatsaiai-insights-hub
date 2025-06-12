@@ -45,7 +45,7 @@ export function ConversationInsights({ insights, conversations }: ConversationIn
     }
   };
 
-  const groupedInsights = validInsights.reduce((groups, insight) => {
+  const groupedInsights = validInsights.reduce((groups: Record<string, any[]>, insight: any) => {
     const assistant = insight.assistantName || 'Assistente Desconhecido';
     if (!groups[assistant]) {
       groups[assistant] = [];
@@ -92,12 +92,12 @@ export function ConversationInsights({ insights, conversations }: ConversationIn
             <CardTitle className="flex items-center gap-2">
               <Brain className="h-5 w-5 text-purple-600" />
               {assistantName}
-              <Badge variant="outline">{assistantInsights.length} insights</Badge>
+              <Badge variant="outline">{Array.isArray(assistantInsights) ? assistantInsights.length : 0} insights</Badge>
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {assistantInsights.map((insight: any, index: number) => (
+              {Array.isArray(assistantInsights) && assistantInsights.map((insight: any, index: number) => (
                 <div key={insight.id || index} className="border rounded-lg p-4">
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-2">
