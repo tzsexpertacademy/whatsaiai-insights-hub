@@ -1,13 +1,14 @@
 
 import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Smartphone, Settings, Zap, Globe, Server, Wifi } from 'lucide-react';
+import { Smartphone, Settings, Zap, Globe, Server, Wifi, Brain } from 'lucide-react';
 import { WhatsAppPlatformConfig } from './WhatsAppPlatformConfig';
 import { WhatsAppConnectionStatus } from './WhatsAppConnectionStatus';
 import { MakeConfig } from './MakeConfig';
 import { GreenAPISettings } from './GreenAPISettings';
 import { WPPConnectConfig } from './whatsapp/WPPConnectConfig';
 import { RealWhatsAppMirror } from '../whatsapp/RealWhatsAppMirror';
+import { PersonalAssistantConfig } from './whatsapp/PersonalAssistantConfig';
 
 export function WhatsAppConfig() {
   return (
@@ -23,10 +24,14 @@ export function WhatsAppConfig() {
       <WhatsAppConnectionStatus />
 
       <Tabs defaultValue="real" className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="real" className="flex items-center gap-2">
             <Wifi className="h-4 w-4" />
             WhatsApp Real
+          </TabsTrigger>
+          <TabsTrigger value="assistant" className="flex items-center gap-2">
+            <Brain className="h-4 w-4" />
+            Assistente Pessoal
           </TabsTrigger>
           <TabsTrigger value="wppconnect" className="flex items-center gap-2">
             <Server className="h-4 w-4" />
@@ -48,6 +53,10 @@ export function WhatsAppConfig() {
 
         <TabsContent value="real">
           <RealWhatsAppMirror />
+        </TabsContent>
+
+        <TabsContent value="assistant">
+          <PersonalAssistantConfig />
         </TabsContent>
 
         <TabsContent value="wppconnect">

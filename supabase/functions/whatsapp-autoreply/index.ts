@@ -32,7 +32,61 @@ serve(async (req) => {
       const messageText = message.text?.body || '';
       const contactName = message.profile?.name || `Contato ${contactPhone}`;
 
-      console.log(`💬 Nova mensagem de ${contactName}: ${messageText}`);
+      console.log(`💬 Nova mensagem de ${contactName} (${contactPhone}): ${messageText}`);
+
+      // Buscar configuração do assistente pessoal do usuário
+      // Aqui você implementaria a lógica para buscar a configuração por usuário
+      // Por exemplo, baseado no número de destino da mensagem
+      
+      const toNumber = message.to || webhookData.to;
+      console.log('📞 Mensagem destinada para:', toNumber);
+
+      // Simular busca de configuração (você implementaria busca real na base de dados)
+      const personalAssistantConfig = {
+        enabled: true,
+        masterNumber: '5511987654321', // Número master do usuário
+        assistantName: 'Kairon',
+        systemPrompt: `Você é Kairon, um assistente pessoal inteligente via WhatsApp. 
+        Seja proativo, eficiente e direto. Mantenha conversas naturais e amigáveis.`,
+        responseDelay: 2
+      };
+
+      // Verificar se o assistente está ativo
+      if (!personalAssistantConfig.enabled) {
+        console.log('🔇 Assistente pessoal desativado para este usuário');
+        return new Response(
+          JSON.stringify({ success: true, message: 'Assistente desativado' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Verificar se a mensagem é do número master autorizado
+      const formatPhoneNumber = (phone: string): string => {
+        let cleaned = phone.replace(/\D/g, '');
+        if (cleaned.endsWith('@c.us')) {
+          cleaned = cleaned.replace('@c.us', '');
+        }
+        return cleaned;
+      };
+
+      const cleanFromPhone = formatPhoneNumber(contactPhone);
+      const cleanMasterPhone = formatPhoneNumber(personalAssistantConfig.masterNumber);
+
+      console.log('🔍 Verificando autorização:', {
+        fromPhone: cleanFromPhone,
+        masterPhone: cleanMasterPhone,
+        isAuthorized: cleanFromPhone === cleanMasterPhone
+      });
+
+      if (cleanFromPhone !== cleanMasterPhone) {
+        console.log('🚫 Mensagem não é do número master autorizado - ignorando');
+        return new Response(
+          JSON.stringify({ success: true, message: 'Não autorizado' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      console.log('✅ Mensagem autorizada do master - processando...');
 
       // Salvar mensagem no banco
       const { data: conversation, error: convError } = await supabase
@@ -101,22 +155,13 @@ serve(async (req) => {
           timestamp: new Date().toISOString()
         });
 
-      // Gerar resposta automática se OpenAI estiver configurada
+      // Gerar resposta automática usando OpenAI
       if (openaiApiKey && messageText.trim()) {
         console.log('🤖 Gerando resposta automática...');
         
-        const systemPrompt = `Você é um assistente virtual especializado em atendimento ao cliente via WhatsApp. 
+        // Aguardar delay configurado antes de responder
+        await new Promise(resolve => setTimeout(resolve, personalAssistantConfig.responseDelay * 1000));
         
-        Diretrizes:
-        - Seja cordial, profissional e empático
-        - Responda em português brasileiro
-        - Mantenha respostas concisas (máximo 2 parágrafos)
-        - Identifique-se como assistente virtual
-        - Ofereça ajuda específica baseada na mensagem
-        - Se não souber algo, seja honesto e ofereça contato humano
-        
-        Contexto: Esta é uma conversa via WhatsApp com um cliente.`;
-
         const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
           method: 'POST',
           headers: {
@@ -126,7 +171,7 @@ serve(async (req) => {
           body: JSON.stringify({
             model: 'gpt-4o-mini',
             messages: [
-              { role: 'system', content: systemPrompt },
+              { role: 'system', content: personalAssistantConfig.systemPrompt },
               { role: 'user', content: messageText }
             ],
             temperature: 0.7,
@@ -152,7 +197,8 @@ serve(async (req) => {
               text: replyText,
               sender: 'assistant',
               timestamp: new Date().toISOString(),
-              ai_generated: true
+              ai_generated: true,
+              assistant_name: personalAssistantConfig.assistantName
             }];
 
             await supabase
@@ -176,10 +222,15 @@ serve(async (req) => {
             console.log('✅ Resposta automática salva');
           }
 
-          // Aqui você pode integrar com sua plataforma de WhatsApp
-          // para enviar a resposta de volta ao cliente
+          // Aqui você integraria com sua API do WPPConnect para enviar a resposta
           // Exemplo: await sendWhatsAppMessage(contactPhone, replyText);
+          
+          console.log(`📤 Resposta enviada para ${contactPhone}: ${replyText}`);
+        } else {
+          console.error('❌ Erro na API OpenAI:', await aiResponse.text());
         }
+      } else {
+        console.log('⚠️ OpenAI não configurado ou mensagem vazia');
       }
     }
 

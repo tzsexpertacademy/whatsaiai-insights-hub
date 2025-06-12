@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useVoiceTranscription } from './useVoiceTranscription';
+import { usePersonalAssistant } from './usePersonalAssistant';
 
 interface ConnectionState {
   isConnected: boolean;
@@ -37,6 +38,7 @@ interface ConversationForAnalysis {
 export function useRealWhatsAppConnection() {
   const { toast } = useToast();
   const { transcribeAudio } = useVoiceTranscription();
+  const { processIncomingMessage, config: assistantConfig } = usePersonalAssistant();
   
   const [connectionState, setConnectionState] = useState<ConnectionState>({
     isConnected: false,
@@ -443,10 +445,14 @@ export function useRealWhatsAppConnection() {
         const result = await response.json();
         console.log('✅ Mensagem enviada com sucesso:', result);
         
-        toast({
-          title: "✅ Mensagem enviada!",
-          description: "Mensagem enviada via WPPConnect"
-        });
+        // Se for resposta do assistente, não mostrar toast padrão
+        if (!message.includes(assistantConfig.assistantName)) {
+          toast({
+            title: "✅ Mensagem enviada!",
+            description: "Mensagem enviada via WPPConnect"
+          });
+        }
+        
         return true;
       } else {
         const errorText = await response.text();
@@ -469,7 +475,7 @@ export function useRealWhatsAppConnection() {
       });
       return false;
     }
-  }, [toast, wppConfig]);
+  }, [toast, wppConfig, assistantConfig.assistantName]);
 
   // Função para carregar conversas reais
   const loadRealChats = useCallback(async () => {
@@ -618,6 +624,47 @@ export function useRealWhatsAppConnection() {
     return 'disconnected';
   }, [connectionState.isConnected]);
 
+  // Função para processar webhook de mensagem recebida
+  const processWebhookMessage = useCallback(async (webhookData: any) => {
+    console.log('📨 Webhook de mensagem recebida:', webhookData);
+    
+    try {
+      // Extrair dados da mensagem do webhook
+      const messageData = webhookData.message || webhookData.messages?.[0] || webhookData;
+      
+      if (!messageData) {
+        console.log('❌ Dados de mensagem não encontrados no webhook');
+        return;
+      }
+
+      const fromNumber = messageData.from || messageData.phone || messageData.sender;
+      const toNumber = messageData.to || messageData.chatId || connectionState.phoneNumber;
+      const messageText = messageData.body || messageData.text || messageData.message || '';
+
+      console.log('📋 Dados extraídos:', {
+        from: fromNumber,
+        to: toNumber,
+        text: messageText
+      });
+
+      if (!fromNumber || !messageText.trim()) {
+        console.log('❌ Dados incompletos na mensagem');
+        return;
+      }
+
+      // Processar com o assistente pessoal
+      await processIncomingMessage(
+        fromNumber,
+        toNumber,
+        messageText,
+        sendMessage // Função para enviar resposta
+      );
+
+    } catch (error) {
+      console.error('❌ Erro ao processar webhook de mensagem:', error);
+    }
+  }, [processIncomingMessage, connectionState.phoneNumber]);
+
   return {
     connectionState,
     isLoading,
@@ -641,6 +688,8 @@ export function useRealWhatsAppConnection() {
     toggleAnalysisConversation,
     isConversationPinned,
     isConversationMarkedForAnalysis,
-    getAnalysisPriority
+    getAnalysisPriority,
+    processWebhookMessage, // Nova função para processar webhooks
+    assistantConfig // Configuração do assistente
   };
 }
