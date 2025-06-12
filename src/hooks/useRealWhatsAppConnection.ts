@@ -1,7 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useVoiceTranscription } from './useVoiceTranscription';
-import { useConversationPersistence } from './useConversationPersistence';
 
 interface ConnectionState {
   isConnected: boolean;
@@ -38,7 +37,6 @@ interface ConversationForAnalysis {
 export function useRealWhatsAppConnection() {
   const { toast } = useToast();
   const { transcribeAudio } = useVoiceTranscription();
-  const { saveConversationToDatabase, verifyConversationInDatabase } = useConversationPersistence();
   
   const [connectionState, setConnectionState] = useState<ConnectionState>({
     isConnected: false,
@@ -116,103 +114,8 @@ export function useRealWhatsAppConnection() {
     });
   }, [toast]);
 
-  // Função para carregar mensagens de uma conversa - MOVED BEFORE IT'S USED
-  const loadRealMessages = useCallback(async (contactId: string) => {
-    console.log('📤 Carregando mensagens reais para:', contactId);
-    
-    try {
-      const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/get-messages/${contactId}?count=${messageHistoryLimit}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${wppConfig.token}`
-        }
-      });
-
-      if (response.ok) {
-        const responseData = await response.json();
-        
-        let messagesArray = [];
-        
-        if (Array.isArray(responseData)) {
-          messagesArray = responseData;
-        } else if (responseData.messages && Array.isArray(responseData.messages)) {
-          messagesArray = responseData.messages;
-        } else if (responseData.data && Array.isArray(responseData.data)) {
-          messagesArray = responseData.data;
-        } else if (responseData.response && Array.isArray(responseData.response)) {
-          messagesArray = responseData.response;
-        } else {
-          return [];
-        }
-        
-        // Processar mensagens com transcrição de áudio
-        const processedMessages = await Promise.all(
-          messagesArray.map(async (msg: any) => {
-            let text = msg.body || msg.text || msg.content || 'Mensagem sem texto';
-            
-            // Verificar se é mensagem de áudio
-            if (msg.type === 'audio' || msg.type === 'ptt' || (msg.mimetype && msg.mimetype.includes('audio'))) {
-              console.log('🎤 Mensagem de áudio detectada:', msg);
-              
-              if (msg.body && msg.body.startsWith('data:audio')) {
-                try {
-                  const base64Audio = msg.body.split(',')[1];
-                  const transcription = await transcribeAudio(base64Audio);
-                  text = transcription ? `🎤 [Áudio]: ${transcription}` : '🎤 [Áudio - transcrição não disponível]';
-                } catch (error) {
-                  console.error('❌ Erro na transcrição:', error);
-                  text = '🎤 [Áudio - erro na transcrição]';
-                }
-              } else {
-                text = '🎤 [Áudio - transcrição não disponível]';
-              }
-            }
-            
-            return {
-              ...msg,
-              processedText: text
-            };
-          })
-        );
-        
-        // Verificar se conversa fixada está no banco
-        const isPinned = pinnedConversations.some(p => p.chatId === contactId);
-        if (isPinned) {
-          console.log('🔍 Verificando se conversa fixada está no banco...', contactId);
-          const isInDatabase = await verifyConversationInDatabase(contactId);
-          
-          if (!isInDatabase && processedMessages.length > 0) {
-            console.log('💾 Conversa fixada não encontrada no banco, salvando...', contactId);
-            const chatData = cachedChats.find(chat => 
-              chat.id?.includes(contactId) || chat.contact?.includes(contactId)
-            );
-            
-            if (chatData) {
-              await saveConversationToDatabase(
-                contactId,
-                chatData.name || chatData.contact || 'Contato',
-                processedMessages,
-                true
-              );
-            }
-          }
-        }
-        
-        return processedMessages;
-      } else {
-        console.error('❌ Erro ao carregar mensagens:', response.status);
-        const errorText = await response.text();
-        throw new Error(`Erro ${response.status}: ${errorText}`);
-      }
-    } catch (error) {
-      console.error('❌ Erro ao carregar mensagens:', error);
-      throw error;
-    }
-  }, [wppConfig, transcribeAudio, messageHistoryLimit, verifyConversationInDatabase, saveConversationToDatabase, pinnedConversations, cachedChats]);
-
-  // Função para fixar/desfixar conversa - NOW loadRealMessages IS AVAILABLE
-  const togglePinConversation = useCallback(async (chatId: string) => {
+  // Função para fixar/desfixar conversa
+  const togglePinConversation = useCallback((chatId: string) => {
     setPinnedConversations(prev => {
       const isPinned = prev.some(p => p.chatId === chatId);
       let updated;
@@ -225,46 +128,16 @@ export function useRealWhatsAppConnection() {
         });
       } else {
         updated = [...prev, { chatId, pinnedAt: new Date().toISOString() }];
-        
-        // Salvar conversa fixada no banco
-        if (cachedChats.length > 0) {
-          const chatToPin = cachedChats.find(chat => 
-            chat.id?.includes(chatId) || chat.contact?.includes(chatId)
-          );
-          
-          if (chatToPin) {
-            console.log('💾 Salvando conversa fixada no banco...', chatId);
-            
-            // Carregar mensagens da conversa fixada
-            loadRealMessages(chatId).then(messages => {
-              if (messages && messages.length > 0) {
-                saveConversationToDatabase(
-                  chatId,
-                  chatToPin.name || chatToPin.contact || 'Contato',
-                  messages,
-                  true
-                ).then(() => {
-                  console.log('✅ Conversa fixada salva no banco:', chatId);
-                }).catch(error => {
-                  console.error('❌ Erro ao salvar conversa fixada:', error);
-                });
-              }
-            }).catch(error => {
-              console.error('❌ Erro ao carregar mensagens para salvar:', error);
-            });
-          }
-        }
-        
         toast({
           title: "📌 Conversa fixada",
-          description: "Conversa adicionada aos fixados e salva no banco"
+          description: "Conversa adicionada aos fixados"
         });
       }
       
       localStorage.setItem('pinned_conversations', JSON.stringify(updated));
       return updated;
     });
-  }, [toast, saveConversationToDatabase, cachedChats, loadRealMessages]);
+  }, [toast]);
 
   // Função para marcar/desmarcar conversa para análise
   const toggleAnalysisConversation = useCallback((chatId: string, priority: 'high' | 'medium' | 'low' = 'medium') => {
@@ -666,6 +539,78 @@ export function useRealWhatsAppConnection() {
     }
   }, [wppConfig, cachedChats, toast]);
 
+  // Função para carregar mensagens de uma conversa
+  const loadRealMessages = useCallback(async (contactId: string) => {
+    console.log('📤 Carregando mensagens reais para:', contactId);
+    
+    try {
+      const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/get-messages/${contactId}?count=${messageHistoryLimit}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${wppConfig.token}`
+        }
+      });
+
+      if (response.ok) {
+        const responseData = await response.json();
+        
+        let messagesArray = [];
+        
+        if (Array.isArray(responseData)) {
+          messagesArray = responseData;
+        } else if (responseData.messages && Array.isArray(responseData.messages)) {
+          messagesArray = responseData.messages;
+        } else if (responseData.data && Array.isArray(responseData.data)) {
+          messagesArray = responseData.data;
+        } else if (responseData.response && Array.isArray(responseData.response)) {
+          messagesArray = responseData.response;
+        } else {
+          return [];
+        }
+        
+        // Processar mensagens com transcrição de áudio
+        const processedMessages = await Promise.all(
+          messagesArray.map(async (msg: any) => {
+            let text = msg.body || msg.text || msg.content || 'Mensagem sem texto';
+            
+            // Verificar se é mensagem de áudio
+            if (msg.type === 'audio' || msg.type === 'ptt' || (msg.mimetype && msg.mimetype.includes('audio'))) {
+              console.log('🎤 Mensagem de áudio detectada:', msg);
+              
+              if (msg.body && msg.body.startsWith('data:audio')) {
+                try {
+                  const base64Audio = msg.body.split(',')[1];
+                  const transcription = await transcribeAudio(base64Audio);
+                  text = transcription ? `🎤 [Áudio]: ${transcription}` : '🎤 [Áudio - transcrição não disponível]';
+                } catch (error) {
+                  console.error('❌ Erro na transcrição:', error);
+                  text = '🎤 [Áudio - erro na transcrição]';
+                }
+              } else {
+                text = '🎤 [Áudio - transcrição não disponível]';
+              }
+            }
+            
+            return {
+              ...msg,
+              processedText: text
+            };
+          })
+        );
+        
+        return processedMessages;
+      } else {
+        console.error('❌ Erro ao carregar mensagens:', response.status);
+        const errorText = await response.text();
+        throw new Error(`Erro ${response.status}: ${errorText}`);
+      }
+    } catch (error) {
+      console.error('❌ Erro ao carregar mensagens:', error);
+      throw error;
+    }
+  }, [wppConfig, transcribeAudio, messageHistoryLimit]);
+
   const getConnectionStatus = useCallback(() => {
     if (connectionState.isConnected) {
       return 'active';
@@ -680,10 +625,10 @@ export function useRealWhatsAppConnection() {
     wppConfig,
     pinnedConversations,
     conversationsForAnalysis,
-    messageHistoryLimit,
+    messageHistoryLimit, // Nova propriedade
     updateWebhooks,
     updateWPPConfig,
-    updateMessageHistoryLimit,
+    updateMessageHistoryLimit, // Nova função
     generateQRCode,
     checkConnectionStatus,
     disconnectWhatsApp,
