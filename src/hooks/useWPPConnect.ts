@@ -103,6 +103,38 @@ export function useWPPConnect() {
     }
   }, [sessionStatus.isConnected, sessionStatus.status]);
 
+  // FORÇAR carregamento de conversas quando conectar - versão mais agressiva
+  useEffect(() => {
+    if (sessionStatus.isConnected && sessionStatus.status === 'connected') {
+      console.log('🔥 SESSÃO CONECTADA - FORÇANDO CARREGAMENTO DE CONVERSAS...');
+      
+      // Tentar múltiplas vezes se necessário
+      const attemptLoadChats = async (attempt = 1) => {
+        try {
+          console.log(`🚀 Tentativa ${attempt} de carregar conversas...`);
+          await loadRealChats();
+          console.log('✅ Conversas carregadas com sucesso!');
+        } catch (error) {
+          console.error(`❌ Tentativa ${attempt} falhou:`, error);
+          if (attempt < 3) {
+            console.log(`🔄 Tentando novamente em 2 segundos... (tentativa ${attempt + 1})`);
+            setTimeout(() => attemptLoadChats(attempt + 1), 2000);
+          } else {
+            console.error('❌ Todas as tentativas falharam');
+            toast({
+              title: "❌ Erro persistente",
+              description: "Não foi possível carregar as conversas após 3 tentativas",
+              variant: "destructive"
+            });
+          }
+        }
+      };
+
+      // Iniciar tentativas após 1 segundo
+      setTimeout(() => attemptLoadChats(), 1000);
+    }
+  }, [sessionStatus.isConnected, sessionStatus.status]);
+
   const getWPPConfig = (): WPPConfig => {
     try {
       const config = {
@@ -226,7 +258,7 @@ export function useWPPConnect() {
     setSessionStatus(prev => ({ ...prev, isLoading: true, status: 'connecting' }));
 
     try {
-      // Primeiro, gerar token se necessário (conforme mostrado na imagem)
+      // Primeiro, gerar token se necessário
       console.log('🔑 Gerando token de sessão...');
       const tokenResponse = await fetch(`${config.serverUrl}/api/${config.secretKey}/generate-token`, {
         method: 'POST',
@@ -251,7 +283,7 @@ export function useWPPConnect() {
         }
       }
 
-      // Agora iniciar a sessão com o endpoint correto
+      // Agora iniciar a sessão
       console.log('📱 Iniciando sessão WPPConnect...');
       const response = await fetch(`${config.serverUrl}/api/${config.sessionName}/start-session`, {
         method: 'POST',
@@ -409,13 +441,6 @@ export function useWPPConnect() {
             description: `Conectado com ${altData.phoneNumber || altData.number || 'sucesso'}`
           });
           
-          // Carregar conversas automaticamente
-          setTimeout(() => {
-            loadRealChats().catch(error => {
-              console.error('❌ Erro ao carregar conversas:', error);
-            });
-          }, 1000);
-          
           return true;
         }
         
@@ -440,13 +465,6 @@ export function useWPPConnect() {
           description: `Conectado com ${data.phoneNumber || data.number || 'sucesso'}`
         });
         
-        // Carregar conversas automaticamente
-        setTimeout(() => {
-          loadRealChats().catch(error => {
-            console.error('❌ Erro ao carregar conversas:', error);
-          });
-        }, 1000);
-        
         return true;
       }
       
@@ -458,46 +476,93 @@ export function useWPPConnect() {
   };
 
   const loadRealChats = async () => {
-    if (!isTokenValid() || !sessionStatus.isConnected) {
-      const errorMsg = !isTokenValid() ? 'WhatsApp não conectado ou credenciais inválidas' : 'WhatsApp não conectado';
-      console.error('❌ Erro ao carregar conversas:', errorMsg);
+    console.log('🔍 INICIANDO loadRealChats...');
+    console.log('📊 Status atual:', {
+      isTokenValid: isTokenValid(),
+      isConnected: sessionStatus.isConnected,
+      status: sessionStatus.status
+    });
+
+    if (!isTokenValid()) {
+      const errorMsg = 'Secret Key e Token não configurados corretamente';
+      console.error('❌ Erro de configuração:', errorMsg);
       toast({
-        title: "❌ Erro ao carregar conversas",
+        title: "❌ Configuração inválida",
         description: errorMsg,
         variant: "destructive"
       });
       throw new Error(errorMsg);
     }
 
+    if (!sessionStatus.isConnected) {
+      const errorMsg = 'WhatsApp não está conectado';
+      console.error('❌ Erro de conexão:', errorMsg);
+      toast({
+        title: "❌ WhatsApp desconectado",
+        description: "Conecte o WhatsApp primeiro",
+        variant: "destructive"
+      });
+      throw new Error(errorMsg);
+    }
+
     const config = getWPPConfig();
+    console.log('🔧 Usando configuração:', {
+      serverUrl: config.serverUrl,
+      sessionName: config.sessionName,
+      hasToken: !!config.token
+    });
+
     setIsLoadingChats(true);
 
     try {
-      console.log('📞 Carregando conversas reais...');
+      console.log('📞 Fazendo requisição para carregar conversas...');
+      console.log('🔗 URL:', `${config.serverUrl}/api/${config.sessionName}/all-chats`);
+      
       const response = await fetch(`${config.serverUrl}/api/${config.sessionName}/all-chats`, {
+        method: 'GET',
         headers: {
-          'Authorization': `Bearer ${config.token}`
+          'Authorization': `Bearer ${config.token}`,
+          'Content-Type': 'application/json'
         }
       });
 
+      console.log('📊 Resposta da API:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        headers: Object.fromEntries(response.headers.entries())
+      });
+
       if (!response.ok) {
-        throw new Error(`Erro HTTP: ${response.status} - ${response.statusText}`);
+        const errorText = await response.text();
+        console.error('❌ Erro HTTP completo:', {
+          status: response.status,
+          statusText: response.statusText,
+          body: errorText
+        });
+        throw new Error(`Erro HTTP: ${response.status} - ${response.statusText}\nDetalhes: ${errorText}`);
       }
 
       const data = await response.json();
-      console.log('📋 Dados das conversas recebidos:', data);
+      console.log('📋 Dados brutos recebidos:', data);
+      console.log('📏 Tipo de dados:', typeof data, 'É array?', Array.isArray(data));
       
       if (!Array.isArray(data)) {
-        throw new Error('Formato de dados inválido - esperado array');
+        console.error('❌ Formato inesperado:', data);
+        throw new Error(`Formato de dados inválido - esperado array, recebido: ${typeof data}`);
       }
+
+      console.log(`📊 ${data.length} itens de conversa recebidos`);
 
       // Transformar dados da API em formato padronizado
       const formattedChats: Chat[] = data.map((chat: any, index: number) => {
+        console.log(`🔄 Processando chat ${index}:`, chat);
+        
         const chatId = chat.id?._serialized || chat.id || `chat_${index}`;
         const phoneNumber = extractPhoneNumber(chat.id || chat.contact?.id || chat.phone);
         const lastMessageTimestamp = extractTimestamp(chat);
         
-        return {
+        const formattedChat = {
           chatId: String(chatId),
           name: extractContactName(chat),
           lastMessage: String(chat.lastMessage?.body || chat.lastMessage?.text || 'Sem mensagens'),
@@ -505,6 +570,9 @@ export function useWPPConnect() {
           unreadCount: Number(chat.unreadCount || 0),
           lastMessageTimestamp: lastMessageTimestamp
         };
+        
+        console.log(`✅ Chat ${index} formatado:`, formattedChat);
+        return formattedChat;
       });
 
       // Também criar formato Contact para compatibilidade
@@ -518,28 +586,34 @@ export function useWPPConnect() {
         lastMessageTimestamp: chat.lastMessageTimestamp
       }));
 
+      console.log('🎯 ATUALIZANDO ESTADO COM AS CONVERSAS...');
       setChats(formattedChats);
       setContacts(formattedContacts);
       
-      console.log(`✅ ${formattedChats.length} conversas carregadas com sucesso`);
+      console.log(`🎉 ${formattedChats.length} conversas carregadas e definidas no estado!`);
       
       toast({
         title: "📞 Conversas carregadas!",
-        description: `${formattedChats.length} conversas encontradas`
+        description: `${formattedChats.length} conversas encontradas e carregadas com sucesso`,
+        duration: 5000
       });
       
       return formattedChats;
       
     } catch (error) {
-      console.error('❌ Erro ao carregar conversas:', error);
+      console.error('❌ ERRO DETALHADO ao carregar conversas:', error);
+      console.error('❌ Stack trace:', error instanceof Error ? error.stack : 'N/A');
+      
       toast({
         title: "❌ Erro ao carregar conversas",
-        description: error instanceof Error ? error.message : "Erro desconhecido",
-        variant: "destructive"
+        description: error instanceof Error ? error.message : "Erro desconhecido - verifique o console",
+        variant: "destructive",
+        duration: 10000
       });
       throw error;
     } finally {
       setIsLoadingChats(false);
+      console.log('🏁 loadRealChats finalizado');
     }
   };
 
