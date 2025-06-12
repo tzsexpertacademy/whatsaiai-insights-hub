@@ -42,11 +42,14 @@ export function useAnalysisConversations() {
     
     try {
       console.log('📡 Fazendo query no Supabase...');
+      
+      // QUERY MELHORADA - ordem por created_at também
       const { data, error } = await supabase
         .from('whatsapp_conversations_analysis')
         .select('*')
         .eq('user_id', user.id)
         .eq('marked_for_analysis', true)
+        .order('created_at', { ascending: false })
         .order('marked_at', { ascending: false });
 
       console.log('📊 Resultado da query:', { data, error });

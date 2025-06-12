@@ -48,7 +48,7 @@ export function ConversationAnalysisDashboard() {
   const [debugInfo, setDebugInfo] = useState<any>(null);
   const loadingRef = useRef(false);
 
-  // Debug direto no banco
+  // Debug direto no banco - CORRIGIDO
   const testDatabaseConnection = async () => {
     console.log('🔧 TESTE DIRETO NO BANCO...');
     
@@ -63,11 +63,12 @@ export function ConversationAnalysisDashboard() {
     }
 
     try {
-      // Teste 1: Verificar se a tabela existe
+      // Teste 1: Verificar se a tabela existe (CORRIGIDO)
       console.log('🔍 Teste 1: Verificando tabela...');
       const { data: tableTest, error: tableError } = await supabase
         .from('whatsapp_conversations_analysis')
-        .select('count(*)');
+        .select('id')
+        .limit(1);
       
       console.log('📊 Resultado teste tabela:', { tableTest, tableError });
 
@@ -90,12 +91,20 @@ export function ConversationAnalysisDashboard() {
       
       console.log('📊 Resultado marcados:', { markedData, markedError });
 
-      // Teste 4: Inserir um registro de teste
-      console.log('🔍 Teste 4: Inserindo registro de teste...');
+      // Teste 4: Verificar políticas RLS
+      console.log('🔍 Teste 4: Testando RLS...');
+      const { data: rlsTest, error: rlsError } = await supabase
+        .from('whatsapp_conversations_analysis')
+        .select('*');
+      
+      console.log('📊 Resultado RLS (sem filtro):', { rlsTest, rlsError });
+
+      // Teste 5: Inserir um registro de teste
+      console.log('🔍 Teste 5: Inserindo registro de teste...');
       const testRecord = {
         user_id: user.id,
         chat_id: 'TEST_' + Date.now(),
-        contact_name: 'Teste Debug',
+        contact_name: 'Teste Debug Final',
         contact_phone: '5511999999999',
         priority: 'medium' as const,
         marked_for_analysis: true,
@@ -114,11 +123,13 @@ export function ConversationAnalysisDashboard() {
         tableExists: !tableError,
         totalRecords: allUserData?.length || 0,
         markedRecords: markedData?.length || 0,
+        rlsWorking: !rlsError,
         insertSuccess: !insertError,
         errors: {
           table: tableError?.message,
           allUser: allUserError?.message,
           marked: markedError?.message,
+          rls: rlsError?.message,
           insert: insertError?.message
         },
         testRecord: insertTest?.[0]
@@ -129,8 +140,13 @@ export function ConversationAnalysisDashboard() {
 
       toast({
         title: "Debug Concluído",
-        description: `Total: ${debugResult.totalRecords}, Marcados: ${debugResult.markedRecords}`,
+        description: `Tabela: ${debugResult.tableExists ? '✅' : '❌'} | Total: ${debugResult.totalRecords} | Marcados: ${debugResult.markedRecords}`,
       });
+
+      // Forçar reload após teste
+      setTimeout(() => {
+        loadAnalysisConversations();
+      }, 1000);
 
     } catch (error) {
       console.error('❌ ERRO no teste do banco:', error);
@@ -139,6 +155,23 @@ export function ConversationAnalysisDashboard() {
         description: error.message,
         variant: "destructive"
       });
+    }
+  };
+
+  // Forçar reload completo
+  const forceReload = async () => {
+    console.log('🔄 FORCE RELOAD - Limpando cache e recarregando...');
+    setHasInitialized(false);
+    loadingRef.current = false;
+    
+    try {
+      await Promise.all([
+        loadAnalysisConversations(),
+        refreshData()
+      ]);
+      setLastRefresh(new Date());
+    } catch (error) {
+      console.error('❌ Erro no force reload:', error);
     }
   };
 
@@ -245,6 +278,15 @@ export function ConversationAnalysisDashboard() {
         Debug DB
       </Button>
       <Button 
+        onClick={forceReload} 
+        variant="outline" 
+        size="sm"
+        className="border-orange-200 text-orange-600 hover:bg-orange-50"
+      >
+        <RefreshCw className="h-4 w-4 mr-1" />
+        Force Reload
+      </Button>
+      <Button 
         onClick={handleRefreshAll} 
         variant="outline" 
         size="sm" 
@@ -265,7 +307,7 @@ export function ConversationAnalysisDashboard() {
       backUrl="/dashboard/behavioral"
       headerActions={headerActions}
     >
-      {/* Debug Info */}
+      {/* Debug Info MELHORADO */}
       {debugInfo && (
         <Card className="mb-4 bg-red-50 border-red-200">
           <CardHeader>
@@ -277,6 +319,7 @@ export function ConversationAnalysisDashboard() {
               <p><strong>Tabela existe:</strong> {debugInfo.tableExists ? '✅' : '❌'}</p>
               <p><strong>Total registros:</strong> {debugInfo.totalRecords}</p>
               <p><strong>Registros marcados:</strong> {debugInfo.markedRecords}</p>
+              <p><strong>RLS funcionando:</strong> {debugInfo.rlsWorking ? '✅' : '❌'}</p>
               <p><strong>Inserção teste:</strong> {debugInfo.insertSuccess ? '✅' : '❌'}</p>
               {Object.entries(debugInfo.errors).some(([_, error]) => error) && (
                 <div className="mt-2 p-2 bg-red-100 rounded">
@@ -284,6 +327,14 @@ export function ConversationAnalysisDashboard() {
                   {Object.entries(debugInfo.errors).map(([key, error]) => 
                     error && <p key={key}>• {key}: {String(error)}</p>
                   )}
+                </div>
+              )}
+              {debugInfo.testRecord && (
+                <div className="mt-2 p-2 bg-green-100 rounded text-green-700">
+                  <p><strong>Último registro inserido:</strong></p>
+                  <p>• ID: {debugInfo.testRecord.id}</p>
+                  <p>• Nome: {debugInfo.testRecord.contact_name}</p>
+                  <p>• Status: {debugInfo.testRecord.analysis_status}</p>
                 </div>
               )}
             </div>
