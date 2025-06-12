@@ -1,3 +1,4 @@
+
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useClientConfig } from '@/contexts/ClientConfigContext';
@@ -80,8 +81,8 @@ export function useWPPConnect() {
   const getWPPConfig = useCallback((): WPPConnectConfig => {
     const defaultConfig = { 
       serverUrl: 'http://localhost:21465', 
-      sessionName: 'NERDWHATS_AMERICA',
-      secretKey: 'THISISMYSECURETOKEN',
+      sessionName: 'crm-session',
+      secretKey: 'MySecretKeyToGenerateToken',
       webhookUrl: ''
     };
     
@@ -94,8 +95,8 @@ export function useWPPConnect() {
     
     const rawConfig = {
       serverUrl: config.whatsapp.wppconnect.serverUrl || 'http://localhost:21465',
-      sessionName: config.whatsapp.wppconnect.sessionName || 'NERDWHATS_AMERICA',
-      secretKey: config.whatsapp.wppconnect.secretKey || 'THISISMYSECURETOKEN',
+      sessionName: config.whatsapp.wppconnect.sessionName || 'crm-session',
+      secretKey: config.whatsapp.wppconnect.secretKey || 'MySecretKeyToGenerateToken',
       webhookUrl: config.whatsapp.wppconnect.webhookUrl || ''
     };
     
@@ -118,8 +119,8 @@ export function useWPPConnect() {
     const currentWhatsapp = config.whatsapp;
     const currentWPP = currentWhatsapp.wppconnect || { 
       serverUrl: 'http://localhost:21465', 
-      sessionName: 'NERDWHATS_AMERICA',
-      secretKey: 'THISISMYSECURETOKEN',
+      sessionName: 'crm-session',
+      secretKey: 'MySecretKeyToGenerateToken',
       webhookUrl: ''
     };
     
@@ -141,49 +142,6 @@ export function useWPPConnect() {
     });
   }, [config, updateConfig, forceLocalhost]);
 
-  // Fazer requisição com tratamento de erro melhorado
-  const makeRequest = useCallback(async (url: string, options: RequestInit = {}) => {
-    const wppConfig = getWPPConfig();
-    
-    console.log('📡 Fazendo requisição para:', url);
-    console.log('🔑 Usando token:', wppConfig.secretKey);
-    
-    try {
-      const response = await fetch(url, {
-        ...options,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${wppConfig.secretKey}`,
-          ...options.headers
-        }
-      });
-
-      console.log('📥 Response status:', response.status);
-      console.log('📥 Response ok:', response.ok);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ Erro na resposta:', errorText);
-        
-        // Tentar parsear como JSON para ver se tem mais detalhes
-        try {
-          const errorJson = JSON.parse(errorText);
-          console.error('❌ Erro JSON:', errorJson);
-          throw new Error(`Erro ${response.status}: ${errorJson.message || errorText}`);
-        } catch {
-          throw new Error(`Erro HTTP: ${response.status} - ${errorText}`);
-        }
-      }
-
-      const data = await response.json();
-      console.log('✅ Resposta recebida:', data);
-      return data;
-    } catch (error) {
-      console.error('❌ ERRO COMPLETO na requisição:', error);
-      throw error;
-    }
-  }, [getWPPConfig]);
-
   // Criar nova sessão
   const createSession = useCallback(async () => {
     const wppConfig = getWPPConfig();
@@ -193,14 +151,31 @@ export function useWPPConnect() {
       setSessionStatus(prev => ({ ...prev, isLoading: true }));
       
       const endpoint = `${wppConfig.serverUrl}/api/${wppConfig.sessionName}/start-session`;
+      console.log('📡 Fazendo POST para:', endpoint);
       
-      await makeRequest(endpoint, {
+      const response = await fetch(endpoint, {
         method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${wppConfig.secretKey}`
+        },
         body: JSON.stringify({
           webhook: '',
           waitQrCode: true
         })
       });
+
+      console.log('📥 Response status:', response.status);
+      console.log('📥 Response ok:', response.ok);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Erro na resposta:', errorText);
+        throw new Error(`Erro HTTP: ${response.status} - ${errorText}`);
+      }
+
+      const data = await response.json();
+      console.log('✅ Resposta da sessão:', data);
       
       // Aguardar QR Code aparecer
       setTimeout(() => {
@@ -208,7 +183,8 @@ export function useWPPConnect() {
       }, 2000);
       
     } catch (error) {
-      console.error('❌ ERRO ao criar sessão:', error);
+      console.error('❌ ERRO COMPLETO ao criar sessão:', error);
+      console.error('❌ Stack trace:', error instanceof Error ? error.stack : 'N/A');
       setSessionStatus(prev => ({ ...prev, isLoading: false }));
       toast({
         title: "Erro ao criar sessão",
@@ -216,7 +192,7 @@ export function useWPPConnect() {
         variant: "destructive"
       });
     }
-  }, [getWPPConfig, makeRequest, toast]);
+  }, [getWPPConfig, toast]);
 
   // Obter QR Code
   const getQRCode = useCallback(async () => {
@@ -225,30 +201,46 @@ export function useWPPConnect() {
     
     try {
       const endpoint = `${wppConfig.serverUrl}/api/${wppConfig.sessionName}/qr-code`;
+      console.log('📡 Fazendo GET para:', endpoint);
       
-      const data = await makeRequest(endpoint);
+      const response = await fetch(endpoint, {
+        headers: {
+          'Authorization': `Bearer ${wppConfig.secretKey}`
+        }
+      });
       
-      if (data.qrcode || data.qr) {
-        setSessionStatus(prev => ({
-          ...prev,
-          qrCode: data.qrcode || data.qr,
-          sessionName: wppConfig.sessionName,
-          isLoading: false
-        }));
+      console.log('📥 QR Response status:', response.status);
+      console.log('📥 QR Response ok:', response.ok);
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('📱 QR Code recebido:', data);
         
-        toast({
-          title: "QR Code gerado!",
-          description: "Escaneie com seu WhatsApp para conectar"
-        });
-        
-        // Verificar status da sessão periodicamente
-        startStatusPolling();
+        if (data.qrcode || data.qr) {
+          setSessionStatus(prev => ({
+            ...prev,
+            qrCode: data.qrcode || data.qr,
+            sessionName: wppConfig.sessionName,
+            isLoading: false
+          }));
+          
+          toast({
+            title: "QR Code gerado!",
+            description: "Escaneie com seu WhatsApp para conectar"
+          });
+          
+          // Verificar status da sessão periodicamente
+          startStatusPolling();
+        }
+      } else {
+        const errorText = await response.text();
+        console.error('❌ Erro ao obter QR:', errorText);
       }
     } catch (error) {
-      console.error('❌ ERRO ao obter QR Code:', error);
+      console.error('❌ ERRO COMPLETO ao obter QR Code:', error);
       setSessionStatus(prev => ({ ...prev, isLoading: false }));
     }
-  }, [getWPPConfig, makeRequest, toast]);
+  }, [getWPPConfig, toast]);
 
   // Polling para verificar status
   const startStatusPolling = useCallback(() => {
@@ -267,13 +259,20 @@ export function useWPPConnect() {
 
   // Verificar status da sessão
   const checkSessionStatus = useCallback(async () => {
-    const wppConfig = getWPPConfig();
+    const { serverUrl, sessionName, secretKey } = getWPPConfig();
     
     try {
-      const endpoint = `${wppConfig.serverUrl}/api/${wppConfig.sessionName}/status`;
-      console.log('📡 Status endpoint:', endpoint);
+      const response = await fetch(`${serverUrl}/api/${sessionName}/status`, {
+        headers: {
+          'Authorization': `Bearer ${secretKey}`
+        }
+      });
       
-      const data = await makeRequest(endpoint);
+      if (!response.ok) {
+        return false;
+      }
+
+      const data = await response.json();
       console.log('📱 Status da sessão:', data);
       
       const isConnected = data.state === 'CONNECTED' || data.status === 'inChat';
@@ -283,7 +282,7 @@ export function useWPPConnect() {
         isConnected,
         phoneNumber: data.phone || data.number || '',
         qrCode: isConnected ? '' : prev.qrCode,
-        sessionName: wppConfig.sessionName
+        sessionName
       }));
       
       if (isConnected) {
@@ -301,17 +300,27 @@ export function useWPPConnect() {
       console.error('❌ Erro ao verificar status:', error);
       return false;
     }
-  }, [getWPPConfig, makeRequest, toast]);
+  }, [getWPPConfig, toast]);
 
   // Carregar conversas
   const loadChats = useCallback(async () => {
-    const wppConfig = getWPPConfig();
+    const { serverUrl, sessionName, secretKey } = getWPPConfig();
     
     console.log('💬 Carregando conversas...');
     
     try {
-      const endpoint = `${wppConfig.serverUrl}/api/${wppConfig.sessionName}/all-chats`;
-      const data = await makeRequest(endpoint);
+      const response = await fetch(`${serverUrl}/api/${sessionName}/all-chats`, {
+        headers: {
+          'Authorization': `Bearer ${secretKey}`
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Erro HTTP: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('📋 Conversas recebidas:', data);
       
       // Para WPPConnect v2.8.6, os dados podem estar em data.result ou direto em data
       const chatsData = data.result || data;
@@ -337,18 +346,28 @@ export function useWPPConnect() {
         variant: "destructive"
       });
     }
-  }, [getWPPConfig, makeRequest, toast]);
+  }, [getWPPConfig, toast]);
 
   // Carregar mensagens de uma conversa
   const loadChatMessages = useCallback(async (chatId: string, limit: number = 50) => {
-    const wppConfig = getWPPConfig();
+    const { serverUrl, sessionName, secretKey } = getWPPConfig();
     
     console.log(`📨 Carregando mensagens do chat: ${chatId}`);
     setIsLoadingMessages(true);
     
     try {
-      const endpoint = `${wppConfig.serverUrl}/api/${wppConfig.sessionName}/get-messages/${chatId}?limit=${limit}`;
-      const data = await makeRequest(endpoint);
+      const response = await fetch(`${serverUrl}/api/${sessionName}/get-messages/${chatId}?limit=${limit}`, {
+        headers: {
+          'Authorization': `Bearer ${secretKey}`
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Erro HTTP: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('📋 Mensagens recebidas:', data);
       
       // Para WPPConnect v2.8.6, os dados podem estar em data.result ou direto em data
       const messagesData = data.result || data;
@@ -379,24 +398,32 @@ export function useWPPConnect() {
     } finally {
       setIsLoadingMessages(false);
     }
-  }, [getWPPConfig, makeRequest, toast]);
+  }, [getWPPConfig, toast]);
 
   // Enviar mensagem
   const sendMessage = useCallback(async (chatId: string, text: string) => {
-    const wppConfig = getWPPConfig();
+    const { serverUrl, sessionName, secretKey } = getWPPConfig();
     
     console.log(`📤 Enviando mensagem para: ${chatId}`);
     
     try {
-      const endpoint = `${wppConfig.serverUrl}/api/${wppConfig.sessionName}/send-message`;
-      const data = await makeRequest(endpoint, {
+      const response = await fetch(`${serverUrl}/api/${sessionName}/send-message`, {
         method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${secretKey}`
+        },
         body: JSON.stringify({
           phone: chatId,
           message: text
         })
       });
 
+      if (!response.ok) {
+        throw new Error(`Erro HTTP: ${response.status}`);
+      }
+
+      const data = await response.json();
       console.log('✅ Mensagem enviada:', data);
       
       // Adicionar mensagem ao estado local
@@ -425,15 +452,19 @@ export function useWPPConnect() {
       });
       return false;
     }
-  }, [getWPPConfig, makeRequest, toast]);
+  }, [getWPPConfig, toast]);
 
   // Desconectar sessão
   const disconnect = useCallback(async () => {
-    const wppConfig = getWPPConfig();
+    const { serverUrl, sessionName, secretKey } = getWPPConfig();
     
     try {
-      const endpoint = `${wppConfig.serverUrl}/api/${wppConfig.sessionName}/logout`;
-      await makeRequest(endpoint, { method: 'POST' });
+      await fetch(`${serverUrl}/api/${sessionName}/logout`, { 
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${secretKey}`
+        }
+      });
       
       setSessionStatus({
         isConnected: false,
@@ -454,48 +485,54 @@ export function useWPPConnect() {
     } catch (error) {
       console.error('Erro ao desconectar:', error);
     }
-  }, [getWPPConfig, makeRequest, toast]);
+  }, [getWPPConfig, toast]);
 
   // Modo ao vivo - verificar novas mensagens
   const checkNewMessages = useCallback(async () => {
     if (!currentChatId) return;
     
-    const wppConfig = getWPPConfig();
+    const { serverUrl, sessionName, secretKey } = getWPPConfig();
     
     try {
-      const endpoint = `${wppConfig.serverUrl}/api/${wppConfig.sessionName}/get-messages/${currentChatId}?limit=5`;
-      const data = await makeRequest(endpoint);
+      const response = await fetch(`${serverUrl}/api/${sessionName}/get-messages/${currentChatId}?limit=5`, {
+        headers: {
+          'Authorization': `Bearer ${secretKey}`
+        }
+      });
       
-      const messagesData = data.result || data;
-      
-      if (Array.isArray(messagesData) && messagesData.length > 0) {
-        const existingIds = new Set(messages.map(m => m.id));
-        const newMessages = messagesData
-          .filter((msg: any) => !existingIds.has(msg.id._serialized))
-          .map((msg: any) => ({
-            id: msg.id._serialized,
-            text: msg.body || '[Mídia]',
-            sender: msg.fromMe ? 'user' : 'contact' as 'user' | 'contact',
-            timestamp: new Date(msg.timestamp * 1000).toISOString(),
-            chatId: currentChatId
-          }));
+      if (response.ok) {
+        const data = await response.json();
+        const messagesData = data.result || data;
         
-        if (newMessages.length > 0) {
-          setMessages(prev => [...prev, ...newMessages]);
+        if (Array.isArray(messagesData) && messagesData.length > 0) {
+          const existingIds = new Set(messages.map(m => m.id));
+          const newMessages = messagesData
+            .filter((msg: any) => !existingIds.has(msg.id._serialized))
+            .map((msg: any) => ({
+              id: msg.id._serialized,
+              text: msg.body || '[Mídia]',
+              sender: msg.fromMe ? 'user' : 'contact' as 'user' | 'contact',
+              timestamp: new Date(msg.timestamp * 1000).toISOString(),
+              chatId: currentChatId
+            }));
           
-          const newIncoming = newMessages.filter(m => m.sender === 'contact');
-          if (newIncoming.length > 0) {
-            toast({
-              title: "Nova mensagem!",
-              description: `${newIncoming.length} nova(s) mensagem(ns)`
-            });
+          if (newMessages.length > 0) {
+            setMessages(prev => [...prev, ...newMessages]);
+            
+            const newIncoming = newMessages.filter(m => m.sender === 'contact');
+            if (newIncoming.length > 0) {
+              toast({
+                title: "Nova mensagem!",
+                description: `${newIncoming.length} nova(s) mensagem(ns)`
+              });
+            }
           }
         }
       }
     } catch (error) {
       console.error('❌ Erro ao verificar novas mensagens:', error);
     }
-  }, [currentChatId, getWPPConfig, makeRequest, messages, toast]);
+  }, [currentChatId, getWPPConfig, messages, toast]);
 
   // Iniciar modo ao vivo
   const startLiveMode = useCallback((chatId: string) => {
@@ -558,7 +595,55 @@ export function useWPPConnect() {
     
     // Ações
     createSession,
-    checkSessionStatus,
+    checkSessionStatus: async () => {
+      const wppConfig = getWPPConfig();
+      console.log('🔍 Verificando status com config:', wppConfig);
+      
+      try {
+        const endpoint = `${wppConfig.serverUrl}/api/${wppConfig.sessionName}/status`;
+        console.log('📡 Status endpoint:', endpoint);
+        
+        const response = await fetch(endpoint, {
+          headers: {
+            'Authorization': `Bearer ${wppConfig.secretKey}`
+          }
+        });
+        
+        console.log('📥 Status response:', response.status, response.ok);
+        
+        if (!response.ok) {
+          return false;
+        }
+
+        const data = await response.json();
+        console.log('📱 Status da sessão:', data);
+        
+        const isConnected = data.state === 'CONNECTED' || data.status === 'inChat';
+        
+        setSessionStatus(prev => ({
+          ...prev,
+          isConnected,
+          phoneNumber: data.phone || data.number || '',
+          qrCode: isConnected ? '' : prev.qrCode,
+          sessionName: wppConfig.sessionName
+        }));
+        
+        if (isConnected) {
+          toast({
+            title: "WhatsApp conectado!",
+            description: `Número: ${data.phone || data.number || 'Conectado'}`
+          });
+          
+          // Carregar chats após conectar
+          loadChats();
+        }
+        
+        return isConnected;
+      } catch (error) {
+        console.error('❌ Erro ao verificar status:', error);
+        return false;
+      }
+    },
     loadChats,
     loadChatMessages,
     sendMessage,

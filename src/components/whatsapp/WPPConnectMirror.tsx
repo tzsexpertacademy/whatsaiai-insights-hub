@@ -53,66 +53,6 @@ export function WPPConnectMirror() {
   const [pinnedConversations, setPinnedConversations] = useState<Set<string>>(new Set());
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Função auxiliar para garantir que chatId seja string - MAIS ROBUSTA
-  const formatChatId = (chatId: any): string => {
-    console.log('🔧 formatChatId - Input:', chatId, 'Type:', typeof chatId);
-    
-    // Se já for string, retornar
-    if (typeof chatId === 'string') {
-      console.log('✅ já é string:', chatId);
-      return chatId;
-    }
-    
-    // Se for null ou undefined
-    if (chatId === null || chatId === undefined) {
-      console.log('⚠️ chatId é null/undefined');
-      return 'unknown';
-    }
-    
-    // Se for um objeto
-    if (typeof chatId === 'object') {
-      // Tentar _serialized primeiro
-      if (chatId._serialized && typeof chatId._serialized === 'string') {
-        console.log('✅ usando _serialized:', chatId._serialized);
-        return chatId._serialized;
-      }
-      
-      // Tentar user@server
-      if (chatId.user && chatId.server) {
-        const formatted = `${chatId.user}@${chatId.server}`;
-        console.log('✅ construído user@server:', formatted);
-        return formatted;
-      }
-      
-      // Tentar id
-      if (chatId.id && typeof chatId.id === 'string') {
-        console.log('✅ usando id:', chatId.id);
-        return chatId.id;
-      }
-      
-      // Se tem id como objeto, tentar _serialized dele
-      if (chatId.id && chatId.id._serialized) {
-        console.log('✅ usando id._serialized:', chatId.id._serialized);
-        return chatId.id._serialized;
-      }
-      
-      // Como último recurso, tentar JSON.stringify mas de forma segura
-      try {
-        const stringified = JSON.stringify(chatId);
-        console.log('⚠️ usando JSON.stringify:', stringified);
-        return stringified;
-      } catch (error) {
-        console.error('❌ Erro ao fazer JSON.stringify:', error);
-        return 'invalid-id';
-      }
-    }
-    
-    // Para qualquer outro tipo, converter para string
-    const fallback = String(chatId);
-    console.log('⚠️ usando String():', fallback);
-    return fallback;
-  };
-
   // Auto-scroll para última mensagem
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -133,10 +73,8 @@ export function WPPConnectMirror() {
   };
 
   const selectContact = (contact: any) => {
-    const formattedChatId = formatChatId(contact.chatId);
-    console.log('🎯 selectContact - Original:', contact.chatId, 'Formatted:', formattedChatId);
-    setSelectedContact(formattedChatId);
-    loadChatMessages(formattedChatId);
+    setSelectedContact(contact.chatId);
+    loadChatMessages(contact.chatId);
   };
 
   const handleSendMessage = async () => {
@@ -166,14 +104,13 @@ export function WPPConnectMirror() {
   };
 
   const handleTogglePin = (chatId: string) => {
-    const formattedChatId = formatChatId(chatId);
     setPinnedConversations(prev => {
       const newSet = new Set(prev);
-      if (newSet.has(formattedChatId)) {
-        newSet.delete(formattedChatId);
+      if (newSet.has(chatId)) {
+        newSet.delete(chatId);
         toast({ title: "Conversa desfixada" });
       } else {
-        newSet.add(formattedChatId);
+        newSet.add(chatId);
         toast({ title: "Conversa fixada" });
       }
       return newSet;
@@ -181,30 +118,29 @@ export function WPPConnectMirror() {
   };
 
   const handleToggleAnalysis = async (chatId: string, priority?: 'high' | 'medium' | 'low') => {
-    const formattedChatId = formatChatId(chatId);
-    const chat = chats.find(c => formatChatId(c.chatId) === formattedChatId);
+    const chat = chats.find(c => c.chatId === chatId);
     if (!chat) return;
 
-    console.log('🏷️ Toggle análise para:', { chatId: formattedChatId, chatName: chat.name, priority });
+    console.log('🏷️ Toggle análise para:', { chatId, chatName: chat.name, priority });
 
-    if (priority && markedConversations.has(formattedChatId)) {
+    if (priority && markedConversations.has(chatId)) {
       // Atualizar prioridade
-      await updateConversationPriority(formattedChatId, priority);
+      await updateConversationPriority(chatId, priority);
     } else {
       // Marcar/desmarcar para análise
       const isMarked = await markConversationForAnalysis(
-        formattedChatId, 
+        chatId, 
         chat.name, 
-        formattedChatId, // usando chatId formatado como phone
+        chat.chatId, // usando chatId como phone por enquanto
         priority || 'medium'
       );
 
       setMarkedConversations(prev => {
         const newSet = new Set(prev);
         if (isMarked) {
-          newSet.add(formattedChatId);
+          newSet.add(chatId);
         } else {
-          newSet.delete(formattedChatId);
+          newSet.delete(chatId);
         }
         return newSet;
       });
@@ -360,58 +296,48 @@ export function WPPConnectMirror() {
             
             <CardContent className="p-0">
               <div className="space-y-1 max-h-[500px] overflow-y-auto">
-                {chats.map((chat, index) => {
-                  const formattedChatId = formatChatId(chat.chatId);
-                  const chatKey = formattedChatId || `chat-${index}`;
-                  
-                  console.log('🔄 Renderizing chat:', { originalId: chat.chatId, formattedId: formattedChatId, name: chat.name });
-                  
-                  return (
-                    <ConversationContextMenu
-                      key={chatKey}
-                      chatId={formattedChatId}
-                      isPinned={pinnedConversations.has(formattedChatId)}
-                      isMarkedForAnalysis={markedConversations.has(formattedChatId)}
-                      analysisPriority="medium"
-                      onTogglePin={handleTogglePin}
-                      onToggleAnalysis={handleToggleAnalysis}
+                {chats.map((chat) => (
+                  <ConversationContextMenu
+                    key={chat.chatId}
+                    chatId={chat.chatId}
+                    isPinned={pinnedConversations.has(chat.chatId)}
+                    isMarkedForAnalysis={markedConversations.has(chat.chatId)}
+                    analysisPriority="medium"
+                    onTogglePin={handleTogglePin}
+                    onToggleAnalysis={handleToggleAnalysis}
+                  >
+                    <div 
+                      onClick={() => selectContact(chat)}
+                      className={`p-3 border-b cursor-pointer hover:bg-gray-50 transition-colors ${
+                        selectedContact === chat.chatId ? 'bg-blue-50 border-blue-200' : ''
+                      }`}
                     >
-                      <div 
-                        onClick={() => selectContact(chat)}
-                        className={`p-3 border-b cursor-pointer hover:bg-gray-50 transition-colors ${
-                          selectedContact === formattedChatId ? 'bg-blue-50 border-blue-200' : ''
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                            <User className="h-6 w-6 text-green-600" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <span className="font-medium text-sm">{chat.name || 'Conversa sem nome'}</span>
-                                {pinnedConversations.has(formattedChatId) && (
-                                  <Star className="h-3 w-3 text-yellow-500 fill-current" />
-                                )}
-                                {markedConversations.has(formattedChatId) && (
-                                  <Brain className="h-3 w-3 text-blue-500" />
-                                )}
-                              </div>
-                              <span className="text-xs text-gray-400">{formatTime(chat.timestamp || new Date().toISOString())}</span>
-                            </div>
-                            <p className="text-sm text-gray-500 truncate mt-1">{chat.lastMessage || 'Sem mensagens'}</p>
-                            <p className="text-xs text-gray-400 mt-1">
-                              ID: {formattedChatId}
-                            </p>
-                          </div>
-                          {chat.unreadCount > 0 && (
-                            <Badge className="bg-green-500 text-white">{chat.unreadCount}</Badge>
-                          )}
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                          <User className="h-6 w-6 text-green-600" />
                         </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-sm">{chat.name}</span>
+                              {pinnedConversations.has(chat.chatId) && (
+                                <Star className="h-3 w-3 text-yellow-500 fill-current" />
+                              )}
+                              {markedConversations.has(chat.chatId) && (
+                                <Brain className="h-3 w-3 text-blue-500" />
+                              )}
+                            </div>
+                            <span className="text-xs text-gray-400">{formatTime(chat.timestamp)}</span>
+                          </div>
+                          <p className="text-sm text-gray-500 truncate mt-1">{chat.lastMessage}</p>
+                        </div>
+                        {chat.unreadCount > 0 && (
+                          <Badge className="bg-green-500 text-white">{chat.unreadCount}</Badge>
+                        )}
                       </div>
-                    </ConversationContextMenu>
-                  );
-                })}
+                    </div>
+                  </ConversationContextMenu>
+                ))}
               </div>
             </CardContent>
           </Card>
@@ -427,7 +353,7 @@ export function WPPConnectMirror() {
                     </div>
                     <div className="flex-1">
                       <CardTitle className="text-lg">
-                        {chats.find(c => formatChatId(c.chatId) === selectedContact)?.name || 'Conversa'}
+                        {chats.find(c => c.chatId === selectedContact)?.name}
                       </CardTitle>
                     </div>
                     <Button
@@ -461,9 +387,9 @@ export function WPPConnectMirror() {
                     ) : (
                       messages
                         .filter(msg => msg.chatId === selectedContact)
-                        .map((msg, index) => (
+                        .map((msg) => (
                           <div
-                            key={msg.id || `msg-${index}`}
+                            key={msg.id}
                             className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
                           >
                             <div
@@ -473,11 +399,11 @@ export function WPPConnectMirror() {
                                   : 'bg-gray-100 text-gray-800'
                               }`}
                             >
-                              <p className="text-sm">{msg.text || '[Mensagem sem texto]'}</p>
+                              <p className="text-sm">{msg.text}</p>
                               <div className={`text-xs mt-1 ${
                                 msg.sender === 'user' ? 'text-green-100' : 'text-gray-500'
                               }`}>
-                                {formatTime(msg.timestamp || new Date().toISOString())}
+                                {formatTime(msg.timestamp)}
                               </div>
                             </div>
                           </div>

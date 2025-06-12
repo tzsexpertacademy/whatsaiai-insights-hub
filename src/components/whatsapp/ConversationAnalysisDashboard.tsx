@@ -25,8 +25,7 @@ import {
   Star,
   CheckCircle,
   XCircle,
-  Bug,
-  Trash2
+  Bug
 } from 'lucide-react';
 
 export function ConversationAnalysisDashboard() {
@@ -48,117 +47,6 @@ export function ConversationAnalysisDashboard() {
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   const [debugInfo, setDebugInfo] = useState<any>(null);
   const loadingRef = useRef(false);
-
-  // Limpar dados de teste do banco
-  const clearTestData = async () => {
-    console.log('🧹 LIMPANDO DADOS DE TESTE...');
-    
-    if (!user?.id) {
-      console.error('❌ Usuário não logado para limpeza');
-      return;
-    }
-
-    try {
-      console.log('🗑️ Removendo registros de teste...');
-      
-      const { data: deletedData, error: deleteError } = await supabase
-        .from('whatsapp_conversations_analysis')
-        .delete()
-        .eq('user_id', user.id)
-        .or('chat_id.like.TEST_%,contact_name.like.%Teste%,contact_name.like.%Debug%')
-        .select();
-      
-      console.log('📊 Resultado da limpeza:', { deletedData, deleteError });
-
-      if (deleteError) {
-        console.error('❌ Erro na limpeza:', deleteError);
-        throw deleteError;
-      }
-
-      toast({
-        title: "Dados de teste removidos",
-        description: `${deletedData?.length || 0} registros de teste foram removidos`,
-      });
-
-      // Recarregar após limpeza
-      setTimeout(() => {
-        loadAnalysisConversations();
-      }, 1000);
-
-    } catch (error) {
-      console.error('❌ ERRO na limpeza de dados de teste:', error);
-      toast({
-        title: "Erro na limpeza",
-        description: error.message,
-        variant: "destructive"
-      });
-    }
-  };
-
-  // Debug específico da QUERY (SEM DADOS DE TESTE)
-  const testRealConversationsQuery = async () => {
-    console.log('🔧 TESTE ESPECÍFICO DA QUERY (CONVERSAS REAIS)...');
-    
-    if (!user?.id) {
-      console.error('❌ Usuário não logado para teste');
-      return;
-    }
-
-    try {
-      console.log('🎯 Testando query de conversas REAIS...');
-      
-      // Teste query de conversas REAIS marcadas
-      const { data: realMarked, error: realError } = await supabase
-        .from('whatsapp_conversations_analysis')
-        .select('*', { count: 'exact' })
-        .eq('user_id', user.id)
-        .eq('marked_for_analysis', true)
-        .not('chat_id', 'like', 'TEST_%')
-        .not('contact_name', 'like', '%Teste%')
-        .not('contact_name', 'like', '%Debug%');
-      
-      console.log('📊 Conversas REAIS marcadas:', { 
-        realMarked, 
-        realError,
-        count: realMarked?.length || 0
-      });
-
-      // Teste todas as conversas do usuário (incluindo teste)
-      const { data: allData, error: allError } = await supabase
-        .from('whatsapp_conversations_analysis')
-        .select('*')
-        .eq('user_id', user.id);
-      
-      console.log('📊 TODAS as conversas do usuário:', { 
-        allData, 
-        allError,
-        totalCount: allData?.length || 0,
-        testCount: allData?.filter(item => 
-          item.chat_id?.includes('TEST_') || 
-          item.contact_name?.includes('Teste') || 
-          item.contact_name?.includes('Debug')
-        )?.length || 0,
-        realCount: allData?.filter(item => 
-          !item.chat_id?.includes('TEST_') && 
-          !item.contact_name?.includes('Teste') && 
-          !item.contact_name?.includes('Debug')
-        )?.length || 0
-      });
-
-      toast({
-        title: "Debug Conversas Reais",
-        description: `Reais marcadas: ${realMarked?.length || 0} | Total: ${allData?.length || 0}`,
-      });
-
-    } catch (error) {
-      console.error('❌ ERRO no teste de conversas reais:', error);
-      toast({
-        title: "Erro no Debug",
-        description: error.message,
-        variant: "destructive"
-      });
-    }
-  };
 
   // Debug específico da QUERY
   const testSpecificQuery = async () => {
@@ -430,29 +318,29 @@ export function ConversationAnalysisDashboard() {
     <div className="flex items-center gap-3">
       <Badge variant="outline" className="bg-blue-50">
         <Star className="h-3 w-3 mr-1" />
-        {conversations.length} Conversas Reais
+        {conversations.length} Conversas Marcadas
       </Badge>
       <Badge variant="outline" className="bg-green-50">
         <TrendingUp className="h-3 w-3 mr-1" />
         {completedConversations.length} Analisadas
       </Badge>
       <Button 
-        onClick={testRealConversationsQuery} 
+        onClick={testSpecificQuery} 
         variant="outline" 
         size="sm"
         className="border-purple-200 text-purple-600 hover:bg-purple-50"
       >
         <Bug className="h-4 w-4 mr-1" />
-        Debug Reais
+        Debug Query
       </Button>
       <Button 
-        onClick={clearTestData} 
+        onClick={testDatabaseConnection} 
         variant="outline" 
         size="sm"
         className="border-red-200 text-red-600 hover:bg-red-50"
       >
-        <Trash2 className="h-4 w-4 mr-1" />
-        Limpar Teste
+        <Bug className="h-4 w-4 mr-1" />
+        Debug DB
       </Button>
       <Button 
         onClick={forceReload} 
@@ -525,33 +413,25 @@ export function ConversationAnalysisDashboard() {
           <div className="flex items-start gap-2">
             <AlertTriangle className="h-4 w-4 text-blue-600 mt-0.5" />
             <div className="text-xs">
-              <p><strong>Status:</strong> {conversations.length} conversas REAIS marcadas | {insights.length} insights gerados</p>
+              <p><strong>Status:</strong> {conversations.length} conversas marcadas | {insights.length} insights gerados</p>
               <p><strong>Carregamento:</strong> {isLoading ? 'Em andamento...' : 'Concluído'}</p>
               <p><strong>Última atualização:</strong> {lastRefresh.toLocaleTimeString('pt-BR')}</p>
               {conversations.length === 0 && !isLoading && (
                 <div className="mt-2 p-2 bg-yellow-50 rounded border border-yellow-200">
                   <p className="text-yellow-700 font-medium">
-                    ⚠️ Nenhuma conversa REAL marcada encontrada!
+                    ⚠️ Nenhuma conversa marcada encontrada!
                   </p>
                   <p className="text-yellow-600 text-xs mt-1">
-                    Vá ao WhatsApp Mirror, clique com botão direito nas conversas REAIS e marque para análise IA.
+                    Vá ao WhatsApp Mirror, clique com botão direito nas conversas e marque para análise IA.
                   </p>
                   <div className="mt-2 flex gap-2">
                     <Button 
-                      onClick={testRealConversationsQuery} 
+                      onClick={testSpecificQuery} 
                       size="sm" 
                       variant="outline"
                       className="text-xs"
                     >
-                      Debug Reais
-                    </Button>
-                    <Button 
-                      onClick={clearTestData} 
-                      size="sm" 
-                      variant="destructive"
-                      className="text-xs"
-                    >
-                      Limpar Teste
+                      Debug Query
                     </Button>
                     <Button 
                       onClick={forceReload} 
@@ -659,7 +539,7 @@ export function ConversationAnalysisDashboard() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Users className="h-5 w-5" />
-                  Conversas REAIS Marcadas para Análise ({conversations.length})
+                  Conversas Marcadas para Análise ({conversations.length})
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -671,29 +551,21 @@ export function ConversationAnalysisDashboard() {
                 ) : conversations.length === 0 ? (
                   <div className="text-center py-8 text-gray-500">
                     <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p className="text-lg font-medium">Nenhuma conversa REAL marcada para análise</p>
+                    <p className="text-lg font-medium">Nenhuma conversa marcada para análise</p>
                     <div className="text-sm mt-2 space-y-1">
-                      <p>Para marcar conversas REAIS:</p>
+                      <p>Para marcar conversas:</p>
                       <p>1. Vá para o WhatsApp Mirror</p>
-                      <p>2. Clique com botão direito nas conversas REAIS</p>
+                      <p>2. Clique com botão direito nas conversas</p>
                       <p>3. Selecione "Marcar para análise IA"</p>
                     </div>
                     <div className="mt-4 flex gap-2 justify-center">
                       <Button 
-                        onClick={testRealConversationsQuery} 
+                        onClick={testSpecificQuery} 
                         variant="outline" 
                         size="sm"
                       >
                         <Bug className="h-4 w-4 mr-2" />
-                        Debug Reais
-                      </Button>
-                      <Button 
-                        onClick={clearTestData} 
-                        variant="destructive" 
-                        size="sm"
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Limpar Teste
+                        Debug Query
                       </Button>
                       <Button 
                         onClick={handleRefreshAll} 
