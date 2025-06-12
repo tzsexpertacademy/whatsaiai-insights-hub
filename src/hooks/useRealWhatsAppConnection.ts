@@ -78,29 +78,29 @@ export function useRealWhatsAppConnection() {
 
   // Helper function to format phone number for WPPConnect
   const formatPhoneNumber = (phone: string): string => {
+    console.log('📞 Formatando número original:', phone);
+    
     // Para grupos, manter o formato original
     if (phone.includes('@g.us')) {
+      console.log('📞 É grupo, mantendo formato:', phone);
       return phone;
     }
     
-    // Remove caracteres especiais
-    let cleanPhone = phone.replace(/\D/g, '');
-    
-    // Se o número já termina com @c.us, extrair apenas os números
+    // Se já tem @c.us, usar como está
     if (phone.includes('@c.us')) {
-      cleanPhone = phone.split('@')[0];
+      console.log('📞 Já tem @c.us, mantendo:', phone);
+      return phone;
     }
     
-    // Adicionar código do país se necessário (Brasil = 55)
-    if (cleanPhone.length === 11 && cleanPhone.startsWith('0')) {
-      cleanPhone = '55' + cleanPhone.substring(1);
-    } else if (cleanPhone.length === 10) {
-      cleanPhone = '55' + cleanPhone;
-    } else if (cleanPhone.length === 11 && !cleanPhone.startsWith('55')) {
-      cleanPhone = '55' + cleanPhone;
-    }
+    // Remove caracteres especiais para limpeza
+    let cleanPhone = phone.replace(/\D/g, '');
+    console.log('📞 Número limpo:', cleanPhone);
     
-    return cleanPhone;
+    // Se não tem @c.us e não é grupo, adicionar @c.us
+    const formattedPhone = cleanPhone + '@c.us';
+    console.log('📞 Número formatado final:', formattedPhone);
+    
+    return formattedPhone;
   };
 
   // Função para fixar/desfixar conversa
@@ -416,29 +416,25 @@ export function useRealWhatsAppConnection() {
   // Função para enviar mensagem
   const sendMessage = useCallback(async (phone: string, message: string) => {
     console.log('📤 Enviando mensagem real via WPPConnect...');
-    console.log('📞 Telefone original:', phone);
+    console.log('📞 Telefone recebido:', phone);
+    console.log('💬 Mensagem:', message);
     
     try {
-      const isGroup = phone.includes('@g.us');
-      let targetPhone = phone;
+      // Formatar o número corretamente
+      const targetPhone = formatPhoneNumber(phone);
+      console.log('📞 Telefone formatado para envio:', targetPhone);
       
-      if (isGroup) {
-        console.log('📞 Enviando para grupo:', phone);
-        targetPhone = phone;
-      } else {
-        targetPhone = formatPhoneNumber(phone);
-        console.log('📞 Telefone formatado:', targetPhone);
-      }
-      
-      const sendData = {
+      // Tentar primeiro o endpoint /send-text
+      let endpoint = `${wppConfig.serverUrl}/api/${wppConfig.sessionName}/send-text`;
+      let sendData = {
         phone: targetPhone,
-        message: message,
-        isGroup: isGroup
+        message: message
       };
       
+      console.log('📤 Tentando endpoint send-text:', endpoint);
       console.log('📤 Dados de envio:', sendData);
       
-      const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/send-text`, {
+      let response = await fetch(endpoint, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -447,7 +443,50 @@ export function useRealWhatsAppConnection() {
         body: JSON.stringify(sendData)
       });
 
-      console.log('📤 Send message response status:', response.status);
+      console.log('📤 Response status send-text:', response.status);
+
+      // Se deu 404, tentar o endpoint alternativo /send-message
+      if (response.status === 404) {
+        console.log('📤 Tentando endpoint alternativo send-message...');
+        endpoint = `${wppConfig.serverUrl}/api/${wppConfig.sessionName}/send-message`;
+        
+        response = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${wppConfig.token}`
+          },
+          body: JSON.stringify(sendData)
+        });
+        
+        console.log('📤 Response status send-message:', response.status);
+      }
+
+      // Se ainda deu 404, tentar o formato chat-id
+      if (response.status === 404) {
+        console.log('📤 Tentando com formato chatId...');
+        sendData = {
+          phone: targetPhone,
+          message: message
+        };
+        
+        endpoint = `${wppConfig.serverUrl}/api/${wppConfig.sessionName}/send-message`;
+        
+        response = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${wppConfig.token}`
+          },
+          body: JSON.stringify({
+            chatId: targetPhone,
+            message: message,
+            text: message
+          })
+        });
+        
+        console.log('📤 Response status com chatId:', response.status);
+      }
 
       if (response.ok) {
         const result = await response.json();
@@ -463,7 +502,9 @@ export function useRealWhatsAppConnection() {
         console.error('❌ Erro ao enviar mensagem:', {
           status: response.status,
           statusText: response.statusText,
-          error: errorText
+          error: errorText,
+          endpoint: endpoint,
+          phone: targetPhone
         });
         
         toast({

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,7 +26,8 @@ import {
   Brain,
   Star,
   TrendingUp,
-  AlertTriangle
+  AlertTriangle,
+  Search
 } from 'lucide-react';
 
 interface Contact {
@@ -74,6 +75,7 @@ export function RealWhatsAppMirror() {
   const [selectedContact, setSelectedContact] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState('');
   const [showConfig, setShowConfig] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -111,19 +113,31 @@ export function RealWhatsAppMirror() {
     let phone = contact.phone;
     
     if (phone.includes('@c.us')) {
-      phone = phone.split('@')[0];
+      return phone; // Retorna o phone completo com @c.us para contatos individuais
     }
     
     if (phone.includes('@g.us')) {
-      return phone;
+      return phone; // Retorna o phone completo com @g.us para grupos
     }
     
-    return phone;
+    // Se não tem formato WhatsApp, adiciona @c.us
+    return phone + '@c.us';
   };
 
-  // Função para ordenar conversas (fixadas primeiro, depois por timestamp)
-  const sortedContacts = React.useMemo(() => {
-    return [...contacts].sort((a, b) => {
+  // Função para filtrar e ordenar conversas
+  const filteredAndSortedContacts = useMemo(() => {
+    let filtered = contacts;
+    
+    // Aplicar filtro de pesquisa
+    if (searchTerm.trim()) {
+      filtered = contacts.filter(contact =>
+        contact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        contact.phone.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+    
+    // Ordenar: fixadas primeiro, depois por timestamp
+    return [...filtered].sort((a, b) => {
       const aPinned = isConversationPinned(a.id);
       const bPinned = isConversationPinned(b.id);
       
@@ -134,7 +148,7 @@ export function RealWhatsAppMirror() {
       // Depois por timestamp (mais recente primeiro)
       return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
     });
-  }, [contacts, isConversationPinned]);
+  }, [contacts, searchTerm, isConversationPinned]);
 
   // Função para obter ícone de prioridade
   const getPriorityIcon = (priority: 'high' | 'medium' | 'low') => {
@@ -508,7 +522,7 @@ export function RealWhatsAppMirror() {
       {/* Interface de Conversas REAL */}
       {isConnected && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 h-[600px]">
-          {/* Lista de Contatos REAL com Menu de Contexto */}
+          {/* Lista de Contatos REAL com Pesquisa */}
           <Card className="lg:col-span-1">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
@@ -516,8 +530,20 @@ export function RealWhatsAppMirror() {
                   <MessageSquare className="h-5 w-5" />
                   Conversas REAIS
                 </CardTitle>
-                <Badge variant="secondary">{contacts.length}</Badge>
+                <Badge variant="secondary">{filteredAndSortedContacts.length}</Badge>
               </div>
+              
+              {/* Barra de Pesquisa */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Pesquisar conversas..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              
               <div className="flex items-center gap-2 text-xs text-gray-500">
                 <Pin className="h-3 w-3" />
                 <span>Clique direito para fixar/analisar</span>
@@ -526,29 +552,39 @@ export function RealWhatsAppMirror() {
             
             <CardContent className="p-0">
               <div className="space-y-1 max-h-[500px] overflow-y-auto">
-                {sortedContacts.length === 0 ? (
+                {filteredAndSortedContacts.length === 0 ? (
                   <div className="p-4 text-center text-gray-500">
-                    <MessageSquare className="h-8 w-8 mx-auto mb-2" />
-                    <p>Nenhuma conversa encontrada</p>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={handleLoadRealChats}
-                      disabled={isLoadingChats}
-                      className="mt-2"
-                    >
-                      {isLoadingChats ? (
-                        <>
-                          <RefreshCw className="h-4 w-4 mr-1 animate-spin" />
-                          Carregando...
-                        </>
-                      ) : (
-                        'Carregar Conversas'
-                      )}
-                    </Button>
+                    {searchTerm ? (
+                      <>
+                        <Search className="h-8 w-8 mx-auto mb-2" />
+                        <p>Nenhuma conversa encontrada</p>
+                        <p className="text-xs">para "{searchTerm}"</p>
+                      </>
+                    ) : (
+                      <>
+                        <MessageSquare className="h-8 w-8 mx-auto mb-2" />
+                        <p>Nenhuma conversa encontrada</p>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={handleLoadRealChats}
+                          disabled={isLoadingChats}
+                          className="mt-2"
+                        >
+                          {isLoadingChats ? (
+                            <>
+                              <RefreshCw className="h-4 w-4 mr-1 animate-spin" />
+                              Carregando...
+                            </>
+                          ) : (
+                            'Carregar Conversas'
+                          )}
+                        </Button>
+                      </>
+                    )}
                   </div>
                 ) : (
-                  sortedContacts.map((contact) => {
+                  filteredAndSortedContacts.map((contact) => {
                     const isPinned = isConversationPinned(contact.id);
                     const isMarkedForAnalysis = isConversationMarkedForAnalysis(contact.id);
                     const analysisPriority = getAnalysisPriority(contact.id);
