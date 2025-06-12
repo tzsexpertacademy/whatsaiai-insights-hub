@@ -21,6 +21,7 @@ import { ChatInterface } from '@/components/ChatInterface';
 import { VoiceChatInterface } from '@/components/VoiceChatInterface';
 import { NotificationsPage } from '@/components/NotificationsPage';
 import { RoutinePage } from '@/components/RoutinePage';
+import { ConversationAnalysisDashboard } from '@/components/whatsapp/ConversationAnalysisDashboard';
 
 export default function Index() {
   console.log('📱 Exibindo Dashboard Principal');
@@ -37,6 +38,7 @@ export default function Index() {
               <Route path="/dashboard/thermometer" element={<EmotionalThermometer />} />
               <Route path="/dashboard/areas" element={<AreasOfLife />} />
               <Route path="/dashboard/behavioral" element={<BehavioralProfile />} />
+              <Route path="/dashboard/conversation-analysis" element={<ConversationAnalysisDashboard />} />
               <Route path="/dashboard/chat" element={<VoiceChatInterface />} />
               <Route path="/dashboard/whatsapp" element={<ChatInterface />} />
               <Route path="/dashboard/timeline" element={<ObservatoryTimeline />} />
@@ -54,6 +56,7 @@ export default function Index() {
               <Route path="/thermometer" element={<EmotionalThermometer />} />
               <Route path="/areas" element={<AreasOfLife />} />
               <Route path="/behavioral" element={<BehavioralProfile />} />
+              <Route path="/conversation-analysis" element={<ConversationAnalysisDashboard />} />
               <Route path="/timeline" element={<ObservatoryTimeline />} />
               <Route path="/insights" element={<InsightsDashboard />} />
               <Route path="/recommendations" element={<Recommendations />} />

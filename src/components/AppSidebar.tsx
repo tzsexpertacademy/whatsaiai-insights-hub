@@ -1,4 +1,3 @@
-
 import { Calendar, TrendingUp, TrendingDown, Target, Brain, Users, BarChart3, MessageSquare, FileText, Settings, User, Clock, AlertTriangle, Bell } from 'lucide-react';
 import {
   Sidebar,
@@ -19,6 +18,7 @@ export function AppSidebar() {
     { title: 'Termômetro Emocional', icon: TrendingUp, url: '/dashboard/thermometer' },
     { title: 'Áreas da Vida', icon: Target, url: '/dashboard/areas' },
     { title: 'Perfil Comportamental', icon: Brain, url: '/dashboard/behavioral' },
+    { title: 'Análise de Conversas', icon: MessageSquare, url: '/dashboard/conversation-analysis' },
   ];
 
   const analysisNavItems = [
