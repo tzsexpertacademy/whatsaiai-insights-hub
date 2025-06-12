@@ -22,6 +22,7 @@ interface WPPConfig {
   sessionName: string;
   serverUrl: string;
   secretKey: string;
+  token: string;
   webhookUrl?: string;
 }
 
@@ -41,7 +42,6 @@ export function useRealWhatsAppConnection() {
   const [isLoading, setIsLoading] = useState(false);
   const [messageHistoryLimit, setMessageHistoryLimit] = useState(50);
   
-  // Configurações padrão (podem ser movidas para contexto depois)
   const [webhooks, setWebhooks] = useState<Webhooks>({
     qrWebhook: '',
     statusWebhook: '',
@@ -49,13 +49,11 @@ export function useRealWhatsAppConnection() {
     autoReplyWebhook: ''
   });
 
-  // Obter configuração do WPPConnect
   const wppConfig: WPPConfig = {
     ...getWPPConfig(),
     webhookUrl: getWPPConfig().webhookUrl || ''
   };
   
-  // Carregar estado salvo
   useEffect(() => {
     const saved = localStorage.getItem('real_whatsapp_connection');
     if (saved) {
@@ -68,7 +66,6 @@ export function useRealWhatsAppConnection() {
     }
   }, []);
 
-  // Salvar estado
   useEffect(() => {
     if (connectionState.isConnected || connectionState.qrCode) {
       localStorage.setItem('real_whatsapp_connection', JSON.stringify(connectionState));
@@ -78,7 +75,9 @@ export function useRealWhatsAppConnection() {
   const isTokenValid = () => {
     return wppConfig.secretKey && 
            wppConfig.secretKey !== 'THISISMYSECURETOKEN' && 
-           wppConfig.secretKey.length > 10;
+           wppConfig.secretKey.length > 10 &&
+           wppConfig.token &&
+           wppConfig.token.length > 10;
   };
 
   const generateQRCode = async (): Promise<string | null> => {
@@ -86,8 +85,8 @@ export function useRealWhatsAppConnection() {
     
     if (!isTokenValid()) {
       toast({
-        title: "❌ Token não configurado",
-        description: "Configure o token do WPPConnect primeiro na aba WPPConnect",
+        title: "❌ Configuração incompleta",
+        description: "Configure Secret Key e Token do WPPConnect primeiro na aba WPPConnect",
         variant: "destructive"
       });
       return null;
@@ -101,7 +100,8 @@ export function useRealWhatsAppConnection() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${wppConfig.secretKey}`
+          'Authorization': `Bearer ${wppConfig.secretKey}`,
+          'X-Session-Token': wppConfig.token
         },
         body: JSON.stringify({
           session: wppConfig.sessionName,
@@ -128,7 +128,6 @@ export function useRealWhatsAppConnection() {
           description: "Escaneie com seu WhatsApp Business"
         });
 
-        // Verificar status periodicamente
         startStatusCheck();
         
         return data.qrcode;
@@ -142,7 +141,7 @@ export function useRealWhatsAppConnection() {
       
       toast({
         title: "❌ Erro ao gerar QR Code",
-        description: error instanceof Error ? error.message : "Verifique se o WPPConnect está rodando",
+        description: error instanceof Error ? error.message : "Verifique se o WPPConnect está rodando e as configurações estão corretas",
         variant: "destructive"
       });
       
@@ -160,7 +159,6 @@ export function useRealWhatsAppConnection() {
       }
     }, 3000);
 
-    // Limpar depois de 2 minutos se não conectar
     setTimeout(() => {
       clearInterval(checkInterval);
     }, 120000);
@@ -174,7 +172,8 @@ export function useRealWhatsAppConnection() {
     try {
       const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/check-connection-session`, {
         headers: {
-          'Authorization': `Bearer ${wppConfig.secretKey}`
+          'Authorization': `Bearer ${wppConfig.secretKey}`,
+          'X-Session-Token': wppConfig.token
         }
       });
 
@@ -206,7 +205,7 @@ export function useRealWhatsAppConnection() {
 
   const loadRealChats = async () => {
     if (!isTokenValid()) {
-      throw new Error('Token do WPPConnect não configurado');
+      throw new Error('Secret Key e Token do WPPConnect não configurados');
     }
 
     if (!connectionState.isConnected) {
@@ -216,7 +215,8 @@ export function useRealWhatsAppConnection() {
     try {
       const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/all-chats`, {
         headers: {
-          'Authorization': `Bearer ${wppConfig.secretKey}`
+          'Authorization': `Bearer ${wppConfig.secretKey}`,
+          'X-Session-Token': wppConfig.token
         }
       });
 
@@ -234,7 +234,7 @@ export function useRealWhatsAppConnection() {
 
   const loadRealMessages = async (chatId: string) => {
     if (!isTokenValid()) {
-      throw new Error('Token do WPPConnect não configurado');
+      throw new Error('Secret Key e Token do WPPConnect não configurados');
     }
 
     try {
@@ -242,7 +242,8 @@ export function useRealWhatsAppConnection() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${wppConfig.secretKey}`
+          'Authorization': `Bearer ${wppConfig.secretKey}`,
+          'X-Session-Token': wppConfig.token
         },
         body: JSON.stringify({
           phone: chatId,
@@ -264,7 +265,7 @@ export function useRealWhatsAppConnection() {
 
   const sendMessage = async (phone: string, message: string): Promise<boolean> => {
     if (!isTokenValid()) {
-      throw new Error('Token do WPPConnect não configurado');
+      throw new Error('Secret Key e Token do WPPConnect não configurados');
     }
 
     try {
@@ -272,7 +273,8 @@ export function useRealWhatsAppConnection() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${wppConfig.secretKey}`
+          'Authorization': `Bearer ${wppConfig.secretKey}`,
+          'X-Session-Token': wppConfig.token
         },
         body: JSON.stringify({
           phone: phone,
@@ -297,7 +299,8 @@ export function useRealWhatsAppConnection() {
         await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/close-session`, {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${wppConfig.secretKey}`
+            'Authorization': `Bearer ${wppConfig.secretKey}`,
+            'X-Session-Token': wppConfig.token
           }
         });
       } catch (error) {
@@ -327,7 +330,6 @@ export function useRealWhatsAppConnection() {
   };
 
   const updateWPPConfig = () => {
-    // Configuração é gerenciada pelo hook useWPPConnect
     toast({
       title: "Configure na aba WPPConnect",
       description: "Use a aba WPPConnect para alterar as configurações"
@@ -349,7 +351,6 @@ export function useRealWhatsAppConnection() {
     return 'active';
   };
 
-  // Funcionalidades de análise de conversas (placeholder)
   const togglePinConversation = (chatId: string) => {
     console.log('Toggle pin conversation:', chatId);
   };
@@ -359,15 +360,15 @@ export function useRealWhatsAppConnection() {
   };
 
   const isConversationPinned = (chatId: string) => {
-    return false; // Placeholder
+    return false;
   };
 
   const isConversationMarkedForAnalysis = (chatId: string) => {
-    return false; // Placeholder
+    return false;
   };
 
   const getAnalysisPriority = (chatId: string): 'high' | 'medium' | 'low' => {
-    return 'medium'; // Placeholder
+    return 'medium';
   };
 
   return {
