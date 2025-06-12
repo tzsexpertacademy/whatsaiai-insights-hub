@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -299,7 +300,13 @@ export function RealWhatsAppMirror() {
   };
 
   const handleGenerateQR = async () => {
-    await generateQRCode();
+    const qrUrl = await generateQRCode();
+    if (qrUrl) {
+      toast({
+        title: "QR Code gerado! 📱",
+        description: "Escaneie com WhatsApp Business para conectar"
+      });
+    }
   };
 
   const selectContact = (contact: Contact) => {
