@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -50,72 +49,48 @@ export function RealWhatsAppMirror() {
   const connectionStatus = getConnectionStatus();
   const isConnected = sessionStatus.isConnected;
 
-  // Verificação automática ao entrar na página
+  // Verificação IMEDIATA ao entrar na página
   useEffect(() => {
-    const performAutoCheck = async () => {
+    const performImmediateCheck = async () => {
       if (hasAutoChecked) return;
       
-      console.log('🔄 [AUTO] Iniciando verificação automática...');
+      console.log('🚀 [IMEDIATO] Verificando status da conexão WPPConnect...');
       setIsAutoChecking(true);
       setHasAutoChecked(true);
       
       try {
-        console.log('🔍 [AUTO] Verificando status da conexão...');
         const isCurrentlyConnected = await checkConnectionStatus();
         
         if (isCurrentlyConnected) {
-          console.log('✅ [AUTO] WhatsApp conectado! Carregando conversas...');
+          console.log('✅ [IMEDIATO] WhatsApp conectado detectado!');
           
-          toast({
-            title: "✅ WhatsApp conectado!",
-            description: "Carregando suas conversas automaticamente...",
-          });
-          
-          // Carregar conversas automaticamente após 2 segundos
+          // Carregar conversas IMEDIATAMENTE após detectar conexão
           setTimeout(async () => {
-            console.log('📱 [AUTO] Carregando conversas automaticamente...');
+            console.log('📱 [IMEDIATO] Carregando conversas automaticamente...');
             await handleLoadRealChats(true);
             setHasAutoLoadedChats(true);
-          }, 2000);
+          }, 1000);
         } else {
-          console.log('❌ [AUTO] WhatsApp não conectado');
-          
-          toast({
-            title: "📱 WhatsApp desconectado",
-            description: "Gere um QR Code para conectar seu WhatsApp",
-            variant: "destructive"
-          });
+          console.log('❌ [IMEDIATO] WhatsApp não conectado');
         }
       } catch (error) {
-        console.error('❌ [AUTO] Erro na verificação automática:', error);
-        
-        toast({
-          title: "⚠️ Erro na verificação",
-          description: "Não foi possível verificar o status automaticamente",
-          variant: "destructive"
-        });
+        console.error('❌ [IMEDIATO] Erro na verificação:', error);
       } finally {
         setIsAutoChecking(false);
       }
     };
 
-    const timer = setTimeout(performAutoCheck, 1000);
-    return () => clearTimeout(timer);
+    // Executar verificação imediatamente
+    performImmediateCheck();
   }, []);
 
-  // Carregar conversas IMEDIATAMENTE quando conectar
+  // Carregar conversas quando conectar
   useEffect(() => {
-    const loadChatsWhenConnected = async () => {
-      if (isConnected && !hasAutoLoadedChats && !isLoadingChats && !isForceLoading) {
-        console.log('✅ [EFFECT] WhatsApp conectado, carregando conversas IMEDIATAMENTE...');
-        setHasAutoLoadedChats(true);
-        
-        // Carregar conversas sem delay
-        await handleLoadRealChats(true);
-      }
-    };
-
-    loadChatsWhenConnected();
+    if (isConnected && !hasAutoLoadedChats && !isLoadingChats && !isForceLoading) {
+      console.log('✅ [EFFECT] Conexão detectada, carregando conversas...');
+      setHasAutoLoadedChats(true);
+      handleLoadRealChats(true);
+    }
   }, [isConnected, hasAutoLoadedChats, isLoadingChats, isForceLoading]);
 
   useEffect(() => {
@@ -157,13 +132,8 @@ export function RealWhatsAppMirror() {
       
       if (!isAutomatic) {
         toast({
-          title: "🎉 Conversas carregadas com sucesso!",
+          title: "🎉 Conversas carregadas!",
           description: `${chatsData.length} conversas encontradas`
-        });
-      } else {
-        toast({
-          title: "✅ Conversas carregadas automaticamente",
-          description: `${chatsData.length} conversas do WhatsApp encontradas`
         });
       }
       
@@ -309,7 +279,7 @@ export function RealWhatsAppMirror() {
             Conecta seu WhatsApp via WPPConnect API
             {isAutoChecking && (
               <span className="block text-blue-600 font-medium mt-1">
-                🔄 Verificando status e carregando conversas automaticamente...
+                🔄 Verificando status automaticamente...
               </span>
             )}
             {(isLoadingChats || isForceLoading) && (
