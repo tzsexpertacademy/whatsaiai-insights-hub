@@ -526,56 +526,159 @@ export function useWPPConnect() {
     setIsLoadingMessages(true);
     
     try {
-      console.log('💬 Carregando mensagens para:', chatId, 'Limite:', messageHistoryLimit);
+      console.log('💬 [MESSAGES DEBUG] Carregando mensagens para:', chatId, 'Limite:', messageHistoryLimit);
       const config = getWPPConfig();
       
-      // Usar endpoint correto conforme Swagger para obter mensagens
-      const endpoint = `${config.serverUrl}/api/${config.sessionName}/all-messages-in-chat`;
-      
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${config.token}`
+      // Testar múltiplos endpoints para obter mensagens - alguns WPPConnect usam endpoints diferentes
+      const messageEndpoints = [
+        // Endpoint padrão para buscar mensagens de um chat
+        {
+          url: `${config.serverUrl}/api/${config.sessionName}/get-messages/${chatId}`,
+          method: 'GET'
         },
-        body: JSON.stringify({
-          phone: chatId.replace('@c.us', '').replace('@g.us', ''),
-          count: messageHistoryLimit
-        })
+        // Endpoint alternativo com parâmetros via query
+        {
+          url: `${config.serverUrl}/api/${config.sessionName}/get-messages`,
+          method: 'GET',
+          params: { chatId, count: messageHistoryLimit }
+        },
+        // Endpoint para histórico de mensagens
+        {
+          url: `${config.serverUrl}/api/${config.sessionName}/chat-messages`,
+          method: 'POST',
+          body: { chatId, limit: messageHistoryLimit }
+        },
+        // Endpoint para mensagens de conversa específica
+        {
+          url: `${config.serverUrl}/api/${config.sessionName}/messages`,
+          method: 'GET',
+          params: { chat: chatId, limit: messageHistoryLimit }
+        }
+      ];
+
+      for (const endpoint of messageEndpoints) {
+        try {
+          console.log('🎯 [MESSAGES DEBUG] Testando endpoint:', endpoint.url);
+          
+          let response;
+          if (endpoint.method === 'GET') {
+            let url = endpoint.url;
+            if (endpoint.params) {
+              const params = new URLSearchParams();
+              Object.entries(endpoint.params).forEach(([key, value]) => {
+                params.append(key, value.toString());
+              });
+              url += `?${params.toString()}`;
+            }
+            
+            response = await fetch(url, {
+              method: 'GET',
+              headers: {
+                'Authorization': `Bearer ${config.token}`,
+                'Content-Type': 'application/json'
+              }
+            });
+          } else {
+            response = await fetch(endpoint.url, {
+              method: endpoint.method,
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${config.token}`
+              },
+              body: JSON.stringify(endpoint.body)
+            });
+          }
+
+          console.log('📊 [MESSAGES DEBUG] Response status:', response.status);
+
+          if (response.ok) {
+            const result = await response.json();
+            console.log('📋 [MESSAGES DEBUG] Response completa:', result);
+
+            // Tentar extrair mensagens de diferentes estruturas de resposta
+            let messagesData = [];
+            
+            if (result.response && Array.isArray(result.response)) {
+              messagesData = result.response;
+            } else if (Array.isArray(result)) {
+              messagesData = result;
+            } else if (result.messages && Array.isArray(result.messages)) {
+              messagesData = result.messages;
+            } else if (result.data && Array.isArray(result.data)) {
+              messagesData = result.data;
+            }
+
+            console.log('📊 [MESSAGES DEBUG] Mensagens extraídas:', messagesData.length);
+
+            if (messagesData.length > 0) {
+              console.log('📋 [MESSAGES DEBUG] Primeira mensagem exemplo:', messagesData[0]);
+
+              const formattedMessages: WPPConnectMessage[] = messagesData.map((msg: any) => {
+                // Extrair texto da mensagem
+                let messageText = '';
+                if (msg.body) {
+                  messageText = msg.body;
+                } else if (msg.text) {
+                  messageText = msg.text;
+                } else if (msg.content) {
+                  messageText = msg.content;
+                } else if (msg.message) {
+                  messageText = msg.message;
+                } else {
+                  messageText = 'Mensagem sem texto';
+                }
+
+                // Determinar se é do usuário ou contato
+                const isFromMe = msg.fromMe || msg.from === config.sessionName || (msg.sender && msg.sender.isMe);
+
+                return {
+                  id: msg.id || msg._id || `msg_${Date.now()}_${Math.random()}`,
+                  text: messageText,
+                  sender: isFromMe ? 'user' : 'contact',
+                  timestamp: msg.timestamp ? new Date(msg.timestamp * 1000).toISOString() : 
+                           msg.t ? new Date(msg.t * 1000).toISOString() : 
+                           msg.time ? new Date(msg.time).toISOString() : 
+                           new Date().toISOString(),
+                  fromMe: isFromMe,
+                  chatId: chatId,
+                  isAudio: msg.type === 'ptt' || msg.type === 'audio' || msg.isAudio || false,
+                  status: msg.ack ? (msg.ack === 1 ? 'sent' : msg.ack === 2 ? 'delivered' : 'read') : 'sent'
+                };
+              });
+
+              console.log('✅ [MESSAGES DEBUG] Mensagens formatadas:', formattedMessages.length);
+
+              setMessages(prev => {
+                const filtered = prev.filter(m => m.chatId !== chatId);
+                return [...filtered, ...formattedMessages.reverse()]; // Reverse para mostrar mais recentes primeiro
+              });
+
+              console.log('✅ [MESSAGES DEBUG] Sucesso no endpoint:', endpoint.url);
+              return formattedMessages;
+            }
+          } else {
+            const errorText = await response.text();
+            console.log('❌ [MESSAGES DEBUG] Erro no endpoint:', endpoint.url, 'Status:', response.status, 'Error:', errorText);
+          }
+        } catch (endpointError) {
+          console.log('❌ [MESSAGES DEBUG] Erro ao testar endpoint:', endpoint.url, 'Error:', endpointError);
+          continue;
+        }
+      }
+
+      // Se chegou até aqui, nenhum endpoint funcionou
+      console.log('⚠️ [MESSAGES DEBUG] Nenhum endpoint de mensagens funcionou');
+      
+      toast({
+        title: "⚠️ Endpoint de mensagens não encontrado",
+        description: "O WPPConnect não possui os endpoints padrão de mensagens. Verifique a documentação da sua versão.",
+        variant: "destructive"
       });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ Erro ao carregar mensagens:', response.status, errorText);
-        throw new Error(`Erro ${response.status}: ${errorText}`);
-      }
-
-      const result = await response.json();
-      console.log('📨 Mensagens carregadas:', result);
-
-      if (result && Array.isArray(result)) {
-        const formattedMessages: WPPConnectMessage[] = result.map((msg: any) => ({
-          id: msg.id || `msg_${Date.now()}_${Math.random()}`,
-          text: msg.body || msg.text || 'Mensagem sem texto',
-          sender: msg.fromMe ? 'user' : 'contact',
-          timestamp: msg.timestamp ? new Date(msg.timestamp * 1000).toISOString() : new Date().toISOString(),
-          fromMe: msg.fromMe || false,
-          chatId: chatId,
-          isAudio: msg.type === 'ptt' || msg.isAudio || false,
-          status: msg.ack ? 'delivered' : 'sent'
-        }));
-
-        setMessages(prev => {
-          const filtered = prev.filter(m => m.chatId !== chatId);
-          return [...filtered, ...formattedMessages];
-        });
-
-        console.log('✅ Mensagens formatadas:', formattedMessages.length);
-        return formattedMessages;
-      }
+      
       return [];
+      
     } catch (error) {
-      console.error('❌ Erro ao carregar mensagens:', error);
+      console.error('❌ [MESSAGES DEBUG] Erro geral ao carregar mensagens:', error);
       toast({
         title: "❌ Erro ao carregar mensagens",
         description: "Não foi possível carregar as mensagens",
