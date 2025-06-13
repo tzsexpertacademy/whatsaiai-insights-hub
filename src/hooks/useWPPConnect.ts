@@ -98,9 +98,121 @@ export function useWPPConnect() {
   }, []);
 
   const getConnectionStatus = useCallback(() => {
+    console.log('🔍 getConnectionStatus chamado - isConnected:', sessionStatus.isConnected);
     if (!sessionStatus.isConnected) return 'disconnected';
     return 'connected';
   }, [sessionStatus.isConnected]);
+
+  const checkConnectionStatus = useCallback(async () => {
+    try {
+      console.log('🔍 [DEBUG] Verificando status da conexão WPPConnect...');
+      const config = getWPPConfig();
+      
+      console.log('🔑 [DEBUG] Configuração carregada:', {
+        sessionName: config.sessionName,
+        serverUrl: config.serverUrl,
+        hasToken: !!config.token,
+        hasSecretKey: !!config.secretKey,
+        tokenLength: config.token?.length || 0
+      });
+      
+      if (!config.token || !config.secretKey) {
+        console.log('⚠️ [DEBUG] Token ou Secret Key não configurados');
+        setSessionStatus({
+          isConnected: false,
+          qrCode: null,
+          isLoading: false,
+          phoneNumber: null
+        });
+        return false;
+      }
+
+      // Testar múltiplos endpoints para verificar status
+      const statusEndpoints = [
+        `${config.serverUrl}/api/${config.sessionName}/status-session`,
+        `${config.serverUrl}/api/${config.sessionName}/check-connection-session`,
+        `${config.serverUrl}/api/${config.sessionName}/status`
+      ];
+
+      for (const endpoint of statusEndpoints) {
+        try {
+          console.log('🎯 [DEBUG] Testando endpoint:', endpoint);
+          
+          const response = await fetch(endpoint, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${config.token}`,
+              'Content-Type': 'application/json'
+            }
+          });
+
+          console.log('📊 [DEBUG] Response status:', response.status);
+          
+          if (response.ok) {
+            const result = await response.json();
+            console.log('📋 [DEBUG] Response body:', result);
+
+            // Verificar diferentes possíveis respostas do WPPConnect
+            const isConnected = result.status === 'CONNECTED' || 
+                               result.state === 'CONNECTED' || 
+                               result.connected === true ||
+                               result.status === 'inChat' ||
+                               result.session?.state === 'CONNECTED';
+
+            console.log('✅ [DEBUG] Status detectado:', {
+              isConnected,
+              rawStatus: result.status,
+              rawState: result.state,
+              rawConnected: result.connected,
+              sessionState: result.session?.state
+            });
+
+            if (isConnected) {
+              console.log('🎉 [DEBUG] WhatsApp conectado detectado!');
+              setSessionStatus({
+                isConnected: true,
+                qrCode: null,
+                isLoading: false,
+                phoneNumber: result.phoneNumber || result.phone || result.number || result.session?.me || 'Conectado'
+              });
+              
+              toast({
+                title: "✅ WhatsApp conectado!",
+                description: "Conexão detectada com sucesso"
+              });
+              
+              return true;
+            }
+          } else {
+            const errorText = await response.text();
+            console.log('❌ [DEBUG] Erro no endpoint:', endpoint, 'Status:', response.status, 'Error:', errorText);
+          }
+        } catch (endpointError) {
+          console.log('❌ [DEBUG] Erro ao testar endpoint:', endpoint, 'Error:', endpointError);
+          continue;
+        }
+      }
+
+      console.log('❌ [DEBUG] Nenhum endpoint retornou conexão ativa');
+      setSessionStatus({
+        isConnected: false,
+        qrCode: null,
+        isLoading: false,
+        phoneNumber: null
+      });
+      return false;
+
+    } catch (error) {
+      console.error('❌ [DEBUG] Erro geral ao verificar status:', error);
+      setSessionStatus({
+        isConnected: false,
+        qrCode: null,
+        isLoading: false,
+        phoneNumber: null
+      });
+      return false;
+    }
+  }, [getWPPConfig, toast]);
 
   const sendMessage = useCallback(async (chatId: string, message: string) => {
     console.log('📤 Enviando mensagem via WPPConnect:', { chatId, message });
@@ -258,85 +370,6 @@ export function useWPPConnect() {
       return null;
     }
   }, [toast, getWPPConfig]);
-
-  const checkConnectionStatus = useCallback(async () => {
-    try {
-      console.log('🔍 Verificando status da conexão WPPConnect...');
-      const config = getWPPConfig();
-      
-      if (!config.token || !config.secretKey) {
-        console.log('⚠️ Token ou Secret Key não configurados');
-        setSessionStatus({
-          isConnected: false,
-          qrCode: null,
-          isLoading: false,
-          phoneNumber: null
-        });
-        return false;
-      }
-
-      // Usar endpoint correto do Swagger: /api/:session/status-session
-      const endpoint = `${config.serverUrl}/api/${config.sessionName}/status-session`;
-      console.log('🎯 Verificando endpoint status:', endpoint);
-      
-      const response = await fetch(endpoint, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${config.token}`
-        }
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ Erro na verificação status:', response.status, errorText);
-        throw new Error(`Erro ${response.status}: ${errorText}`);
-      }
-
-      const result = await response.json();
-      console.log('📊 Status da sessão recebido:', result);
-
-      // Verificar diferentes possíveis respostas do WPPConnect
-      const isConnected = result.status === 'CONNECTED' || 
-                         result.state === 'CONNECTED' || 
-                         result.connected === true ||
-                         result.status === 'inChat';
-
-      if (isConnected) {
-        console.log('✅ WhatsApp conectado detectado!');
-        setSessionStatus({
-          isConnected: true,
-          qrCode: null,
-          isLoading: false,
-          phoneNumber: result.phoneNumber || result.phone || result.number || 'Conectado'
-        });
-        
-        toast({
-          title: "✅ WhatsApp conectado!",
-          description: "Conexão detectada com sucesso"
-        });
-        
-        return true;
-      } else {
-        console.log('❌ WhatsApp não conectado, status:', result.status || result.state);
-        setSessionStatus({
-          isConnected: false,
-          qrCode: null,
-          isLoading: false,
-          phoneNumber: null
-        });
-        return false;
-      }
-    } catch (error) {
-      console.error('❌ Erro ao verificar status:', error);
-      setSessionStatus({
-        isConnected: false,
-        qrCode: null,
-        isLoading: false,
-        phoneNumber: null
-      });
-      return false;
-    }
-  }, [getWPPConfig, toast]);
 
   const loadRealChats = useCallback(async () => {
     if (!sessionStatus.isConnected) {

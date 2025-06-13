@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -49,45 +50,64 @@ export function RealWhatsAppMirror() {
   const connectionStatus = getConnectionStatus();
   const isConnected = sessionStatus.isConnected;
 
-  // Verificação IMEDIATA ao entrar na página
+  // Verificação IMEDIATA ao entrar na página com logs detalhados
   useEffect(() => {
     const performImmediateCheck = async () => {
-      if (hasAutoChecked) return;
+      if (hasAutoChecked) {
+        console.log('🔄 [DEBUG] Verificação já executada, pulando...');
+        return;
+      }
       
-      console.log('🚀 [IMEDIATO] Verificando status da conexão WPPConnect...');
+      console.log('🚀 [DEBUG] === INICIANDO VERIFICAÇÃO AUTOMÁTICA ===');
+      console.log('🚀 [DEBUG] Estado atual sessionStatus:', sessionStatus);
+      
       setIsAutoChecking(true);
       setHasAutoChecked(true);
       
       try {
+        console.log('🔍 [DEBUG] Chamando checkConnectionStatus...');
         const isCurrentlyConnected = await checkConnectionStatus();
         
+        console.log('📊 [DEBUG] Resultado da verificação:', {
+          isCurrentlyConnected,
+          sessionStatusAfter: sessionStatus
+        });
+        
         if (isCurrentlyConnected) {
-          console.log('✅ [IMEDIATO] WhatsApp conectado detectado!');
+          console.log('✅ [DEBUG] WhatsApp conectado detectado! Preparando para carregar conversas...');
           
-          // Carregar conversas IMEDIATAMENTE após detectar conexão
+          // Aguardar um pouco para o estado ser atualizado
           setTimeout(async () => {
-            console.log('📱 [IMEDIATO] Carregando conversas automaticamente...');
+            console.log('📱 [DEBUG] Carregando conversas automaticamente...');
             await handleLoadRealChats(true);
             setHasAutoLoadedChats(true);
-          }, 1000);
+          }, 2000);
         } else {
-          console.log('❌ [IMEDIATO] WhatsApp não conectado');
+          console.log('❌ [DEBUG] WhatsApp não conectado ou erro na verificação');
         }
       } catch (error) {
-        console.error('❌ [IMEDIATO] Erro na verificação:', error);
+        console.error('❌ [DEBUG] Erro na verificação automática:', error);
       } finally {
         setIsAutoChecking(false);
       }
     };
 
     // Executar verificação imediatamente
+    console.log('🎬 [DEBUG] useEffect disparado - iniciando verificação');
     performImmediateCheck();
-  }, []);
+  }, []); // Array vazio para executar apenas uma vez
 
   // Carregar conversas quando conectar
   useEffect(() => {
+    console.log('🔄 [DEBUG] useEffect loadChats - Estado:', {
+      isConnected,
+      hasAutoLoadedChats,
+      isLoadingChats,
+      isForceLoading
+    });
+    
     if (isConnected && !hasAutoLoadedChats && !isLoadingChats && !isForceLoading) {
-      console.log('✅ [EFFECT] Conexão detectada, carregando conversas...');
+      console.log('✅ [DEBUG] Conexão detectada via useEffect, carregando conversas...');
       setHasAutoLoadedChats(true);
       handleLoadRealChats(true);
     }
@@ -103,6 +123,12 @@ export function RealWhatsAppMirror() {
   );
 
   const handleLoadRealChats = async (isAutomatic = false) => {
+    console.log('📱 [DEBUG] handleLoadRealChats chamado:', {
+      isAutomatic,
+      isConnected,
+      hasAutoLoadedChats
+    });
+    
     if (!isConnected && !isAutomatic) {
       toast({
         title: "WhatsApp não conectado",
@@ -113,11 +139,13 @@ export function RealWhatsAppMirror() {
     }
 
     try {
-      console.log('📱 Carregando conversas reais do WPPConnect...');
+      console.log('📱 [DEBUG] Carregando conversas reais do WPPConnect...');
       const chatsData = await loadRealChats();
       
+      console.log('📊 [DEBUG] Resultado loadRealChats:', chatsData);
+      
       if (!chatsData || chatsData.length === 0) {
-        console.log('⚠️ Nenhuma conversa encontrada');
+        console.log('⚠️ [DEBUG] Nenhuma conversa encontrada');
         if (!isAutomatic) {
           toast({
             title: "Nenhuma conversa encontrada",
@@ -128,7 +156,7 @@ export function RealWhatsAppMirror() {
         return;
       }
       
-      console.log(`✅ ${chatsData.length} conversas carregadas com sucesso`);
+      console.log(`✅ [DEBUG] ${chatsData.length} conversas carregadas com sucesso`);
       
       if (!isAutomatic) {
         toast({
@@ -138,7 +166,7 @@ export function RealWhatsAppMirror() {
       }
       
     } catch (error) {
-      console.error('❌ Erro ao carregar conversas:', error);
+      console.error('❌ [DEBUG] Erro ao carregar conversas:', error);
       
       if (!isAutomatic) {
         toast({
@@ -192,6 +220,8 @@ export function RealWhatsAppMirror() {
   };
 
   const handleCheckStatus = async () => {
+    console.log('🔄 [DEBUG] handleCheckStatus - Verificação manual iniciada');
+    
     toast({
       title: "🔄 Verificando status...",
       description: "Consultando servidor WPPConnect"
@@ -199,8 +229,10 @@ export function RealWhatsAppMirror() {
     
     const connected = await checkConnectionStatus();
     
+    console.log('📊 [DEBUG] handleCheckStatus - Resultado:', connected);
+    
     if (connected && !hasAutoLoadedChats) {
-      console.log('🔄 Status verificado: conectado. Carregando conversas...');
+      console.log('🔄 [DEBUG] Status verificado: conectado. Carregando conversas...');
       setTimeout(async () => {
         await handleLoadRealChats(false);
         setHasAutoLoadedChats(true);
@@ -209,7 +241,7 @@ export function RealWhatsAppMirror() {
   };
 
   const handleForceLoadChats = async () => {
-    console.log('🔄 FORÇANDO carregamento de conversas...');
+    console.log('🔄 [DEBUG] FORÇANDO carregamento de conversas...');
     setIsForceLoading(true);
     
     try {
@@ -220,6 +252,7 @@ export function RealWhatsAppMirror() {
         description: "Lista de conversas foi atualizada manualmente"
       });
     } catch (error) {
+      console.error('❌ [DEBUG] Erro ao forçar carregamento:', error);
       toast({
         title: "❌ Erro ao forçar carregamento",
         description: "Não foi possível carregar as conversas",
@@ -248,6 +281,12 @@ export function RealWhatsAppMirror() {
   };
 
   const getConnectionStatusInfo = () => {
+    console.log('🔍 [DEBUG] getConnectionStatusInfo - Status atual:', {
+      connectionStatus,
+      isConnected,
+      sessionStatus
+    });
+    
     if (connectionStatus === 'connected' && isConnected) {
       return {
         icon: <CheckCircle className="h-6 w-6 text-green-500" />,
@@ -266,6 +305,25 @@ export function RealWhatsAppMirror() {
 
   return (
     <div className="space-y-6">
+      {/* Debug Info - Remover depois */}
+      <Card className="bg-yellow-50 border-yellow-200">
+        <CardHeader>
+          <CardTitle className="text-yellow-800">🐛 Debug Info (Temporário)</CardTitle>
+        </CardHeader>
+        <CardContent className="text-sm text-yellow-700">
+          <div className="grid grid-cols-2 gap-2">
+            <div>sessionStatus.isConnected: {sessionStatus.isConnected ? '✅' : '❌'}</div>
+            <div>connectionStatus: {connectionStatus}</div>
+            <div>hasAutoChecked: {hasAutoChecked ? '✅' : '❌'}</div>
+            <div>isAutoChecking: {isAutoChecking ? '🔄' : '⏸️'}</div>
+            <div>hasAutoLoadedChats: {hasAutoLoadedChats ? '✅' : '❌'}</div>
+            <div>contacts.length: {contacts.length}</div>
+            <div>phoneNumber: {sessionStatus.phoneNumber || 'null'}</div>
+            <div>isLoadingChats: {isLoadingChats ? '🔄' : '⏸️'}</div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Header com Status */}
       <Card className="bg-green-50 border-green-200">
         <CardHeader>
@@ -307,29 +365,29 @@ export function RealWhatsAppMirror() {
                 Verificar Status
               </Button>
               
+              {/* Sempre mostrar o botão Forçar Conversas se tem token configurado */}
+              <Button 
+                onClick={handleForceLoadChats} 
+                variant="default" 
+                size="sm"
+                disabled={isLoadingChats || isForceLoading}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                <Download className={`h-4 w-4 mr-1 ${(isLoadingChats || isForceLoading) ? 'animate-spin' : ''}`} />
+                {(isLoadingChats || isForceLoading) ? 'Carregando...' : 'Forçar Conversas'}
+              </Button>
+              
               {isConnected && (
-                <>
-                  <Button 
-                    onClick={handleForceLoadChats} 
-                    variant="default" 
-                    size="sm"
-                    disabled={isLoadingChats || isForceLoading}
-                    className="bg-blue-600 hover:bg-blue-700 text-white"
-                  >
-                    <Download className={`h-4 w-4 mr-1 ${(isLoadingChats || isForceLoading) ? 'animate-spin' : ''}`} />
-                    {(isLoadingChats || isForceLoading) ? 'Carregando...' : 'Forçar Conversas'}
-                  </Button>
-                  <Button onClick={disconnectWhatsApp} variant="outline" size="sm">
-                    Desconectar
-                  </Button>
-                </>
+                <Button onClick={disconnectWhatsApp} variant="outline" size="sm">
+                  Desconectar
+                </Button>
               )}
             </div>
           </div>
 
           {!isConnected && !sessionStatus.qrCode && (
             <Button 
-              onClick={handleGenerateQR} 
+              onClick={generateQRCode} 
               className="w-full bg-green-600 hover:bg-green-700"
               disabled={sessionStatus.isLoading}
             >
