@@ -2,7 +2,6 @@
 import { useState, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useWPPConfig } from './useWPPConfig';
-import { WPPConnectChat } from './useWPPChats';
 
 export interface WPPConnectMessage {
   id: string;
@@ -13,6 +12,23 @@ export interface WPPConnectMessage {
   chatId: string;
   isAudio?: boolean;
   status?: string;
+}
+
+export interface WPPConnectChat {
+  chatId: string;
+  name: string;
+  lastMessage: string;
+  timestamp: string;
+  isGroup: boolean;
+  unreadCount: number;
+  profilePic?: string;
+}
+
+export interface WPPConnectContact {
+  id: string;
+  name: string;
+  phone: string;
+  profilePic?: string;
 }
 
 export function useWPPMessages(chats: WPPConnectChat[]) {

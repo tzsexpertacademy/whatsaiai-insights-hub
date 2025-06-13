@@ -27,7 +27,7 @@ export function WebhookConfiguration({ webhooks, updateWebhooks }: WebhookConfig
     });
   };
 
-  const isWebhookConfigured = webhooks.qrWebhook && webhooks.statusWebhook;
+  const isWebhookConfigured = !!(webhooks.qrWebhook && webhooks.statusWebhook);
 
   return (
     <Card className="bg-white/70 backdrop-blur-sm border-white/50">
