@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { AssistantSelector } from '@/components/AssistantSelector';
 import { 
   Brain, 
   MessageSquare, 
@@ -42,6 +43,7 @@ export function IndividualConversationAnalysis({ conversation, onAnalysisComplet
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisPrompt, setAnalysisPrompt] = useState('');
   const [selectedAnalysisType, setSelectedAnalysisType] = useState<'behavioral' | 'commercial' | 'custom'>('behavioral');
+  const [selectedAssistant, setSelectedAssistant] = useState('kairon');
 
   const getStatusIcon = () => {
     switch (conversation.analysis_status) {
@@ -140,22 +142,33 @@ Foque em insights comerciais e oportunidades de negócio.`;
         throw updateError;
       }
 
+      // Busca na tabela whatsapp_conversations usando contact_phone e contact_name
+      console.log('🔍 Buscando conversa no banco de dados...');
       const { data: conversationData, error: conversationError } = await supabase
         .from('whatsapp_conversations')
         .select('messages')
         .eq('user_id', user.id)
         .eq('contact_phone', conversation.contact_phone)
         .eq('contact_name', conversation.contact_name)
-        .single();
+        .maybeSingle();
+
+      console.log('📊 Resultado da busca:', { conversationData, conversationError });
 
       if (conversationError) {
         console.error('❌ Erro ao buscar conversa:', conversationError);
-        throw new Error('Conversa não encontrada no banco de dados');
+        throw new Error('Erro ao buscar conversa no banco de dados');
       }
 
-      if (!conversationData?.messages || (Array.isArray(conversationData.messages) && conversationData.messages.length === 0)) {
+      if (!conversationData) {
+        console.warn('⚠️ Conversa não encontrada no banco principal');
+        throw new Error('Conversa não encontrada no banco de dados principal. Verifique se a conversa foi salva corretamente.');
+      }
+
+      if (!conversationData.messages || (Array.isArray(conversationData.messages) && conversationData.messages.length === 0)) {
         throw new Error('Nenhuma mensagem encontrada para análise');
       }
+
+      console.log('📨 Mensagens encontradas:', conversationData.messages.length);
 
       const { data: analysisResult, error: analysisError } = await supabase.functions.invoke('analyze-conversation', {
         body: {
@@ -163,6 +176,7 @@ Foque em insights comerciais e oportunidades de negócio.`;
           messages: conversationData.messages,
           analysis_prompt: getAnalysisPrompt(),
           analysis_type: selectedAnalysisType,
+          assistant_id: selectedAssistant,
           contact_info: {
             name: conversation.contact_name,
             phone: conversation.contact_phone
@@ -260,47 +274,63 @@ Foque em insights comerciais e oportunidades de negócio.`;
           </TabsList>
 
           <TabsContent value="analyze" className="space-y-4">
-            <div className="space-y-3">
-              <h4 className="font-medium flex items-center gap-2">
-                <Sparkles className="h-4 w-4" />
-                Tipo de Análise
-              </h4>
-              
-              <div className="grid grid-cols-3 gap-2">
-                <Button
-                  variant={selectedAnalysisType === 'behavioral' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setSelectedAnalysisType('behavioral')}
-                >
-                  Comportamental
-                </Button>
-                <Button
-                  variant={selectedAnalysisType === 'commercial' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setSelectedAnalysisType('commercial')}
-                >
-                  Comercial
-                </Button>
-                <Button
-                  variant={selectedAnalysisType === 'custom' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setSelectedAnalysisType('custom')}
-                >
-                  Personalizada
-                </Button>
+            <div className="space-y-4">
+              {/* Seletor de Assistente */}
+              <div className="space-y-2">
+                <h4 className="font-medium flex items-center gap-2">
+                  <Brain className="h-4 w-4" />
+                  Assistente Responsável
+                </h4>
+                <AssistantSelector
+                  selectedAssistant={selectedAssistant}
+                  onAssistantChange={setSelectedAssistant}
+                  className="w-full"
+                />
               </div>
 
-              {selectedAnalysisType === 'custom' && (
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Prompt Personalizado:</label>
-                  <Textarea
-                    placeholder="Digite seu prompt personalizado para análise..."
-                    value={analysisPrompt}
-                    onChange={(e) => setAnalysisPrompt(e.target.value)}
-                    rows={4}
-                  />
+              {/* Tipo de Análise */}
+              <div className="space-y-3">
+                <h4 className="font-medium flex items-center gap-2">
+                  <Sparkles className="h-4 w-4" />
+                  Tipo de Análise
+                </h4>
+                
+                <div className="grid grid-cols-3 gap-2">
+                  <Button
+                    variant={selectedAnalysisType === 'behavioral' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setSelectedAnalysisType('behavioral')}
+                  >
+                    Comportamental
+                  </Button>
+                  <Button
+                    variant={selectedAnalysisType === 'commercial' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setSelectedAnalysisType('commercial')}
+                  >
+                    Comercial
+                  </Button>
+                  <Button
+                    variant={selectedAnalysisType === 'custom' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setSelectedAnalysisType('custom')}
+                  >
+                    Personalizada
+                  </Button>
                 </div>
-              )}
+
+                {selectedAnalysisType === 'custom' && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Prompt Personalizado:</label>
+                    <Textarea
+                      placeholder="Digite seu prompt personalizado para análise..."
+                      value={analysisPrompt}
+                      onChange={(e) => setAnalysisPrompt(e.target.value)}
+                      rows={4}
+                    />
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="pt-4 border-t">

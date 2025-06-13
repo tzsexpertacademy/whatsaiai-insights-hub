@@ -8,6 +8,8 @@ interface WPPConnectMessage {
   timestamp: string;
   fromMe: boolean;
   chatId: string;
+  isAudio?: boolean;
+  status?: string;
 }
 
 interface WPPConnectChat {
@@ -47,6 +49,8 @@ export function useWPPConnect() {
   const [isLiveMode, setIsLiveMode] = useState(false);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const [messageHistoryLimit, setMessageHistoryLimit] = useState(50);
+  const [contacts, setContacts] = useState<WPPConnectChat[]>([]);
+  const [isLoadingChats, setIsLoadingChats] = useState(false);
   
   const { toast } = useToast();
   const liveIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -64,6 +68,10 @@ export function useWPPConnect() {
   const saveWPPConfig = useCallback((config: Partial<WPPConfig>) => {
     console.log('💾 Salvando configuração WPPConnect:', config);
     // Implementar salvamento se necessário
+  }, []);
+
+  const getConnectionStatus = useCallback(async () => {
+    return await checkConnectionStatus();
   }, []);
 
   const sendMessage = useCallback(async (chatId: string, message: string) => {
@@ -242,6 +250,8 @@ export function useWPPConnect() {
   const loadRealChats = useCallback(async () => {
     if (!sessionStatus.isConnected) return;
     
+    setIsLoadingChats(true);
+    
     try {
       console.log('📱 Carregando chats reais...');
       
@@ -270,6 +280,7 @@ export function useWPPConnect() {
         }));
 
         setChats(formattedChats);
+        setContacts(formattedChats);
         console.log('✅ Chats formatados:', formattedChats.length);
       }
     } catch (error) {
@@ -279,6 +290,8 @@ export function useWPPConnect() {
         description: "Não foi possível carregar as conversas",
         variant: "destructive"
       });
+    } finally {
+      setIsLoadingChats(false);
     }
   }, [sessionStatus.isConnected, toast]);
 
@@ -309,7 +322,9 @@ export function useWPPConnect() {
           sender: msg.fromMe ? 'user' : 'contact',
           timestamp: msg.timestamp ? new Date(msg.timestamp * 1000).toISOString() : new Date().toISOString(),
           fromMe: msg.fromMe || false,
-          chatId: chatId
+          chatId: chatId,
+          isAudio: msg.isAudio || false,
+          status: msg.status || 'sent'
         }));
 
         setMessages(prev => {
@@ -385,6 +400,7 @@ export function useWPPConnect() {
       });
       
       setChats([]);
+      setContacts([]);
       setMessages([]);
       stopLiveMode();
       
@@ -413,13 +429,16 @@ export function useWPPConnect() {
   return {
     sessionStatus,
     chats,
+    contacts,
     messages,
     isLoadingMessages,
+    isLoadingChats,
     isLiveMode,
     currentChatId,
     messageHistoryLimit,
     generateQRCode,
     checkConnectionStatus,
+    getConnectionStatus,
     loadRealChats,
     loadRealMessages,
     sendMessage,
