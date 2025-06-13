@@ -1,4 +1,3 @@
-
 import { useState, useCallback, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -350,8 +349,9 @@ export function useWPPConnect() {
       console.log('📱 Carregando chats reais do WPPConnect...');
       const config = getWPPConfig();
       
-      // Usar endpoint correto do Swagger: /api/:session/list-chats
-      const endpoint = `${config.serverUrl}/api/${config.sessionName}/list-chats`;
+      // CORRIGIDO: Usar endpoint correto /all-chats conforme Swagger
+      const endpoint = `${config.serverUrl}/api/${config.sessionName}/all-chats`;
+      console.log('🎯 Endpoint correto all-chats:', endpoint);
       
       const response = await fetch(endpoint, {
         method: 'GET',
