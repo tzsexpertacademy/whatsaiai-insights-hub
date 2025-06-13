@@ -26,6 +26,9 @@ interface WPPConnectContact {
   id: string;
   name: string;
   phone: string;
+  lastMessage: string;
+  timestamp: string;
+  unread: number;
 }
 
 interface SessionStatus {
@@ -293,6 +296,18 @@ export function useWPPConnect() {
         }));
 
         setChats(formattedChats);
+        
+        // Converter chats para contatos para compatibilidade
+        const formattedContacts: WPPConnectContact[] = formattedChats.map(chat => ({
+          id: chat.chatId,
+          name: chat.name,
+          phone: chat.chatId.replace('@c.us', ''),
+          lastMessage: chat.lastMessage,
+          timestamp: chat.timestamp,
+          unread: chat.unreadCount
+        }));
+        
+        setContacts(formattedContacts);
         console.log('✅ Chats formatados:', formattedChats.length);
         return formattedChats;
       }

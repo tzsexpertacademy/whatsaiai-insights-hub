@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -66,7 +65,7 @@ export function WPPConnectConfig() {
     }, 1000);
 
     return () => clearTimeout(timer);
-  }, [config.secretKey, config.token, config.serverUrl, config.sessionName, config.webhookUrl, isSecretKeyValid, isTokenValid]);
+  }, [config.secretKey, config.token, config.serverUrl, config.sessionName, config.webhookUrl, isSecretKeyValid, isTokenValid, saveWPPConfig]);
 
   const handleSaveConfig = () => {
     if (!isConfigComplete) {
@@ -78,19 +77,11 @@ export function WPPConnectConfig() {
       return;
     }
 
-    const success = saveWPPConfig(config);
-    if (success) {
-      toast({
-        title: "✅ Configuração salva!",
-        description: "Secret Key, Token e configurações do WPPConnect atualizados"
-      });
-    } else {
-      toast({
-        title: "❌ Erro ao salvar",
-        description: "Não foi possível salvar a configuração.",
-        variant: "destructive"
-      });
-    }
+    saveWPPConfig(config);
+    toast({
+      title: "✅ Configuração salva!",
+      description: "Secret Key, Token e configurações do WPPConnect atualizados"
+    });
   };
 
   const handleInputChange = (field: string, value: string) => {

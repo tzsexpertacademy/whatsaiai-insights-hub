@@ -221,7 +221,7 @@ Telefone: ${conversation.contact_phone}`;
         throw new Error('Nenhuma mensagem encontrada para análise. Verifique se a conversa foi sincronizada corretamente.');
       }
 
-      console.log('✅ Conversa encontrada:', { messageCount: conversationData.messages.length });
+      console.log('✅ Conversa encontrada:', { messageCount: Array.isArray(conversationData.messages) ? conversationData.messages.length : 'Not an array' });
 
       const { data: analysisResult, error: analysisError } = await supabase.functions.invoke('analyze-conversation', {
         body: {
