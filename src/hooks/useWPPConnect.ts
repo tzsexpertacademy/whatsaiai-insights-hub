@@ -66,18 +66,30 @@ export function useWPPConnect() {
   const liveIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const getWPPConfig = useCallback((): WPPConfig => {
-    return {
-      sessionName: 'default',
-      serverUrl: 'http://localhost:21465',
-      secretKey: 'YOUR_TOKEN_HERE',
-      token: 'YOUR_TOKEN_HERE',
-      webhookUrl: ''
+    // Buscar do localStorage primeiro
+    const savedConfig = {
+      sessionName: localStorage.getItem('wpp_session_name') || 'default',
+      serverUrl: localStorage.getItem('wpp_server_url') || 'http://localhost:21465',
+      secretKey: localStorage.getItem('wpp_secret_key') || 'YOUR_TOKEN_HERE',
+      token: localStorage.getItem('wpp_token') || 'YOUR_TOKEN_HERE',
+      webhookUrl: localStorage.getItem('wpp_webhook_url') || ''
     };
+    
+    console.log('🔧 getWPPConfig - Retornando:', savedConfig);
+    return savedConfig;
   }, []);
 
   const saveWPPConfig = useCallback((config: Partial<WPPConfig>) => {
     console.log('💾 Salvando configuração WPPConnect:', config);
-    // Implementar salvamento se necessário
+    
+    // Salvar no localStorage
+    if (config.sessionName) localStorage.setItem('wpp_session_name', config.sessionName);
+    if (config.serverUrl) localStorage.setItem('wpp_server_url', config.serverUrl);
+    if (config.secretKey) localStorage.setItem('wpp_secret_key', config.secretKey);
+    if (config.token) localStorage.setItem('wpp_token', config.token);
+    if (config.webhookUrl) localStorage.setItem('wpp_webhook_url', config.webhookUrl);
+    
+    console.log('✅ Configuração salva no localStorage');
   }, []);
 
   const getConnectionStatus = useCallback(() => {

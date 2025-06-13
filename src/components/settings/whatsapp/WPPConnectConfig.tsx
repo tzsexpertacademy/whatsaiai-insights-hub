@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,14 +25,17 @@ export function WPPConnectConfig() {
   const { getWPPConfig, saveWPPConfig } = useWPPConnect();
 
   const [config, setConfig] = useState(() => {
-    const savedConfig = getWPPConfig();
-    console.log('🔧 Config inicial carregado:', savedConfig);
-    
-    return {
-      ...savedConfig,
-      serverUrl: savedConfig.serverUrl || 'http://localhost:21465',
-      sessionName: savedConfig.sessionName || 'NERDWHATS_AMERICA'
+    // Carregar configuração do localStorage primeiro
+    const savedConfig = {
+      sessionName: localStorage.getItem('wpp_session_name') || 'NERDWHATS_AMERICA',
+      serverUrl: localStorage.getItem('wpp_server_url') || 'http://localhost:21465',
+      secretKey: localStorage.getItem('wpp_secret_key') || '',
+      token: localStorage.getItem('wpp_token') || '',
+      webhookUrl: localStorage.getItem('wpp_webhook_url') || ''
     };
+    
+    console.log('🔧 Config inicial carregado do localStorage:', savedConfig);
+    return savedConfig;
   });
 
   // Lista REDUZIDA de tokens inválidos - removendo THISISMYSECURETOKEN
@@ -53,8 +57,23 @@ export function WPPConnectConfig() {
 
   const isConfigComplete = isSecretKeyValid && isTokenValid;
 
-  // Auto-salvar quando o usuário digita (com debounce) - SOMENTE se tokens forem válidos
+  // Salvar no localStorage quando os valores mudarem
   useEffect(() => {
+    console.log('💾 Salvando no localStorage:', config);
+    
+    localStorage.setItem('wpp_session_name', config.sessionName);
+    localStorage.setItem('wpp_server_url', config.serverUrl);
+    localStorage.setItem('wpp_webhook_url', config.webhookUrl);
+    
+    if (config.secretKey) {
+      localStorage.setItem('wpp_secret_key', config.secretKey);
+    }
+    
+    if (config.token) {
+      localStorage.setItem('wpp_token', config.token);
+    }
+    
+    // Auto-salvar quando o usuário digita (com debounce) - SOMENTE se tokens forem válidos
     const timer = setTimeout(() => {
       if (isSecretKeyValid && isTokenValid) {
         console.log('💾 Auto-salvando configuração válida...');
@@ -65,7 +84,7 @@ export function WPPConnectConfig() {
     }, 1000);
 
     return () => clearTimeout(timer);
-  }, [config.secretKey, config.token, config.serverUrl, config.sessionName, config.webhookUrl, isSecretKeyValid, isTokenValid, saveWPPConfig]);
+  }, [config, isSecretKeyValid, isTokenValid, saveWPPConfig]);
 
   const handleSaveConfig = () => {
     if (!isConfigComplete) {
@@ -77,7 +96,16 @@ export function WPPConnectConfig() {
       return;
     }
 
+    // Salvar no localStorage
+    localStorage.setItem('wpp_session_name', config.sessionName);
+    localStorage.setItem('wpp_server_url', config.serverUrl);
+    localStorage.setItem('wpp_secret_key', config.secretKey);
+    localStorage.setItem('wpp_token', config.token);
+    localStorage.setItem('wpp_webhook_url', config.webhookUrl);
+
+    // Salvar via hook
     saveWPPConfig(config);
+    
     toast({
       title: "✅ Configuração salva!",
       description: "Secret Key, Token e configurações do WPPConnect atualizados"
@@ -309,7 +337,6 @@ export function WPPConnectConfig() {
               variant={isConfigComplete ? "default" : "secondary"}
               size="sm"
               className="flex items-center gap-2"
-              disabled={!isConfigComplete}
             >
               <Save className="h-4 w-4" />
               Salvar Configuração
@@ -328,7 +355,7 @@ export function WPPConnectConfig() {
               <div className="text-sm text-red-700 space-y-2">
                 <p><strong>1. Secret Key:</strong> Use "THISISMYSECURETOKEN" ou sua chave personalizada do WPPConnect</p>
                 <p><strong>2. Token:</strong> Token específico gerado para a sessão pelo WPPConnect</p>
-                <p><strong>3. Auto-salvamento:</strong> Só salva automaticamente quando os tokens são válidos</p>
+                <p><strong>3. Auto-salvamento:</strong> Configurações são salvas automaticamente no localStorage</p>
               </div>
             </div>
           )}
