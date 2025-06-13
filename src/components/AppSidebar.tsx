@@ -24,7 +24,6 @@ export function AppSidebar() {
 
   const analysisNavItems = [
     { title: 'Chat com Assistentes', icon: MessageSquare, url: '/dashboard/chat' },
-    { title: 'WhatsApp Chat', icon: MessageSquare, url: '/dashboard/whatsapp-chat' },
   ];
 
   const standardNavItems = [

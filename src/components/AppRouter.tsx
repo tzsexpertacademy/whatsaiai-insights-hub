@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -11,7 +12,6 @@ import { AdminDashboard } from './admin/AdminDashboard';
 import AdminMaster from '@/pages/AdminMaster';
 import { AdminRoute } from './AdminRoute';
 import { TrialExpirationReminder } from './TrialExpirationReminder';
-import { WhatsAppChatPage } from '@/components/WhatsAppChatPage';
 
 export function AppRouter() {
   const { isAuthenticated, isLoading, user } = useAuth();
@@ -126,10 +126,6 @@ export function AppRouter() {
         <Route 
           path="/" 
           element={<ObservatoryLanding />} 
-        />
-        <Route 
-          path="/dashboard/whatsapp-chat" 
-          element={<WhatsAppChatPage />} 
         />
         <Route 
           path="*" 
