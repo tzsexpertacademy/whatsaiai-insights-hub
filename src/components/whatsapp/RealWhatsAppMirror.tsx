@@ -18,7 +18,8 @@ import {
   Search,
   Volume2,
   Loader2,
-  Download
+  Download,
+  Bug
 } from 'lucide-react';
 
 export function RealWhatsAppMirror() {
@@ -305,21 +306,54 @@ export function RealWhatsAppMirror() {
 
   return (
     <div className="space-y-6">
-      {/* Debug Info - Remover depois */}
+      {/* Debug Info Expandido */}
       <Card className="bg-yellow-50 border-yellow-200">
         <CardHeader>
-          <CardTitle className="text-yellow-800">🐛 Debug Info (Temporário)</CardTitle>
+          <CardTitle className="text-yellow-800 flex items-center gap-2">
+            <Bug className="h-5 w-5" />
+            🐛 Debug Info Detalhado
+          </CardTitle>
         </CardHeader>
-        <CardContent className="text-sm text-yellow-700">
-          <div className="grid grid-cols-2 gap-2">
-            <div>sessionStatus.isConnected: {sessionStatus.isConnected ? '✅' : '❌'}</div>
-            <div>connectionStatus: {connectionStatus}</div>
-            <div>hasAutoChecked: {hasAutoChecked ? '✅' : '❌'}</div>
-            <div>isAutoChecking: {isAutoChecking ? '🔄' : '⏸️'}</div>
-            <div>hasAutoLoadedChats: {hasAutoLoadedChats ? '✅' : '❌'}</div>
-            <div>contacts.length: {contacts.length}</div>
-            <div>phoneNumber: {sessionStatus.phoneNumber || 'null'}</div>
-            <div>isLoadingChats: {isLoadingChats ? '🔄' : '⏸️'}</div>
+        <CardContent className="text-sm text-yellow-700 space-y-3">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <h4 className="font-semibold">Status de Conexão:</h4>
+              <div>sessionStatus.isConnected: {sessionStatus.isConnected ? '✅ true' : '❌ false'}</div>
+              <div>connectionStatus: {connectionStatus}</div>
+              <div>phoneNumber: {sessionStatus.phoneNumber || 'null'}</div>
+            </div>
+            
+            <div className="space-y-2">
+              <h4 className="font-semibold">Estados do App:</h4>
+              <div>hasAutoChecked: {hasAutoChecked ? '✅ true' : '❌ false'}</div>
+              <div>isAutoChecking: {isAutoChecking ? '🔄 true' : '⏸️ false'}</div>
+              <div>hasAutoLoadedChats: {hasAutoLoadedChats ? '✅ true' : '❌ false'}</div>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <h4 className="font-semibold">Carregamento:</h4>
+              <div>isLoadingChats: {isLoadingChats ? '🔄 true' : '⏸️ false'}</div>
+              <div>isForceLoading: {isForceLoading ? '🔄 true' : '⏸️ false'}</div>
+              <div>contacts.length: {contacts.length}</div>
+            </div>
+            
+            <div className="space-y-2">
+              <h4 className="font-semibold">Config:</h4>
+              <div>Servidor: localhost:21465</div>
+              <div>Sessão: NERDWHATS_AMERICA</div>
+              <div>Token configurado: {localStorage.getItem('wpp_token') ? '✅' : '❌'}</div>
+            </div>
+          </div>
+          
+          <div className="mt-4 p-3 bg-blue-50 rounded border border-blue-200">
+            <p className="text-blue-800 font-medium">🔧 Próximos passos de debug:</p>
+            <p className="text-blue-700 text-xs mt-1">
+              1. Verifique o console do navegador (F12) para logs detalhados<br/>
+              2. Se conectado mas sem conversas, clique em "Forçar Conversas"<br/>
+              3. Verifique se o WPPConnect está rodando na porta 21465
+            </p>
           </div>
         </CardContent>
       </Card>
@@ -365,7 +399,7 @@ export function RealWhatsAppMirror() {
                 Verificar Status
               </Button>
               
-              {/* Sempre mostrar o botão Forçar Conversas se tem token configurado */}
+              {/* SEMPRE mostrar o botão Forçar Conversas */}
               <Button 
                 onClick={handleForceLoadChats} 
                 variant="default" 
@@ -507,12 +541,13 @@ export function RealWhatsAppMirror() {
                       <>
                         <MessageSquare className="h-8 w-8 mx-auto mb-2" />
                         <p>Nenhuma conversa encontrada</p>
+                        <p className="text-xs mb-2">WhatsApp conectado mas sem conversas carregadas</p>
                         <Button 
                           variant="default" 
                           size="sm" 
                           onClick={handleForceLoadChats}
                           disabled={isLoadingChats || isForceLoading}
-                          className="mt-2 bg-blue-600 hover:bg-blue-700"
+                          className="bg-blue-600 hover:bg-blue-700"
                         >
                           {(isLoadingChats || isForceLoading) ? (
                             <>
@@ -522,7 +557,7 @@ export function RealWhatsAppMirror() {
                           ) : (
                             <>
                               <Download className="h-4 w-4 mr-1" />
-                              Forçar Conversas
+                              FORÇAR Conversas
                             </>
                           )}
                         </Button>
