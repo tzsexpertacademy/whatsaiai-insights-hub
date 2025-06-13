@@ -41,6 +41,7 @@ export function RealWhatsAppMirror() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isAutoChecking, setIsAutoChecking] = useState(false);
   const [hasAutoChecked, setHasAutoChecked] = useState(false);
+  const [hasAutoLoadedChats, setHasAutoLoadedChats] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const connectionStatus = getConnectionStatus();
@@ -60,14 +61,21 @@ export function RealWhatsAppMirror() {
         const isCurrentlyConnected = await checkConnectionStatus();
         
         if (isCurrentlyConnected) {
-          console.log('✅ [AUTO] WhatsApp conectado! Carregando conversas...');
+          console.log('✅ [AUTO] WhatsApp conectado! Aguardando para carregar conversas...');
           
           toast({
             title: "🔄 Carregando automaticamente",
-            description: "WhatsApp conectado, carregando suas conversas...",
+            description: "WhatsApp conectado, aguarde enquanto carregamos suas conversas...",
           });
           
-          await handleLoadRealChats(true);
+          // Aguardar um pouco antes de carregar as conversas
+          setTimeout(async () => {
+            if (!hasAutoLoadedChats) {
+              console.log('📱 [AUTO] Carregando conversas automaticamente...');
+              await handleLoadRealChats(true);
+              setHasAutoLoadedChats(true);
+            }
+          }, 2000);
         } else {
           console.log('❌ [AUTO] WhatsApp não conectado');
           
@@ -94,6 +102,22 @@ export function RealWhatsAppMirror() {
     return () => clearTimeout(timer);
   }, []);
 
+  // Carregar conversas quando conectar
+  useEffect(() => {
+    const loadChatsWhenConnected = async () => {
+      if (isConnected && !hasAutoLoadedChats && !isLoadingChats) {
+        console.log('✅ [EFFECT] WhatsApp conectado, carregando conversas...');
+        setHasAutoLoadedChats(true);
+        
+        setTimeout(async () => {
+          await handleLoadRealChats(true);
+        }, 1000);
+      }
+    };
+
+    loadChatsWhenConnected();
+  }, [isConnected, hasAutoLoadedChats, isLoadingChats]);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -114,9 +138,11 @@ export function RealWhatsAppMirror() {
     }
 
     try {
+      console.log('📱 Carregando conversas reais do WPPConnect...');
       const chatsData = await loadRealChats();
       
       if (!chatsData || chatsData.length === 0) {
+        console.log('⚠️ Nenhuma conversa encontrada');
         if (!isAutomatic) {
           toast({
             title: "Nenhuma conversa encontrada",
@@ -127,13 +153,18 @@ export function RealWhatsAppMirror() {
         return;
       }
       
+      console.log(`✅ ${chatsData.length} conversas carregadas com sucesso`);
+      
       if (!isAutomatic) {
         toast({
           title: "Conversas carregadas! 📱",
           description: `${chatsData.length} conversas encontradas`
         });
       } else {
-        console.log(`✅ [AUTO] ${chatsData.length} conversas carregadas automaticamente`);
+        toast({
+          title: "✅ Conversas carregadas automaticamente",
+          description: `${chatsData.length} conversas do WhatsApp encontradas`
+        });
       }
       
     } catch (error) {
@@ -196,7 +227,15 @@ export function RealWhatsAppMirror() {
       description: "Consultando servidor WPPConnect"
     });
     
-    await checkConnectionStatus();
+    const connected = await checkConnectionStatus();
+    
+    if (connected && !hasAutoLoadedChats) {
+      console.log('🔄 Status verificado: conectado. Carregando conversas...');
+      setTimeout(async () => {
+        await handleLoadRealChats(false);
+        setHasAutoLoadedChats(true);
+      }, 1000);
+    }
   };
 
   const formatTime = (timestamp: string) => {
@@ -242,13 +281,18 @@ export function RealWhatsAppMirror() {
             <Smartphone className="h-5 w-5" />
             WPPConnect Real - Sessão Ativa
             {isConnected && <CheckCircle className="h-5 w-5 text-green-500" />}
-            {isAutoChecking && <Loader2 className="h-5 w-5 text-blue-500 animate-spin" />}
+            {(isAutoChecking || isLoadingChats) && <Loader2 className="h-5 w-5 text-blue-500 animate-spin" />}
           </CardTitle>
           <CardDescription className="text-green-700">
             Conecta seu WhatsApp via WPPConnect API
             {isAutoChecking && (
               <span className="block text-blue-600 font-medium mt-1">
                 🔄 Verificando status e carregando conversas automaticamente...
+              </span>
+            )}
+            {isLoadingChats && (
+              <span className="block text-blue-600 font-medium mt-1">
+                📱 Carregando suas conversas do WhatsApp...
               </span>
             )}
           </CardDescription>
@@ -383,7 +427,13 @@ export function RealWhatsAppMirror() {
             
             <CardContent className="p-0">
               <div className="space-y-1 max-h-[500px] overflow-y-auto">
-                {filteredContacts.length === 0 ? (
+                {isLoadingChats ? (
+                  <div className="p-4 text-center text-gray-500">
+                    <Loader2 className="h-8 w-8 mx-auto mb-2 animate-spin" />
+                    <p>Carregando conversas...</p>
+                    <p className="text-xs">Buscando suas conversas do WhatsApp</p>
+                  </div>
+                ) : filteredContacts.length === 0 ? (
                   <div className="p-4 text-center text-gray-500">
                     {searchTerm ? (
                       <>
