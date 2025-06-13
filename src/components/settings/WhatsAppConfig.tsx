@@ -1,61 +1,78 @@
 
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { MessageSquare, Zap, Bot, Smartphone } from 'lucide-react';
-import { RealQRCodeGenerator } from './RealQRCodeGenerator';
-import { QRCodeGenerator } from './QRCodeGenerator';
-import { MakeConfig } from './MakeConfig';
+import { Smartphone, Settings, Zap, Globe, Server, Wifi, Brain } from 'lucide-react';
 import { WhatsAppPlatformConfig } from './WhatsAppPlatformConfig';
-import { useSearchParams } from 'react-router-dom';
+import { WhatsAppConnectionStatus } from './WhatsAppConnectionStatus';
+import { MakeConfig } from './MakeConfig';
+import { GreenAPISettings } from './GreenAPISettings';
+import { WPPConnectConfig } from './whatsapp/WPPConnectConfig';
+import { RealWhatsAppMirror } from '../whatsapp/RealWhatsAppMirror';
+import { PersonalAssistantConfig } from './whatsapp/PersonalAssistantConfig';
 
 export function WhatsAppConfig() {
-  const [searchParams] = useSearchParams();
-  const [activeTab, setActiveTab] = useState('real');
-
-  // Handle URL parameters to set the active tab
-  useEffect(() => {
-    const subtab = searchParams.get('subtab');
-    if (subtab === 'chat') {
-      setActiveTab('real'); // Set to real tab which contains the chat functionality
-    }
-  }, [searchParams]);
-
   return (
     <div className="space-y-6">
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+      <div>
+        <h2 className="text-2xl font-bold text-slate-800 mb-2">Configuração do WhatsApp</h2>
+        <p className="text-slate-600">
+          Configure e gerencie suas integrações do WhatsApp Business
+        </p>
+      </div>
+
+      {/* Status da Conexão */}
+      <WhatsAppConnectionStatus />
+
+      <Tabs defaultValue="real" className="w-full">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="real" className="flex items-center gap-2">
-            <Smartphone className="h-4 w-4" />
+            <Wifi className="h-4 w-4" />
             WhatsApp Real
+          </TabsTrigger>
+          <TabsTrigger value="assistant" className="flex items-center gap-2">
+            <Brain className="h-4 w-4" />
+            Assistente Pessoal
+          </TabsTrigger>
+          <TabsTrigger value="wppconnect" className="flex items-center gap-2">
+            <Server className="h-4 w-4" />
+            WPPConnect
+          </TabsTrigger>
+          <TabsTrigger value="greenapi" className="flex items-center gap-2">
+            <Globe className="h-4 w-4" />
+            GREEN-API
+          </TabsTrigger>
+          <TabsTrigger value="platform" className="flex items-center gap-2">
+            <Smartphone className="h-4 w-4" />
+            Outras Plataformas
           </TabsTrigger>
           <TabsTrigger value="make" className="flex items-center gap-2">
             <Zap className="h-4 w-4" />
-            Make.com
-          </TabsTrigger>
-          <TabsTrigger value="platform" className="flex items-center gap-2">
-            <Bot className="h-4 w-4" />
-            Plataformas
-          </TabsTrigger>
-          <TabsTrigger value="legacy" className="flex items-center gap-2">
-            <MessageSquare className="h-4 w-4" />
-            Legacy
+            Make.com (Legado)
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="real">
-          <RealQRCodeGenerator />
+          <RealWhatsAppMirror />
         </TabsContent>
 
-        <TabsContent value="make">
-          <MakeConfig />
+        <TabsContent value="assistant">
+          <PersonalAssistantConfig />
+        </TabsContent>
+
+        <TabsContent value="wppconnect">
+          <WPPConnectConfig />
+        </TabsContent>
+
+        <TabsContent value="greenapi">
+          <GreenAPISettings />
         </TabsContent>
 
         <TabsContent value="platform">
           <WhatsAppPlatformConfig />
         </TabsContent>
 
-        <TabsContent value="legacy">
-          <QRCodeGenerator />
+        <TabsContent value="make">
+          <MakeConfig />
         </TabsContent>
       </Tabs>
     </div>
