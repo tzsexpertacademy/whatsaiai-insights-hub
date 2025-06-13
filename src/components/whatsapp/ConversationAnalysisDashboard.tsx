@@ -12,6 +12,7 @@ import { PageLayout } from '@/components/layout/PageLayout';
 import { ConversationInsights } from './ConversationInsights';
 import { ConversationMetrics } from './ConversationMetrics';
 import { ConversationTimeline } from './ConversationTimeline';
+import { IndividualConversationAnalysis } from './IndividualConversationAnalysis';
 import { AIAnalysisButton } from '@/components/AIAnalysisButton';
 import { 
   Brain,
@@ -26,7 +27,8 @@ import {
   CheckCircle,
   XCircle,
   Bug,
-  Trash2
+  Trash2,
+  Zap
 } from 'lucide-react';
 
 export function ConversationAnalysisDashboard() {
@@ -47,6 +49,7 @@ export function ConversationAnalysisDashboard() {
   const [hasInitialized, setHasInitialized] = useState(false);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   const [debugInfo, setDebugInfo] = useState<any>(null);
+  const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
   const loadingRef = useRef(false);
 
   // Limpar dados de teste do banco
@@ -89,237 +92,6 @@ export function ConversationAnalysisDashboard() {
       console.error('❌ ERRO na limpeza de dados de teste:', error);
       toast({
         title: "Erro na limpeza",
-        description: error.message,
-        variant: "destructive"
-      });
-    }
-  };
-
-  // Debug específico da QUERY (SEM DADOS DE TESTE)
-  const testRealConversationsQuery = async () => {
-    console.log('🔧 TESTE ESPECÍFICO DA QUERY (CONVERSAS REAIS)...');
-    
-    if (!user?.id) {
-      console.error('❌ Usuário não logado para teste');
-      return;
-    }
-
-    try {
-      console.log('🎯 Testando query de conversas REAIS...');
-      
-      // Teste query de conversas REAIS marcadas
-      const { data: realMarked, error: realError } = await supabase
-        .from('whatsapp_conversations_analysis')
-        .select('*', { count: 'exact' })
-        .eq('user_id', user.id)
-        .eq('marked_for_analysis', true)
-        .not('chat_id', 'like', 'TEST_%')
-        .not('contact_name', 'like', '%Teste%')
-        .not('contact_name', 'like', '%Debug%');
-      
-      console.log('📊 Conversas REAIS marcadas:', { 
-        realMarked, 
-        realError,
-        count: realMarked?.length || 0
-      });
-
-      // Teste todas as conversas do usuário (incluindo teste)
-      const { data: allData, error: allError } = await supabase
-        .from('whatsapp_conversations_analysis')
-        .select('*')
-        .eq('user_id', user.id);
-      
-      console.log('📊 TODAS as conversas do usuário:', { 
-        allData, 
-        allError,
-        totalCount: allData?.length || 0,
-        testCount: allData?.filter(item => 
-          item.chat_id?.includes('TEST_') || 
-          item.contact_name?.includes('Teste') || 
-          item.contact_name?.includes('Debug')
-        )?.length || 0,
-        realCount: allData?.filter(item => 
-          !item.chat_id?.includes('TEST_') && 
-          !item.contact_name?.includes('Teste') && 
-          !item.contact_name?.includes('Debug')
-        )?.length || 0
-      });
-
-      toast({
-        title: "Debug Conversas Reais",
-        description: `Reais marcadas: ${realMarked?.length || 0} | Total: ${allData?.length || 0}`,
-      });
-
-    } catch (error) {
-      console.error('❌ ERRO no teste de conversas reais:', error);
-      toast({
-        title: "Erro no Debug",
-        description: error.message,
-        variant: "destructive"
-      });
-    }
-  };
-
-  // Debug específico da QUERY
-  const testSpecificQuery = async () => {
-    console.log('🔧 TESTE ESPECÍFICO DA QUERY...');
-    
-    if (!user?.id) {
-      console.error('❌ Usuário não logado para teste');
-      return;
-    }
-
-    try {
-      console.log('🎯 Testando query EXATA que deveria funcionar...');
-      
-      // Teste EXATO da query usada no hook
-      const { data: queryData, error: queryError, count } = await supabase
-        .from('whatsapp_conversations_analysis')
-        .select('*', { count: 'exact' })
-        .eq('user_id', user.id)
-        .eq('marked_for_analysis', true)
-        .order('created_at', { ascending: false });
-      
-      console.log('📊 Resultado da query EXATA:', { 
-        queryData, 
-        queryError, 
-        count,
-        length: queryData?.length || 0 
-      });
-
-      // Teste sem filtro de marked_for_analysis
-      const { data: allMarked, error: allError } = await supabase
-        .from('whatsapp_conversations_analysis')
-        .select('*')
-        .eq('user_id', user.id);
-      
-      console.log('📊 TODOS os registros do usuário:', { 
-        allMarked, 
-        allError,
-        totalCount: allMarked?.length || 0,
-        markedTrue: allMarked?.filter(item => item.marked_for_analysis === true)?.length || 0,
-        markedFalse: allMarked?.filter(item => item.marked_for_analysis === false)?.length || 0
-      });
-
-      toast({
-        title: "Debug Query Executado",
-        description: `Query: ${queryData?.length || 0} resultados | Total: ${allMarked?.length || 0} registros`,
-      });
-
-    } catch (error) {
-      console.error('❌ ERRO no teste da query:', error);
-      toast({
-        title: "Erro no Debug Query",
-        description: error.message,
-        variant: "destructive"
-      });
-    }
-  };
-
-  // Debug direto no banco - CORRIGIDO
-  const testDatabaseConnection = async () => {
-    console.log('🔧 TESTE DIRETO NO BANCO...');
-    
-    if (!user?.id) {
-      console.error('❌ Usuário não logado para teste');
-      toast({
-        title: "Erro",
-        description: "Usuário não logado",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    try {
-      // Teste 1: Verificar se a tabela existe (CORRIGIDO)
-      console.log('🔍 Teste 1: Verificando tabela...');
-      const { data: tableTest, error: tableError } = await supabase
-        .from('whatsapp_conversations_analysis')
-        .select('id')
-        .limit(1);
-      
-      console.log('📊 Resultado teste tabela:', { tableTest, tableError });
-
-      // Teste 2: Buscar TODOS os registros do usuário
-      console.log('🔍 Teste 2: Buscando TODOS registros do usuário...');
-      const { data: allUserData, error: allUserError } = await supabase
-        .from('whatsapp_conversations_analysis')
-        .select('*')
-        .eq('user_id', user.id);
-      
-      console.log('📊 Resultado TODOS registros:', { allUserData, allUserError });
-
-      // Teste 3: Buscar apenas marcados
-      console.log('🔍 Teste 3: Buscando apenas marcados...');
-      const { data: markedData, error: markedError } = await supabase
-        .from('whatsapp_conversations_analysis')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('marked_for_analysis', true);
-      
-      console.log('📊 Resultado marcados:', { markedData, markedError });
-
-      // Teste 4: Verificar políticas RLS
-      console.log('🔍 Teste 4: Testando RLS...');
-      const { data: rlsTest, error: rlsError } = await supabase
-        .from('whatsapp_conversations_analysis')
-        .select('*');
-      
-      console.log('📊 Resultado RLS (sem filtro):', { rlsTest, rlsError });
-
-      // Teste 5: Inserir um registro de teste
-      console.log('🔍 Teste 5: Inserindo registro de teste...');
-      const testRecord = {
-        user_id: user.id,
-        chat_id: 'TEST_' + Date.now(),
-        contact_name: 'Teste Debug Final',
-        contact_phone: '5511999999999',
-        priority: 'medium' as const,
-        marked_for_analysis: true,
-        analysis_status: 'pending' as const
-      };
-
-      const { data: insertTest, error: insertError } = await supabase
-        .from('whatsapp_conversations_analysis')
-        .insert(testRecord)
-        .select();
-      
-      console.log('📊 Resultado inserção teste:', { insertTest, insertError });
-
-      const debugResult = {
-        userId: user.id,
-        tableExists: !tableError,
-        totalRecords: allUserData?.length || 0,
-        markedRecords: markedData?.length || 0,
-        rlsWorking: !rlsError,
-        insertSuccess: !insertError,
-        errors: {
-          table: tableError?.message,
-          allUser: allUserError?.message,
-          marked: markedError?.message,
-          rls: rlsError?.message,
-          insert: insertError?.message
-        },
-        testRecord: insertTest?.[0]
-      };
-
-      setDebugInfo(debugResult);
-      console.log('🔧 DEBUG COMPLETO:', debugResult);
-
-      toast({
-        title: "Debug Concluído",
-        description: `Tabela: ${debugResult.tableExists ? '✅' : '❌'} | Total: ${debugResult.totalRecords} | Marcados: ${debugResult.markedRecords}`,
-      });
-
-      // Forçar reload após teste
-      setTimeout(() => {
-        loadAnalysisConversations();
-      }, 1000);
-
-    } catch (error) {
-      console.error('❌ ERRO no teste do banco:', error);
-      toast({
-        title: "Erro no Debug",
         description: error.message,
         variant: "destructive"
       });
@@ -403,6 +175,12 @@ export function ConversationAnalysisDashboard() {
     }
   };
 
+  const handleAnalysisComplete = () => {
+    console.log('✅ Análise individual concluída, recarregando dados...');
+    loadAnalysisConversations();
+    setSelectedConversation(null);
+  };
+
   const completedConversations = conversations.filter(c => c.analysis_status === 'completed');
   const pendingConversations = conversations.filter(c => c.analysis_status === 'pending');
   const processingConversations = conversations.filter(c => c.analysis_status === 'processing');
@@ -436,15 +214,6 @@ export function ConversationAnalysisDashboard() {
         <TrendingUp className="h-3 w-3 mr-1" />
         {completedConversations.length} Analisadas
       </Badge>
-      <Button 
-        onClick={testRealConversationsQuery} 
-        variant="outline" 
-        size="sm"
-        className="border-purple-200 text-purple-600 hover:bg-purple-50"
-      >
-        <Bug className="h-4 w-4 mr-1" />
-        Debug Reais
-      </Button>
       <Button 
         onClick={clearTestData} 
         variant="outline" 
@@ -484,41 +253,6 @@ export function ConversationAnalysisDashboard() {
       backUrl="/dashboard/behavioral"
       headerActions={headerActions}
     >
-      {/* Debug Info MELHORADO */}
-      {debugInfo && (
-        <Card className="mb-4 bg-red-50 border-red-200">
-          <CardHeader>
-            <CardTitle className="text-red-700">🔧 Debug Database Info</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-sm text-red-600 space-y-1">
-              <p><strong>User ID:</strong> {debugInfo.userId}</p>
-              <p><strong>Tabela existe:</strong> {debugInfo.tableExists ? '✅' : '❌'}</p>
-              <p><strong>Total registros:</strong> {debugInfo.totalRecords}</p>
-              <p><strong>Registros marcados:</strong> {debugInfo.markedRecords}</p>
-              <p><strong>RLS funcionando:</strong> {debugInfo.rlsWorking ? '✅' : '❌'}</p>
-              <p><strong>Inserção teste:</strong> {debugInfo.insertSuccess ? '✅' : '❌'}</p>
-              {Object.entries(debugInfo.errors).some(([_, error]) => error) && (
-                <div className="mt-2 p-2 bg-red-100 rounded">
-                  <p><strong>Erros:</strong></p>
-                  {Object.entries(debugInfo.errors).map(([key, error]) => 
-                    error && <p key={key}>• {key}: {String(error)}</p>
-                  )}
-                </div>
-              )}
-              {debugInfo.testRecord && (
-                <div className="mt-2 p-2 bg-green-100 rounded text-green-700">
-                  <p><strong>Último registro inserido:</strong></p>
-                  <p>• ID: {debugInfo.testRecord.id}</p>
-                  <p>• Nome: {debugInfo.testRecord.contact_name}</p>
-                  <p>• Status: {debugInfo.testRecord.analysis_status}</p>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Status do Sistema */}
       <Card className="mb-4 bg-blue-50 border-blue-200">
         <CardContent className="p-4">
@@ -536,32 +270,6 @@ export function ConversationAnalysisDashboard() {
                   <p className="text-yellow-600 text-xs mt-1">
                     Vá ao WhatsApp Mirror, clique com botão direito nas conversas REAIS e marque para análise IA.
                   </p>
-                  <div className="mt-2 flex gap-2">
-                    <Button 
-                      onClick={testRealConversationsQuery} 
-                      size="sm" 
-                      variant="outline"
-                      className="text-xs"
-                    >
-                      Debug Reais
-                    </Button>
-                    <Button 
-                      onClick={clearTestData} 
-                      size="sm" 
-                      variant="destructive"
-                      className="text-xs"
-                    >
-                      Limpar Teste
-                    </Button>
-                    <Button 
-                      onClick={forceReload} 
-                      size="sm" 
-                      variant="outline"
-                      className="text-xs"
-                    >
-                      Force Reload
-                    </Button>
-                  </div>
                 </div>
               )}
             </div>
@@ -634,10 +342,14 @@ export function ConversationAnalysisDashboard() {
 
       {/* Conteúdo Principal */}
       <Tabs defaultValue="conversas" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="conversas">
             <MessageSquare className="h-4 w-4 mr-2" />
             Conversas ({conversations.length})
+          </TabsTrigger>
+          <TabsTrigger value="individual">
+            <Zap className="h-4 w-4 mr-2" />
+            Análise Individual
           </TabsTrigger>
           <TabsTrigger value="insights">
             <Brain className="h-4 w-4 mr-2" />
@@ -677,32 +389,6 @@ export function ConversationAnalysisDashboard() {
                       <p>1. Vá para o WhatsApp Mirror</p>
                       <p>2. Clique com botão direito nas conversas REAIS</p>
                       <p>3. Selecione "Marcar para análise IA"</p>
-                    </div>
-                    <div className="mt-4 flex gap-2 justify-center">
-                      <Button 
-                        onClick={testRealConversationsQuery} 
-                        variant="outline" 
-                        size="sm"
-                      >
-                        <Bug className="h-4 w-4 mr-2" />
-                        Debug Reais
-                      </Button>
-                      <Button 
-                        onClick={clearTestData} 
-                        variant="destructive" 
-                        size="sm"
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Limpar Teste
-                      </Button>
-                      <Button 
-                        onClick={handleRefreshAll} 
-                        variant="outline" 
-                        disabled={loadingRef.current}
-                      >
-                        <RefreshCw className={`h-4 w-4 mr-2 ${loadingRef.current ? 'animate-spin' : ''}`} />
-                        Verificar Novamente
-                      </Button>
                     </div>
                   </div>
                 ) : (
@@ -750,6 +436,14 @@ export function ConversationAnalysisDashboard() {
                               {getStatusText(conv.analysis_status)}
                             </Badge>
                           </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setSelectedConversation(conv.id)}
+                          >
+                            <Zap className="h-4 w-4 mr-1" />
+                            Analisar
+                          </Button>
                         </div>
                       </div>
                     ))}
@@ -757,6 +451,79 @@ export function ConversationAnalysisDashboard() {
                 )}
               </CardContent>
             </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="individual">
+          <div className="space-y-4">
+            {selectedConversation ? (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSelectedConversation(null)}
+                  >
+                    ← Voltar à lista
+                  </Button>
+                </div>
+                <IndividualConversationAnalysis
+                  conversation={conversations.find(c => c.id === selectedConversation)!}
+                  onAnalysisComplete={handleAnalysisComplete}
+                />
+              </div>
+            ) : (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Zap className="h-5 w-5" />
+                    Análise Individual de Conversas
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {conversations.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                      <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p className="text-lg font-medium">Nenhuma conversa disponível para análise</p>
+                      <p className="text-sm mt-1">Marque conversas no WhatsApp Mirror primeiro</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <p className="text-gray-600 mb-4">
+                        Selecione uma conversa abaixo para fazer análise individual detalhada:
+                      </p>
+                      <div className="grid gap-3">
+                        {conversations.map((conv) => (
+                          <Card key={conv.id} className="cursor-pointer hover:bg-gray-50" onClick={() => setSelectedConversation(conv.id)}>
+                            <CardContent className="p-4">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <h4 className="font-medium">{conv.contact_name}</h4>
+                                  <p className="text-sm text-gray-500">{conv.contact_phone}</p>
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <Badge variant="outline" className="text-xs">
+                                      {conv.priority}
+                                    </Badge>
+                                    {getStatusIcon(conv.analysis_status)}
+                                    <span className="text-xs text-gray-500">
+                                      {getStatusText(conv.analysis_status)}
+                                    </span>
+                                  </div>
+                                </div>
+                                <Button size="sm">
+                                  <Zap className="h-4 w-4 mr-1" />
+                                  Analisar
+                                </Button>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
           </div>
         </TabsContent>
 
