@@ -5,28 +5,52 @@ import { PageLayout } from '@/components/layout/PageLayout';
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { CheckCircle, MessageSquare, RefreshCw, Settings } from 'lucide-react';
+import { CheckCircle, MessageSquare, RefreshCw, Settings, AlertCircle } from 'lucide-react';
+import { useWPPConnect } from '@/hooks/useWPPConnect';
 
 export function WhatsAppChatPage() {
+  const { sessionStatus } = useWPPConnect();
+
   const headerActions = (
     <div className="flex items-center gap-2">
-      <Badge className="bg-green-100 text-green-800 text-xs sm:text-sm flex items-center gap-1">
-        <CheckCircle className="h-3 w-3" />
-        WPPConnect Real - Tempo Real
-      </Badge>
+      {sessionStatus.isConnected ? (
+        <Badge className="bg-green-100 text-green-800 text-xs sm:text-sm flex items-center gap-1">
+          <CheckCircle className="h-3 w-3" />
+          WPPConnect Real - Tempo Real
+        </Badge>
+      ) : (
+        <Badge className="bg-red-100 text-red-800 text-xs sm:text-sm flex items-center gap-1">
+          <AlertCircle className="h-3 w-3" />
+          Não Conectado
+        </Badge>
+      )}
     </div>
   );
 
   const connectionStatus = (
-    <Card className="bg-green-50/80 backdrop-blur-sm border-green-200/50 mb-4">
+    <Card className={`backdrop-blur-sm mb-4 ${
+      sessionStatus.isConnected 
+        ? 'bg-green-50/80 border-green-200/50' 
+        : 'bg-red-50/80 border-red-200/50'
+    }`}>
       <CardContent className="p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
-              <CheckCircle className="h-5 w-5 text-green-600" />
-              <span className="font-medium text-green-800">Conectado e Ativo</span>
+              {sessionStatus.isConnected ? (
+                <>
+                  <CheckCircle className="h-5 w-5 text-green-600" />
+                  <span className="font-medium text-green-800">Conectado e Ativo</span>
+                  <span className="text-sm text-green-600">Conectado</span>
+                </>
+              ) : (
+                <>
+                  <AlertCircle className="h-5 w-5 text-red-600" />
+                  <span className="font-medium text-red-800">WPPConnect não conectado</span>
+                  <span className="text-sm text-red-600">Configure sua conexão primeiro</span>
+                </>
+              )}
             </div>
-            <span className="text-sm text-green-600">Conectado</span>
           </div>
           
           <div className="flex items-center gap-2">
