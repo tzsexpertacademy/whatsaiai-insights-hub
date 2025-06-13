@@ -14,7 +14,6 @@ export function useConversationMarking() {
     contactName: string,
     contactPhone: string,
     priority: 'high' | 'medium' | 'low' = 'medium',
-    // Novo parâmetro opcional para salvar mensagens no banco
     messages?: any[]
   ) => {
     console.log('🚀 INÍCIO MARCAÇÃO:', { chatId, contactName, contactPhone, priority, hasMessages: !!messages });

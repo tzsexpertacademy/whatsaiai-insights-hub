@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useWPPConnect } from '@/hooks/useWPPConnect';
+import { ConversationMarker } from './ConversationMarker';
 import { 
   QrCode, 
   Smartphone, 
@@ -208,7 +208,6 @@ export function RealWhatsAppMirror() {
     setSelectedContact(contact.id);
     handleLoadRealMessages(contact.id);
     
-    // NÃO iniciar modo live automaticamente - removido
     // Parar modo live anterior se houver
     if (isLiveMode && currentChatId !== contact.id) {
       stopLiveMode();
@@ -610,7 +609,7 @@ export function RealWhatsAppMirror() {
                         currentChatId === contact.id && isLiveMode ? 'border-l-4 border-l-red-500' : ''
                       }`}
                     >
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3" onClick={() => selectContact(contact)}>
                         <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center relative">
                           <User className="h-6 w-6 text-green-600" />
                           {currentChatId === contact.id && isLiveMode && (
@@ -633,6 +632,17 @@ export function RealWhatsAppMirror() {
                             )}
                           </div>
                         </div>
+                      </div>
+                      
+                      {/* Botão de Marcação para Análise */}
+                      <div className="mt-2 pt-2 border-t border-gray-100">
+                        <ConversationMarker
+                          chatId={contact.id}
+                          contactName={contact.name}
+                          contactPhone={contact.phone}
+                          messages={sortedMessages}
+                          className="w-full justify-center"
+                        />
                       </div>
                     </div>
                   ))

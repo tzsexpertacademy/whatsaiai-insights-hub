@@ -69,23 +69,7 @@ export function useAnalysisConversations() {
       
       if (!data || data.length === 0) {
         console.log('⚠️ NENHUMA conversa REAL marcada encontrada!');
-        console.log('🔍 Verificando se existem conversas reais marcadas...');
-        
-        const { data: allRealData, error: allError } = await supabase
-          .from('whatsapp_conversations_analysis')
-          .select('*')
-          .eq('user_id', user.id)
-          .not('chat_id', 'like', 'TEST_%')
-          .not('contact_name', 'like', '%Teste%')
-          .not('contact_name', 'like', '%Debug%');
-          
-        console.log('🔍 CONVERSAS REAIS do usuário:', { 
-          allRealData, 
-          allError,
-          totalReal: allRealData?.length || 0,
-          markedReal: allRealData?.filter(item => item.marked_for_analysis === true)?.length || 0
-        });
-        
+        console.log('💡 Dica: Vá para o WhatsApp Chat e marque conversas para análise');
         setConversations([]);
         return;
       }
