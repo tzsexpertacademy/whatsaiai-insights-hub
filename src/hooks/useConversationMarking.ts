@@ -13,9 +13,11 @@ export function useConversationMarking() {
     chatId: string,
     contactName: string,
     contactPhone: string,
-    priority: 'high' | 'medium' | 'low' = 'medium'
+    priority: 'high' | 'medium' | 'low' = 'medium',
+    // Novo parâmetro opcional para salvar mensagens no banco
+    messages?: any[]
   ) => {
-    console.log('🚀 INÍCIO MARCAÇÃO:', { chatId, contactName, contactPhone, priority });
+    console.log('🚀 INÍCIO MARCAÇÃO:', { chatId, contactName, contactPhone, priority, hasMessages: !!messages });
     console.log('👤 Usuário atual:', { userId: user?.id, userEmail: user?.email });
 
     if (!user?.id) {
@@ -70,6 +72,12 @@ export function useConversationMarking() {
           throw updateError;
         }
 
+        // Se está marcando E tem mensagens, salvar no banco principal também
+        if (newStatus && messages && messages.length > 0) {
+          console.log('💾 Salvando conversa marcada no banco principal...');
+          await saveConversationToMainDatabase(chatId, contactName, contactPhone, messages);
+        }
+
         toast({
           title: newStatus ? "Conversa marcada" : "Conversa desmarcada",
           description: newStatus 
@@ -105,9 +113,15 @@ export function useConversationMarking() {
           throw insertError;
         }
 
+        // Salvar no banco principal também se tem mensagens
+        if (messages && messages.length > 0) {
+          console.log('💾 Salvando nova conversa marcada no banco principal...');
+          await saveConversationToMainDatabase(chatId, contactName, contactPhone, messages);
+        }
+
         toast({
           title: "Conversa marcada",
-          description: "Conversa marcada para análise IA"
+          description: "Conversa marcada para análise IA e salva no banco de dados"
         });
 
         console.log('✅ Nova conversa marcada com sucesso');
@@ -131,6 +145,79 @@ export function useConversationMarking() {
     } finally {
       setIsMarking(false);
       console.log('🏁 Finalizando processo de marcação');
+    }
+  };
+
+  // Função auxiliar para salvar no banco principal
+  const saveConversationToMainDatabase = async (
+    chatId: string,
+    contactName: string,
+    contactPhone: string,
+    messages: any[]
+  ) => {
+    try {
+      console.log('💾 Salvando no banco principal:', { chatId, contactName, totalMessages: messages.length });
+
+      // Verificar se já existe
+      const { data: existing, error: selectError } = await supabase
+        .from('whatsapp_conversations')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('contact_phone', contactPhone)
+        .eq('contact_name', contactName)
+        .single();
+
+      if (selectError && selectError.code !== 'PGRST116') {
+        console.error('❌ Erro ao verificar conversa existente no banco principal:', selectError);
+        return;
+      }
+
+      // Preparar dados das mensagens
+      const messagesForDB = messages.map(msg => ({
+        id: msg.id,
+        text: msg.text,
+        sender: msg.sender,
+        timestamp: msg.timestamp,
+        fromMe: msg.fromMe
+      }));
+
+      if (existing) {
+        // Atualizar existente
+        const { error: updateError } = await supabase
+          .from('whatsapp_conversations')
+          .update({
+            messages: messagesForDB,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existing.id);
+
+        if (updateError) {
+          console.error('❌ Erro ao atualizar banco principal:', updateError);
+        } else {
+          console.log('✅ Conversa atualizada no banco principal');
+        }
+      } else {
+        // Criar nova
+        const { error: insertError } = await supabase
+          .from('whatsapp_conversations')
+          .insert({
+            user_id: user.id,
+            contact_name: contactName,
+            contact_phone: contactPhone,
+            session_id: chatId,
+            messages: messagesForDB,
+            emotional_analysis: null,
+            psychological_profile: null
+          });
+
+        if (insertError) {
+          console.error('❌ Erro ao criar no banco principal:', insertError);
+        } else {
+          console.log('✅ Nova conversa criada no banco principal');
+        }
+      }
+    } catch (error) {
+      console.error('❌ Erro geral ao salvar no banco principal:', error);
     }
   };
 

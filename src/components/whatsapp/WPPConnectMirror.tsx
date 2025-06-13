@@ -142,16 +142,21 @@ export function WPPConnectMirror() {
 
     console.log('🏷️ Toggle análise para:', { chatId, chatName: chat.name, priority });
 
+    // NOVIDADE: Pegar as mensagens da conversa para salvar no banco
+    const conversationMessages = messages.filter(m => m.chatId === chatId);
+    console.log('💬 Mensagens da conversa:', { chatId, totalMessages: conversationMessages.length });
+
     if (priority && markedConversations.has(chatId)) {
       // Atualizar prioridade
       await updateConversationPriority(chatId, priority);
     } else {
-      // Marcar/desmarcar para análise
+      // Marcar/desmarcar para análise E salvar no banco principal se tiver mensagens
       const isMarked = await markConversationForAnalysis(
         chatId, 
         chat.name, 
         chat.chatId, // usando chatId como phone por enquanto
-        priority || 'medium'
+        priority || 'medium',
+        conversationMessages.length > 0 ? conversationMessages : undefined // PASSAR MENSAGENS
       );
 
       setMarkedConversations(prev => {
