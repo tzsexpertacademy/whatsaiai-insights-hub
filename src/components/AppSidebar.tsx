@@ -1,5 +1,4 @@
-
-import { Calendar, TrendingUp, TrendingDown, Target, Brain, Users, BarChart3, MessageSquare, FileText, Settings, User, Clock, AlertTriangle, Bell } from 'lucide-react';
+import { Calendar, TrendingUp, TrendingDown, Target, Brain, Users, BarChart3, MessageSquare, FileText, Settings, User, Clock, AlertTriangle, Bell, Phone } from 'lucide-react';
 import {
   Sidebar,
   SidebarContent,
@@ -24,6 +23,7 @@ export function AppSidebar() {
 
   const analysisNavItems = [
     { title: 'Chat com Assistentes', icon: MessageSquare, url: '/dashboard/chat' },
+    { title: 'WhatsApp Chat', icon: Phone, url: '/dashboard/settings?tab=whatsapp&subtab=chat' },
   ];
 
   const standardNavItems = [

@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Settings, Database, Bot, MessageSquare, Users, AlertCircle, Shield } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -10,16 +10,27 @@ import { AssistantsConfig } from '@/components/settings/AssistantsConfig';
 import { ClientConfig } from '@/components/settings/ClientConfig';
 import { AnalysisSystemStatus } from '@/components/AnalysisSystemStatus';
 import { PageLayout } from '@/components/layout/PageLayout';
+import { useSearchParams } from 'react-router-dom';
 
 export function SettingsPage() {
   console.log('SettingsPage - Componente sendo renderizado');
   
   const { user, isAuthenticated } = useAuth();
+  const [searchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState('whatsapp');
   
   console.log('SettingsPage - Estado da autenticação:', {
     isAuthenticated,
     user: user ? { id: user.id, email: user.email } : null
   });
+
+  // Handle URL parameters to set the active tab
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab) {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
 
   if (!isAuthenticated) {
     console.log('SettingsPage - Usuário não autenticado');
@@ -50,7 +61,7 @@ export function SettingsPage() {
       {/* Status do Sistema Blindado */}
       <AnalysisSystemStatus />
 
-      <Tabs defaultValue="whatsapp" className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <div className="overflow-x-auto">
           <TabsList className="grid w-full grid-cols-5 min-w-max">
             <TabsTrigger value="whatsapp" className="flex items-center gap-2 text-xs sm:text-sm">

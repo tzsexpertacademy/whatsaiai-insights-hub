@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { QrCode, MessageSquare } from 'lucide-react';
 import { useRealWhatsAppConnection } from "@/hooks/useRealWhatsAppConnection";
@@ -9,6 +9,7 @@ import { ConnectionStatusDisplay } from './real-whatsapp/ConnectionStatusDisplay
 import { MakeInstructionsCard } from './real-whatsapp/MakeInstructionsCard';
 import { WPPConnectMirror } from '@/components/whatsapp/WPPConnectMirror';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useSearchParams } from 'react-router-dom';
 
 export function RealQRCodeGenerator() {
   const { 
@@ -21,8 +22,19 @@ export function RealQRCodeGenerator() {
     getConnectionStatus 
   } = useRealWhatsAppConnection();
   
+  const [searchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState('setup');
+  
   const connectionStatus = getConnectionStatus();
   const isWebhookConfigured = !!(webhooks.qrWebhook && webhooks.statusWebhook);
+
+  // Handle URL parameters to set the active tab
+  useEffect(() => {
+    const subtab = searchParams.get('subtab');
+    if (subtab === 'chat') {
+      setActiveTab('chat');
+    }
+  }, [searchParams]);
 
   const handleWebhookUpdate = (field: string, value: string) => {
     updateWebhooks({ [field]: value });
@@ -30,7 +42,7 @@ export function RealQRCodeGenerator() {
 
   return (
     <div className="space-y-6">
-      <Tabs defaultValue="setup" className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="setup" className="flex items-center gap-2">
             <QrCode className="h-4 w-4" />
