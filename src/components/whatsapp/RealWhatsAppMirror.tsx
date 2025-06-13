@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,7 +17,8 @@ import {
   RefreshCw,
   Search,
   Volume2,
-  Loader2
+  Loader2,
+  Download
 } from 'lucide-react';
 
 export function RealWhatsAppMirror() {
@@ -42,6 +44,7 @@ export function RealWhatsAppMirror() {
   const [isAutoChecking, setIsAutoChecking] = useState(false);
   const [hasAutoChecked, setHasAutoChecked] = useState(false);
   const [hasAutoLoadedChats, setHasAutoLoadedChats] = useState(false);
+  const [isForceLoading, setIsForceLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const connectionStatus = getConnectionStatus();
@@ -68,12 +71,12 @@ export function RealWhatsAppMirror() {
             description: "Carregando suas conversas automaticamente...",
           });
           
-          // Carregar conversas imediatamente
+          // Carregar conversas automaticamente após 2 segundos
           setTimeout(async () => {
             console.log('📱 [AUTO] Carregando conversas automaticamente...');
             await handleLoadRealChats(true);
             setHasAutoLoadedChats(true);
-          }, 1000);
+          }, 2000);
         } else {
           console.log('❌ [AUTO] WhatsApp não conectado');
           
@@ -96,14 +99,14 @@ export function RealWhatsAppMirror() {
       }
     };
 
-    const timer = setTimeout(performAutoCheck, 500);
+    const timer = setTimeout(performAutoCheck, 1000);
     return () => clearTimeout(timer);
   }, []);
 
   // Carregar conversas IMEDIATAMENTE quando conectar
   useEffect(() => {
     const loadChatsWhenConnected = async () => {
-      if (isConnected && !hasAutoLoadedChats && !isLoadingChats) {
+      if (isConnected && !hasAutoLoadedChats && !isLoadingChats && !isForceLoading) {
         console.log('✅ [EFFECT] WhatsApp conectado, carregando conversas IMEDIATAMENTE...');
         setHasAutoLoadedChats(true);
         
@@ -113,7 +116,7 @@ export function RealWhatsAppMirror() {
     };
 
     loadChatsWhenConnected();
-  }, [isConnected, hasAutoLoadedChats, isLoadingChats]);
+  }, [isConnected, hasAutoLoadedChats, isLoadingChats, isForceLoading]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -154,7 +157,7 @@ export function RealWhatsAppMirror() {
       
       if (!isAutomatic) {
         toast({
-          title: "Conversas carregadas! 📱",
+          title: "🎉 Conversas carregadas com sucesso!",
           description: `${chatsData.length} conversas encontradas`
         });
       } else {
@@ -169,7 +172,7 @@ export function RealWhatsAppMirror() {
       
       if (!isAutomatic) {
         toast({
-          title: "Erro ao carregar conversas",
+          title: "❌ Erro ao carregar conversas",
           description: error instanceof Error ? error.message : "Verifique se o WPPConnect está rodando corretamente",
           variant: "destructive"
         });
@@ -220,7 +223,7 @@ export function RealWhatsAppMirror() {
 
   const handleCheckStatus = async () => {
     toast({
-      title: "Verificando status...",
+      title: "🔄 Verificando status...",
       description: "Consultando servidor WPPConnect"
     });
     
@@ -236,8 +239,25 @@ export function RealWhatsAppMirror() {
   };
 
   const handleForceLoadChats = async () => {
-    console.log('🔄 Forçando carregamento de conversas...');
-    await handleLoadRealChats(false);
+    console.log('🔄 FORÇANDO carregamento de conversas...');
+    setIsForceLoading(true);
+    
+    try {
+      await handleLoadRealChats(false);
+      
+      toast({
+        title: "🚀 Conversas recarregadas!",
+        description: "Lista de conversas foi atualizada manualmente"
+      });
+    } catch (error) {
+      toast({
+        title: "❌ Erro ao forçar carregamento",
+        description: "Não foi possível carregar as conversas",
+        variant: "destructive"
+      });
+    } finally {
+      setIsForceLoading(false);
+    }
   };
 
   const formatTime = (timestamp: string) => {
@@ -283,7 +303,7 @@ export function RealWhatsAppMirror() {
             <Smartphone className="h-5 w-5" />
             WPPConnect Real - Sessão Ativa
             {isConnected && <CheckCircle className="h-5 w-5 text-green-500" />}
-            {(isAutoChecking || isLoadingChats) && <Loader2 className="h-5 w-5 text-blue-500 animate-spin" />}
+            {(isAutoChecking || isLoadingChats || isForceLoading) && <Loader2 className="h-5 w-5 text-blue-500 animate-spin" />}
           </CardTitle>
           <CardDescription className="text-green-700">
             Conecta seu WhatsApp via WPPConnect API
@@ -292,7 +312,7 @@ export function RealWhatsAppMirror() {
                 🔄 Verificando status e carregando conversas automaticamente...
               </span>
             )}
-            {isLoadingChats && (
+            {(isLoadingChats || isForceLoading) && (
               <span className="block text-blue-600 font-medium mt-1">
                 📱 Carregando suas conversas do WhatsApp...
               </span>
@@ -321,12 +341,13 @@ export function RealWhatsAppMirror() {
                 <>
                   <Button 
                     onClick={handleForceLoadChats} 
-                    variant="outline" 
+                    variant="default" 
                     size="sm"
-                    disabled={isLoadingChats}
+                    disabled={isLoadingChats || isForceLoading}
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
                   >
-                    <RefreshCw className={`h-4 w-4 mr-1 ${isLoadingChats ? 'animate-spin' : ''}`} />
-                    {isLoadingChats ? 'Carregando...' : 'Forçar Conversas'}
+                    <Download className={`h-4 w-4 mr-1 ${(isLoadingChats || isForceLoading) ? 'animate-spin' : ''}`} />
+                    {(isLoadingChats || isForceLoading) ? 'Carregando...' : 'Forçar Conversas'}
                   </Button>
                   <Button onClick={disconnectWhatsApp} variant="outline" size="sm">
                     Desconectar
@@ -412,7 +433,18 @@ export function RealWhatsAppMirror() {
                   <MessageSquare className="h-5 w-5" />
                   Conversas REAIS
                 </CardTitle>
-                <Badge variant="secondary">{filteredContacts.length}</Badge>
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary">{filteredContacts.length}</Badge>
+                  <Button 
+                    onClick={handleForceLoadChats} 
+                    variant="outline" 
+                    size="sm"
+                    disabled={isLoadingChats || isForceLoading}
+                    title="Forçar carregamento das conversas"
+                  >
+                    <Download className={`h-4 w-4 ${(isLoadingChats || isForceLoading) ? 'animate-spin' : ''}`} />
+                  </Button>
+                </div>
               </div>
               
               {/* Barra de Pesquisa */}
@@ -429,7 +461,7 @@ export function RealWhatsAppMirror() {
             
             <CardContent className="p-0">
               <div className="space-y-1 max-h-[500px] overflow-y-auto">
-                {isLoadingChats ? (
+                {(isLoadingChats || isForceLoading) ? (
                   <div className="p-4 text-center text-gray-500">
                     <Loader2 className="h-8 w-8 mx-auto mb-2 animate-spin" />
                     <p>Carregando conversas...</p>
@@ -448,19 +480,22 @@ export function RealWhatsAppMirror() {
                         <MessageSquare className="h-8 w-8 mx-auto mb-2" />
                         <p>Nenhuma conversa encontrada</p>
                         <Button 
-                          variant="outline" 
+                          variant="default" 
                           size="sm" 
                           onClick={handleForceLoadChats}
-                          disabled={isLoadingChats}
-                          className="mt-2"
+                          disabled={isLoadingChats || isForceLoading}
+                          className="mt-2 bg-blue-600 hover:bg-blue-700"
                         >
-                          {isLoadingChats ? (
+                          {(isLoadingChats || isForceLoading) ? (
                             <>
                               <RefreshCw className="h-4 w-4 mr-1 animate-spin" />
                               Carregando...
                             </>
                           ) : (
-                            'Carregar Conversas'
+                            <>
+                              <Download className="h-4 w-4 mr-1" />
+                              Forçar Conversas
+                            </>
                           )}
                         </Button>
                       </>
