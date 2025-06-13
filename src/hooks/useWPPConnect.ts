@@ -16,6 +16,8 @@ interface Message {
   text: string;
   sender: 'user' | 'contact';
   timestamp: string;
+  isAudio?: boolean;
+  status?: 'sent' | 'delivered' | 'read';
 }
 
 interface SessionStatus {
@@ -23,6 +25,14 @@ interface SessionStatus {
   isLoading: boolean;
   qrCode: string | null;
   phoneNumber: string | null;
+}
+
+interface WPPConfig {
+  serverUrl: string;
+  sessionName: string;
+  secretKey: string;
+  token: string;
+  webhookUrl: string;
 }
 
 export function useWPPConnect() {
@@ -36,13 +46,41 @@ export function useWPPConnect() {
   
   const [chats, setChats] = useState<Chat[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [contacts, setContacts] = useState<any[]>([]);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+  const [isLoadingChats, setIsLoadingChats] = useState(false);
   const [isLiveMode, setIsLiveMode] = useState(false);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const [messageHistoryLimit, setMessageHistoryLimit] = useState(50);
   
   const liveIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const BASE_URL = 'http://localhost:21465';
+
+  // Get WPP Config from localStorage
+  const getWPPConfig = useCallback((): WPPConfig => {
+    return {
+      serverUrl: localStorage.getItem('wpp_server_url') || 'http://localhost:21465',
+      sessionName: localStorage.getItem('wpp_session_name') || 'NERDWHATS_AMERICA',
+      secretKey: localStorage.getItem('wpp_secret_key') || '',
+      token: localStorage.getItem('wpp_token') || '',
+      webhookUrl: localStorage.getItem('wpp_webhook_url') || ''
+    };
+  }, []);
+
+  // Save WPP Config to localStorage
+  const saveWPPConfig = useCallback((config: WPPConfig): boolean => {
+    try {
+      localStorage.setItem('wpp_server_url', config.serverUrl);
+      localStorage.setItem('wpp_session_name', config.sessionName);
+      localStorage.setItem('wpp_secret_key', config.secretKey);
+      localStorage.setItem('wpp_token', config.token);
+      localStorage.setItem('wpp_webhook_url', config.webhookUrl);
+      return true;
+    } catch (error) {
+      console.error('Erro ao salvar config WPP:', error);
+      return false;
+    }
+  }, []);
 
   const checkConnectionStatus = useCallback(async () => {
     try {
@@ -76,6 +114,10 @@ export function useWPPConnect() {
       setSessionStatus(prev => ({ ...prev, isConnected: false }));
     }
   }, []);
+
+  const getConnectionStatus = useCallback(() => {
+    return checkConnectionStatus();
+  }, [checkConnectionStatus]);
 
   const generateQRCode = useCallback(async () => {
     setSessionStatus(prev => ({ ...prev, isLoading: true }));
@@ -135,6 +177,7 @@ export function useWPPConnect() {
       return;
     }
 
+    setIsLoadingChats(true);
     try {
       console.log('📱 Carregando chats reais...');
       const response = await fetch(`${BASE_URL}/api/list-chats`, {
@@ -163,6 +206,8 @@ export function useWPPConnect() {
       }
     } catch (error) {
       console.error('❌ Erro ao carregar chats:', error);
+    } finally {
+      setIsLoadingChats(false);
     }
   }, [sessionStatus.isConnected]);
 
@@ -194,7 +239,9 @@ export function useWPPConnect() {
             chatId: chatId,
             text: msg.body || msg.content || 'Mensagem sem texto',
             sender: msg.fromMe ? 'user' : 'contact',
-            timestamp: msg.timestamp ? new Date(msg.timestamp * 1000).toISOString() : new Date().toISOString()
+            timestamp: msg.timestamp ? new Date(msg.timestamp * 1000).toISOString() : new Date().toISOString(),
+            isAudio: msg.type === 'audio' || false,
+            status: msg.ack ? (msg.ack === 3 ? 'read' : msg.ack === 2 ? 'delivered' : 'sent') : 'sent'
           }));
           
           // Filtrar mensagens existentes do mesmo chat e adicionar novas
@@ -408,19 +455,24 @@ export function useWPPConnect() {
   return {
     sessionStatus,
     chats,
+    contacts,
     messages,
     isLoadingMessages,
+    isLoadingChats,
     isLiveMode,
     currentChatId,
     messageHistoryLimit,
     generateQRCode,
     checkConnectionStatus,
+    getConnectionStatus,
     loadRealChats,
     loadRealMessages,
     sendMessage,
     startLiveMode,
     stopLiveMode,
     disconnectWhatsApp,
-    updateMessageHistoryLimit
+    updateMessageHistoryLimit,
+    getWPPConfig,
+    saveWPPConfig
   };
 }

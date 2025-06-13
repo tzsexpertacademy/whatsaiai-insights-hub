@@ -34,7 +34,7 @@ import { ObservatoryLanding } from '@/pages/ObservatoryLanding';
 import { WelcomeTour } from '@/pages/WelcomeTour';
 import { SolutionsHub } from '@/pages/SolutionsHub';
 import { CommercialBrain } from '@/pages/CommercialBrain';
-import { AdminMaster } from '@/pages/AdminMaster';
+import AdminMaster from '@/pages/AdminMaster';
 
 function AppRouter() {
   const { user } = useAuth();
