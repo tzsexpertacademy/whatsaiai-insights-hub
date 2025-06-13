@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,7 +18,11 @@ import {
   Volume2,
   Loader2,
   Download,
-  Bug
+  Bug,
+  Radio,
+  RadioIcon,
+  Pause,
+  Play
 } from 'lucide-react';
 
 export function RealWhatsAppMirror() {
@@ -30,13 +33,17 @@ export function RealWhatsAppMirror() {
     messages,
     isLoadingChats,
     isLoadingMessages,
+    isLiveMode,
+    currentChatId,
     generateQRCode, 
     checkConnectionStatus,
     disconnectWhatsApp,
     sendMessage: sendWhatsAppMessage,
     loadRealChats,
     loadRealMessages,
-    getConnectionStatus
+    getConnectionStatus,
+    startLiveMode,
+    stopLiveMode
   } = useWPPConnect();
   
   const [selectedContact, setSelectedContact] = useState<string | null>(null);
@@ -199,6 +206,14 @@ export function RealWhatsAppMirror() {
   const selectContact = (contact: any) => {
     setSelectedContact(contact.id);
     handleLoadRealMessages(contact.id);
+    
+    // Parar modo live anterior se houver
+    if (isLiveMode && currentChatId !== contact.id) {
+      stopLiveMode();
+    }
+    
+    // Iniciar modo live para nova conversa
+    startLiveMode(contact.id);
   };
 
   const sendMessage = async () => {
@@ -264,6 +279,20 @@ export function RealWhatsAppMirror() {
     }
   };
 
+  const handleToggleLiveMode = () => {
+    if (isLiveMode) {
+      stopLiveMode();
+    } else if (selectedContact) {
+      startLiveMode(selectedContact);
+    } else {
+      toast({
+        title: "Selecione uma conversa",
+        description: "Primeiro selecione uma conversa para ativar o modo live",
+        variant: "destructive"
+      });
+    }
+  };
+
   const formatTime = (timestamp: string) => {
     return new Date(timestamp).toLocaleTimeString('pt-BR', {
       hour: '2-digit',
@@ -306,55 +335,37 @@ export function RealWhatsAppMirror() {
 
   return (
     <div className="space-y-6">
-      {/* Debug Info Expandido */}
-      <Card className="bg-yellow-50 border-yellow-200">
+      {/* Debug Info Simplificado */}
+      <Card className="bg-blue-50 border-blue-200">
         <CardHeader>
-          <CardTitle className="text-yellow-800 flex items-center gap-2">
+          <CardTitle className="text-blue-800 flex items-center gap-2">
             <Bug className="h-5 w-5" />
-            🐛 Debug Info Detalhado
+            📊 Status do Sistema
           </CardTitle>
         </CardHeader>
-        <CardContent className="text-sm text-yellow-700 space-y-3">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <h4 className="font-semibold">Status de Conexão:</h4>
-              <div>sessionStatus.isConnected: {sessionStatus.isConnected ? '✅ true' : '❌ false'}</div>
-              <div>connectionStatus: {connectionStatus}</div>
-              <div>phoneNumber: {sessionStatus.phoneNumber || 'null'}</div>
+        <CardContent className="text-sm text-blue-700 space-y-2">
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <span className="font-semibold">Conexão:</span> {sessionStatus.isConnected ? '✅ Conectado' : '❌ Desconectado'}
             </div>
-            
-            <div className="space-y-2">
-              <h4 className="font-semibold">Estados do App:</h4>
-              <div>hasAutoChecked: {hasAutoChecked ? '✅ true' : '❌ false'}</div>
-              <div>isAutoChecking: {isAutoChecking ? '🔄 true' : '⏸️ false'}</div>
-              <div>hasAutoLoadedChats: {hasAutoLoadedChats ? '✅ true' : '❌ false'}</div>
+            <div>
+              <span className="font-semibold">Conversas:</span> {contacts.length} carregadas
+            </div>
+            <div>
+              <span className="font-semibold">Modo Live:</span> {isLiveMode ? '🔴 ATIVO' : '⏸️ Inativo'}
             </div>
           </div>
           
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <h4 className="font-semibold">Carregamento:</h4>
-              <div>isLoadingChats: {isLoadingChats ? '🔄 true' : '⏸️ false'}</div>
-              <div>isForceLoading: {isForceLoading ? '🔄 true' : '⏸️ false'}</div>
-              <div>contacts.length: {contacts.length}</div>
+          {isLiveMode && currentChatId && (
+            <div className="mt-2 p-2 bg-red-50 rounded border border-red-200">
+              <p className="text-red-700 font-medium">
+                🔴 LIVE: Atualizando mensagens automaticamente a cada 3 segundos
+              </p>
+              <p className="text-red-600 text-xs">
+                Conversa ativa: {contacts.find(c => c.id === currentChatId)?.name || currentChatId}
+              </p>
             </div>
-            
-            <div className="space-y-2">
-              <h4 className="font-semibold">Config:</h4>
-              <div>Servidor: localhost:21465</div>
-              <div>Sessão: NERDWHATS_AMERICA</div>
-              <div>Token configurado: {localStorage.getItem('wpp_token') ? '✅' : '❌'}</div>
-            </div>
-          </div>
-          
-          <div className="mt-4 p-3 bg-blue-50 rounded border border-blue-200">
-            <p className="text-blue-800 font-medium">🔧 Próximos passos de debug:</p>
-            <p className="text-blue-700 text-xs mt-1">
-              1. Verifique o console do navegador (F12) para logs detalhados<br/>
-              2. Se conectado mas sem conversas, clique em "Forçar Conversas"<br/>
-              3. Verifique se o WPPConnect está rodando na porta 21465
-            </p>
-          </div>
+          )}
         </CardContent>
       </Card>
 
@@ -363,12 +374,13 @@ export function RealWhatsAppMirror() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-green-900">
             <Smartphone className="h-5 w-5" />
-            WPPConnect Real - Sessão Ativa
+            WPPConnect Real - Tempo Real
             {isConnected && <CheckCircle className="h-5 w-5 text-green-500" />}
+            {isLiveMode && <Radio className="h-5 w-5 text-red-500 animate-pulse" />}
             {(isAutoChecking || isLoadingChats || isForceLoading) && <Loader2 className="h-5 w-5 text-blue-500 animate-spin" />}
           </CardTitle>
           <CardDescription className="text-green-700">
-            Conecta seu WhatsApp via WPPConnect API
+            Sistema de mensagens em tempo real via WPPConnect API
             {isAutoChecking && (
               <span className="block text-blue-600 font-medium mt-1">
                 🔄 Verificando status automaticamente...
@@ -399,7 +411,6 @@ export function RealWhatsAppMirror() {
                 Verificar Status
               </Button>
               
-              {/* SEMPRE mostrar o botão Forçar Conversas */}
               <Button 
                 onClick={handleForceLoadChats} 
                 variant="default" 
@@ -408,8 +419,29 @@ export function RealWhatsAppMirror() {
                 className="bg-blue-600 hover:bg-blue-700 text-white"
               >
                 <Download className={`h-4 w-4 mr-1 ${(isLoadingChats || isForceLoading) ? 'animate-spin' : ''}`} />
-                {(isLoadingChats || isForceLoading) ? 'Carregando...' : 'Forçar Conversas'}
+                {(isLoadingChats || isForceLoading) ? 'Carregando...' : 'Atualizar Conversas'}
               </Button>
+              
+              {selectedContact && (
+                <Button 
+                  onClick={handleToggleLiveMode}
+                  variant={isLiveMode ? "destructive" : "default"}
+                  size="sm"
+                  className={isLiveMode ? "bg-red-600 hover:bg-red-700" : "bg-green-600 hover:bg-green-700"}
+                >
+                  {isLiveMode ? (
+                    <>
+                      <Pause className="h-4 w-4 mr-1" />
+                      Parar Live
+                    </>
+                  ) : (
+                    <>
+                      <Play className="h-4 w-4 mr-1" />
+                      Modo Live
+                    </>
+                  )}
+                </Button>
+              )}
               
               {isConnected && (
                 <Button onClick={disconnectWhatsApp} variant="outline" size="sm">
@@ -493,7 +525,7 @@ export function RealWhatsAppMirror() {
               <div className="flex items-center justify-between">
                 <CardTitle className="flex items-center gap-2">
                   <MessageSquare className="h-5 w-5" />
-                  Conversas REAIS
+                  Conversas {isLiveMode && <Radio className="h-4 w-4 text-red-500 animate-pulse" />}
                 </CardTitle>
                 <div className="flex items-center gap-2">
                   <Badge variant="secondary">{filteredContacts.length}</Badge>
@@ -502,14 +534,13 @@ export function RealWhatsAppMirror() {
                     variant="outline" 
                     size="sm"
                     disabled={isLoadingChats || isForceLoading}
-                    title="Forçar carregamento das conversas"
+                    title="Atualizar lista de conversas"
                   >
                     <Download className={`h-4 w-4 ${(isLoadingChats || isForceLoading) ? 'animate-spin' : ''}`} />
                   </Button>
                 </div>
               </div>
               
-              {/* Barra de Pesquisa */}
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
@@ -557,7 +588,7 @@ export function RealWhatsAppMirror() {
                           ) : (
                             <>
                               <Download className="h-4 w-4 mr-1" />
-                              FORÇAR Conversas
+                              Carregar Conversas
                             </>
                           )}
                         </Button>
@@ -571,11 +602,18 @@ export function RealWhatsAppMirror() {
                       onClick={() => selectContact(contact)}
                       className={`p-3 border-b cursor-pointer hover:bg-gray-50 transition-colors ${
                         selectedContact === contact.id ? 'bg-blue-50 border-blue-200' : ''
+                      } ${
+                        currentChatId === contact.id && isLiveMode ? 'border-l-4 border-l-red-500' : ''
                       }`}
                     >
                       <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                        <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center relative">
                           <User className="h-6 w-6 text-green-600" />
+                          {currentChatId === contact.id && isLiveMode && (
+                            <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
+                              <Radio className="h-2 w-2 text-white animate-pulse" />
+                            </div>
+                          )}
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between">
@@ -618,14 +656,20 @@ export function RealWhatsAppMirror() {
                         </p>
                       </div>
                     </div>
-                    <Badge variant="outline">
-                      {messages.filter(m => m.chatId === selectedContact).length} mensagens
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      {isLiveMode && currentChatId === selectedContact && (
+                        <Badge variant="destructive" className="animate-pulse">
+                          🔴 LIVE
+                        </Badge>
+                      )}
+                      <Badge variant="outline">
+                        {messages.filter(m => m.chatId === selectedContact).length} mensagens
+                      </Badge>
+                    </div>
                   </div>
                 </CardHeader>
                 
                 <CardContent className="p-0">
-                  {/* Mensagens */}
                   <div className="h-[400px] overflow-y-auto p-4 space-y-3">
                     {messages
                       .filter(m => m.chatId === selectedContact)
@@ -663,7 +707,6 @@ export function RealWhatsAppMirror() {
                     <div ref={messagesEndRef} />
                   </div>
                   
-                  {/* Input de Mensagem */}
                   <div className="border-t p-4">
                     <div className="flex gap-2">
                       <Input
@@ -689,6 +732,7 @@ export function RealWhatsAppMirror() {
                 <div className="text-center text-gray-500">
                   <MessageSquare className="h-12 w-12 mx-auto mb-4" />
                   <p>Selecione uma conversa para começar</p>
+                  <p className="text-xs mt-2">O modo live será ativado automaticamente</p>
                 </div>
               </CardContent>
             )}

@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 
 interface WPPConnectMessage {
@@ -63,6 +63,7 @@ export function useWPPConnect() {
   
   const { toast } = useToast();
   const liveIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const chatsIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const getWPPConfig = useCallback((): WPPConfig => {
     const savedConfig = {
@@ -214,80 +215,6 @@ export function useWPPConnect() {
     }
   }, [getWPPConfig, toast]);
 
-  const sendMessage = useCallback(async (chatId: string, message: string) => {
-    console.log('📤 Enviando mensagem via WPPConnect:', { chatId, message });
-    
-    try {
-      const config = getWPPConfig();
-      const isGroup = chats.find(chat => chat.chatId === chatId)?.isGroup || false;
-      console.log('📋 Tipo de chat:', { chatId, isGroup });
-
-      // Usar endpoint correto do WPPConnect
-      const endpoint = `${config.serverUrl}/api/${config.sessionName}/send-message`;
-      
-      let payload;
-      if (isGroup) {
-        payload = {
-          chatId: chatId,
-          message: message
-        };
-      } else {
-        const phone = chatId.replace('@c.us', '');
-        payload = {
-          phone: phone,
-          message: message
-        };
-      }
-
-      console.log('📦 Payload final:', payload);
-      console.log('🔑 Usando token:', config.token ? `***${config.token.slice(-4)}` : 'VAZIO');
-
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${config.token}`
-        },
-        body: JSON.stringify(payload)
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ Erro na resposta:', errorText);
-        throw new Error(`Erro ${response.status}: ${errorText}`);
-      }
-
-      const result = await response.json();
-      console.log('✅ Mensagem enviada:', result);
-
-      const newMessage: WPPConnectMessage = {
-        id: `sent_${Date.now()}`,
-        text: message,
-        sender: 'user',
-        timestamp: new Date().toISOString(),
-        fromMe: true,
-        chatId: chatId
-      };
-
-      setMessages(prev => [...prev, newMessage]);
-
-      toast({
-        title: "✅ Mensagem enviada",
-        description: isGroup ? "Mensagem enviada para o grupo" : "Mensagem enviada para o contato"
-      });
-
-      return true;
-    } catch (error) {
-      console.error('❌ Erro ao enviar mensagem:', error);
-      toast({
-        title: "❌ Erro ao enviar mensagem",
-        description: error.message,
-        variant: "destructive"
-      });
-      return false;
-    }
-  }, [chats, toast, getWPPConfig]);
-
   const generateQRCode = useCallback(async () => {
     setSessionStatus(prev => ({ ...prev, isLoading: true }));
     
@@ -371,6 +298,86 @@ export function useWPPConnect() {
     }
   }, [toast, getWPPConfig]);
 
+  const sendMessage = useCallback(async (chatId: string, message: string) => {
+    console.log('📤 Enviando mensagem via WPPConnect:', { chatId, message });
+    
+    try {
+      const config = getWPPConfig();
+      const isGroup = chats.find(chat => chat.chatId === chatId)?.isGroup || false;
+      console.log('📋 Tipo de chat:', { chatId, isGroup });
+
+      const endpoint = `${config.serverUrl}/api/${config.sessionName}/send-message`;
+      
+      let payload;
+      if (isGroup) {
+        payload = {
+          chatId: chatId,
+          message: message
+        };
+      } else {
+        const phone = chatId.replace('@c.us', '');
+        payload = {
+          phone: phone,
+          message: message
+        };
+      }
+
+      console.log('📦 Payload final:', payload);
+
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${config.token}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Erro na resposta:', errorText);
+        throw new Error(`Erro ${response.status}: ${errorText}`);
+      }
+
+      const result = await response.json();
+      console.log('✅ Mensagem enviada:', result);
+
+      // Adicionar mensagem localmente
+      const newMessage: WPPConnectMessage = {
+        id: `sent_${Date.now()}`,
+        text: message,
+        sender: 'user',
+        timestamp: new Date().toISOString(),
+        fromMe: true,
+        chatId: chatId
+      };
+
+      setMessages(prev => [...prev, newMessage]);
+
+      // Atualizar conversa com nova mensagem
+      setChats(prev => prev.map(chat => 
+        chat.chatId === chatId 
+          ? { ...chat, lastMessage: message, timestamp: new Date().toISOString() }
+          : chat
+      ));
+
+      toast({
+        title: "✅ Mensagem enviada",
+        description: isGroup ? "Mensagem enviada para o grupo" : "Mensagem enviada para o contato"
+      });
+
+      return true;
+    } catch (error) {
+      console.error('❌ Erro ao enviar mensagem:', error);
+      toast({
+        title: "❌ Erro ao enviar mensagem",
+        description: error.message,
+        variant: "destructive"
+      });
+      return false;
+    }
+  }, [chats, toast, getWPPConfig]);
+
   const loadRealChats = useCallback(async () => {
     if (!sessionStatus.isConnected) {
       console.log('❌ Não é possível carregar chats: WhatsApp não conectado');
@@ -382,7 +389,6 @@ export function useWPPConnect() {
       console.log('📱 [CHATS DEBUG] Iniciando carregamento de chats reais do WPPConnect...');
       const config = getWPPConfig();
       
-      // Usar apenas o endpoint que sabemos que funciona
       const endpoint = `${config.serverUrl}/api/${config.sessionName}/all-chats`;
       
       console.log('🎯 [CHATS DEBUG] Carregando chats do endpoint:', endpoint);
@@ -406,7 +412,6 @@ export function useWPPConnect() {
       const result = await response.json();
       console.log('📋 [CHATS DEBUG] Response completa:', result);
 
-      // O WPPConnect retorna os dados em result.response
       let chatsData = [];
       
       if (result.response && Array.isArray(result.response)) {
@@ -418,19 +423,9 @@ export function useWPPConnect() {
       }
 
       console.log('📊 [CHATS DEBUG] Chats extraídos:', chatsData.length, 'chats encontrados');
-      console.log('📋 [CHATS DEBUG] Primeiro chat exemplo:', chatsData[0]);
 
       if (chatsData.length > 0) {
         const formattedChats: WPPConnectChat[] = chatsData.map((chat: any, index: number) => {
-          console.log(`🔍 [CHATS DEBUG] Processando chat ${index + 1}:`, {
-            id: chat.id,
-            name: chat.name,
-            contact: chat.contact,
-            isGroup: chat.isGroup,
-            isUser: chat.isUser
-          });
-          
-          // Extrair ID do chat
           let chatId = '';
           if (typeof chat.id === 'string') {
             chatId = chat.id;
@@ -440,7 +435,6 @@ export function useWPPConnect() {
             chatId = `${chat.id.user}@${chat.id.server}`;
           }
           
-          // Extrair nome do chat
           let chatName = '';
           if (chat.name) {
             chatName = chat.name;
@@ -454,7 +448,6 @@ export function useWPPConnect() {
             chatName = chatId.split('@')[0] || `Chat ${index + 1}`;
           }
           
-          // Extrair última mensagem
           let lastMessage = 'Sem mensagens';
           if (chat.chatlistPreview && chat.chatlistPreview.reactionText) {
             lastMessage = `Reação: ${chat.chatlistPreview.reactionText}`;
@@ -473,14 +466,12 @@ export function useWPPConnect() {
             isGroup: chat.isGroup || false
           };
           
-          console.log(`✅ [CHATS DEBUG] Chat formatado ${index + 1}:`, formattedChat);
           return formattedChat;
         });
 
         console.log('✅ [CHATS DEBUG] Chats formatados com sucesso:', formattedChats);
         setChats(formattedChats);
         
-        // Converter chats para contatos para compatibilidade
         const formattedContacts: WPPConnectContact[] = formattedChats.map(chat => ({
           id: chat.chatId,
           name: chat.name,
@@ -493,62 +484,65 @@ export function useWPPConnect() {
         setContacts(formattedContacts);
         console.log('✅ [CHATS DEBUG] Sucesso! Carregados', formattedChats.length, 'chats');
         
-        toast({
-          title: "✅ Conversas carregadas!",
-          description: `${formattedChats.length} conversas encontradas`
-        });
+        if (!isLiveMode) {
+          toast({
+            title: "✅ Conversas carregadas!",
+            description: `${formattedChats.length} conversas encontradas`
+          });
+        }
         
         return formattedChats;
       } else {
         console.log('⚠️ [CHATS DEBUG] Nenhum chat encontrado na resposta');
-        toast({
-          title: "⚠️ Nenhuma conversa encontrada",
-          description: "O WhatsApp está conectado mas não há conversas disponíveis",
-          variant: "destructive"
-        });
+        if (!isLiveMode) {
+          toast({
+            title: "⚠️ Nenhuma conversa encontrada",
+            description: "O WhatsApp está conectado mas não há conversas disponíveis",
+            variant: "destructive"
+          });
+        }
         return [];
       }
       
     } catch (error) {
       console.error('❌ [CHATS DEBUG] Erro geral ao carregar chats:', error);
-      toast({
-        title: "❌ Erro ao carregar chats",
-        description: error.message,
-        variant: "destructive"
-      });
+      if (!isLiveMode) {
+        toast({
+          title: "❌ Erro ao carregar chats",
+          description: error.message,
+          variant: "destructive"
+        });
+      }
       return [];
     } finally {
       setIsLoadingChats(false);
     }
-  }, [sessionStatus.isConnected, toast, getWPPConfig]);
+  }, [sessionStatus.isConnected, toast, getWPPConfig, isLiveMode]);
 
-  const loadRealMessages = useCallback(async (chatId: string) => {
-    setIsLoadingMessages(true);
+  const loadRealMessages = useCallback(async (chatId: string, silent = false) => {
+    if (!silent) {
+      setIsLoadingMessages(true);
+    }
     
     try {
       console.log('💬 [MESSAGES DEBUG] Carregando mensagens para:', chatId, 'Limite:', messageHistoryLimit);
       const config = getWPPConfig();
       
-      // Testar múltiplos endpoints para obter mensagens - alguns WPPConnect usam endpoints diferentes
       const messageEndpoints = [
-        // Endpoint padrão para buscar mensagens de um chat
         {
           url: `${config.serverUrl}/api/${config.sessionName}/get-messages/${chatId}`,
           method: 'GET'
         },
-        // Endpoint alternativo com parâmetros via query
         {
           url: `${config.serverUrl}/api/${config.sessionName}/get-messages`,
           method: 'GET',
           params: { chatId, count: messageHistoryLimit }
         },
-        // Endpoint para histórico de mensagens
         {
           url: `${config.serverUrl}/api/${config.sessionName}/chat-messages`,
           method: 'POST',
           body: { chatId, limit: messageHistoryLimit }
         },
-        // Endpoint para mensagens de conversa específica
         {
           url: `${config.serverUrl}/api/${config.sessionName}/messages`,
           method: 'GET',
@@ -595,7 +589,6 @@ export function useWPPConnect() {
             const result = await response.json();
             console.log('📋 [MESSAGES DEBUG] Response completa:', result);
 
-            // Tentar extrair mensagens de diferentes estruturas de resposta
             let messagesData = [];
             
             if (result.response && Array.isArray(result.response)) {
@@ -611,10 +604,7 @@ export function useWPPConnect() {
             console.log('📊 [MESSAGES DEBUG] Mensagens extraídas:', messagesData.length);
 
             if (messagesData.length > 0) {
-              console.log('📋 [MESSAGES DEBUG] Primeira mensagem exemplo:', messagesData[0]);
-
               const formattedMessages: WPPConnectMessage[] = messagesData.map((msg: any) => {
-                // Extrair texto da mensagem
                 let messageText = '';
                 if (msg.body) {
                   messageText = msg.body;
@@ -624,11 +614,12 @@ export function useWPPConnect() {
                   messageText = msg.content;
                 } else if (msg.message) {
                   messageText = msg.message;
+                } else if (msg.type === 'ptt') {
+                  messageText = '🎵 Áudio';
                 } else {
                   messageText = 'Mensagem sem texto';
                 }
 
-                // Determinar se é do usuário ou contato
                 const isFromMe = msg.fromMe || msg.from === config.sessionName || (msg.sender && msg.sender.isMe);
 
                 return {
@@ -649,8 +640,24 @@ export function useWPPConnect() {
               console.log('✅ [MESSAGES DEBUG] Mensagens formatadas:', formattedMessages.length);
 
               setMessages(prev => {
-                const filtered = prev.filter(m => m.chatId !== chatId);
-                return [...filtered, ...formattedMessages.reverse()]; // Reverse para mostrar mais recentes primeiro
+                const currentMessages = prev.filter(m => m.chatId === chatId);
+                const newMessages = formattedMessages.filter(newMsg => 
+                  !currentMessages.some(currentMsg => currentMsg.id === newMsg.id)
+                );
+
+                if (newMessages.length > 0 && silent) {
+                  console.log('🔥 [LIVE] Novas mensagens detectadas:', newMessages.length);
+                  if (!document.hidden) {
+                    toast({
+                      title: "💬 Nova mensagem!",
+                      description: `${newMessages.length} mensagem(s) nova(s) em ${chats.find(c => c.chatId === chatId)?.name || 'conversa'}`,
+                      duration: 3000
+                    });
+                  }
+                }
+
+                const filteredPrev = prev.filter(m => m.chatId !== chatId);
+                return [...filteredPrev, ...formattedMessages.reverse()];
               });
 
               console.log('✅ [MESSAGES DEBUG] Sucesso no endpoint:', endpoint.url);
@@ -666,44 +673,59 @@ export function useWPPConnect() {
         }
       }
 
-      // Se chegou até aqui, nenhum endpoint funcionou
       console.log('⚠️ [MESSAGES DEBUG] Nenhum endpoint de mensagens funcionou');
       
-      toast({
-        title: "⚠️ Endpoint de mensagens não encontrado",
-        description: "O WPPConnect não possui os endpoints padrão de mensagens. Verifique a documentação da sua versão.",
-        variant: "destructive"
-      });
+      if (!silent) {
+        toast({
+          title: "⚠️ Endpoint de mensagens não encontrado",
+          description: "O WPPConnect não possui os endpoints padrão de mensagens. Verifique a documentação da sua versão.",
+          variant: "destructive"
+        });
+      }
       
       return [];
       
     } catch (error) {
       console.error('❌ [MESSAGES DEBUG] Erro geral ao carregar mensagens:', error);
-      toast({
-        title: "❌ Erro ao carregar mensagens",
-        description: "Não foi possível carregar as mensagens",
-        variant: "destructive"
-      });
+      if (!silent) {
+        toast({
+          title: "❌ Erro ao carregar mensagens",
+          description: "Não foi possível carregar as mensagens",
+          variant: "destructive"
+        });
+      }
       return [];
     } finally {
-      setIsLoadingMessages(false);
+      if (!silent) {
+        setIsLoadingMessages(false);
+      }
     }
-  }, [messageHistoryLimit, toast, getWPPConfig]);
+  }, [messageHistoryLimit, toast, getWPPConfig, chats]);
 
   const startLiveMode = useCallback((chatId: string) => {
     console.log('🔴 Iniciando modo live para:', chatId);
     setIsLiveMode(true);
     setCurrentChatId(chatId);
     
+    // Intervalos para mensagens da conversa ativa
     liveIntervalRef.current = setInterval(() => {
-      loadRealMessages(chatId);
+      if (chatId) {
+        console.log('🔄 [LIVE] Verificando novas mensagens...');
+        loadRealMessages(chatId, true);
+      }
     }, 3000);
+    
+    // Intervalo para novas conversas
+    chatsIntervalRef.current = setInterval(() => {
+      console.log('🔄 [LIVE] Verificando novas conversas...');
+      loadRealChats();
+    }, 10000);
     
     toast({
       title: "🔴 Modo Live Ativo",
-      description: "Mensagens sendo atualizadas automaticamente"
+      description: "Mensagens sendo atualizadas automaticamente a cada 3s"
     });
-  }, [loadRealMessages, toast]);
+  }, [loadRealMessages, loadRealChats, toast]);
 
   const stopLiveMode = useCallback(() => {
     console.log('⏹️ Parando modo live');
@@ -715,17 +737,35 @@ export function useWPPConnect() {
       liveIntervalRef.current = null;
     }
     
+    if (chatsIntervalRef.current) {
+      clearInterval(chatsIntervalRef.current);
+      chatsIntervalRef.current = null;
+    }
+    
     toast({
       title: "⏹️ Modo Live Desativado",
       description: "Atualizações automáticas paradas"
     });
   }, [toast]);
 
+  // Limpar intervalos quando componente desmonta
+  useEffect(() => {
+    return () => {
+      if (liveIntervalRef.current) {
+        clearInterval(liveIntervalRef.current);
+      }
+      if (chatsIntervalRef.current) {
+        clearInterval(chatsIntervalRef.current);
+      }
+    };
+  }, []);
+
   const disconnectWhatsApp = useCallback(async () => {
     try {
       console.log('🔌 Desconectando WhatsApp...');
-      const config = getWPPConfig();
+      stopLiveMode();
       
+      const config = getWPPConfig();
       const endpoint = `${config.serverUrl}/api/${config.sessionName}/close-session`;
       
       const response = await fetch(endpoint, {
@@ -749,7 +789,6 @@ export function useWPPConnect() {
       setChats([]);
       setMessages([]);
       setContacts([]);
-      stopLiveMode();
       
       toast({
         title: "🔌 Desconectado",
