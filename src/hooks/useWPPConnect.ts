@@ -899,7 +899,7 @@ export function useWPPConnect() {
               console.log('✅ [FORCE SYNC] Mensagens encontradas:', messagesData.length);
               
               // Processar e atualizar mensagens
-              const formattedMessages = messagesData.map((msg: any) => {
+              const formattedMessages: WPPConnectMessage[] = messagesData.map((msg: any) => {
                 let messageText = '';
                 if (msg.body) {
                   messageText = msg.body;
@@ -920,7 +920,7 @@ export function useWPPConnect() {
                 return {
                   id: msg.id || msg._id || `msg_${Date.now()}_${Math.random()}`,
                   text: messageText,
-                  sender: isFromMe ? 'user' : 'contact',
+                  sender: isFromMe ? 'user' as const : 'contact' as const,
                   timestamp: msg.timestamp ? new Date(msg.timestamp * 1000).toISOString() : 
                            msg.t ? new Date(msg.t * 1000).toISOString() : 
                            msg.time ? new Date(msg.time).toISOString() : 

@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { RefreshCw, Send, Loader2, Play, RotateCcw, Sync } from 'lucide-react';
+import { RefreshCw, Send, Loader2, Play, RotateCcw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface Chat {
@@ -256,7 +256,7 @@ export function RealWhatsAppMirror() {
                   variant="outline"
                   title="Forçar sincronização de mensagens"
                 >
-                  <Sync className="w-3 h-3" />
+                  <RefreshCw className="w-3 h-3" />
                 </Button>
                 
                 <Button 
