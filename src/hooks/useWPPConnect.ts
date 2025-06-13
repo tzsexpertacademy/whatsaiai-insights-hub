@@ -66,16 +66,24 @@ export function useWPPConnect() {
   const liveIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const getWPPConfig = useCallback((): WPPConfig => {
-    // Buscar do localStorage primeiro
+    // Buscar do localStorage SEMPRE atualizado
     const savedConfig = {
-      sessionName: localStorage.getItem('wpp_session_name') || 'default',
+      sessionName: localStorage.getItem('wpp_session_name') || 'NERDWHATS_AMERICA',
       serverUrl: localStorage.getItem('wpp_server_url') || 'http://localhost:21465',
-      secretKey: localStorage.getItem('wpp_secret_key') || 'YOUR_TOKEN_HERE',
-      token: localStorage.getItem('wpp_token') || 'YOUR_TOKEN_HERE',
+      secretKey: localStorage.getItem('wpp_secret_key') || '',
+      token: localStorage.getItem('wpp_token') || '',
       webhookUrl: localStorage.getItem('wpp_webhook_url') || ''
     };
     
-    console.log('🔧 getWPPConfig - Retornando:', savedConfig);
+    console.log('🔧 getWPPConfig - Configurações atuais:', {
+      sessionName: savedConfig.sessionName,
+      serverUrl: savedConfig.serverUrl,
+      hasSecretKey: !!savedConfig.secretKey,
+      hasToken: !!savedConfig.token,
+      secretKeyLength: savedConfig.secretKey.length,
+      tokenLength: savedConfig.token.length
+    });
+    
     return savedConfig;
   }, []);
 
@@ -83,11 +91,11 @@ export function useWPPConnect() {
     console.log('💾 Salvando configuração WPPConnect:', config);
     
     // Salvar no localStorage
-    if (config.sessionName) localStorage.setItem('wpp_session_name', config.sessionName);
-    if (config.serverUrl) localStorage.setItem('wpp_server_url', config.serverUrl);
-    if (config.secretKey) localStorage.setItem('wpp_secret_key', config.secretKey);
-    if (config.token) localStorage.setItem('wpp_token', config.token);
-    if (config.webhookUrl) localStorage.setItem('wpp_webhook_url', config.webhookUrl);
+    if (config.sessionName !== undefined) localStorage.setItem('wpp_session_name', config.sessionName);
+    if (config.serverUrl !== undefined) localStorage.setItem('wpp_server_url', config.serverUrl);
+    if (config.secretKey !== undefined) localStorage.setItem('wpp_secret_key', config.secretKey);
+    if (config.token !== undefined) localStorage.setItem('wpp_token', config.token);
+    if (config.webhookUrl !== undefined) localStorage.setItem('wpp_webhook_url', config.webhookUrl);
     
     console.log('✅ Configuração salva no localStorage');
   }, []);
@@ -101,10 +109,11 @@ export function useWPPConnect() {
     console.log('📤 Enviando mensagem via WPPConnect:', { chatId, message });
     
     try {
+      const config = getWPPConfig();
       const isGroup = chats.find(chat => chat.chatId === chatId)?.isGroup || false;
       console.log('📋 Tipo de chat:', { chatId, isGroup });
 
-      const endpoint = 'http://localhost:21465/api/default/send-message';
+      const endpoint = `${config.serverUrl}/api/${config.sessionName}/send-message`;
       
       let payload;
       if (isGroup) {
@@ -121,12 +130,13 @@ export function useWPPConnect() {
       }
 
       console.log('📦 Payload final:', payload);
+      console.log('🔑 Usando token:', config.token ? `***${config.token.slice(-4)}` : 'VAZIO');
 
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer YOUR_TOKEN_HERE'
+          'Authorization': `Bearer ${config.token}`
         },
         body: JSON.stringify(payload)
       });
@@ -166,24 +176,42 @@ export function useWPPConnect() {
       });
       return false;
     }
-  }, [chats, toast]);
+  }, [chats, toast, getWPPConfig]);
 
   const generateQRCode = useCallback(async () => {
     setSessionStatus(prev => ({ ...prev, isLoading: true }));
     
     try {
       console.log('🔄 Gerando QR Code WPPConnect...');
+      const config = getWPPConfig();
       
-      const response = await fetch('http://localhost:21465/api/default/start-session', {
+      console.log('🔧 Configurações para QR Code:', {
+        sessionName: config.sessionName,
+        serverUrl: config.serverUrl,
+        hasSecretKey: !!config.secretKey,
+        hasToken: !!config.token
+      });
+
+      if (!config.token || !config.secretKey) {
+        throw new Error('Token ou Secret Key não configurados');
+      }
+      
+      const endpoint = `${config.serverUrl}/api/${config.sessionName}/start-session`;
+      console.log('🎯 Endpoint:', endpoint);
+      console.log('🔑 Token sendo usado:', config.token ? `***${config.token.slice(-4)}` : 'VAZIO');
+
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer YOUR_TOKEN_HERE'
+          'Authorization': `Bearer ${config.token}`
         }
       });
 
       if (!response.ok) {
-        throw new Error(`Erro ${response.status}`);
+        const errorText = await response.text();
+        console.error('❌ Erro na resposta:', response.status, errorText);
+        throw new Error(`Erro ${response.status}: ${errorText}`);
       }
 
       const result = await response.json();
@@ -222,26 +250,44 @@ export function useWPPConnect() {
       });
       toast({
         title: "❌ Erro na conexão",
-        description: "Não foi possível conectar ao WPPConnect",
+        description: error.message,
         variant: "destructive"
       });
       return null;
     }
-  }, [toast]);
+  }, [toast, getWPPConfig]);
 
   const checkConnectionStatus = useCallback(async () => {
     try {
       console.log('🔍 Verificando status da conexão...');
+      const config = getWPPConfig();
       
-      const response = await fetch('http://localhost:21465/api/default/check-connection-session', {
+      if (!config.token || !config.secretKey) {
+        console.log('⚠️ Token ou Secret Key não configurados');
+        setSessionStatus({
+          isConnected: false,
+          qrCode: null,
+          isLoading: false,
+          phoneNumber: null
+        });
+        return false;
+      }
+
+      const endpoint = `${config.serverUrl}/api/${config.sessionName}/check-connection-session`;
+      console.log('🎯 Verificando endpoint:', endpoint);
+      console.log('🔑 Com token:', config.token ? `***${config.token.slice(-4)}` : 'VAZIO');
+      
+      const response = await fetch(endpoint, {
         method: 'GET',
         headers: {
-          'Authorization': 'Bearer YOUR_TOKEN_HERE'
+          'Authorization': `Bearer ${config.token}`
         }
       });
 
       if (!response.ok) {
-        throw new Error(`Erro ${response.status}`);
+        const errorText = await response.text();
+        console.error('❌ Erro na verificação:', response.status, errorText);
+        throw new Error(`Erro ${response.status}: ${errorText}`);
       }
 
       const result = await response.json();
@@ -274,7 +320,7 @@ export function useWPPConnect() {
       });
       return false;
     }
-  }, []);
+  }, [getWPPConfig]);
 
   const loadRealChats = useCallback(async () => {
     if (!sessionStatus.isConnected) return [];
@@ -282,11 +328,14 @@ export function useWPPConnect() {
     setIsLoadingChats(true);
     try {
       console.log('📱 Carregando chats reais...');
+      const config = getWPPConfig();
       
-      const response = await fetch('http://localhost:21465/api/default/list-chats', {
+      const endpoint = `${config.serverUrl}/api/${config.sessionName}/list-chats`;
+      
+      const response = await fetch(endpoint, {
         method: 'GET',
         headers: {
-          'Authorization': 'Bearer YOUR_TOKEN_HERE'
+          'Authorization': `Bearer ${config.token}`
         }
       });
 
@@ -335,18 +384,21 @@ export function useWPPConnect() {
     } finally {
       setIsLoadingChats(false);
     }
-  }, [sessionStatus.isConnected, toast]);
+  }, [sessionStatus.isConnected, toast, getWPPConfig]);
 
   const loadRealMessages = useCallback(async (chatId: string) => {
     setIsLoadingMessages(true);
     
     try {
       console.log('💬 Carregando mensagens para:', chatId, 'Limite:', messageHistoryLimit);
+      const config = getWPPConfig();
       
-      const response = await fetch(`http://localhost:21465/api/default/get-messages/${chatId}?count=${messageHistoryLimit}`, {
+      const endpoint = `${config.serverUrl}/api/${config.sessionName}/get-messages/${chatId}?count=${messageHistoryLimit}`;
+      
+      const response = await fetch(endpoint, {
         method: 'GET',
         headers: {
-          'Authorization': 'Bearer YOUR_TOKEN_HERE'
+          'Authorization': `Bearer ${config.token}`
         }
       });
 
@@ -389,7 +441,7 @@ export function useWPPConnect() {
     } finally {
       setIsLoadingMessages(false);
     }
-  }, [messageHistoryLimit, toast]);
+  }, [messageHistoryLimit, toast, getWPPConfig]);
 
   const startLiveMode = useCallback((chatId: string) => {
     console.log('🔴 Iniciando modo live para:', chatId);
@@ -425,11 +477,14 @@ export function useWPPConnect() {
   const disconnectWhatsApp = useCallback(async () => {
     try {
       console.log('🔌 Desconectando WhatsApp...');
+      const config = getWPPConfig();
       
-      const response = await fetch('http://localhost:21465/api/default/close-session', {
+      const endpoint = `${config.serverUrl}/api/${config.sessionName}/close-session`;
+      
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
-          'Authorization': 'Bearer YOUR_TOKEN_HERE'
+          'Authorization': `Bearer ${config.token}`
         }
       });
 
@@ -461,7 +516,7 @@ export function useWPPConnect() {
         variant: "destructive"
       });
     }
-  }, [stopLiveMode, toast]);
+  }, [stopLiveMode, toast, getWPPConfig]);
 
   const updateMessageHistoryLimit = useCallback((newLimit: number) => {
     setMessageHistoryLimit(newLimit);

@@ -25,20 +25,13 @@ export function WPPConnectConfig() {
   const { getWPPConfig, saveWPPConfig } = useWPPConnect();
 
   const [config, setConfig] = useState(() => {
-    // Carregar configuração do localStorage primeiro
-    const savedConfig = {
-      sessionName: localStorage.getItem('wpp_session_name') || 'NERDWHATS_AMERICA',
-      serverUrl: localStorage.getItem('wpp_server_url') || 'http://localhost:21465',
-      secretKey: localStorage.getItem('wpp_secret_key') || '',
-      token: localStorage.getItem('wpp_token') || '',
-      webhookUrl: localStorage.getItem('wpp_webhook_url') || ''
-    };
-    
-    console.log('🔧 Config inicial carregado do localStorage:', savedConfig);
-    return savedConfig;
+    // Carregar configuração inicial
+    const currentConfig = getWPPConfig();
+    console.log('🔧 Config inicial carregado:', currentConfig);
+    return currentConfig;
   });
 
-  // Lista REDUZIDA de tokens inválidos - removendo THISISMYSECURETOKEN
+  // Lista REDUZIDA de tokens inválidos
   const INVALID_TOKENS = [
     'YOUR_SECRET_KEY_HERE', 
     'YOUR_TOKEN_HERE',
@@ -46,7 +39,7 @@ export function WPPConnectConfig() {
     'CHANGE_ME'
   ];
 
-  // Verificar se os tokens estão configurados corretamente - ACEITANDO THISISMYSECURETOKEN
+  // Verificar se os tokens estão configurados corretamente
   const isSecretKeyValid = config.secretKey && 
                           config.secretKey.length > 0 && 
                           !INVALID_TOKENS.includes(config.secretKey);
@@ -57,34 +50,31 @@ export function WPPConnectConfig() {
 
   const isConfigComplete = isSecretKeyValid && isTokenValid;
 
-  // Salvar no localStorage quando os valores mudarem
+  // Auto-salvamento com debounce
   useEffect(() => {
-    console.log('💾 Salvando no localStorage:', config);
+    console.log('💾 Efeito de salvamento disparado:', config);
     
-    localStorage.setItem('wpp_session_name', config.sessionName);
-    localStorage.setItem('wpp_server_url', config.serverUrl);
-    localStorage.setItem('wpp_webhook_url', config.webhookUrl);
-    
-    if (config.secretKey) {
-      localStorage.setItem('wpp_secret_key', config.secretKey);
-    }
-    
-    if (config.token) {
-      localStorage.setItem('wpp_token', config.token);
-    }
-    
-    // Auto-salvar quando o usuário digita (com debounce) - SOMENTE se tokens forem válidos
     const timer = setTimeout(() => {
       if (isSecretKeyValid && isTokenValid) {
         console.log('💾 Auto-salvando configuração válida...');
         saveWPPConfig(config);
+        
+        toast({
+          title: "💾 Configuração salva automaticamente",
+          description: "Tokens válidos salvos com sucesso"
+        });
       } else {
-        console.log('⚠️ Não salvando - tokens ainda inválidos');
+        console.log('⚠️ Não salvando - tokens ainda inválidos:', {
+          secretKeyValid: isSecretKeyValid,
+          tokenValid: isTokenValid,
+          secretKeyLength: config.secretKey?.length || 0,
+          tokenLength: config.token?.length || 0
+        });
       }
     }, 1000);
 
     return () => clearTimeout(timer);
-  }, [config, isSecretKeyValid, isTokenValid, saveWPPConfig]);
+  }, [config, isSecretKeyValid, isTokenValid, saveWPPConfig, toast]);
 
   const handleSaveConfig = () => {
     if (!isConfigComplete) {
@@ -96,14 +86,8 @@ export function WPPConnectConfig() {
       return;
     }
 
-    // Salvar no localStorage
-    localStorage.setItem('wpp_session_name', config.sessionName);
-    localStorage.setItem('wpp_server_url', config.serverUrl);
-    localStorage.setItem('wpp_secret_key', config.secretKey);
-    localStorage.setItem('wpp_token', config.token);
-    localStorage.setItem('wpp_webhook_url', config.webhookUrl);
-
-    // Salvar via hook
+    // Forçar salvamento manual
+    console.log('🔄 Salvamento manual forçado:', config);
     saveWPPConfig(config);
     
     toast({
@@ -113,22 +97,29 @@ export function WPPConnectConfig() {
   };
 
   const handleInputChange = (field: string, value: string) => {
-    setConfig(prev => ({ ...prev, [field]: value }));
+    console.log(`🔄 Atualizando campo ${field}:`, field === 'secretKey' || field === 'token' ? `***${value.slice(-4)}` : value);
     
-    // Log apenas para valores não sensíveis ou mascarados
-    if (field === 'secretKey' || field === 'token') {
-      console.log(`🔄 Campo ${field} atualizado:`, value ? `***${value.slice(-4)}***` : 'EMPTY');
-    } else {
-      console.log(`🔄 Campo ${field} atualizado:`, value);
-    }
+    setConfig(prev => {
+      const newConfig = { ...prev, [field]: value };
+      console.log('🔄 Nova configuração:', {
+        ...newConfig,
+        secretKey: newConfig.secretKey ? `***${newConfig.secretKey.slice(-4)}` : 'VAZIO',
+        token: newConfig.token ? `***${newConfig.token.slice(-4)}` : 'VAZIO'
+      });
+      return newConfig;
+    });
   };
 
   const handleClearTokens = () => {
-    setConfig(prev => ({
-      ...prev,
+    console.log('🗑️ Limpando tokens...');
+    
+    const newConfig = {
+      ...config,
       secretKey: '',
       token: ''
-    }));
+    };
+    
+    setConfig(newConfig);
     
     // Limpar do localStorage também
     localStorage.removeItem('wpp_secret_key');
@@ -162,6 +153,15 @@ export function WPPConnectConfig() {
 
   const secretKeyStatus = getSecretKeyStatus();
   const tokenStatus = getTokenStatus();
+
+  // Debug logs
+  console.log('🔍 Status atual:', {
+    secretKeyValid: secretKeyStatus.valid,
+    tokenValid: tokenStatus.valid,
+    isConfigComplete,
+    secretKeyLength: config.secretKey?.length || 0,
+    tokenLength: config.token?.length || 0
+  });
 
   return (
     <div className="space-y-6">
@@ -208,6 +208,11 @@ export function WPPConnectConfig() {
               <p className="text-sm text-gray-600">
                 {secretKeyStatus.message}
               </p>
+              {config.secretKey && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Comprimento: {config.secretKey.length} caracteres
+                </p>
+              )}
             </div>
             
             <div className={`p-3 rounded-lg border ${tokenStatus.valid ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
@@ -223,6 +228,11 @@ export function WPPConnectConfig() {
               <p className="text-sm text-gray-600">
                 {tokenStatus.message}
               </p>
+              {config.token && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Comprimento: {config.token.length} caracteres
+                </p>
+              )}
             </div>
           </div>
         </CardContent>
@@ -355,7 +365,7 @@ export function WPPConnectConfig() {
               <div className="text-sm text-red-700 space-y-2">
                 <p><strong>1. Secret Key:</strong> Use "THISISMYSECURETOKEN" ou sua chave personalizada do WPPConnect</p>
                 <p><strong>2. Token:</strong> Token específico gerado para a sessão pelo WPPConnect</p>
-                <p><strong>3. Auto-salvamento:</strong> Configurações são salvas automaticamente no localStorage</p>
+                <p><strong>3. Auto-salvamento:</strong> Configurações são salvas automaticamente quando válidas</p>
               </div>
             </div>
           )}
