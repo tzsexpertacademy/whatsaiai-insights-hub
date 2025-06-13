@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -207,13 +208,11 @@ export function RealWhatsAppMirror() {
     setSelectedContact(contact.id);
     handleLoadRealMessages(contact.id);
     
+    // NÃO iniciar modo live automaticamente - removido
     // Parar modo live anterior se houver
     if (isLiveMode && currentChatId !== contact.id) {
       stopLiveMode();
     }
-    
-    // Iniciar modo live para nova conversa
-    startLiveMode(contact.id);
   };
 
   const sendMessage = async () => {
@@ -332,6 +331,11 @@ export function RealWhatsAppMirror() {
   };
 
   const statusInfo = getConnectionStatusInfo();
+
+  // Ordenar mensagens cronologicamente (mais antigas primeiro, mais recentes embaixo)
+  const sortedMessages = messages
+    .filter(m => m.chatId === selectedContact)
+    .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
   return (
     <div className="space-y-6">
@@ -663,7 +667,7 @@ export function RealWhatsAppMirror() {
                         </Badge>
                       )}
                       <Badge variant="outline">
-                        {messages.filter(m => m.chatId === selectedContact).length} mensagens
+                        {sortedMessages.length} mensagens
                       </Badge>
                     </div>
                   </div>
@@ -671,39 +675,37 @@ export function RealWhatsAppMirror() {
                 
                 <CardContent className="p-0">
                   <div className="h-[400px] overflow-y-auto p-4 space-y-3">
-                    {messages
-                      .filter(m => m.chatId === selectedContact)
-                      .map((message) => (
+                    {sortedMessages.map((message) => (
+                      <div
+                        key={message.id}
+                        className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                      >
                         <div
-                          key={message.id}
-                          className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                          className={`max-w-[70%] px-3 py-2 rounded-lg ${
+                            message.sender === 'user'
+                              ? 'bg-green-500 text-white'
+                              : 'bg-gray-100 text-gray-900'
+                          }`}
                         >
-                          <div
-                            className={`max-w-[70%] px-3 py-2 rounded-lg ${
-                              message.sender === 'user'
-                                ? 'bg-green-500 text-white'
-                                : 'bg-gray-100 text-gray-900'
-                            }`}
-                          >
-                            <div className="flex items-start gap-2">
-                              {message.isAudio && <Volume2 className="h-4 w-4 mt-0.5 flex-shrink-0" />}
-                              <div className="flex-1">
-                                <p className="text-sm">{message.text}</p>
-                                <div className="flex items-center justify-between mt-1">
+                          <div className="flex items-start gap-2">
+                            {message.isAudio && <Volume2 className="h-4 w-4 mt-0.5 flex-shrink-0" />}
+                            <div className="flex-1">
+                              <p className="text-sm">{message.text}</p>
+                              <div className="flex items-center justify-between mt-1">
+                                <span className="text-xs opacity-70">
+                                  {formatTime(message.timestamp)}
+                                </span>
+                                {message.sender === 'user' && message.status && (
                                   <span className="text-xs opacity-70">
-                                    {formatTime(message.timestamp)}
+                                    {getStatusIcon(message.status)}
                                   </span>
-                                  {message.sender === 'user' && message.status && (
-                                    <span className="text-xs opacity-70">
-                                      {getStatusIcon(message.status)}
-                                    </span>
-                                  )}
-                                </div>
+                                )}
                               </div>
                             </div>
                           </div>
                         </div>
-                      ))}
+                      </div>
+                    ))}
                     <div ref={messagesEndRef} />
                   </div>
                   
@@ -732,7 +734,7 @@ export function RealWhatsAppMirror() {
                 <div className="text-center text-gray-500">
                   <MessageSquare className="h-12 w-12 mx-auto mb-4" />
                   <p>Selecione uma conversa para começar</p>
-                  <p className="text-xs mt-2">O modo live será ativado automaticamente</p>
+                  <p className="text-xs mt-2">Use o botão "Modo Live" para ativar atualizações automáticas</p>
                 </div>
               </CardContent>
             )}
