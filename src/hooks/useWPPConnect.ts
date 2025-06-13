@@ -1,4 +1,3 @@
-
 import { useState, useCallback, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -66,7 +65,6 @@ export function useWPPConnect() {
   const liveIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const getWPPConfig = useCallback((): WPPConfig => {
-    // Buscar do localStorage SEMPRE atualizado
     const savedConfig = {
       sessionName: localStorage.getItem('wpp_session_name') || 'NERDWHATS_AMERICA',
       serverUrl: localStorage.getItem('wpp_server_url') || 'http://localhost:21465',
@@ -90,7 +88,6 @@ export function useWPPConnect() {
   const saveWPPConfig = useCallback((config: Partial<WPPConfig>) => {
     console.log('💾 Salvando configuração WPPConnect:', config);
     
-    // Salvar no localStorage
     if (config.sessionName !== undefined) localStorage.setItem('wpp_session_name', config.sessionName);
     if (config.serverUrl !== undefined) localStorage.setItem('wpp_server_url', config.serverUrl);
     if (config.secretKey !== undefined) localStorage.setItem('wpp_secret_key', config.secretKey);
@@ -113,6 +110,7 @@ export function useWPPConnect() {
       const isGroup = chats.find(chat => chat.chatId === chatId)?.isGroup || false;
       console.log('📋 Tipo de chat:', { chatId, isGroup });
 
+      // Usar endpoint correto do WPPConnect
       const endpoint = `${config.serverUrl}/api/${config.sessionName}/send-message`;
       
       let payload;
@@ -196,50 +194,38 @@ export function useWPPConnect() {
         throw new Error('Token ou Secret Key não configurados');
       }
       
-      const endpoint = `${config.serverUrl}/api/${config.sessionName}/start-session`;
-      console.log('🎯 Endpoint:', endpoint);
+      // Usar endpoint correto conforme Swagger
+      const endpoint = `${config.serverUrl}/api/${config.sessionName}/qrcode-session`;
+      console.log('🎯 Endpoint QR Code:', endpoint);
       console.log('🔑 Token sendo usado:', config.token ? `***${config.token.slice(-4)}` : 'VAZIO');
 
       const response = await fetch(endpoint, {
-        method: 'POST',
+        method: 'GET',
         headers: {
-          'Content-Type': 'application/json',
           'Authorization': `Bearer ${config.token}`
         }
       });
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('❌ Erro na resposta:', response.status, errorText);
+        console.error('❌ Erro na resposta QR Code:', response.status, errorText);
         throw new Error(`Erro ${response.status}: ${errorText}`);
       }
 
-      const result = await response.json();
-      console.log('📱 Resposta start-session:', result);
+      // O QR Code vem como imagem diretamente
+      const qrCodeBlob = await response.blob();
+      const qrCodeUrl = URL.createObjectURL(qrCodeBlob);
+      
+      console.log('📱 QR Code gerado como blob, convertido para URL:', qrCodeUrl);
 
-      if (result.status === 'qrReadSuccess') {
-        setSessionStatus({
-          isConnected: true,
-          qrCode: null,
-          isLoading: false,
-          phoneNumber: result.session
-        });
-        toast({
-          title: "✅ Conectado!",
-          description: "WhatsApp conectado com sucesso"
-        });
-        return true;
-      } else if (result.qrcode) {
-        setSessionStatus({
-          isConnected: false,
-          qrCode: result.qrcode,
-          isLoading: false,
-          phoneNumber: null
-        });
-        return result.qrcode;
-      } else {
-        throw new Error('QR Code não disponível');
-      }
+      setSessionStatus({
+        isConnected: false,
+        qrCode: qrCodeUrl,
+        isLoading: false,
+        phoneNumber: null
+      });
+      
+      return qrCodeUrl;
     } catch (error) {
       console.error('❌ Erro ao gerar QR Code:', error);
       setSessionStatus({
@@ -273,7 +259,8 @@ export function useWPPConnect() {
         return false;
       }
 
-      const endpoint = `${config.serverUrl}/api/${config.sessionName}/check-connection-session`;
+      // Usar endpoint correto do status conforme Swagger
+      const endpoint = `${config.serverUrl}/api/${config.sessionName}/status-session`;
       console.log('🎯 Verificando endpoint:', endpoint);
       console.log('🔑 Com token:', config.token ? `***${config.token.slice(-4)}` : 'VAZIO');
       
@@ -293,7 +280,7 @@ export function useWPPConnect() {
       const result = await response.json();
       console.log('📊 Status da sessão:', result);
 
-      if (result.status === 'connected') {
+      if (result.status === 'inChat' || result.session === 'CONNECTED' || result.result === 'connected') {
         setSessionStatus({
           isConnected: true,
           qrCode: null,
@@ -330,7 +317,8 @@ export function useWPPConnect() {
       console.log('📱 Carregando chats reais...');
       const config = getWPPConfig();
       
-      const endpoint = `${config.serverUrl}/api/${config.sessionName}/list-chats`;
+      // Usar endpoint correto conforme Swagger para listar conversas
+      const endpoint = `${config.serverUrl}/api/${config.sessionName}/all-chats`;
       
       const response = await fetch(endpoint, {
         method: 'GET',
@@ -340,7 +328,9 @@ export function useWPPConnect() {
       });
 
       if (!response.ok) {
-        throw new Error(`Erro ${response.status}`);
+        const errorText = await response.text();
+        console.error('❌ Erro ao carregar chats:', response.status, errorText);
+        throw new Error(`Erro ${response.status}: ${errorText}`);
       }
 
       const result = await response.json();
@@ -348,8 +338,8 @@ export function useWPPConnect() {
 
       if (result && Array.isArray(result)) {
         const formattedChats: WPPConnectChat[] = result.map((chat: any) => ({
-          chatId: chat.id,
-          name: chat.name || chat.id,
+          chatId: chat.id._serialized || chat.id,
+          name: chat.name || chat.contact?.name || chat.id._serialized?.split('@')[0] || 'Sem nome',
           lastMessage: chat.lastMessage?.body || 'Sem mensagens',
           timestamp: chat.lastMessage?.timestamp ? new Date(chat.lastMessage.timestamp * 1000).toISOString() : new Date().toISOString(),
           unreadCount: chat.unreadCount || 0,
@@ -362,7 +352,7 @@ export function useWPPConnect() {
         const formattedContacts: WPPConnectContact[] = formattedChats.map(chat => ({
           id: chat.chatId,
           name: chat.name,
-          phone: chat.chatId.replace('@c.us', ''),
+          phone: chat.chatId.replace('@c.us', '').replace('@g.us', ''),
           lastMessage: chat.lastMessage,
           timestamp: chat.timestamp,
           unread: chat.unreadCount
@@ -393,17 +383,25 @@ export function useWPPConnect() {
       console.log('💬 Carregando mensagens para:', chatId, 'Limite:', messageHistoryLimit);
       const config = getWPPConfig();
       
-      const endpoint = `${config.serverUrl}/api/${config.sessionName}/get-messages/${chatId}?count=${messageHistoryLimit}`;
+      // Usar endpoint correto conforme Swagger para obter mensagens
+      const endpoint = `${config.serverUrl}/api/${config.sessionName}/all-messages-in-chat`;
       
       const response = await fetch(endpoint, {
-        method: 'GET',
+        method: 'POST',
         headers: {
+          'Content-Type': 'application/json',
           'Authorization': `Bearer ${config.token}`
-        }
+        },
+        body: JSON.stringify({
+          phone: chatId.replace('@c.us', '').replace('@g.us', ''),
+          count: messageHistoryLimit
+        })
       });
 
       if (!response.ok) {
-        throw new Error(`Erro ${response.status}`);
+        const errorText = await response.text();
+        console.error('❌ Erro ao carregar mensagens:', response.status, errorText);
+        throw new Error(`Erro ${response.status}: ${errorText}`);
       }
 
       const result = await response.json();
@@ -417,8 +415,8 @@ export function useWPPConnect() {
           timestamp: msg.timestamp ? new Date(msg.timestamp * 1000).toISOString() : new Date().toISOString(),
           fromMe: msg.fromMe || false,
           chatId: chatId,
-          isAudio: msg.isAudio || false,
-          status: msg.status || 'sent'
+          isAudio: msg.type === 'ptt' || msg.isAudio || false,
+          status: msg.ack ? 'delivered' : 'sent'
         }));
 
         setMessages(prev => {
@@ -482,7 +480,7 @@ export function useWPPConnect() {
       const endpoint = `${config.serverUrl}/api/${config.sessionName}/close-session`;
       
       const response = await fetch(endpoint, {
-        method: 'POST',
+        method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${config.token}`
         }

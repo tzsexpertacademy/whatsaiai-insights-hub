@@ -61,21 +61,19 @@ export function RealWhatsAppMirror() {
         const isCurrentlyConnected = await checkConnectionStatus();
         
         if (isCurrentlyConnected) {
-          console.log('✅ [AUTO] WhatsApp conectado! Aguardando para carregar conversas...');
+          console.log('✅ [AUTO] WhatsApp conectado! Carregando conversas...');
           
           toast({
-            title: "🔄 Carregando automaticamente",
-            description: "WhatsApp conectado, aguarde enquanto carregamos suas conversas...",
+            title: "✅ WhatsApp conectado!",
+            description: "Carregando suas conversas automaticamente...",
           });
           
-          // Aguardar um pouco antes de carregar as conversas
+          // Carregar conversas imediatamente
           setTimeout(async () => {
-            if (!hasAutoLoadedChats) {
-              console.log('📱 [AUTO] Carregando conversas automaticamente...');
-              await handleLoadRealChats(true);
-              setHasAutoLoadedChats(true);
-            }
-          }, 2000);
+            console.log('📱 [AUTO] Carregando conversas automaticamente...');
+            await handleLoadRealChats(true);
+            setHasAutoLoadedChats(true);
+          }, 1000);
         } else {
           console.log('❌ [AUTO] WhatsApp não conectado');
           
@@ -102,16 +100,15 @@ export function RealWhatsAppMirror() {
     return () => clearTimeout(timer);
   }, []);
 
-  // Carregar conversas quando conectar
+  // Carregar conversas IMEDIATAMENTE quando conectar
   useEffect(() => {
     const loadChatsWhenConnected = async () => {
       if (isConnected && !hasAutoLoadedChats && !isLoadingChats) {
-        console.log('✅ [EFFECT] WhatsApp conectado, carregando conversas...');
+        console.log('✅ [EFFECT] WhatsApp conectado, carregando conversas IMEDIATAMENTE...');
         setHasAutoLoadedChats(true);
         
-        setTimeout(async () => {
-          await handleLoadRealChats(true);
-        }, 1000);
+        // Carregar conversas sem delay
+        await handleLoadRealChats(true);
       }
     };
 
@@ -238,6 +235,11 @@ export function RealWhatsAppMirror() {
     }
   };
 
+  const handleForceLoadChats = async () => {
+    console.log('🔄 Forçando carregamento de conversas...');
+    await handleLoadRealChats(false);
+  };
+
   const formatTime = (timestamp: string) => {
     return new Date(timestamp).toLocaleTimeString('pt-BR', {
       hour: '2-digit',
@@ -318,13 +320,13 @@ export function RealWhatsAppMirror() {
               {isConnected && (
                 <>
                   <Button 
-                    onClick={() => handleLoadRealChats(false)} 
+                    onClick={handleForceLoadChats} 
                     variant="outline" 
                     size="sm"
                     disabled={isLoadingChats}
                   >
                     <RefreshCw className={`h-4 w-4 mr-1 ${isLoadingChats ? 'animate-spin' : ''}`} />
-                    {isLoadingChats ? 'Carregando...' : 'Carregar Conversas'}
+                    {isLoadingChats ? 'Carregando...' : 'Forçar Conversas'}
                   </Button>
                   <Button onClick={disconnectWhatsApp} variant="outline" size="sm">
                     Desconectar
@@ -448,7 +450,7 @@ export function RealWhatsAppMirror() {
                         <Button 
                           variant="outline" 
                           size="sm" 
-                          onClick={() => handleLoadRealChats(false)}
+                          onClick={handleForceLoadChats}
                           disabled={isLoadingChats}
                           className="mt-2"
                         >
