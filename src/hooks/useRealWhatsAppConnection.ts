@@ -1,22 +1,9 @@
-import { useState, useEffect } from 'react';
+
+import { useState } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { useWPPConnect } from './useWPPConnect';
-
-interface ConnectionState {
-  isConnected: boolean;
-  qrCode: string;
-  phoneNumber: string;
-  lastConnected: string;
-  sessionId: string;
-  status: 'disconnected' | 'connecting' | 'connected' | 'error';
-}
-
-interface Webhooks {
-  qrWebhook: string;
-  statusWebhook: string;
-  sendMessageWebhook: string;
-  autoReplyWebhook: string;
-}
+import { useRealConnectionState } from './real-whatsapp/useRealConnectionState';
+import { useRealWebhooks } from './real-whatsapp/useRealWebhooks';
 
 interface WPPConfig {
   sessionName: string;
@@ -29,49 +16,16 @@ interface WPPConfig {
 export function useRealWhatsAppConnection() {
   const { toast } = useToast();
   const { getWPPConfig } = useWPPConnect();
+  const { connectionState, setConnectionState, isLoading, setIsLoading } = useRealConnectionState();
+  const { webhooks, updateWebhooks } = useRealWebhooks();
   
-  const [connectionState, setConnectionState] = useState<ConnectionState>({
-    isConnected: false,
-    qrCode: '',
-    phoneNumber: '',
-    lastConnected: '',
-    sessionId: '',
-    status: 'disconnected'
-  });
-  
-  const [isLoading, setIsLoading] = useState(false);
   const [messageHistoryLimit, setMessageHistoryLimit] = useState(50);
-  
-  const [webhooks, setWebhooks] = useState<Webhooks>({
-    qrWebhook: '',
-    statusWebhook: '',
-    sendMessageWebhook: '',
-    autoReplyWebhook: ''
-  });
 
   const wppConfig: WPPConfig = {
     ...getWPPConfig(),
     webhookUrl: getWPPConfig().webhookUrl || ''
   };
   
-  useEffect(() => {
-    const saved = localStorage.getItem('real_whatsapp_connection');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        setConnectionState(parsed);
-      } catch (error) {
-        console.log('Erro ao carregar estado salvo:', error);
-      }
-    }
-  }, []);
-
-  useEffect(() => {
-    if (connectionState.isConnected || connectionState.qrCode) {
-      localStorage.setItem('real_whatsapp_connection', JSON.stringify(connectionState));
-    }
-  }, [connectionState]);
-
   const isTokenValid = () => {
     return wppConfig.secretKey && 
            wppConfig.secretKey !== 'THISISMYSECURETOKEN' && 
@@ -203,96 +157,6 @@ export function useRealWhatsAppConnection() {
     }
   };
 
-  const loadRealChats = async () => {
-    if (!isTokenValid()) {
-      throw new Error('Secret Key e Token do WPPConnect não configurados');
-    }
-
-    if (!connectionState.isConnected) {
-      throw new Error('WhatsApp não conectado');
-    }
-
-    try {
-      const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/all-chats`, {
-        headers: {
-          'Authorization': `Bearer ${wppConfig.secretKey}`,
-          'X-Session-Token': wppConfig.token
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error(`Erro HTTP: ${response.status}`);
-      }
-
-      const data = await response.json();
-      return data;
-    } catch (error) {
-      console.error('❌ Erro ao carregar conversas:', error);
-      throw error;
-    }
-  };
-
-  const loadRealMessages = async (chatId: string) => {
-    if (!isTokenValid()) {
-      throw new Error('Secret Key e Token do WPPConnect não configurados');
-    }
-
-    try {
-      const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/all-messages-in-chat`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${wppConfig.secretKey}`,
-          'X-Session-Token': wppConfig.token
-        },
-        body: JSON.stringify({
-          phone: chatId,
-          count: messageHistoryLimit
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`Erro HTTP: ${response.status}`);
-      }
-
-      const data = await response.json();
-      return data;
-    } catch (error) {
-      console.error('❌ Erro ao carregar mensagens:', error);
-      throw error;
-    }
-  };
-
-  const sendMessage = async (phone: string, message: string): Promise<boolean> => {
-    if (!isTokenValid()) {
-      throw new Error('Secret Key e Token do WPPConnect não configurados');
-    }
-
-    try {
-      const response = await fetch(`${wppConfig.serverUrl}/api/${wppConfig.sessionName}/send-message`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${wppConfig.secretKey}`,
-          'X-Session-Token': wppConfig.token
-        },
-        body: JSON.stringify({
-          phone: phone,
-          message: message
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`Erro HTTP: ${response.status}`);
-      }
-
-      return true;
-    } catch (error) {
-      console.error('❌ Erro ao enviar mensagem:', error);
-      throw error;
-    }
-  };
-
   const disconnectWhatsApp = async () => {
     if (isTokenValid()) {
       try {
@@ -325,8 +189,28 @@ export function useRealWhatsAppConnection() {
     });
   };
 
-  const updateWebhooks = (newWebhooks: Partial<Webhooks>) => {
-    setWebhooks(prev => ({ ...prev, ...newWebhooks }));
+  const getConnectionStatus = () => {
+    if (!connectionState.isConnected) return 'disconnected';
+    
+    const lastConnected = new Date(connectionState.lastConnected);
+    const now = new Date();
+    const minutesDiff = (now.getTime() - lastConnected.getTime()) / (1000 * 60);
+    
+    if (minutesDiff > 30) return 'idle';
+    return 'active';
+  };
+
+  // Placeholder functions for compatibility
+  const loadRealChats = async () => {
+    throw new Error('Use WPPConnect hooks for real functionality');
+  };
+
+  const loadRealMessages = async (chatId: string) => {
+    throw new Error('Use WPPConnect hooks for real functionality');
+  };
+
+  const sendMessage = async (phone: string, message: string): Promise<boolean> => {
+    throw new Error('Use WPPConnect hooks for real functionality');
   };
 
   const updateWPPConfig = () => {
@@ -338,17 +222,6 @@ export function useRealWhatsAppConnection() {
 
   const updateMessageHistoryLimit = (limit: number) => {
     setMessageHistoryLimit(limit);
-  };
-
-  const getConnectionStatus = () => {
-    if (!connectionState.isConnected) return 'disconnected';
-    
-    const lastConnected = new Date(connectionState.lastConnected);
-    const now = new Date();
-    const minutesDiff = (now.getTime() - lastConnected.getTime()) / (1000 * 60);
-    
-    if (minutesDiff > 30) return 'idle';
-    return 'active';
   };
 
   const togglePinConversation = (chatId: string) => {
