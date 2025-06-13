@@ -20,7 +20,7 @@ export function RealQRCodeGenerator() {
   } = useRealWhatsAppConnection();
   
   const connectionStatus = getConnectionStatus();
-  const isWebhookConfigured = webhooks.qrWebhook && webhooks.statusWebhook;
+  const isWebhookConfigured = !!(webhooks.qrWebhook && webhooks.statusWebhook);
 
   const handleWebhookUpdate = (field: string, value: string) => {
     updateWebhooks({ [field]: value });

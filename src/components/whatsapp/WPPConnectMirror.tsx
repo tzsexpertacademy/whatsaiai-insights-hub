@@ -1,112 +1,76 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { useWPPConnect } from "@/hooks/useWPPConnect";
-import { useConversationMarking } from "@/hooks/useConversationMarking";
-import { ConversationContextMenu } from "./ConversationContextMenu";
+import { useWPPConnect } from '@/hooks/useWPPConnect';
 import { 
-  QrCode, 
-  Smartphone, 
-  CheckCircle, 
-  MessageSquare, 
-  Send,
-  Wifi,
+  Send, 
+  MessageSquare,
+  Users,
   Clock,
-  User,
-  AlertCircle,
   RefreshCw,
+  Phone,
+  Smartphone,
+  Loader2,
+  AlertCircle,
+  Calendar,
+  History,
+  Filter,
+  Settings,
   Play,
   Square,
-  Settings,
-  Brain,
-  Star,
-  MessageCircle,
-  History
+  Search,
+  Circle
 } from 'lucide-react';
 
 export function WPPConnectMirror() {
   const { toast } = useToast();
-  const { 
-    sessionStatus, 
-    chats, 
-    messages, 
-    isLoadingMessages,
-    isLiveMode,
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  
+  const {
+    sessionStatus,
+    chats,
+    messages,
     currentChatId,
-    messageHistoryLimit,
-    generateQRCode, 
-    checkConnectionStatus,
+    isLiveMode,
+    isLoadingChats,
+    isLoadingMessages,
     loadRealChats,
     loadRealMessages,
     sendMessage,
     startLiveMode,
-    stopLiveMode,
-    disconnectWhatsApp,
-    updateMessageHistoryLimit
+    stopLiveMode
   } = useWPPConnect();
-  
-  const { markConversationForAnalysis, updateConversationPriority, isMarking } = useConversationMarking();
-  
-  const [selectedContact, setSelectedContact] = useState<string | null>(null);
+
+  const [selectedChat, setSelectedChat] = useState<any>(null);
   const [newMessage, setNewMessage] = useState('');
-  const [markedConversations, setMarkedConversations] = useState<Set<string>>(new Set());
-  const [pinnedConversations, setPinnedConversations] = useState<Set<string>>(new Set());
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [isSending, setIsSending] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
 
   // Auto-scroll para última mensagem
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Verificar status ao montar
+  // Carregar conversas quando conectado
   useEffect(() => {
-    checkConnectionStatus();
-  }, [checkConnectionStatus]);
-
-  const handleCreateSession = async () => {
-    toast({
-      title: "Criando sessão WPPConnect...",
-      description: "Aguarde enquanto geramos o QR Code"
-    });
-    
-    await generateQRCode();
-  };
-
-  const selectContact = (contact: any) => {
-    console.log('👆 Selecionando contato:', contact.name, contact.chatId);
-    setSelectedContact(contact.chatId);
-    
-    toast({
-      title: "📱 Carregando mensagens...",
-      description: `Buscando ${messageHistoryLimit} mensagens de ${contact.name}`
-    });
-    
-    loadRealMessages(contact.chatId);
-  };
-
-  const handleSendMessage = async () => {
-    if (!newMessage.trim() || !selectedContact) return;
-
-    try {
-      await sendMessage(selectedContact, newMessage);
-      setNewMessage('');
-    } catch (error) {
-      toast({
-        title: "Erro ao enviar mensagem",
-        description: "Não foi possível enviar a mensagem",
-        variant: "destructive"
-      });
+    if (sessionStatus.isConnected && !isLoadingChats && chats.length === 0) {
+      loadRealChats();
     }
+  }, [sessionStatus.isConnected, isLoadingChats, chats.length, loadRealChats]);
+
+  const handleSelectChat = async (chat: any) => {
+    setSelectedChat(chat);
+    await loadRealMessages(chat.chatId);
   };
 
-  const toggleLiveMode = () => {
-    if (!selectedContact) {
+  const handleToggleLiveMode = () => {
+    if (!selectedChat) {
       toast({
         title: "Selecione uma conversa",
         description: "Escolha uma conversa primeiro para ativar o modo ao vivo",
@@ -115,59 +79,26 @@ export function WPPConnectMirror() {
       return;
     }
 
-    if (isLiveMode && currentChatId === selectedContact) {
+    if (isLiveMode && currentChatId === selectedChat.chatId) {
       stopLiveMode();
     } else {
-      startLiveMode(selectedContact);
+      startLiveMode(selectedChat.chatId);
     }
   };
 
-  const handleTogglePin = (chatId: string) => {
-    setPinnedConversations(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(chatId)) {
-        newSet.delete(chatId);
-        toast({ title: "Conversa desfixada" });
-      } else {
-        newSet.add(chatId);
-        toast({ title: "Conversa fixada" });
+  const handleSendMessage = async () => {
+    if (!newMessage.trim() || !selectedChat || isSending) return;
+
+    setIsSending(true);
+    try {
+      const success = await sendMessage(selectedChat.chatId, newMessage);
+      if (success) {
+        setNewMessage('');
       }
-      return newSet;
-    });
-  };
-
-  const handleToggleAnalysis = async (chatId: string, priority?: 'high' | 'medium' | 'low') => {
-    const chat = chats.find(c => c.chatId === chatId);
-    if (!chat) return;
-
-    console.log('🏷️ Toggle análise para:', { chatId, chatName: chat.name, priority });
-
-    // NOVIDADE: Pegar as mensagens da conversa para salvar no banco
-    const conversationMessages = messages.filter(m => m.chatId === chatId);
-    console.log('💬 Mensagens da conversa:', { chatId, totalMessages: conversationMessages.length });
-
-    if (priority && markedConversations.has(chatId)) {
-      // Atualizar prioridade
-      await updateConversationPriority(chatId, priority);
-    } else {
-      // Marcar/desmarcar para análise E salvar no banco principal se tiver mensagens
-      const isMarked = await markConversationForAnalysis(
-        chatId, 
-        chat.name, 
-        chat.chatId, // usando chatId como phone por enquanto
-        priority || 'medium',
-        conversationMessages.length > 0 ? conversationMessages : undefined // PASSAR MENSAGENS
-      );
-
-      setMarkedConversations(prev => {
-        const newSet = new Set(prev);
-        if (isMarked) {
-          newSet.add(chatId);
-        } else {
-          newSet.delete(chatId);
-        }
-        return newSet;
-      });
+    } catch (error) {
+      console.error('Erro ao enviar mensagem:', error);
+    } finally {
+      setIsSending(false);
     }
   };
 
@@ -178,392 +109,267 @@ export function WPPConnectMirror() {
     });
   };
 
-  const getStatusIcon = () => {
-    if (sessionStatus.isConnected) {
-      return <CheckCircle className="h-6 w-6 text-green-500" />;
-    }
-    return <AlertCircle className="h-6 w-6 text-gray-400" />;
-  };
+  const filteredChats = chats.filter(chat => 
+    chat.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
-  const getStatusText = () => {
-    if (sessionStatus.isConnected) {
-      return 'Conectado e Ativo';
-    }
-    return 'Desconectado';
-  };
+  // WhatsApp não conectado
+  if (!sessionStatus.isConnected) {
+    return (
+      <Card>
+        <CardContent className="p-8 text-center">
+          <AlertCircle className="h-12 w-12 text-red-400 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+            WPPConnect não conectado
+          </h3>
+          <p className="text-gray-600 mb-4">
+            Configure sua conexão WPPConnect nas configurações para acessar as conversas
+          </p>
+          <Button onClick={() => window.location.href = '/dashboard/settings'}>
+            Ir para Configurações
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
-    <div className="space-y-6">
-      {/* Header com Status */}
-      <Card className="bg-green-50 border-green-200">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-green-900">
-            <Smartphone className="h-5 w-5" />
-            WPPConnect - WhatsApp Local
-            {sessionStatus.isConnected && <CheckCircle className="h-5 w-5 text-green-500" />}
-          </CardTitle>
-          <CardDescription className="text-green-700">
-            Conecta com WPPConnect rodando em localhost:21465
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {/* Controle de Histórico de Mensagens */}
-          {sessionStatus.isConnected && (
-            <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-              <div className="flex items-center gap-4">
-                <Label htmlFor="messageLimit" className="flex items-center gap-2 text-blue-900 font-medium">
-                  <History className="h-4 w-4" />
-                  Mensagens por conversa:
-                </Label>
-                <Select 
-                  value={messageHistoryLimit.toString()} 
-                  onValueChange={(value) => updateMessageHistoryLimit(parseInt(value))}
-                >
-                  <SelectTrigger className="w-32">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="10">10 mensagens</SelectItem>
-                    <SelectItem value="25">25 mensagens</SelectItem>
-                    <SelectItem value="50">50 mensagens</SelectItem>
-                    <SelectItem value="100">100 mensagens</SelectItem>
-                    <SelectItem value="200">200 mensagens</SelectItem>
-                    <SelectItem value="500">500 mensagens</SelectItem>
-                  </SelectContent>
-                </Select>
-                <span className="text-sm text-blue-700">
-                  Carregando {messageHistoryLimit} mensagens por conversa
-                </span>
-              </div>
-            </div>
-          )}
-
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              {getStatusIcon()}
-              <div>
-                <span className="font-medium text-green-600">{getStatusText()}</span>
-                {sessionStatus.phoneNumber && (
-                  <p className="text-sm text-gray-500">{sessionStatus.phoneNumber}</p>
-                )}
-              </div>
-            </div>
-            
-            <div className="flex gap-2">
-              {sessionStatus.isConnected && (
-                <>
-                  <Button onClick={disconnectWhatsApp} variant="outline" size="sm">
-                    Desconectar
-                  </Button>
-                  <Button onClick={() => loadRealChats()} variant="outline" size="sm">
-                    <RefreshCw className="h-4 w-4 mr-1" />
-                    Atualizar
-                  </Button>
-                </>
-              )}
-            </div>
-          </div>
-
-          {!sessionStatus.isConnected && !sessionStatus.qrCode && (
-            <Button 
-              onClick={handleCreateSession} 
-              className="w-full bg-green-600 hover:bg-green-700"
-              disabled={sessionStatus.isLoading}
+    <div className="h-full flex gap-4">
+      {/* Lista de Conversas - Estilo da imagem */}
+      <Card className="w-80 flex flex-col bg-white border border-gray-200">
+        <CardHeader className="pb-3 border-b">
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <MessageSquare className="h-5 w-5" />
+              Conversas
+              <Badge variant="secondary" className="bg-red-100 text-red-600 text-xs">
+                {filteredChats.length}
+              </Badge>
+            </CardTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={loadRealChats}
+              disabled={isLoadingChats}
             >
-              {sessionStatus.isLoading ? (
-                <>
-                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                  Conectando...
-                </>
-              ) : (
-                <>
-                  <QrCode className="h-4 w-4 mr-2" />
-                  Conectar WPPConnect
-                </>
-              )}
+              <RefreshCw className={`h-4 w-4 ${isLoadingChats ? 'animate-spin' : ''}`} />
             </Button>
-          )}
+          </div>
+          
+          {/* Barra de pesquisa */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              placeholder="Pesquisar conversas..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+        </CardHeader>
+        
+        <CardContent className="flex-1 p-0">
+          <ScrollArea className="h-[600px]">
+            {isLoadingChats ? (
+              <div className="p-4 text-center text-gray-500">
+                <Loader2 className="h-8 w-8 mx-auto mb-2 animate-spin" />
+                <p>Carregando conversas...</p>
+              </div>
+            ) : filteredChats.length === 0 ? (
+              <div className="p-4 text-center text-gray-500">
+                <MessageSquare className="h-8 w-8 mx-auto mb-2" />
+                <p>Nenhuma conversa encontrada</p>
+              </div>
+            ) : (
+              filteredChats.map((chat) => (
+                <div
+                  key={chat.chatId}
+                  className={`p-3 border-b cursor-pointer hover:bg-gray-50 transition-colors ${
+                    selectedChat?.chatId === chat.chatId ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''
+                  }`}
+                  onClick={() => handleSelectChat(chat)}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="flex-shrink-0">
+                      <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                        {chat.isGroup ? (
+                          <Users className="h-5 w-5 text-green-600" />
+                        ) : (
+                          <Circle className="h-5 w-5 text-green-600 fill-current" />
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium text-sm truncate">{chat.name}</span>
+                        {/* Indicador de modo ao vivo */}
+                        {isLiveMode && currentChatId === chat.chatId && (
+                          <Badge className="bg-red-500 text-white text-xs ml-2">
+                            LIVE
+                          </Badge>
+                        )}
+                      </div>
+                      
+                      <p className="text-xs text-gray-500 truncate mt-1">
+                        {chat.lastMessage || 'Sem mensagens'}
+                      </p>
+                      
+                      <div className="flex items-center justify-between mt-1">
+                        <span className="text-xs text-gray-400">
+                          {formatTime(chat.timestamp)}
+                        </span>
+                        {chat.unreadCount > 0 && (
+                          <Badge className="bg-green-500 text-white text-xs">
+                            {chat.unreadCount}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </ScrollArea>
         </CardContent>
       </Card>
 
-      {/* QR Code para Conexão */}
-      {sessionStatus.qrCode && !sessionStatus.isConnected && (
-        <Card className="border-blue-200 bg-blue-50">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-blue-900">
-              <QrCode className="h-5 w-5" />
-              Escaneie com WhatsApp
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="text-center">
-            <div className="bg-white p-6 rounded-lg inline-block mb-4 shadow-lg">
-              <img 
-                src={sessionStatus.qrCode} 
-                alt="QR Code WPPConnect" 
-                className="w-80 h-80 mx-auto"
-              />
-            </div>
-            <div className="space-y-3">
-              <div className="text-sm text-blue-700 space-y-2">
-                <p><strong>1.</strong> Abra o WhatsApp no seu celular</p>
-                <p><strong>2.</strong> Toque em <strong>Menu (⋮) → Dispositivos conectados</strong></p>
-                <p><strong>3.</strong> Toque em <strong>"Conectar um dispositivo"</strong></p>
-                <p><strong>4.</strong> Escaneie este código QR</p>
-              </div>
-              <div className="mt-4 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
-                <p className="text-yellow-700 text-sm font-medium">
-                  🔄 Aguardando você escanear o QR Code...
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Interface de Conversas */}
-      {sessionStatus.isConnected && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 h-[600px]">
-          {/* Lista de Contatos */}
-          <Card className="lg:col-span-1">
-            <CardHeader className="pb-3">
+      {/* Área de Chat - Estilo da imagem */}
+      <Card className="flex-1 flex flex-col bg-white border border-gray-200">
+        {selectedChat ? (
+          <>
+            <CardHeader className="pb-3 border-b">
               <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
-                  <MessageSquare className="h-5 w-5" />
-                  Conversas
-                </CardTitle>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                    {selectedChat.isGroup ? (
+                      <Users className="h-5 w-5 text-green-600" />
+                    ) : (
+                      <Circle className="h-5 w-5 text-green-600 fill-current" />
+                    )}
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg">{selectedChat.name}</CardTitle>
+                    <p className="text-sm text-gray-500">
+                      {selectedChat.chatId}
+                    </p>
+                  </div>
+                </div>
+                
                 <div className="flex items-center gap-2">
-                  {isLiveMode && (
-                    <div className="flex items-center gap-1">
+                  {/* Status do modo ao vivo */}
+                  {isLiveMode && currentChatId === selectedChat.chatId && (
+                    <div className="flex items-center gap-2 bg-red-50 px-3 py-1 rounded-full">
                       <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-                      <span className="text-xs text-red-600 font-medium">LIVE</span>
+                      <span className="text-xs text-red-600 font-medium">Modo Live Ativo</span>
+                      <span className="text-xs text-gray-500">Mensagens sendo atualizadas automaticamente a cada 3s</span>
                     </div>
                   )}
-                  <Badge variant="secondary">{chats.length}</Badge>
-                  {markedConversations.size > 0 && (
-                    <Badge variant="outline" className="bg-blue-50">
-                      <Brain className="h-3 w-3 mr-1" />
-                      {markedConversations.size}
-                    </Badge>
-                  )}
+                  
+                  <Button
+                    variant={isLiveMode && currentChatId === selectedChat.chatId ? "destructive" : "default"}
+                    size="sm"
+                    onClick={handleToggleLiveMode}
+                  >
+                    {isLiveMode && currentChatId === selectedChat.chatId ? (
+                      <>
+                        <Square className="h-4 w-4 mr-1" />
+                        Parar Live
+                      </>
+                    ) : (
+                      <>
+                        <Play className="h-4 w-4 mr-1" />
+                        Modo Live
+                      </>
+                    )}
+                  </Button>
                 </div>
               </div>
             </CardHeader>
             
-            <CardContent className="p-0">
-              <div className="space-y-1 max-h-[500px] overflow-y-auto">
-                {chats.map((chat) => (
-                  <ConversationContextMenu
-                    key={chat.chatId}
-                    chatId={chat.chatId}
-                    isPinned={pinnedConversations.has(chat.chatId)}
-                    isMarkedForAnalysis={markedConversations.has(chat.chatId)}
-                    analysisPriority="medium"
-                    onTogglePin={handleTogglePin}
-                    onToggleAnalysis={handleToggleAnalysis}
-                  >
-                    <div 
-                      onClick={() => selectContact(chat)}
-                      className={`p-3 border-b cursor-pointer hover:bg-gray-50 transition-colors ${
-                        selectedContact === chat.chatId ? 'bg-blue-50 border-blue-200' : ''
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                          <User className="h-6 w-6 text-green-600" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium text-sm">{chat.name}</span>
-                              {pinnedConversations.has(chat.chatId) && (
-                                <Star className="h-3 w-3 text-yellow-500 fill-current" />
-                              )}
-                              {markedConversations.has(chat.chatId) && (
-                                <Brain className="h-3 w-3 text-blue-500" />
-                              )}
-                              {chat.isGroup && (
-                                <Badge variant="outline" className="text-xs">Grupo</Badge>
-                              )}
-                            </div>
-                            <span className="text-xs text-gray-400">{formatTime(chat.timestamp)}</span>
+            <CardContent className="flex-1 flex flex-col p-0">
+              <ScrollArea className="flex-1 p-4 min-h-[400px]">
+                {isLoadingMessages ? (
+                  <div className="text-center text-gray-500 py-8">
+                    <Loader2 className="h-8 w-8 mx-auto mb-2 animate-spin" />
+                    <p>Carregando mensagens...</p>
+                  </div>
+                ) : messages.length === 0 ? (
+                  <div className="text-center text-gray-500 py-8">
+                    <History className="h-8 w-8 mx-auto mb-2" />
+                    <p>Nenhuma mensagem encontrada</p>
+                    <p className="text-xs mt-1">Ative o modo ao vivo para ver mensagens em tempo real</p>
+                  </div>
+                ) : (
+                  messages
+                    .filter(msg => msg.chatId === selectedChat.chatId)
+                    .map((msg) => (
+                      <div
+                        key={msg.id}
+                        className={`mb-3 flex ${
+                          msg.sender === 'user' ? 'justify-end' : 'justify-start'
+                        }`}
+                      >
+                        <div
+                          className={`rounded-lg px-3 py-2 max-w-[75%] ${
+                            msg.sender === 'user'
+                              ? 'bg-green-500 text-white rounded-br-none'
+                              : 'bg-gray-100 text-gray-800 rounded-bl-none'
+                          }`}
+                        >
+                          <p className="text-sm">{msg.text}</p>
+                          <div className={`text-xs mt-1 flex items-center gap-1 ${
+                            msg.sender === 'user' ? 'text-green-100 justify-end' : 'text-gray-500'
+                          }`}>
+                            {formatTime(msg.timestamp)}
+                            {msg.sender === 'user' && (
+                              <span className="text-xs">✓✓</span>
+                            )}
                           </div>
-                          <p className="text-sm text-gray-500 truncate mt-1">{chat.lastMessage}</p>
-                          {/* Indicador de mensagens carregadas */}
-                          {selectedContact === chat.chatId && messages.filter(m => m.chatId === chat.chatId).length > 0 && (
-                            <div className="flex items-center gap-1 mt-1">
-                              <MessageCircle className="h-3 w-3 text-blue-500" />
-                              <span className="text-xs text-blue-600">
-                                {messages.filter(m => m.chatId === chat.chatId).length} mensagens
-                              </span>
-                            </div>
-                          )}
                         </div>
-                        {chat.unreadCount > 0 && (
-                          <Badge className="bg-green-500 text-white">{chat.unreadCount}</Badge>
-                        )}
                       </div>
-                    </div>
-                  </ConversationContextMenu>
-                ))}
+                    ))
+                )}
+                <div ref={messagesEndRef} />
+              </ScrollArea>
+              
+              <Separator />
+              
+              <div className="p-4 bg-gray-50">
+                <div className="flex gap-2">
+                  <Input
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    placeholder="Ela tava muito espoleta"
+                    onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                    disabled={isSending}
+                    className="flex-1"
+                  />
+                  <Button 
+                    onClick={handleSendMessage}
+                    disabled={!newMessage.trim() || isSending}
+                    size="sm"
+                    className="bg-green-500 hover:bg-green-600"
+                  >
+                    {isSending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Send className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
               </div>
             </CardContent>
-          </Card>
-
-          {/* Área de Chat */}
-          <Card className="lg:col-span-2">
-            {selectedContact ? (
-              <>
-                <CardHeader className="pb-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                      <User className="h-5 w-5 text-green-600" />
-                    </div>
-                    <div className="flex-1">
-                      <CardTitle className="text-lg">
-                        {chats.find(c => c.chatId === selectedContact)?.name}
-                      </CardTitle>
-                      <div className="flex items-center gap-2 text-sm text-gray-500">
-                        <span>{messages.filter(m => m.chatId === selectedContact).length} mensagens carregadas</span>
-                        {chats.find(c => c.chatId === selectedContact)?.isGroup && (
-                          <Badge variant="outline" className="text-xs">Grupo</Badge>
-                        )}
-                      </div>
-                    </div>
-                    <Button
-                      variant={isLiveMode && currentChatId === selectedContact ? "destructive" : "default"}
-                      size="sm"
-                      onClick={toggleLiveMode}
-                    >
-                      {isLiveMode && currentChatId === selectedContact ? (
-                        <>
-                          <Square className="h-4 w-4 mr-1" />
-                          Parar Live
-                        </>
-                      ) : (
-                        <>
-                          <Play className="h-4 w-4 mr-1" />
-                          Modo Live
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </CardHeader>
-                
-                <CardContent className="flex flex-col h-[500px]">
-                  {/* Mensagens */}
-                  <div className="flex-1 overflow-y-auto space-y-3 mb-4">
-                    {isLoadingMessages ? (
-                      <div className="text-center text-gray-500 py-8">
-                        <RefreshCw className="h-8 w-8 mx-auto mb-2 animate-spin" />
-                        <p>Carregando mensagens...</p>
-                        <p className="text-sm text-gray-400 mt-1">
-                          Buscando {messageHistoryLimit} mensagens mais recentes
-                        </p>
-                      </div>
-                    ) : (
-                      <>
-                        {messages.filter(msg => msg.chatId === selectedContact).length === 0 ? (
-                          <div className="text-center text-gray-500 py-8">
-                            <MessageCircle className="h-8 w-8 mx-auto mb-2 text-gray-300" />
-                            <p>Nenhuma mensagem encontrada</p>
-                            <p className="text-sm text-gray-400 mt-1">
-                              Esta conversa pode estar vazia ou as mensagens não puderam ser carregadas
-                            </p>
-                          </div>
-                        ) : (
-                          messages
-                            .filter(msg => msg.chatId === selectedContact)
-                            .map((msg) => (
-                              <div
-                                key={msg.id}
-                                className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-                              >
-                                <div
-                                  className={`rounded-lg px-4 py-2 max-w-[75%] ${
-                                    msg.sender === 'user'
-                                      ? 'bg-green-500 text-white'
-                                      : 'bg-gray-100 text-gray-800'
-                                  }`}
-                                >
-                                  <p className="text-sm">{msg.text}</p>
-                                  <div className={`text-xs mt-1 ${
-                                    msg.sender === 'user' ? 'text-green-100' : 'text-gray-500'
-                                  }`}>
-                                    {formatTime(msg.timestamp)}
-                                  </div>
-                                </div>
-                              </div>
-                            ))
-                        )}
-                      </>
-                    )}
-                    <div ref={messagesEndRef} />
-                  </div>
-
-                  {/* Enviar Mensagem */}
-                  <div className="border-t pt-4">
-                    <div className="flex gap-3">
-                      <Input 
-                        placeholder="Digite uma mensagem..."
-                        value={newMessage}
-                        onChange={(e) => setNewMessage(e.target.value)}
-                        onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                        className="flex-1"
-                      />
-                      <Button 
-                        onClick={handleSendMessage}
-                        disabled={!newMessage.trim()}
-                        className="bg-green-600 hover:bg-green-700"
-                      >
-                        <Send className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </>
-            ) : (
-              <CardContent className="flex items-center justify-center h-full">
-                <div className="text-center text-gray-500">
-                  <MessageSquare className="h-16 w-16 mx-auto mb-4 text-gray-300" />
-                  <h3 className="text-lg font-medium mb-2">Selecione uma conversa</h3>
-                  <p className="text-sm">Escolha um contato para ver as mensagens</p>
-                  <p className="text-xs mt-2 text-blue-600">
-                    💡 Clique com o botão direito nas conversas para marcar para análise IA
-                  </p>
-                  <p className="text-xs mt-1 text-green-600">
-                    📊 Configure quantas mensagens carregar no controle acima
-                  </p>
-                </div>
-              </CardContent>
-            )}
-          </Card>
-        </div>
-      )}
-
-      {/* Instruções */}
-      <Card className="bg-blue-50 border-blue-200">
-        <CardHeader>
-          <CardTitle className="text-blue-900">WPPConnect localhost:21465</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-sm text-blue-700">
-            <p className="mb-2">
-              <strong>✅ Funcionando:</strong> Sistema conectado com sua API WPPConnect local
-            </p>
-            <p className="mb-2">
-              <strong>🔧 Configuração:</strong> localhost:21465 com token configurado
-            </p>
-            <p className="mb-2">
-              <strong>📱 Status:</strong> {sessionStatus.isConnected ? 'Conectado e funcionando' : 'Pronto para conectar'}
-            </p>
-            <p className="mb-2">
-              <strong>👥 Grupos:</strong> Suporte completo para envio de mensagens em grupos
-            </p>
-            <p>
-              <strong>🤖 IA:</strong> Clique com botão direito nas conversas para marcar para análise IA
-            </p>
-          </div>
-        </CardContent>
+          </>
+        ) : (
+          <CardContent className="flex-1 flex items-center justify-center">
+            <div className="text-center text-gray-500">
+              <MessageSquare className="h-12 w-12 mx-auto mb-4" />
+              <p className="text-lg mb-2">Selecione uma conversa para começar</p>
+              <p className="text-sm">💡 Use o botão "Modo Live" para ver mensagens em tempo real</p>
+            </div>
+          </CardContent>
+        )}
       </Card>
     </div>
   );
