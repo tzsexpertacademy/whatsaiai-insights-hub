@@ -26,6 +26,14 @@ interface SessionStatus {
   phoneNumber: string | null;
 }
 
+interface WPPConfig {
+  sessionName: string;
+  serverUrl: string;
+  secretKey: string;
+  token: string;
+  webhookUrl?: string;
+}
+
 export function useWPPConnect() {
   const [sessionStatus, setSessionStatus] = useState<SessionStatus>({
     isConnected: false,
@@ -43,6 +51,21 @@ export function useWPPConnect() {
   const { toast } = useToast();
   const liveIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
+  const getWPPConfig = useCallback((): WPPConfig => {
+    return {
+      sessionName: 'default',
+      serverUrl: 'http://localhost:21465',
+      secretKey: 'YOUR_TOKEN_HERE',
+      token: 'YOUR_TOKEN_HERE',
+      webhookUrl: ''
+    };
+  }, []);
+
+  const saveWPPConfig = useCallback((config: Partial<WPPConfig>) => {
+    console.log('💾 Salvando configuração WPPConnect:', config);
+    // Implementar salvamento se necessário
+  }, []);
+
   const sendMessage = useCallback(async (chatId: string, message: string) => {
     console.log('📤 Enviando mensagem via WPPConnect:', { chatId, message });
     
@@ -54,13 +77,11 @@ export function useWPPConnect() {
       
       let payload;
       if (isGroup) {
-        // Para grupos, usar chatId diretamente
         payload = {
           chatId: chatId,
           message: message
         };
       } else {
-        // Para contatos individuais, extrair o número do chatId
         const phone = chatId.replace('@c.us', '');
         payload = {
           phone: phone,
@@ -88,7 +109,6 @@ export function useWPPConnect() {
       const result = await response.json();
       console.log('✅ Mensagem enviada:', result);
 
-      // Adicionar mensagem enviada à lista local
       const newMessage: WPPConnectMessage = {
         id: `sent_${Date.now()}`,
         text: message,
@@ -292,7 +312,6 @@ export function useWPPConnect() {
           chatId: chatId
         }));
 
-        // Filtrar mensagens já existentes para este chat e adicionar as novas
         setMessages(prev => {
           const filtered = prev.filter(m => m.chatId !== chatId);
           return [...filtered, ...formattedMessages];
@@ -317,7 +336,6 @@ export function useWPPConnect() {
     setIsLiveMode(true);
     setCurrentChatId(chatId);
     
-    // Atualizar mensagens a cada 3 segundos
     liveIntervalRef.current = setInterval(() => {
       loadRealMessages(chatId);
     }, 3000);
@@ -408,6 +426,8 @@ export function useWPPConnect() {
     startLiveMode,
     stopLiveMode,
     disconnectWhatsApp,
-    updateMessageHistoryLimit
+    updateMessageHistoryLimit,
+    getWPPConfig,
+    saveWPPConfig
   };
 }

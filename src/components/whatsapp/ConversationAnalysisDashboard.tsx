@@ -52,7 +52,6 @@ export function ConversationAnalysisDashboard() {
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
   const loadingRef = useRef(false);
 
-  // Limpar dados de teste do banco
   const clearTestData = async () => {
     console.log('🧹 LIMPANDO DADOS DE TESTE...');
     
@@ -83,7 +82,6 @@ export function ConversationAnalysisDashboard() {
         description: `${deletedData?.length || 0} registros de teste foram removidos`,
       });
 
-      // Recarregar após limpeza
       setTimeout(() => {
         loadAnalysisConversations();
       }, 1000);
@@ -98,7 +96,6 @@ export function ConversationAnalysisDashboard() {
     }
   };
 
-  // Forçar reload completo
   const forceReload = async () => {
     console.log('🔄 FORCE RELOAD - Limpando cache e recarregando...');
     setHasInitialized(false);
@@ -115,7 +112,6 @@ export function ConversationAnalysisDashboard() {
     }
   };
 
-  // Inicializar dados apenas uma vez
   useEffect(() => {
     if (!hasInitialized && !loadingRef.current) {
       loadingRef.current = true;
@@ -140,7 +136,6 @@ export function ConversationAnalysisDashboard() {
     }
   }, [hasInitialized, loadAnalysisConversations, refreshData]);
 
-  // Auto-refresh a cada 30 segundos para capturar novas conversas marcadas
   useEffect(() => {
     if (!hasInitialized) return;
 
@@ -148,7 +143,7 @@ export function ConversationAnalysisDashboard() {
       console.log('🔄 Auto-refresh do dashboard...');
       loadAnalysisConversations();
       setLastRefresh(new Date());
-    }, 30000); // 30 segundos
+    }, 30000);
 
     return () => clearInterval(interval);
   }, [hasInitialized, loadAnalysisConversations]);

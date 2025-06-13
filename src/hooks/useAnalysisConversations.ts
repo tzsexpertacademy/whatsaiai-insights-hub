@@ -13,7 +13,7 @@ interface AnalysisConversation {
   analysis_status: 'pending' | 'processing' | 'completed' | 'failed';
   marked_at: string;
   last_analyzed_at?: string;
-  analysis_results?: any[];
+  analysis_results: any[];
   marked_for_analysis: boolean;
 }
 
@@ -43,15 +43,14 @@ export function useAnalysisConversations() {
     try {
       console.log('📡 Fazendo query NO SUPABASE (FILTRANDO DADOS DE TESTE)...');
       
-      // QUERY FILTRANDO DADOS DE TESTE
       const { data, error, count } = await supabase
         .from('whatsapp_conversations_analysis')
         .select('*', { count: 'exact' })
         .eq('user_id', user.id)
         .eq('marked_for_analysis', true)
-        .not('chat_id', 'like', 'TEST_%') // FILTRAR DADOS DE TESTE
-        .not('contact_name', 'like', '%Teste%') // FILTRAR NOMES DE TESTE
-        .not('contact_name', 'like', '%Debug%') // FILTRAR NOMES DE DEBUG
+        .not('chat_id', 'like', 'TEST_%')
+        .not('contact_name', 'like', '%Teste%')
+        .not('contact_name', 'like', '%Debug%')
         .order('created_at', { ascending: false })
         .order('marked_at', { ascending: false });
 
@@ -72,7 +71,6 @@ export function useAnalysisConversations() {
         console.log('⚠️ NENHUMA conversa REAL marcada encontrada!');
         console.log('🔍 Verificando se existem conversas reais marcadas...');
         
-        // BUSCAR TODAS as conversas REAIS (não de teste) do usuário
         const { data: allRealData, error: allError } = await supabase
           .from('whatsapp_conversations_analysis')
           .select('*')

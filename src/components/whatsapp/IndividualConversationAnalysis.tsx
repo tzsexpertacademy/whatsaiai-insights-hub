@@ -31,7 +31,7 @@ interface ConversationAnalysisProps {
     priority: string;
     marked_at: string;
     last_analyzed_at?: string;
-    analysis_results: any[];
+    analysis_results?: any[];
   };
   onAnalysisComplete: () => void;
 }
@@ -127,7 +127,6 @@ Foque em insights comerciais e oportunidades de negócio.`;
     console.log('🧠 Iniciando análise individual da conversa:', conversation.chat_id);
 
     try {
-      // Atualizar status para "processing"
       const { error: updateError } = await supabase
         .from('whatsapp_conversations_analysis')
         .update({ 
@@ -141,7 +140,6 @@ Foque em insights comerciais e oportunidades de negócio.`;
         throw updateError;
       }
 
-      // Buscar mensagens da conversa no banco principal
       const { data: conversationData, error: conversationError } = await supabase
         .from('whatsapp_conversations')
         .select('messages')
@@ -155,11 +153,10 @@ Foque em insights comerciais e oportunidades de negócio.`;
         throw new Error('Conversa não encontrada no banco de dados');
       }
 
-      if (!conversationData?.messages || conversationData.messages.length === 0) {
+      if (!conversationData?.messages || (Array.isArray(conversationData.messages) && conversationData.messages.length === 0)) {
         throw new Error('Nenhuma mensagem encontrada para análise');
       }
 
-      // Chamar função de análise IA
       const { data: analysisResult, error: analysisError } = await supabase.functions.invoke('analyze-conversation', {
         body: {
           conversation_id: conversation.id,
@@ -178,7 +175,6 @@ Foque em insights comerciais e oportunidades de negócio.`;
         throw analysisError;
       }
 
-      // Atualizar com resultado da análise
       const { error: finalUpdateError } = await supabase
         .from('whatsapp_conversations_analysis')
         .update({ 
@@ -204,7 +200,6 @@ Foque em insights comerciais e oportunidades de negócio.`;
     } catch (error) {
       console.error('❌ Erro na análise:', error);
       
-      // Marcar como falha
       await supabase
         .from('whatsapp_conversations_analysis')
         .update({ 
@@ -222,6 +217,9 @@ Foque em insights comerciais e oportunidades de negócio.`;
       setIsAnalyzing(false);
     }
   };
+
+  // Garantir que analysis_results é um array
+  const analysisResults = Array.isArray(conversation.analysis_results) ? conversation.analysis_results : [];
 
   return (
     <Card>
@@ -327,9 +325,9 @@ Foque em insights comerciais e oportunidades de negócio.`;
           </TabsContent>
 
           <TabsContent value="results" className="space-y-4">
-            {conversation.analysis_results && conversation.analysis_results.length > 0 ? (
+            {analysisResults.length > 0 ? (
               <div className="space-y-3">
-                {conversation.analysis_results.map((result, index) => (
+                {analysisResults.map((result, index) => (
                   <Card key={index} className="bg-blue-50 border-blue-200">
                     <CardContent className="p-4">
                       <div className="flex items-start gap-2">
