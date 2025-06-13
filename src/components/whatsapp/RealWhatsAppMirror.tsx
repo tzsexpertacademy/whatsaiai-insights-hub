@@ -1,744 +1,339 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { useToast } from "@/hooks/use-toast";
+import React, { useState, useEffect } from 'react';
 import { useWPPConnect } from '@/hooks/useWPPConnect';
-import { 
-  QrCode, 
-  Smartphone, 
-  CheckCircle, 
-  MessageSquare, 
-  Send,
-  User,
-  AlertCircle,
-  RefreshCw,
-  Search,
-  Volume2,
-  Loader2,
-  Download,
-  Bug,
-  Radio,
-  RadioIcon,
-  Pause,
-  Play
-} from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Badge } from '@/components/ui/badge';
+import { RefreshCw, Send, Loader2, Play, RotateCcw, Sync } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+
+interface Chat {
+  chatId: string;
+  name: string;
+  lastMessage: string;
+  timestamp: string;
+  unreadCount: number;
+  isGroup: boolean;
+}
+
+interface Message {
+  id: string;
+  text: string;
+  sender: 'user' | 'contact';
+  timestamp: string;
+  fromMe: boolean;
+  chatId: string;
+  isAudio?: boolean;
+  status?: string;
+}
 
 export function RealWhatsAppMirror() {
+  const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
+  const [messageText, setMessageText] = useState('');
   const { toast } = useToast();
-  const { 
-    sessionStatus, 
-    contacts,
+
+  const {
+    sessionStatus,
+    chats,
     messages,
-    isLoadingChats,
     isLoadingMessages,
+    isLoadingChats,
     isLiveMode,
     currentChatId,
-    generateQRCode, 
-    checkConnectionStatus,
-    disconnectWhatsApp,
-    sendMessage: sendWhatsAppMessage,
     loadRealChats,
     loadRealMessages,
-    getConnectionStatus,
+    sendMessage,
     startLiveMode,
-    stopLiveMode
+    stopLiveMode,
+    forceSyncMessages,
+    restartWhatsAppSession
   } = useWPPConnect();
-  
-  const [selectedContact, setSelectedContact] = useState<string | null>(null);
-  const [newMessage, setNewMessage] = useState('');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [isAutoChecking, setIsAutoChecking] = useState(false);
-  const [hasAutoChecked, setHasAutoChecked] = useState(false);
-  const [hasAutoLoadedChats, setHasAutoLoadedChats] = useState(false);
-  const [isForceLoading, setIsForceLoading] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const connectionStatus = getConnectionStatus();
-  const isConnected = sessionStatus.isConnected;
-
-  // Verificação IMEDIATA ao entrar na página com logs detalhados
   useEffect(() => {
-    const performImmediateCheck = async () => {
-      if (hasAutoChecked) {
-        console.log('🔄 [DEBUG] Verificação já executada, pulando...');
-        return;
-      }
-      
-      console.log('🚀 [DEBUG] === INICIANDO VERIFICAÇÃO AUTOMÁTICA ===');
-      console.log('🚀 [DEBUG] Estado atual sessionStatus:', sessionStatus);
-      
-      setIsAutoChecking(true);
-      setHasAutoChecked(true);
-      
-      try {
-        console.log('🔍 [DEBUG] Chamando checkConnectionStatus...');
-        const isCurrentlyConnected = await checkConnectionStatus();
-        
-        console.log('📊 [DEBUG] Resultado da verificação:', {
-          isCurrentlyConnected,
-          sessionStatusAfter: sessionStatus
-        });
-        
-        if (isCurrentlyConnected) {
-          console.log('✅ [DEBUG] WhatsApp conectado detectado! Preparando para carregar conversas...');
-          
-          // Aguardar um pouco para o estado ser atualizado
-          setTimeout(async () => {
-            console.log('📱 [DEBUG] Carregando conversas automaticamente...');
-            await handleLoadRealChats(true);
-            setHasAutoLoadedChats(true);
-          }, 2000);
-        } else {
-          console.log('❌ [DEBUG] WhatsApp não conectado ou erro na verificação');
-        }
-      } catch (error) {
-        console.error('❌ [DEBUG] Erro na verificação automática:', error);
-      } finally {
-        setIsAutoChecking(false);
-      }
-    };
-
-    // Executar verificação imediatamente
-    console.log('🎬 [DEBUG] useEffect disparado - iniciando verificação');
-    performImmediateCheck();
-  }, []); // Array vazio para executar apenas uma vez
-
-  // Carregar conversas quando conectar
-  useEffect(() => {
-    console.log('🔄 [DEBUG] useEffect loadChats - Estado:', {
-      isConnected,
-      hasAutoLoadedChats,
-      isLoadingChats,
-      isForceLoading
-    });
-    
-    if (isConnected && !hasAutoLoadedChats && !isLoadingChats && !isForceLoading) {
-      console.log('✅ [DEBUG] Conexão detectada via useEffect, carregando conversas...');
-      setHasAutoLoadedChats(true);
-      handleLoadRealChats(true);
+    if (sessionStatus.isConnected) {
+      loadRealChats();
     }
-  }, [isConnected, hasAutoLoadedChats, isLoadingChats, isForceLoading]);
+  }, [sessionStatus.isConnected, loadRealChats]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    if (selectedChat) {
+      loadRealMessages(selectedChat.chatId);
+    }
+  }, [selectedChat, loadRealMessages]);
 
-  const filteredContacts = contacts.filter(contact =>
-    contact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    contact.phone.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const handleChatClick = (chat: Chat) => {
+    setSelectedChat(chat);
+  };
 
-  const handleLoadRealChats = async (isAutomatic = false) => {
-    console.log('📱 [DEBUG] handleLoadRealChats chamado:', {
-      isAutomatic,
-      isConnected,
-      hasAutoLoadedChats
-    });
-    
-    if (!isConnected && !isAutomatic) {
+  const handleSendMessage = async () => {
+    if (!selectedChat) {
       toast({
-        title: "WhatsApp não conectado",
-        description: "Conecte seu WhatsApp primeiro",
+        title: "Selecione uma conversa",
+        description: "Escolha um contato ou grupo para enviar a mensagem",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (messageText.trim() === '') {
+      toast({
+        title: "Mensagem vazia",
+        description: "Escreva algo antes de enviar",
         variant: "destructive"
       });
       return;
     }
 
     try {
-      console.log('📱 [DEBUG] Carregando conversas reais do WPPConnect...');
-      const chatsData = await loadRealChats();
-      
-      console.log('📊 [DEBUG] Resultado loadRealChats:', chatsData);
-      
-      if (!chatsData || chatsData.length === 0) {
-        console.log('⚠️ [DEBUG] Nenhuma conversa encontrada');
-        if (!isAutomatic) {
-          toast({
-            title: "Nenhuma conversa encontrada",
-            description: "Não há conversas disponíveis no momento",
-            variant: "destructive"
-          });
-        }
-        return;
-      }
-      
-      console.log(`✅ [DEBUG] ${chatsData.length} conversas carregadas com sucesso`);
-      
-      if (!isAutomatic) {
-        toast({
-          title: "🎉 Conversas carregadas!",
-          description: `${chatsData.length} conversas encontradas`
-        });
-      }
-      
+      await sendMessage(selectedChat.chatId, messageText);
+      setMessageText('');
     } catch (error) {
-      console.error('❌ [DEBUG] Erro ao carregar conversas:', error);
-      
-      if (!isAutomatic) {
-        toast({
-          title: "❌ Erro ao carregar conversas",
-          description: error instanceof Error ? error.message : "Verifique se o WPPConnect está rodando corretamente",
-          variant: "destructive"
-        });
-      }
-    }
-  };
-
-  const handleLoadRealMessages = async (contactId: string) => {
-    try {
-      await loadRealMessages(contactId);
-    } catch (error) {
-      console.error('❌ Erro ao carregar mensagens:', error);
       toast({
-        title: "Erro ao carregar mensagens",
-        description: "Não foi possível carregar as mensagens",
+        title: "Erro ao enviar",
+        description: "Tente novamente em alguns instantes",
         variant: "destructive"
       });
     }
   };
 
-  const handleGenerateQR = async () => {
-    await generateQRCode();
-  };
+  const formatTimestamp = (timestamp: string): string => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
 
-  const selectContact = (contact: any) => {
-    setSelectedContact(contact.id);
-    handleLoadRealMessages(contact.id);
-    
-    // Parar modo live anterior se houver
-    if (isLiveMode && currentChatId !== contact.id) {
-      stopLiveMode();
-    }
-    
-    // Iniciar modo live para nova conversa
-    startLiveMode(contact.id);
-  };
-
-  const sendMessage = async () => {
-    if (!newMessage.trim() || !selectedContact) return;
-
-    const messageText = newMessage;
-    setNewMessage('');
-
-    try {
-      await sendWhatsAppMessage(selectedContact, messageText);
-    } catch (error) {
-      console.error('❌ Erro ao enviar mensagem:', error);
-      
-      toast({
-        title: "❌ Erro ao enviar",
-        description: "Verifique se o WPPConnect está rodando e conectado",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const handleCheckStatus = async () => {
-    console.log('🔄 [DEBUG] handleCheckStatus - Verificação manual iniciada');
-    
-    toast({
-      title: "🔄 Verificando status...",
-      description: "Consultando servidor WPPConnect"
-    });
-    
-    const connected = await checkConnectionStatus();
-    
-    console.log('📊 [DEBUG] handleCheckStatus - Resultado:', connected);
-    
-    if (connected && !hasAutoLoadedChats) {
-      console.log('🔄 [DEBUG] Status verificado: conectado. Carregando conversas...');
-      setTimeout(async () => {
-        await handleLoadRealChats(false);
-        setHasAutoLoadedChats(true);
-      }, 1000);
-    }
-  };
-
-  const handleForceLoadChats = async () => {
-    console.log('🔄 [DEBUG] FORÇANDO carregamento de conversas...');
-    setIsForceLoading(true);
-    
-    try {
-      await handleLoadRealChats(false);
-      
-      toast({
-        title: "🚀 Conversas recarregadas!",
-        description: "Lista de conversas foi atualizada manualmente"
-      });
-    } catch (error) {
-      console.error('❌ [DEBUG] Erro ao forçar carregamento:', error);
-      toast({
-        title: "❌ Erro ao forçar carregamento",
-        description: "Não foi possível carregar as conversas",
-        variant: "destructive"
-      });
-    } finally {
-      setIsForceLoading(false);
-    }
-  };
-
-  const handleToggleLiveMode = () => {
-    if (isLiveMode) {
-      stopLiveMode();
-    } else if (selectedContact) {
-      startLiveMode(selectedContact);
+    if (minutes < 60) {
+      return `há ${minutes} minutos`;
+    } else if (hours < 24) {
+      return `há ${hours} horas`;
+    } else if (days === 1) {
+      return 'ontem';
     } else {
-      toast({
-        title: "Selecione uma conversa",
-        description: "Primeiro selecione uma conversa para ativar o modo live",
-        variant: "destructive"
-      });
+      return date.toLocaleDateString();
     }
   };
 
-  const formatTime = (timestamp: string) => {
-    return new Date(timestamp).toLocaleTimeString('pt-BR', {
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'sending': return '🕐';
-      case 'sent': return '✓';
-      case 'delivered': return '✓✓';
-      case 'read': return '✓✓';
-      default: return '';
+  const handleForceSyncMessages = async () => {
+    if (selectedChat) {
+      await forceSyncMessages(selectedChat.chatId);
     }
   };
 
-  const getConnectionStatusInfo = () => {
-    console.log('🔍 [DEBUG] getConnectionStatusInfo - Status atual:', {
-      connectionStatus,
-      isConnected,
-      sessionStatus
-    });
-    
-    if (connectionStatus === 'connected' && isConnected) {
-      return {
-        icon: <CheckCircle className="h-6 w-6 text-green-500" />,
-        text: 'Conectado e Ativo',
-        color: 'text-green-600'
-      };
+  const handleRestartSession = async () => {
+    const success = await restartWhatsAppSession();
+    if (success) {
+      // Recarregar conversas após reiniciar
+      setTimeout(() => {
+        loadRealChats();
+      }, 2000);
     }
-    return {
-      icon: <AlertCircle className="h-6 w-6 text-gray-400" />,
-      text: 'Desconectado',
-      color: 'text-gray-600'
-    };
   };
-
-  const statusInfo = getConnectionStatusInfo();
 
   return (
-    <div className="space-y-6">
-      {/* Debug Info Simplificado */}
-      <Card className="bg-blue-50 border-blue-200">
-        <CardHeader>
-          <CardTitle className="text-blue-800 flex items-center gap-2">
-            <Bug className="h-5 w-5" />
-            📊 Status do Sistema
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="text-sm text-blue-700 space-y-2">
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <span className="font-semibold">Conexão:</span> {sessionStatus.isConnected ? '✅ Conectado' : '❌ Desconectado'}
-            </div>
-            <div>
-              <span className="font-semibold">Conversas:</span> {contacts.length} carregadas
-            </div>
-            <div>
-              <span className="font-semibold">Modo Live:</span> {isLiveMode ? '🔴 ATIVO' : '⏸️ Inativo'}
-            </div>
+    <div className="flex h-[600px] bg-gray-50 border rounded-lg overflow-hidden">
+      {/* Lista de Conversas */}
+      <div className="w-1/3 bg-white border-r flex flex-col">
+        <div className="p-4 border-b bg-gray-50">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold text-gray-800">Conversas WhatsApp</h3>
+            {sessionStatus.isConnected && (
+              <div className="flex items-center gap-1">
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                <span className="text-xs text-green-600 font-medium">Conectado</span>
+              </div>
+            )}
           </div>
           
-          {isLiveMode && currentChatId && (
-            <div className="mt-2 p-2 bg-red-50 rounded border border-red-200">
-              <p className="text-red-700 font-medium">
-                🔴 LIVE: Atualizando mensagens automaticamente a cada 3 segundos
-              </p>
-              <p className="text-red-600 text-xs">
-                Conversa ativa: {contacts.find(c => c.id === currentChatId)?.name || currentChatId}
-              </p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Header com Status */}
-      <Card className="bg-green-50 border-green-200">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-green-900">
-            <Smartphone className="h-5 w-5" />
-            WPPConnect Real - Tempo Real
-            {isConnected && <CheckCircle className="h-5 w-5 text-green-500" />}
-            {isLiveMode && <Radio className="h-5 w-5 text-red-500 animate-pulse" />}
-            {(isAutoChecking || isLoadingChats || isForceLoading) && <Loader2 className="h-5 w-5 text-blue-500 animate-spin" />}
-          </CardTitle>
-          <CardDescription className="text-green-700">
-            Sistema de mensagens em tempo real via WPPConnect API
-            {isAutoChecking && (
-              <span className="block text-blue-600 font-medium mt-1">
-                🔄 Verificando status automaticamente...
-              </span>
-            )}
-            {(isLoadingChats || isForceLoading) && (
-              <span className="block text-blue-600 font-medium mt-1">
-                📱 Carregando suas conversas do WhatsApp...
-              </span>
-            )}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              {statusInfo.icon}
-              <div>
-                <span className={`font-medium ${statusInfo.color}`}>{statusInfo.text}</span>
-                {sessionStatus.phoneNumber && (
-                  <p className="text-sm text-gray-500">{sessionStatus.phoneNumber}</p>
-                )}
-              </div>
-            </div>
-            
-            <div className="flex gap-2">
-              <Button onClick={handleCheckStatus} variant="outline" size="sm">
-                <RefreshCw className="h-4 w-4 mr-1" />
-                Verificar Status
-              </Button>
-              
-              <Button 
-                onClick={handleForceLoadChats} 
-                variant="default" 
-                size="sm"
-                disabled={isLoadingChats || isForceLoading}
-                className="bg-blue-600 hover:bg-blue-700 text-white"
-              >
-                <Download className={`h-4 w-4 mr-1 ${(isLoadingChats || isForceLoading) ? 'animate-spin' : ''}`} />
-                {(isLoadingChats || isForceLoading) ? 'Carregando...' : 'Atualizar Conversas'}
-              </Button>
-              
-              {selectedContact && (
-                <Button 
-                  onClick={handleToggleLiveMode}
-                  variant={isLiveMode ? "destructive" : "default"}
-                  size="sm"
-                  className={isLiveMode ? "bg-red-600 hover:bg-red-700" : "bg-green-600 hover:bg-green-700"}
-                >
-                  {isLiveMode ? (
-                    <>
-                      <Pause className="h-4 w-4 mr-1" />
-                      Parar Live
-                    </>
-                  ) : (
-                    <>
-                      <Play className="h-4 w-4 mr-1" />
-                      Modo Live
-                    </>
-                  )}
-                </Button>
-              )}
-              
-              {isConnected && (
-                <Button onClick={disconnectWhatsApp} variant="outline" size="sm">
-                  Desconectar
-                </Button>
-              )}
-            </div>
-          </div>
-
-          {!isConnected && !sessionStatus.qrCode && (
+          <div className="flex gap-2 mb-2">
             <Button 
-              onClick={generateQRCode} 
-              className="w-full bg-green-600 hover:bg-green-700"
-              disabled={sessionStatus.isLoading}
+              onClick={() => loadRealChats()} 
+              disabled={isLoadingChats}
+              size="sm"
+              className="flex-1"
             >
-              {sessionStatus.isLoading ? (
+              {isLoadingChats ? (
                 <>
-                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                  Gerando QR Code...
+                  <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                  Carregando...
                 </>
               ) : (
                 <>
-                  <QrCode className="h-4 w-4 mr-2" />
-                  Conectar WPPConnect Real
+                  <RefreshCw className="w-3 h-3 mr-1" />
+                  Conversas
                 </>
               )}
             </Button>
+            
+            <Button 
+              onClick={handleRestartSession} 
+              size="sm"
+              variant="outline"
+              title="Reiniciar sessão WhatsApp"
+            >
+              <RotateCcw className="w-3 h-3" />
+            </Button>
+          </div>
+
+          {isLiveMode && (
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                <span className="text-xs text-red-600 font-medium">LIVE</span>
+                <span className="text-xs text-gray-500">Atualizando a cada 3s</span>
+              </div>
+              <Button 
+                onClick={stopLiveMode} 
+                size="sm" 
+                variant="outline"
+                className="h-6 px-2 text-xs"
+              >
+                Parar
+              </Button>
+            </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
 
-      {/* QR Code para Conexão */}
-      {sessionStatus.qrCode && !isConnected && (
-        <Card className="border-blue-200 bg-blue-50">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-blue-900">
-              <QrCode className="h-5 w-5" />
-              Escaneie com WhatsApp Business
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="text-center">
-            <div className="bg-white p-6 rounded-lg inline-block mb-4 shadow-lg">
-              <img 
-                src={sessionStatus.qrCode} 
-                alt="QR Code WhatsApp Business" 
-                className="w-80 h-80 mx-auto"
-              />
-            </div>
-            <div className="space-y-3">
-              <div className="text-sm text-blue-700 space-y-2">
-                <p><strong>1.</strong> Abra o WhatsApp Business no seu celular</p>
-                <p><strong>2.</strong> Toque em <strong>Menu (⋮) → Dispositivos conectados</strong></p>
-                <p><strong>3.</strong> Toque em <strong>"Conectar um dispositivo"</strong></p>
-                <p><strong>4.</strong> Escaneie este código QR</p>
-              </div>
-              <div className="mt-4 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
-                <p className="text-yellow-700 text-sm font-medium">
-                  🔄 Aguardando você escanear o QR Code...
-                </p>
-                <Button 
-                  onClick={handleCheckStatus} 
-                  variant="outline" 
-                  size="sm"
-                  className="mt-2"
-                >
-                  <RefreshCw className="h-4 w-4 mr-1" />
-                  Verificar se conectou
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Interface de Conversas REAL */}
-      {isConnected && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 h-[600px]">
-          {/* Lista de Contatos REAL com Pesquisa */}
-          <Card className="lg:col-span-1">
-            <CardHeader className="pb-3">
+        <ScrollArea className="flex-1 p-2">
+          {chats.map((chat) => (
+            <div
+              key={chat.chatId}
+              className={`p-3 rounded-lg hover:bg-gray-100 cursor-pointer ${
+                selectedChat?.chatId === chat.chatId ? 'bg-blue-50' : ''
+              }`}
+              onClick={() => handleChatClick(chat)}
+            >
               <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
-                  <MessageSquare className="h-5 w-5" />
-                  Conversas {isLiveMode && <Radio className="h-4 w-4 text-red-500 animate-pulse" />}
-                </CardTitle>
-                <div className="flex items-center gap-2">
-                  <Badge variant="secondary">{filteredContacts.length}</Badge>
-                  <Button 
-                    onClick={handleForceLoadChats} 
-                    variant="outline" 
-                    size="sm"
-                    disabled={isLoadingChats || isForceLoading}
-                    title="Atualizar lista de conversas"
-                  >
-                    <Download className={`h-4 w-4 ${(isLoadingChats || isForceLoading) ? 'animate-spin' : ''}`} />
-                  </Button>
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white font-medium">
+                    {chat.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-gray-800">{chat.name}</h4>
+                    <p className="text-sm text-gray-500 truncate">{chat.lastMessage}</p>
+                  </div>
+                </div>
+                <div>
+                  <Badge className="bg-blue-100 text-blue-600">{chat.unreadCount}</Badge>
+                </div>
+              </div>
+              <p className="text-xs text-gray-400 mt-1">{formatTimestamp(chat.timestamp)}</p>
+            </div>
+          ))}
+        </ScrollArea>
+      </div>
+
+      {/* Área de Mensagens */}
+      <div className="flex-1 flex flex-col">
+        {selectedChat ? (
+          <>
+            {/* Header da Conversa */}
+            <div className="p-4 border-b bg-white flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-medium">
+                  {selectedChat.name.charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <h4 className="font-medium text-gray-800">{selectedChat.name}</h4>
+                  <p className="text-sm text-gray-500">
+                    {selectedChat.isGroup ? 'Grupo' : 'Contato'}
+                  </p>
                 </div>
               </div>
               
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <Input
-                  placeholder="Pesquisar conversas..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-            </CardHeader>
-            
-            <CardContent className="p-0">
-              <div className="space-y-1 max-h-[500px] overflow-y-auto">
-                {(isLoadingChats || isForceLoading) ? (
-                  <div className="p-4 text-center text-gray-500">
-                    <Loader2 className="h-8 w-8 mx-auto mb-2 animate-spin" />
-                    <p>Carregando conversas...</p>
-                    <p className="text-xs">Buscando suas conversas do WhatsApp</p>
+              <div className="flex items-center gap-2">
+                {isLiveMode && currentChatId === selectedChat.chatId && (
+                  <div className="flex items-center gap-1">
+                    <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                    <span className="text-xs text-red-600 font-medium">LIVE</span>
                   </div>
-                ) : filteredContacts.length === 0 ? (
-                  <div className="p-4 text-center text-gray-500">
-                    {searchTerm ? (
-                      <>
-                        <Search className="h-8 w-8 mx-auto mb-2" />
-                        <p>Nenhuma conversa encontrada</p>
-                        <p className="text-xs">para "{searchTerm}"</p>
-                      </>
-                    ) : (
-                      <>
-                        <MessageSquare className="h-8 w-8 mx-auto mb-2" />
-                        <p>Nenhuma conversa encontrada</p>
-                        <p className="text-xs mb-2">WhatsApp conectado mas sem conversas carregadas</p>
-                        <Button 
-                          variant="default" 
-                          size="sm" 
-                          onClick={handleForceLoadChats}
-                          disabled={isLoadingChats || isForceLoading}
-                          className="bg-blue-600 hover:bg-blue-700"
-                        >
-                          {(isLoadingChats || isForceLoading) ? (
-                            <>
-                              <RefreshCw className="h-4 w-4 mr-1 animate-spin" />
-                              Carregando...
-                            </>
-                          ) : (
-                            <>
-                              <Download className="h-4 w-4 mr-1" />
-                              Carregar Conversas
-                            </>
-                          )}
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                ) : (
-                  filteredContacts.map((contact) => (
-                    <div 
-                      key={contact.id}
-                      onClick={() => selectContact(contact)}
-                      className={`p-3 border-b cursor-pointer hover:bg-gray-50 transition-colors ${
-                        selectedContact === contact.id ? 'bg-blue-50 border-blue-200' : ''
-                      } ${
-                        currentChatId === contact.id && isLiveMode ? 'border-l-4 border-l-red-500' : ''
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center relative">
-                          <User className="h-6 w-6 text-green-600" />
-                          {currentChatId === contact.id && isLiveMode && (
-                            <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
-                              <Radio className="h-2 w-2 text-white animate-pulse" />
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between">
-                            <span className="font-medium text-sm">{contact.name}</span>
-                            <span className="text-xs text-gray-400">{formatTime(contact.timestamp)}</span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <p className="text-sm text-gray-500 truncate pr-2">{contact.lastMessage}</p>
-                            {contact.unread > 0 && (
-                              <Badge variant="destructive" className="text-xs">
-                                {contact.unread}
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))
+                )}
+                
+                <Button 
+                  onClick={handleForceSyncMessages}
+                  size="sm"
+                  variant="outline"
+                  title="Forçar sincronização de mensagens"
+                >
+                  <Sync className="w-3 h-3" />
+                </Button>
+                
+                <Button 
+                  onClick={() => loadRealMessages(selectedChat.chatId)}
+                  disabled={isLoadingMessages}
+                  size="sm"
+                  variant="outline"
+                >
+                  {isLoadingMessages ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <RefreshCw className="w-3 h-3" />
+                  )}
+                </Button>
+                
+                {!isLiveMode && (
+                  <Button 
+                    onClick={() => startLiveMode(selectedChat.chatId)}
+                    size="sm"
+                    className="bg-red-500 hover:bg-red-600"
+                  >
+                    <Play className="w-3 h-3 mr-1" />
+                    Live
+                  </Button>
                 )}
               </div>
-            </CardContent>
-          </Card>
+            </div>
 
-          {/* Área de Chat */}
-          <Card className="lg:col-span-2">
-            {selectedContact ? (
-              <>
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                        <User className="h-5 w-5 text-green-600" />
-                      </div>
-                      <div>
-                        <CardTitle className="text-lg">
-                          {contacts.find(c => c.id === selectedContact)?.name}
-                        </CardTitle>
-                        <p className="text-sm text-gray-500">
-                          {contacts.find(c => c.id === selectedContact)?.phone}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {isLiveMode && currentChatId === selectedContact && (
-                        <Badge variant="destructive" className="animate-pulse">
-                          🔴 LIVE
-                        </Badge>
-                      )}
-                      <Badge variant="outline">
-                        {messages.filter(m => m.chatId === selectedContact).length} mensagens
-                      </Badge>
-                    </div>
+            {/* Área de Mensagens */}
+            <ScrollArea className="flex-1 p-4">
+              {messages
+                .filter((msg) => msg.chatId === selectedChat.chatId)
+                .map((msg) => (
+                  <div
+                    key={msg.id}
+                    className={`mb-2 p-3 rounded-lg ${
+                      msg.fromMe ? 'bg-blue-100 ml-auto text-right' : 'bg-gray-100 mr-auto'
+                    }`}
+                    style={{ maxWidth: '80%' }}
+                  >
+                    <p className="text-sm text-gray-800">{msg.text}</p>
+                    <p className="text-xs text-gray-500 mt-1">{formatTimestamp(msg.timestamp)}</p>
                   </div>
-                </CardHeader>
-                
-                <CardContent className="p-0">
-                  <div className="h-[400px] overflow-y-auto p-4 space-y-3">
-                    {messages
-                      .filter(m => m.chatId === selectedContact)
-                      .map((message) => (
-                        <div
-                          key={message.id}
-                          className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-                        >
-                          <div
-                            className={`max-w-[70%] px-3 py-2 rounded-lg ${
-                              message.sender === 'user'
-                                ? 'bg-green-500 text-white'
-                                : 'bg-gray-100 text-gray-900'
-                            }`}
-                          >
-                            <div className="flex items-start gap-2">
-                              {message.isAudio && <Volume2 className="h-4 w-4 mt-0.5 flex-shrink-0" />}
-                              <div className="flex-1">
-                                <p className="text-sm">{message.text}</p>
-                                <div className="flex items-center justify-between mt-1">
-                                  <span className="text-xs opacity-70">
-                                    {formatTime(message.timestamp)}
-                                  </span>
-                                  {message.sender === 'user' && message.status && (
-                                    <span className="text-xs opacity-70">
-                                      {getStatusIcon(message.status)}
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    <div ref={messagesEndRef} />
-                  </div>
-                  
-                  <div className="border-t p-4">
-                    <div className="flex gap-2">
-                      <Input
-                        value={newMessage}
-                        onChange={(e) => setNewMessage(e.target.value)}
-                        placeholder="Digite sua mensagem..."
-                        onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-                        className="flex-1"
-                      />
-                      <Button 
-                        onClick={sendMessage}
-                        disabled={!newMessage.trim()}
-                        className="bg-green-600 hover:bg-green-700"
-                      >
-                        <Send className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </>
-            ) : (
-              <CardContent className="flex items-center justify-center h-full">
-                <div className="text-center text-gray-500">
-                  <MessageSquare className="h-12 w-12 mx-auto mb-4" />
-                  <p>Selecione uma conversa para começar</p>
-                  <p className="text-xs mt-2">O modo live será ativado automaticamente</p>
-                </div>
-              </CardContent>
-            )}
-          </Card>
-        </div>
-      )}
+                ))}
+            </ScrollArea>
+
+            {/* Form de Envio */}
+            <div className="p-4 border-t bg-white">
+              <div className="flex items-center">
+                <Input
+                  type="text"
+                  placeholder="Digite sua mensagem..."
+                  className="flex-1 rounded-l-md"
+                  value={messageText}
+                  onChange={(e) => setMessageText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleSendMessage();
+                    }
+                  }}
+                />
+                <Button
+                  className="rounded-l-none"
+                  onClick={handleSendMessage}
+                >
+                  Enviar
+                  <Send className="ml-2 w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="flex-1 flex items-center justify-center">
+            <p className="text-gray-500">Selecione uma conversa para visualizar as mensagens.</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
