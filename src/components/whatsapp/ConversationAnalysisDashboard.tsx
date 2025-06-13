@@ -8,7 +8,6 @@ import { useProtectedAnalysisData } from '@/hooks/useProtectedAnalysisData';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { useNavigate } from 'react-router-dom';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { ConversationInsights } from './ConversationInsights';
 import { ConversationMetrics } from './ConversationMetrics';
@@ -27,15 +26,12 @@ import {
   CheckCircle,
   XCircle,
   Bug,
-  Trash2,
-  Eye,
-  ArrowRight
+  Trash2
 } from 'lucide-react';
 
 export function ConversationAnalysisDashboard() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const navigate = useNavigate();
   const { 
     conversations, 
     isLoading, 
@@ -407,10 +403,6 @@ export function ConversationAnalysisDashboard() {
     }
   };
 
-  const handleViewIndividualAnalysis = (conversationId: string) => {
-    navigate(`/dashboard/conversation-analysis/individual/${conversationId}`);
-  };
-
   const completedConversations = conversations.filter(c => c.analysis_status === 'completed');
   const pendingConversations = conversations.filter(c => c.analysis_status === 'pending');
   const processingConversations = conversations.filter(c => c.analysis_status === 'processing');
@@ -487,7 +479,7 @@ export function ConversationAnalysisDashboard() {
   return (
     <PageLayout
       title="Análise de Conversas WhatsApp"
-      description="Dashboard para análise individual e macro das conversas marcadas"
+      description="Dashboard especializado para análise das conversas marcadas pelos assistentes de IA"
       showBackButton={true}
       backUrl="/dashboard/behavioral"
       headerActions={headerActions}
@@ -536,7 +528,42 @@ export function ConversationAnalysisDashboard() {
               <p><strong>Status:</strong> {conversations.length} conversas REAIS marcadas | {insights.length} insights gerados</p>
               <p><strong>Carregamento:</strong> {isLoading ? 'Em andamento...' : 'Concluído'}</p>
               <p><strong>Última atualização:</strong> {lastRefresh.toLocaleTimeString('pt-BR')}</p>
-              <p><strong>Novo:</strong> Clique em "Ver Análise Individual" para análise detalhada com chatbot!</p>
+              {conversations.length === 0 && !isLoading && (
+                <div className="mt-2 p-2 bg-yellow-50 rounded border border-yellow-200">
+                  <p className="text-yellow-700 font-medium">
+                    ⚠️ Nenhuma conversa REAL marcada encontrada!
+                  </p>
+                  <p className="text-yellow-600 text-xs mt-1">
+                    Vá ao WhatsApp Mirror, clique com botão direito nas conversas REAIS e marque para análise IA.
+                  </p>
+                  <div className="mt-2 flex gap-2">
+                    <Button 
+                      onClick={testRealConversationsQuery} 
+                      size="sm" 
+                      variant="outline"
+                      className="text-xs"
+                    >
+                      Debug Reais
+                    </Button>
+                    <Button 
+                      onClick={clearTestData} 
+                      size="sm" 
+                      variant="destructive"
+                      className="text-xs"
+                    >
+                      Limpar Teste
+                    </Button>
+                    <Button 
+                      onClick={forceReload} 
+                      size="sm" 
+                      variant="outline"
+                      className="text-xs"
+                    >
+                      Force Reload
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </CardContent>
@@ -614,7 +641,7 @@ export function ConversationAnalysisDashboard() {
           </TabsTrigger>
           <TabsTrigger value="insights">
             <Brain className="h-4 w-4 mr-2" />
-            Insights Macro ({insights.length})
+            Insights ({insights.length})
           </TabsTrigger>
           <TabsTrigger value="metrics">
             <BarChart3 className="h-4 w-4 mr-2" />
@@ -634,9 +661,6 @@ export function ConversationAnalysisDashboard() {
                   <Users className="h-5 w-5" />
                   Conversas REAIS Marcadas para Análise ({conversations.length})
                 </CardTitle>
-                <p className="text-sm text-gray-500">
-                  Clique em "Ver Análise Individual" para análise detalhada com chatbot ou use "Análise por IA" para análise macro de todas as conversas
-                </p>
               </CardHeader>
               <CardContent>
                 {isLoading ? (
@@ -702,7 +726,7 @@ export function ConversationAnalysisDashboard() {
                             </p>
                           )}
                         </div>
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2">
                           <Badge 
                             variant="outline" 
                             className={`capitalize ${
@@ -726,16 +750,6 @@ export function ConversationAnalysisDashboard() {
                               {getStatusText(conv.analysis_status)}
                             </Badge>
                           </div>
-                          <Button
-                            onClick={() => handleViewIndividualAnalysis(conv.id)}
-                            variant="outline"
-                            size="sm"
-                            className="border-blue-200 text-blue-600 hover:bg-blue-50"
-                          >
-                            <Eye className="h-4 w-4 mr-1" />
-                            Ver Análise Individual
-                            <ArrowRight className="h-4 w-4 ml-1" />
-                          </Button>
                         </div>
                       </div>
                     ))}
