@@ -8,6 +8,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { AssistantSelector } from '@/components/AssistantSelector';
+import { useAssistantsConfig } from '@/hooks/useAssistantsConfig';
 import { 
   Brain, 
   MessageSquare, 
@@ -39,9 +41,11 @@ interface ConversationAnalysisProps {
 export function IndividualConversationAnalysis({ conversation, onAnalysisComplete }: ConversationAnalysisProps) {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { assistants } = useAssistantsConfig();
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisPrompt, setAnalysisPrompt] = useState('');
   const [selectedAnalysisType, setSelectedAnalysisType] = useState<'behavioral' | 'commercial' | 'custom'>('behavioral');
+  const [selectedAssistant, setSelectedAssistant] = useState(assistants.length > 0 ? assistants[0].id : 'kairon');
 
   const getStatusIcon = () => {
     switch (conversation.analysis_status) {
@@ -70,9 +74,14 @@ export function IndividualConversationAnalysis({ conversation, onAnalysisComplet
   };
 
   const getAnalysisPrompt = () => {
+    const selectedAssistantData = assistants.find(a => a.id === selectedAssistant);
+    const assistantPrompt = selectedAssistantData?.prompt || '';
+
     switch (selectedAnalysisType) {
       case 'behavioral':
-        return `Analise esta conversa do WhatsApp de forma comportamental e psicológica:
+        return `${assistantPrompt}
+
+Analise esta conversa do WhatsApp de forma comportamental e psicológica:
 
 1. **Perfil Emocional**: Identifique padrões emocionais, estados de humor e reações
 2. **Estilo de Comunicação**: Como a pessoa se expressa, frequência, tom
@@ -86,7 +95,9 @@ Telefone: ${conversation.contact_phone}
 Seja detalhado e profundo na análise psicológica.`;
 
       case 'commercial':
-        return `Analise esta conversa do WhatsApp do ponto de vista comercial e de vendas:
+        return `${assistantPrompt}
+
+Analise esta conversa do WhatsApp do ponto de vista comercial e de vendas:
 
 1. **Perfil de Cliente**: Tipo de cliente, poder de compra, urgência
 2. **Interesse e Intenção**: Nível de interesse, sinais de compra
@@ -100,7 +111,12 @@ Telefone: ${conversation.contact_phone}
 Foque em insights comerciais e oportunidades de negócio.`;
 
       case 'custom':
-        return analysisPrompt || 'Analise esta conversa do WhatsApp conforme solicitado...';
+        return `${assistantPrompt}
+
+${analysisPrompt || 'Analise esta conversa do WhatsApp conforme solicitado...'}
+
+Contato: ${conversation.contact_name}
+Telefone: ${conversation.contact_phone}`;
     }
   };
 
@@ -140,22 +156,72 @@ Foque em insights comerciais e oportunidades de negócio.`;
         throw updateError;
       }
 
-      const { data: conversationData, error: conversationError } = await supabase
+      // Buscar conversa no banco usando múltiplas estratégias
+      console.log('🔍 Buscando conversa no banco para:', { 
+        userId: user.id, 
+        contactPhone: conversation.contact_phone,
+        contactName: conversation.contact_name,
+        chatId: conversation.chat_id
+      });
+
+      // Primeiro tentar buscar por chat_id exato
+      let { data: conversationData, error: conversationError } = await supabase
         .from('whatsapp_conversations')
         .select('messages')
         .eq('user_id', user.id)
-        .eq('contact_phone', conversation.contact_phone)
-        .eq('contact_name', conversation.contact_name)
+        .or(`contact_phone.eq.${conversation.contact_phone},session_id.eq.${conversation.chat_id}`)
+        .order('created_at', { ascending: false })
+        .limit(1)
         .single();
 
-      if (conversationError) {
-        console.error('❌ Erro ao buscar conversa:', conversationError);
-        throw new Error('Conversa não encontrada no banco de dados');
+      // Se não encontrou, tentar buscar apenas por telefone
+      if (conversationError || !conversationData?.messages || (Array.isArray(conversationData.messages) && conversationData.messages.length === 0)) {
+        console.log('⚠️ Primeira busca falhou, tentando busca alternativa...');
+        
+        const { data: alternativeData, error: alternativeError } = await supabase
+          .from('whatsapp_conversations')
+          .select('messages')
+          .eq('user_id', user.id)
+          .eq('contact_phone', conversation.contact_phone)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (alternativeError) {
+          console.error('❌ Erro na busca alternativa:', alternativeError);
+        } else if (alternativeData?.messages && Array.isArray(alternativeData.messages) && alternativeData.messages.length > 0) {
+          conversationData = alternativeData;
+          conversationError = null;
+          console.log('✅ Conversa encontrada na busca alternativa');
+        }
       }
 
-      if (!conversationData?.messages || (Array.isArray(conversationData.messages) && conversationData.messages.length === 0)) {
-        throw new Error('Nenhuma mensagem encontrada para análise');
+      // Se ainda não encontrou, tentar busca por nome
+      if (conversationError || !conversationData?.messages || (Array.isArray(conversationData.messages) && conversationData.messages.length === 0)) {
+        console.log('⚠️ Tentando busca por nome do contato...');
+        
+        const { data: nameData, error: nameError } = await supabase
+          .from('whatsapp_conversations')
+          .select('messages')
+          .eq('user_id', user.id)
+          .eq('contact_name', conversation.contact_name)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (!nameError && nameData?.messages && Array.isArray(nameData.messages) && nameData.messages.length > 0) {
+          conversationData = nameData;
+          conversationError = null;
+          console.log('✅ Conversa encontrada por nome');
+        }
       }
+
+      if (conversationError || !conversationData?.messages || (Array.isArray(conversationData.messages) && conversationData.messages.length === 0)) {
+        console.error('❌ Nenhuma conversa encontrada:', { conversationError, conversationData });
+        throw new Error('Nenhuma mensagem encontrada para análise. Verifique se a conversa foi sincronizada corretamente.');
+      }
+
+      console.log('✅ Conversa encontrada:', { messageCount: conversationData.messages.length });
 
       const { data: analysisResult, error: analysisError } = await supabase.functions.invoke('analyze-conversation', {
         body: {
@@ -163,6 +229,7 @@ Foque em insights comerciais e oportunidades de negócio.`;
           messages: conversationData.messages,
           analysis_prompt: getAnalysisPrompt(),
           analysis_type: selectedAnalysisType,
+          assistant_id: selectedAssistant,
           contact_info: {
             name: conversation.contact_name,
             phone: conversation.contact_phone
@@ -192,7 +259,7 @@ Foque em insights comerciais e oportunidades de negócio.`;
 
       toast({
         title: "✅ Análise concluída",
-        description: "A conversa foi analisada com sucesso pela IA"
+        description: `A conversa foi analisada com sucesso pelo assistente ${assistants.find(a => a.id === selectedAssistant)?.name || selectedAssistant}`
       });
 
       onAnalysisComplete();
@@ -261,6 +328,17 @@ Foque em insights comerciais e oportunidades de negócio.`;
 
           <TabsContent value="analyze" className="space-y-4">
             <div className="space-y-3">
+              <h4 className="font-medium flex items-center gap-2">
+                <Sparkles className="h-4 w-4" />
+                Assistente para Análise
+              </h4>
+              
+              <AssistantSelector
+                selectedAssistant={selectedAssistant}
+                onAssistantChange={setSelectedAssistant}
+                className="mb-4"
+              />
+              
               <h4 className="font-medium flex items-center gap-2">
                 <Sparkles className="h-4 w-4" />
                 Tipo de Análise

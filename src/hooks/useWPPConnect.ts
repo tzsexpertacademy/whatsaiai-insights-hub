@@ -1,3 +1,4 @@
+
 import { useState, useCallback, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -8,6 +9,8 @@ interface WPPConnectMessage {
   timestamp: string;
   fromMe: boolean;
   chatId: string;
+  isAudio?: boolean;
+  status?: string;
 }
 
 interface WPPConnectChat {
@@ -17,6 +20,12 @@ interface WPPConnectChat {
   timestamp: string;
   unreadCount: number;
   isGroup: boolean;
+}
+
+interface WPPConnectContact {
+  id: string;
+  name: string;
+  phone: string;
 }
 
 interface SessionStatus {
@@ -43,7 +52,9 @@ export function useWPPConnect() {
   });
   const [chats, setChats] = useState<WPPConnectChat[]>([]);
   const [messages, setMessages] = useState<WPPConnectMessage[]>([]);
+  const [contacts, setContacts] = useState<WPPConnectContact[]>([]);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+  const [isLoadingChats, setIsLoadingChats] = useState(false);
   const [isLiveMode, setIsLiveMode] = useState(false);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const [messageHistoryLimit, setMessageHistoryLimit] = useState(50);
@@ -65,6 +76,11 @@ export function useWPPConnect() {
     console.log('💾 Salvando configuração WPPConnect:', config);
     // Implementar salvamento se necessário
   }, []);
+
+  const getConnectionStatus = useCallback(() => {
+    if (!sessionStatus.isConnected) return 'disconnected';
+    return 'connected';
+  }, [sessionStatus.isConnected]);
 
   const sendMessage = useCallback(async (chatId: string, message: string) => {
     console.log('📤 Enviando mensagem via WPPConnect:', { chatId, message });
@@ -169,6 +185,7 @@ export function useWPPConnect() {
           title: "✅ Conectado!",
           description: "WhatsApp conectado com sucesso"
         });
+        return true;
       } else if (result.qrcode) {
         setSessionStatus({
           isConnected: false,
@@ -176,6 +193,7 @@ export function useWPPConnect() {
           isLoading: false,
           phoneNumber: null
         });
+        return result.qrcode;
       } else {
         throw new Error('QR Code não disponível');
       }
@@ -192,6 +210,7 @@ export function useWPPConnect() {
         description: "Não foi possível conectar ao WPPConnect",
         variant: "destructive"
       });
+      return null;
     }
   }, [toast]);
 
@@ -220,6 +239,7 @@ export function useWPPConnect() {
           isLoading: false,
           phoneNumber: result.session || 'Conectado'
         });
+        return true;
       } else {
         setSessionStatus({
           isConnected: false,
@@ -227,6 +247,7 @@ export function useWPPConnect() {
           isLoading: false,
           phoneNumber: null
         });
+        return false;
       }
     } catch (error) {
       console.error('❌ Erro ao verificar status:', error);
@@ -236,12 +257,14 @@ export function useWPPConnect() {
         isLoading: false,
         phoneNumber: null
       });
+      return false;
     }
   }, []);
 
   const loadRealChats = useCallback(async () => {
-    if (!sessionStatus.isConnected) return;
+    if (!sessionStatus.isConnected) return [];
     
+    setIsLoadingChats(true);
     try {
       console.log('📱 Carregando chats reais...');
       
@@ -271,7 +294,9 @@ export function useWPPConnect() {
 
         setChats(formattedChats);
         console.log('✅ Chats formatados:', formattedChats.length);
+        return formattedChats;
       }
+      return [];
     } catch (error) {
       console.error('❌ Erro ao carregar chats:', error);
       toast({
@@ -279,6 +304,9 @@ export function useWPPConnect() {
         description: "Não foi possível carregar as conversas",
         variant: "destructive"
       });
+      return [];
+    } finally {
+      setIsLoadingChats(false);
     }
   }, [sessionStatus.isConnected, toast]);
 
@@ -309,7 +337,9 @@ export function useWPPConnect() {
           sender: msg.fromMe ? 'user' : 'contact',
           timestamp: msg.timestamp ? new Date(msg.timestamp * 1000).toISOString() : new Date().toISOString(),
           fromMe: msg.fromMe || false,
-          chatId: chatId
+          chatId: chatId,
+          isAudio: msg.isAudio || false,
+          status: msg.status || 'sent'
         }));
 
         setMessages(prev => {
@@ -318,7 +348,9 @@ export function useWPPConnect() {
         });
 
         console.log('✅ Mensagens formatadas:', formattedMessages.length);
+        return formattedMessages;
       }
+      return [];
     } catch (error) {
       console.error('❌ Erro ao carregar mensagens:', error);
       toast({
@@ -326,6 +358,7 @@ export function useWPPConnect() {
         description: "Não foi possível carregar as mensagens",
         variant: "destructive"
       });
+      return [];
     } finally {
       setIsLoadingMessages(false);
     }
@@ -386,6 +419,7 @@ export function useWPPConnect() {
       
       setChats([]);
       setMessages([]);
+      setContacts([]);
       stopLiveMode();
       
       toast({
@@ -414,12 +448,15 @@ export function useWPPConnect() {
     sessionStatus,
     chats,
     messages,
+    contacts,
     isLoadingMessages,
+    isLoadingChats,
     isLiveMode,
     currentChatId,
     messageHistoryLimit,
     generateQRCode,
     checkConnectionStatus,
+    getConnectionStatus,
     loadRealChats,
     loadRealMessages,
     sendMessage,
