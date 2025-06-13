@@ -382,102 +382,132 @@ export function useWPPConnect() {
       console.log('📱 [CHATS DEBUG] Iniciando carregamento de chats reais do WPPConnect...');
       const config = getWPPConfig();
       
-      // Testar múltiplos endpoints para chats
-      const chatEndpoints = [
-        `${config.serverUrl}/api/${config.sessionName}/all-chats`,
-        `${config.serverUrl}/api/${config.sessionName}/all-chats-withcontacts`,
-        `${config.serverUrl}/api/${config.sessionName}/get-chats`
-      ];
+      // Usar apenas o endpoint que sabemos que funciona
+      const endpoint = `${config.serverUrl}/api/${config.sessionName}/all-chats`;
       
-      for (const endpoint of chatEndpoints) {
-        try {
-          console.log('🎯 [CHATS DEBUG] Testando endpoint de chats:', endpoint);
-          
-          const response = await fetch(endpoint, {
-            method: 'GET',
-            headers: {
-              'Authorization': `Bearer ${config.token}`,
-              'Content-Type': 'application/json'
-            }
-          });
-
-          console.log('📊 [CHATS DEBUG] Response status:', response.status);
-
-          if (!response.ok) {
-            const errorText = await response.text();
-            console.error('❌ [CHATS DEBUG] Erro no endpoint:', endpoint, 'Status:', response.status, 'Error:', errorText);
-            continue;
-          }
-
-          const result = await response.json();
-          console.log('📋 [CHATS DEBUG] Response completa do endpoint:', endpoint, result);
-
-          // Verificar se temos dados válidos
-          let chatsData = [];
-          
-          if (Array.isArray(result)) {
-            chatsData = result;
-          } else if (result.chats && Array.isArray(result.chats)) {
-            chatsData = result.chats;
-          } else if (result.data && Array.isArray(result.data)) {
-            chatsData = result.data;
-          }
-
-          console.log('📊 [CHATS DEBUG] Chats extraídos:', chatsData.length, 'chats encontrados');
-
-          if (chatsData.length > 0) {
-            const formattedChats: WPPConnectChat[] = chatsData.map((chat: any, index: number) => {
-              console.log(`🔍 [CHATS DEBUG] Processando chat ${index + 1}:`, chat);
-              
-              return {
-                chatId: chat.id || chat.chatId || chat.id?._serialized || `chat_${Date.now()}_${index}`,
-                name: chat.name || chat.contact?.name || chat.formattedTitle || chat.id?.split('@')[0] || `Contato ${index + 1}`,
-                lastMessage: chat.lastMessage?.body || chat.lastMessage?.content || chat.lastMessage || 'Sem mensagens',
-                timestamp: chat.lastMessage?.timestamp ? new Date(chat.lastMessage.timestamp * 1000).toISOString() : new Date().toISOString(),
-                unreadCount: chat.unreadCount || 0,
-                isGroup: chat.isGroup || false
-              };
-            });
-
-            console.log('✅ [CHATS DEBUG] Chats formatados com sucesso:', formattedChats);
-            setChats(formattedChats);
-            
-            // Converter chats para contatos para compatibilidade
-            const formattedContacts: WPPConnectContact[] = formattedChats.map(chat => ({
-              id: chat.chatId,
-              name: chat.name,
-              phone: chat.chatId.replace('@c.us', '').replace('@g.us', ''),
-              lastMessage: chat.lastMessage,
-              timestamp: chat.timestamp,
-              unread: chat.unreadCount
-            }));
-            
-            setContacts(formattedContacts);
-            console.log('✅ [CHATS DEBUG] Sucesso! Carregados', formattedChats.length, 'chats');
-            
-            toast({
-              title: "✅ Conversas carregadas!",
-              description: `${formattedChats.length} conversas encontradas`
-            });
-            
-            return formattedChats;
-          } else {
-            console.log('⚠️ [CHATS DEBUG] Endpoint retornou array vazio:', endpoint);
-          }
-        } catch (endpointError) {
-          console.error('❌ [CHATS DEBUG] Erro ao testar endpoint:', endpoint, endpointError);
-          continue;
+      console.log('🎯 [CHATS DEBUG] Carregando chats do endpoint:', endpoint);
+      
+      const response = await fetch(endpoint, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${config.token}`,
+          'Content-Type': 'application/json'
         }
-      }
-      
-      // Se chegou aqui, nenhum endpoint funcionou
-      console.error('❌ [CHATS DEBUG] NENHUM endpoint de chats funcionou!');
-      toast({
-        title: "❌ Erro ao carregar chats",
-        description: "Nenhum endpoint de chats retornou dados válidos",
-        variant: "destructive"
       });
-      return [];
+
+      console.log('📊 [CHATS DEBUG] Response status:', response.status);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ [CHATS DEBUG] Erro no endpoint:', endpoint, 'Status:', response.status, 'Error:', errorText);
+        throw new Error(`Erro ${response.status}: ${errorText}`);
+      }
+
+      const result = await response.json();
+      console.log('📋 [CHATS DEBUG] Response completa:', result);
+
+      // O WPPConnect retorna os dados em result.response
+      let chatsData = [];
+      
+      if (result.response && Array.isArray(result.response)) {
+        chatsData = result.response;
+      } else if (Array.isArray(result)) {
+        chatsData = result;
+      } else if (result.chats && Array.isArray(result.chats)) {
+        chatsData = result.chats;
+      }
+
+      console.log('📊 [CHATS DEBUG] Chats extraídos:', chatsData.length, 'chats encontrados');
+      console.log('📋 [CHATS DEBUG] Primeiro chat exemplo:', chatsData[0]);
+
+      if (chatsData.length > 0) {
+        const formattedChats: WPPConnectChat[] = chatsData.map((chat: any, index: number) => {
+          console.log(`🔍 [CHATS DEBUG] Processando chat ${index + 1}:`, {
+            id: chat.id,
+            name: chat.name,
+            contact: chat.contact,
+            isGroup: chat.isGroup,
+            isUser: chat.isUser
+          });
+          
+          // Extrair ID do chat
+          let chatId = '';
+          if (typeof chat.id === 'string') {
+            chatId = chat.id;
+          } else if (chat.id && chat.id._serialized) {
+            chatId = chat.id._serialized;
+          } else if (chat.id && chat.id.user && chat.id.server) {
+            chatId = `${chat.id.user}@${chat.id.server}`;
+          }
+          
+          // Extrair nome do chat
+          let chatName = '';
+          if (chat.name) {
+            chatName = chat.name;
+          } else if (chat.contact && chat.contact.name) {
+            chatName = chat.contact.name;
+          } else if (chat.contact && chat.contact.formattedName) {
+            chatName = chat.contact.formattedName;
+          } else if (chat.contact && chat.contact.pushname) {
+            chatName = chat.contact.pushname;
+          } else {
+            chatName = chatId.split('@')[0] || `Chat ${index + 1}`;
+          }
+          
+          // Extrair última mensagem
+          let lastMessage = 'Sem mensagens';
+          if (chat.chatlistPreview && chat.chatlistPreview.reactionText) {
+            lastMessage = `Reação: ${chat.chatlistPreview.reactionText}`;
+          } else if (chat.lastMessage && chat.lastMessage.body) {
+            lastMessage = chat.lastMessage.body;
+          } else if (chat.lastMessage && chat.lastMessage.content) {
+            lastMessage = chat.lastMessage.content;
+          }
+          
+          const formattedChat = {
+            chatId: chatId,
+            name: chatName,
+            lastMessage: lastMessage,
+            timestamp: chat.t ? new Date(chat.t * 1000).toISOString() : new Date().toISOString(),
+            unreadCount: chat.unreadCount || 0,
+            isGroup: chat.isGroup || false
+          };
+          
+          console.log(`✅ [CHATS DEBUG] Chat formatado ${index + 1}:`, formattedChat);
+          return formattedChat;
+        });
+
+        console.log('✅ [CHATS DEBUG] Chats formatados com sucesso:', formattedChats);
+        setChats(formattedChats);
+        
+        // Converter chats para contatos para compatibilidade
+        const formattedContacts: WPPConnectContact[] = formattedChats.map(chat => ({
+          id: chat.chatId,
+          name: chat.name,
+          phone: chat.chatId.replace('@c.us', '').replace('@g.us', ''),
+          lastMessage: chat.lastMessage,
+          timestamp: chat.timestamp,
+          unread: chat.unreadCount
+        }));
+        
+        setContacts(formattedContacts);
+        console.log('✅ [CHATS DEBUG] Sucesso! Carregados', formattedChats.length, 'chats');
+        
+        toast({
+          title: "✅ Conversas carregadas!",
+          description: `${formattedChats.length} conversas encontradas`
+        });
+        
+        return formattedChats;
+      } else {
+        console.log('⚠️ [CHATS DEBUG] Nenhum chat encontrado na resposta');
+        toast({
+          title: "⚠️ Nenhuma conversa encontrada",
+          description: "O WhatsApp está conectado mas não há conversas disponíveis",
+          variant: "destructive"
+        });
+        return [];
+      }
       
     } catch (error) {
       console.error('❌ [CHATS DEBUG] Erro geral ao carregar chats:', error);
