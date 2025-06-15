@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +14,6 @@ import { ConversationInsights } from './ConversationInsights';
 import { ConversationMetrics } from './ConversationMetrics';
 import { ConversationTimeline } from './ConversationTimeline';
 import { IndividualConversationAnalysis } from './IndividualConversationAnalysis';
-import { AIAnalysisButton } from '@/components/AIAnalysisButton';
 import { 
   Brain,
   MessageSquare,
@@ -48,7 +48,6 @@ export function ConversationAnalysisDashboard() {
 
   const [hasInitialized, setHasInitialized] = useState(false);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
-  const [debugInfo, setDebugInfo] = useState<any>(null);
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
   const loadingRef = useRef(false);
 
@@ -202,7 +201,7 @@ export function ConversationAnalysisDashboard() {
   return (
     <PageLayout 
       title="Análise de Conversas do WhatsApp" 
-      subtitle="Sistema inteligente de análise comportamental e comercial"
+      description="Sistema inteligente de análise comportamental e comercial"
     >
       <div className="space-y-6">
         {/* Status Card */}
@@ -378,15 +377,15 @@ export function ConversationAnalysisDashboard() {
           </TabsContent>
 
           <TabsContent value="insights">
-            <ConversationInsights insights={insights} />
+            <ConversationInsights insights={insights} conversations={conversations} />
           </TabsContent>
 
           <TabsContent value="metrics">
-            <ConversationMetrics stats={protectedStats} />
+            <ConversationMetrics protectedStats={protectedStats} />
           </TabsContent>
 
           <TabsContent value="timeline">
-            <ConversationTimeline conversations={conversations} />
+            <ConversationTimeline conversations={conversations} insights={insights} />
           </TabsContent>
         </Tabs>
       </div>
