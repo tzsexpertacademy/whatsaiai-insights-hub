@@ -101,6 +101,8 @@ ${analysisPrompt || 'Analise esta conversa do WhatsApp conforme solicitado...'}
   };
 
   const handleAnalyzeConversation = async () => {
+    console.log('🚀 INICIANDO ANÁLISE INDIVIDUAL - VERSÃO CORRIGIDA');
+    
     if (!user?.id) {
       toast({
         title: "❌ Erro",
@@ -110,11 +112,22 @@ ${analysisPrompt || 'Analise esta conversa do WhatsApp conforme solicitado...'}
       return;
     }
 
-    // ✅ VERIFICAR CONFIGURAÇÃO OPENAI ANTES DE PROSSEGUIR
-    if (!config.openai?.apiKey || !config.openai.apiKey.startsWith('sk-')) {
+    // Verificação rigorosa da configuração OpenAI
+    if (!config?.openai?.apiKey) {
+      console.error('❌ Configuração OpenAI ausente');
       toast({
         title: "❌ Configuração OpenAI necessária",
         description: "Configure sua API Key da OpenAI em Configurações > OpenAI antes de executar análises",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!config.openai.apiKey.startsWith('sk-')) {
+      console.error('❌ API Key OpenAI inválida');
+      toast({
+        title: "❌ API Key inválida",
+        description: "A API Key da OpenAI deve começar com 'sk-'. Verifique sua configuração.",
         variant: "destructive"
       });
       return;
@@ -132,7 +145,7 @@ ${analysisPrompt || 'Analise esta conversa do WhatsApp conforme solicitado...'}
     setIsAnalyzing(true);
     setDebugInfo(null);
     
-    console.log('🚀 INICIANDO ANÁLISE INDIVIDUAL COM OPENAI CONFIG:', {
+    console.log('📋 Configurações da análise:', {
       conversationId: conversation.id,
       chatId: conversation.chat_id,
       contactName: conversation.contact_name,
@@ -140,7 +153,8 @@ ${analysisPrompt || 'Analise esta conversa do WhatsApp conforme solicitado...'}
       analysisType: selectedAnalysisType,
       assistantId: selectedAssistant,
       hasOpenAIKey: !!config.openai?.apiKey,
-      openAIKeyPrefix: config.openai?.apiKey?.substring(0, 10) + '...'
+      openAIModel: config.openai.model,
+      openAIKeyPrefix: config.openai?.apiKey?.substring(0, 15) + '...'
     });
 
     try {
@@ -159,13 +173,14 @@ ${analysisPrompt || 'Analise esta conversa do WhatsApp conforme solicitado...'}
         throw new Error(`Erro ao atualizar status: ${updateError.message}`);
       }
 
-      // 2. Buscar conversa no banco
+      // 2. Buscar conversa no banco com estratégias múltiplas
       console.log('🔍 Buscando conversa no banco...');
       
       let conversationData = null;
       let searchStrategy = '';
 
-      // Buscar por telefone
+      // Estratégia 1: Buscar por telefone
+      console.log('🔍 Tentativa 1: Busca por telefone...');
       const { data: phoneData, error: phoneError } = await supabase
         .from('whatsapp_conversations')
         .select('messages, contact_name, contact_phone, session_id')
@@ -181,8 +196,9 @@ ${analysisPrompt || 'Analise esta conversa do WhatsApp conforme solicitado...'}
         console.log('✅ Conversa encontrada por telefone:', { messageCount: phoneData.messages.length });
       }
 
-      // Buscar por nome se não encontrou por telefone
+      // Estratégia 2: Buscar por nome se não encontrou por telefone
       if (!conversationData) {
+        console.log('🔍 Tentativa 2: Busca por nome...');
         const { data: nameData, error: nameError } = await supabase
           .from('whatsapp_conversations')
           .select('messages, contact_name, contact_phone, session_id')
@@ -199,11 +215,35 @@ ${analysisPrompt || 'Analise esta conversa do WhatsApp conforme solicitado...'}
         }
       }
 
+      // Estratégia 3: Buscar por chat_id se ainda não encontrou
+      if (!conversationData) {
+        console.log('🔍 Tentativa 3: Busca por chat_id...');
+        const { data: chatIdData, error: chatIdError } = await supabase
+          .from('whatsapp_conversations')
+          .select('messages, contact_name, contact_phone, session_id')
+          .eq('user_id', user.id)
+          .eq('id', conversation.chat_id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (!chatIdError && chatIdData?.messages && Array.isArray(chatIdData.messages) && chatIdData.messages.length > 0) {
+          conversationData = chatIdData;
+          searchStrategy = 'por chat_id';
+          console.log('✅ Conversa encontrada por chat_id:', { messageCount: chatIdData.messages.length });
+        }
+      }
+
       if (!conversationData?.messages || !Array.isArray(conversationData.messages) || conversationData.messages.length === 0) {
         console.error('❌ Nenhuma conversa encontrada');
+        
         setDebugInfo({
           error: 'Conversa não encontrada',
-          searchAttempts: ['telefone', 'nome'],
+          searchAttempts: [
+            `telefone: ${conversation.contact_phone}`,
+            `nome: ${conversation.contact_name}`,
+            `chat_id: ${conversation.chat_id}`
+          ],
           conversation: conversation
         });
         
@@ -228,10 +268,9 @@ ${analysisPrompt || 'Analise esta conversa do WhatsApp conforme solicitado...'}
         openAIConfigSent: true
       });
 
-      // 3. Chamar edge function para análise COM CONFIGURAÇÃO OPENAI
-      console.log('🤖 Enviando para análise IA COM CONFIGURAÇÃO OPENAI...');
+      // 3. Preparar payload completo para análise
+      console.log('🤖 Preparando análise IA...');
       
-      // ✅ PREPARAR PAYLOAD COMPLETO COM OPENAI CONFIG
       const analysisPayload = {
         conversation_id: conversation.id,
         messages: conversationData.messages,
@@ -242,7 +281,6 @@ ${analysisPrompt || 'Analise esta conversa do WhatsApp conforme solicitado...'}
           name: conversation.contact_name,
           phone: conversation.contact_phone
         },
-        // ✅ INCLUIR CONFIGURAÇÃO OPENAI NO PAYLOAD
         openai_config: {
           apiKey: config.openai.apiKey,
           model: config.openai.model || 'gpt-4o-mini',
@@ -251,7 +289,7 @@ ${analysisPrompt || 'Analise esta conversa do WhatsApp conforme solicitado...'}
         }
       };
 
-      console.log('📦 Payload final da análise COM OPENAI:', {
+      console.log('📦 Payload final preparado:', {
         conversation_id: analysisPayload.conversation_id,
         messages_count: analysisPayload.messages.length,
         analysis_type: analysisPayload.analysis_type,
@@ -259,31 +297,39 @@ ${analysisPrompt || 'Analise esta conversa do WhatsApp conforme solicitado...'}
         prompt_length: analysisPayload.analysis_prompt.length,
         contact_info: analysisPayload.contact_info,
         openai_model: analysisPayload.openai_config.model,
-        has_openai_key: !!analysisPayload.openai_config.apiKey
+        has_openai_key: !!analysisPayload.openai_config.apiKey,
+        openai_key_valid: analysisPayload.openai_config.apiKey.startsWith('sk-')
       });
 
-      // Chamar a edge function
+      // 4. Chamar edge function
+      console.log('🚀 Chamando edge function...');
       const { data: analysisResult, error: analysisError } = await supabase.functions.invoke('analyze-conversation', {
         body: analysisPayload
       });
 
-      console.log('📊 Resultado da análise:', { 
+      console.log('📊 Resultado da edge function:', { 
         success: analysisResult?.success,
         error: analysisError,
-        insights: analysisResult?.insights?.length || 0
+        hasInsights: !!analysisResult?.insights,
+        insightCount: analysisResult?.insights?.length || 0
       });
 
       if (analysisError) {
-        console.error('❌ Erro na análise IA:', analysisError);
-        throw new Error(`Erro na análise: ${analysisError.message || 'Erro desconhecido'}`);
+        console.error('❌ Erro na edge function:', analysisError);
+        throw new Error(`Erro na análise: ${analysisError.message || 'Erro na comunicação com o servidor'}`);
       }
 
-      if (!analysisResult?.success) {
+      if (!analysisResult) {
+        console.error('❌ Resposta vazia da edge function');
+        throw new Error('Servidor retornou resposta vazia');
+      }
+
+      if (!analysisResult.success) {
         console.error('❌ Análise falhou:', analysisResult);
-        throw new Error(analysisResult?.error || 'Análise falhou sem retorno de erro específico');
+        throw new Error(analysisResult.error || 'Análise falhou sem retorno de erro específico');
       }
 
-      // 4. Salvar resultado da análise
+      // 5. Salvar resultado da análise
       console.log('💾 Salvando resultado da análise...');
       const { error: finalUpdateError } = await supabase
         .from('whatsapp_conversations_analysis')
@@ -297,7 +343,8 @@ ${analysisPrompt || 'Analise esta conversa do WhatsApp conforme solicitado...'}
 
       if (finalUpdateError) {
         console.error('❌ Erro ao salvar resultado:', finalUpdateError);
-        throw new Error(`Erro ao salvar resultado: ${finalUpdateError.message}`);
+        // Não falha aqui, só loga o erro
+        console.warn('Análise foi realizada mas não foi possível salvar no banco');
       }
 
       console.log('🎉 Análise concluída com sucesso!');
@@ -307,24 +354,36 @@ ${analysisPrompt || 'Analise esta conversa do WhatsApp conforme solicitado...'}
         description: `Conversa analisada com sucesso! ${conversationData.messages.length} mensagens processadas.`
       });
 
+      setDebugInfo(prev => ({
+        ...prev,
+        analysisCompleted: true,
+        insightsGenerated: analysisResult?.insights?.length || 0,
+        processingTime: analysisResult?.metadata?.processing_time_ms || 0
+      }));
+
       onAnalysisComplete();
 
     } catch (error) {
       console.error('💥 ERRO na análise:', error);
       
       // Marcar como falhou
-      await supabase
-        .from('whatsapp_conversations_analysis')
-        .update({ 
-          analysis_status: 'failed',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', conversation.id);
+      try {
+        await supabase
+          .from('whatsapp_conversations_analysis')
+          .update({ 
+            analysis_status: 'failed',
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', conversation.id);
+      } catch (updateError) {
+        console.error('Erro ao atualizar status para failed:', updateError);
+      }
 
       setDebugInfo({
         error: error.message,
         timestamp: new Date().toISOString(),
-        conversation: conversation
+        conversation: conversation,
+        stackTrace: error.stack
       });
 
       toast({
@@ -380,7 +439,7 @@ ${analysisPrompt || 'Analise esta conversa do WhatsApp conforme solicitado...'}
 
       <CardContent>
         {/* Verificação de configuração OpenAI */}
-        {(!config.openai?.apiKey || !config.openai.apiKey.startsWith('sk-')) && (
+        {(!config?.openai?.apiKey || !config.openai.apiKey.startsWith('sk-')) && (
           <Card className="mb-4 bg-red-50 border-red-200">
             <CardContent className="p-3">
               <div className="flex items-start gap-2">
@@ -480,7 +539,7 @@ ${analysisPrompt || 'Analise esta conversa do WhatsApp conforme solicitado...'}
             <div className="pt-4 border-t">
               <Button 
                 onClick={handleAnalyzeConversation}
-                disabled={isAnalyzing || conversation.analysis_status === 'processing' || !config.openai?.apiKey}
+                disabled={isAnalyzing || conversation.analysis_status === 'processing' || !config?.openai?.apiKey}
                 className="w-full"
               >
                 {isAnalyzing ? (
