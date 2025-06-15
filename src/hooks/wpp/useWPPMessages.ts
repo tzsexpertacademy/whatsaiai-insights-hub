@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useWPPConfig } from './useWPPConfig';
-import { createClient } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/client';
 
 export interface WPPConnectMessage {
   id: string;
@@ -38,7 +38,6 @@ export function useWPPMessages(chats: WPPConnectChat[]) {
   
   const { toast } = useToast();
   const { getWPPConfig } = useWPPConfig();
-  const supabase = createClient();
 
   const loadRealMessages = useCallback(async (chatId: string, silent = false) => {
     if (!silent) {
@@ -76,7 +75,6 @@ export function useWPPMessages(chats: WPPConnectChat[]) {
         try {
           console.log('🎯 [MESSAGES DEBUG] Testando endpoint via proxy:', endpoint.url);
           
-          // Prepara dados para o proxy
           let proxyPayload: any = {
             method: endpoint.method,
             url: endpoint.url,
@@ -88,7 +86,6 @@ export function useWPPMessages(chats: WPPConnectChat[]) {
             messageLimit: messageHistoryLimit
           };
 
-          // Adiciona parâmetros ou body conforme o método
           if (endpoint.method === 'GET' && endpoint.params) {
             const url = new URL(endpoint.url);
             Object.entries(endpoint.params).forEach(([key, value]) => {
@@ -99,7 +96,8 @@ export function useWPPMessages(chats: WPPConnectChat[]) {
             proxyPayload.body = JSON.stringify(endpoint.body);
           }
 
-          // Chama o proxy Supabase que corrige o limite
+          // CHAMANDO O EDGE FUNCTION USANDO SUPABASE.CLIENT
+          // AGORA usa supabase.functions.invoke corretamente!
           const { data: result, error } = await supabase.functions.invoke('wppconnect-proxy', {
             body: proxyPayload
           });
@@ -113,14 +111,16 @@ export function useWPPMessages(chats: WPPConnectChat[]) {
 
           let messagesData = [];
           
-          if (result.response && Array.isArray(result.response)) {
-            messagesData = result.response;
-          } else if (Array.isArray(result)) {
-            messagesData = result;
-          } else if (result.messages && Array.isArray(result.messages)) {
-            messagesData = result.messages;
-          } else if (result.data && Array.isArray(result.data)) {
-            messagesData = result.data;
+          if (result && typeof result === 'object') {
+            if (result.response && Array.isArray(result.response)) {
+              messagesData = result.response;
+            } else if (Array.isArray(result)) {
+              messagesData = result;
+            } else if (result.messages && Array.isArray(result.messages)) {
+              messagesData = result.messages;
+            } else if (result.data && Array.isArray(result.data)) {
+              messagesData = result.data;
+            }
           }
 
           console.log('📊 [MESSAGES DEBUG] Mensagens extraídas via proxy:', messagesData.length);
@@ -203,7 +203,7 @@ export function useWPPMessages(chats: WPPConnectChat[]) {
       
       return [];
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ [MESSAGES DEBUG] Erro geral ao carregar mensagens via proxy:', error);
       if (!silent) {
         toast({
