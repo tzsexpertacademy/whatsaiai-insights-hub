@@ -9,7 +9,6 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -17,7 +16,6 @@ serve(async (req) => {
   try {
     console.log('🚀 EDGE FUNCTION - analyze-conversation iniciada');
     
-    // Verificar variáveis de ambiente
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     
@@ -26,8 +24,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'Configuração do servidor incompleta',
-          details: 'SUPABASE_URL ou SUPABASE_SERVICE_ROLE_KEY não configurados'
+          error: 'Configuração do servidor incompleta'
         }),
         { 
           status: 500, 
@@ -36,29 +33,18 @@ serve(async (req) => {
       );
     }
 
-    console.log('✅ Variáveis de ambiente OK');
-
     const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Parse do request body
     let requestBody;
     try {
       requestBody = await req.json();
-      console.log('📥 Request body recebido:', {
-        hasConversationId: !!requestBody.conversation_id,
-        hasMessages: !!requestBody.messages,
-        messagesCount: requestBody.messages?.length || 0,
-        hasPrompt: !!requestBody.analysis_prompt,
-        analysisType: requestBody.analysis_type,
-        assistantId: requestBody.assistant_id
-      });
+      console.log('📥 Request body completo:', JSON.stringify(requestBody, null, 2));
     } catch (error) {
       console.error('❌ Erro ao fazer parse do JSON:', error);
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'JSON inválido no request body',
-          details: error.message
+          error: 'JSON inválido no request body'
         }),
         { 
           status: 400, 
@@ -67,22 +53,31 @@ serve(async (req) => {
       );
     }
 
-    const {
+    // Extrair dados do payload - suportando ambos os formatos
+    const conversation_id = requestBody.conversation_id;
+    const messages = requestBody.messages;
+    const analysis_prompt = requestBody.analysis_prompt;
+    const analysis_type = requestBody.analysis_type;
+    const assistant_id = requestBody.assistant_id;
+    const contact_info = requestBody.contact_info;
+
+    console.log('📋 Dados extraídos:', {
       conversation_id,
-      messages,
-      analysis_prompt,
+      hasMessages: !!messages,
+      messagesCount: Array.isArray(messages) ? messages.length : 0,
       analysis_type,
       assistant_id,
       contact_info
-    } = requestBody;
+    });
 
     // Validações básicas
     if (!conversation_id) {
-      console.error('❌ conversation_id ausente');
+      console.error('❌ conversation_id ausente no payload');
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'conversation_id é obrigatório'
+          error: 'conversation_id é obrigatório',
+          received_data: Object.keys(requestBody)
         }),
         { 
           status: 400, 
@@ -145,8 +140,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'Usuário não autenticado',
-          details: userError?.message
+          error: 'Usuário não autenticado'
         }),
         { 
           status: 401, 
@@ -171,8 +165,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'Erro ao acessar configuração do usuário',
-          details: configError.message
+          error: 'Erro ao acessar configuração do usuário'
         }),
         { 
           status: 500, 
@@ -205,7 +198,9 @@ serve(async (req) => {
       msg.text && 
       typeof msg.text === 'string' && 
       msg.text.trim().length > 0 && 
-      msg.text !== 'Mensagem sem texto'
+      msg.text !== 'Mensagem sem texto' &&
+      !msg.text.includes('🎵 Áudio') &&
+      !msg.text.startsWith('/9j/') // Filtrar imagens base64
     );
 
     if (validMessages.length === 0) {
@@ -213,7 +208,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'Nenhuma mensagem válida encontrada para análise'
+          error: 'Nenhuma mensagem de texto válida encontrada para análise'
         }),
         { 
           status: 400, 
@@ -332,7 +327,6 @@ serve(async (req) => {
 
     if (insightError) {
       console.error('⚠️ Erro ao salvar insight:', insightError);
-      // Não falhar se não conseguir salvar o insight
     } else {
       console.log('✅ Insight salvo:', savedInsight?.id);
     }

@@ -214,6 +214,8 @@ ${analysisPrompt || 'Analise esta conversa do WhatsApp conforme solicitado...'}
 
       // 3. Chamar edge function para análise
       console.log('🤖 Enviando para análise IA...');
+      
+      // Preparar payload com estrutura simples
       const analysisPayload = {
         conversation_id: conversation.id,
         messages: conversationData.messages,
@@ -226,19 +228,25 @@ ${analysisPrompt || 'Analise esta conversa do WhatsApp conforme solicitado...'}
         }
       };
 
-      console.log('📦 Payload da análise:', {
+      console.log('📦 Payload final da análise:', {
         conversation_id: analysisPayload.conversation_id,
         messages_count: analysisPayload.messages.length,
         analysis_type: analysisPayload.analysis_type,
         assistant_id: analysisPayload.assistant_id,
-        prompt_length: analysisPayload.analysis_prompt.length
+        prompt_length: analysisPayload.analysis_prompt.length,
+        contact_info: analysisPayload.contact_info
       });
 
+      // Chamar a edge function
       const { data: analysisResult, error: analysisError } = await supabase.functions.invoke('analyze-conversation', {
         body: analysisPayload
       });
 
-      console.log('📊 Resultado da análise:', { analysisResult, analysisError });
+      console.log('📊 Resultado da análise:', { 
+        success: analysisResult?.success,
+        error: analysisError,
+        insights: analysisResult?.insights?.length || 0
+      });
 
       if (analysisError) {
         console.error('❌ Erro na análise IA:', analysisError);
