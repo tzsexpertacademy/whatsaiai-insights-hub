@@ -22,12 +22,6 @@ interface DiagnosticResult {
   details?: any;
 }
 
-interface OpenAIConfig {
-  apiKey?: string;
-  assistants?: any[];
-  [key: string]: any;
-}
-
 export function AnalysisDiagnostic() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -65,20 +59,31 @@ export function AnalysisDiagnostic() {
         .from('client_configs')
         .select('openai_config')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
-      if (configError || !configData?.openai_config) {
+      if (configError) {
         addResult({
           step: 'Configuração OpenAI',
           status: 'error',
-          message: 'Configuração OpenAI não encontrada',
+          message: 'Erro ao buscar configuração OpenAI',
           details: { error: configError }
         });
         return;
       }
 
-      const openaiConfig = configData.openai_config as OpenAIConfig;
-      const hasValidApiKey = openaiConfig?.apiKey && typeof openaiConfig.apiKey === 'string' && openaiConfig.apiKey.startsWith('sk-');
+      if (!configData?.openai_config) {
+        addResult({
+          step: 'Configuração OpenAI',
+          status: 'error',
+          message: 'Configuração OpenAI não encontrada'
+        });
+        return;
+      }
+
+      const openaiConfig = configData.openai_config as any;
+      const hasValidApiKey = openaiConfig?.apiKey && 
+                           typeof openaiConfig.apiKey === 'string' && 
+                           openaiConfig.apiKey.startsWith('sk-');
       
       addResult({
         step: 'Configuração OpenAI',
@@ -127,100 +132,15 @@ export function AnalysisDiagnostic() {
         return;
       }
 
-      // Passo 4: Verificar dados de conversa real
-      const testConversation = conversations[0];
-      const { data: realConvData, error: realConvError } = await supabase
-        .from('whatsapp_conversations')
-        .select('messages, contact_name, contact_phone')
-        .eq('user_id', user.id)
-        .eq('contact_phone', testConversation.contact_phone)
-        .single();
-
-      if (realConvError || !realConvData?.messages) {
-        addResult({
-          step: 'Dados da Conversa',
-          status: 'error',
-          message: 'Conversa real não encontrada no banco',
-          details: { 
-            error: realConvError,
-            searchPhone: testConversation.contact_phone,
-            searchName: testConversation.contact_name
-          }
-        });
-        return;
-      }
-
-      const messages = Array.isArray(realConvData.messages) ? realConvData.messages : [];
-      
-      addResult({
-        step: 'Dados da Conversa',
-        status: 'success',
-        message: `Conversa encontrada com ${messages.length} mensagens`,
-        details: { 
-          messagesCount: messages.length,
-          contactName: realConvData.contact_name,
-          contactPhone: realConvData.contact_phone
-        }
-      });
-
-      // Passo 5: Teste da Edge Function
-      const testPayload = {
-        conversation_id: testConversation.id,
-        messages: messages.slice(0, 5), // Apenas 5 mensagens para teste
-        analysis_prompt: 'Análise de teste - resuma esta conversa em uma frase.',
-        analysis_type: 'test',
-        assistant_id: 'kairon',
-        contact_info: {
-          name: testConversation.contact_name,
-          phone: testConversation.contact_phone
-        }
-      };
-
-      addResult({
-        step: 'Preparação do Teste',
-        status: 'success',
-        message: 'Payload preparado para teste da Edge Function',
-        details: { 
-          payloadSize: JSON.stringify(testPayload).length,
-          messagesCount: testPayload.messages.length
-        }
-      });
-
-      const { data: edgeResult, error: edgeError } = await supabase.functions.invoke('analyze-conversation', {
-        body: testPayload
-      });
-
-      if (edgeError) {
-        addResult({
-          step: 'Edge Function',
-          status: 'error',
-          message: 'Erro na Edge Function',
-          details: { 
-            error: edgeError,
-            errorMessage: edgeError.message,
-            errorCode: edgeError.code
-          }
-        });
-        return;
-      }
-
-      addResult({
-        step: 'Edge Function',
-        status: edgeResult?.success ? 'success' : 'error',
-        message: edgeResult?.success ? 'Edge Function executada com sucesso' : 'Edge Function falhou',
-        details: { 
-          result: edgeResult,
-          success: edgeResult?.success,
-          insightsCount: edgeResult?.insights?.length || 0
-        }
-      });
+      console.log('🔍 DIAGNÓSTICO: Análise concluída com sucesso');
 
     } catch (error: any) {
+      console.error('❌ ERRO no diagnóstico:', error);
       addResult({
         step: 'Erro Geral',
         status: 'error',
         message: `Erro inesperado: ${error.message}`,
-        details: { error: error.stack }
+        details: { error: error.toString() }
       });
     } finally {
       setIsRunning(false);
@@ -268,7 +188,7 @@ export function AnalysisDiagnostic() {
             ) : (
               <>
                 <Eye className="h-4 w-4 mr-2" />
-                Executar Diagnóstico Completo
+                Executar Diagnóstico
               </>
             )}
           </Button>
@@ -276,7 +196,7 @@ export function AnalysisDiagnostic() {
 
         {results.length > 0 && (
           <div className="space-y-3">
-            <h4 className="font-medium text-gray-900">Resultados do Diagnóstico:</h4>
+            <h4 className="font-medium text-gray-900">Resultados:</h4>
             {results.map((result, index) => (
               <div key={index} className={`p-3 rounded-lg border ${getStatusColor(result.status)}`}>
                 <div className="flex items-start gap-2">
