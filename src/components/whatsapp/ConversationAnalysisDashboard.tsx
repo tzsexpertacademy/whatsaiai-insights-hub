@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +13,7 @@ import { ConversationInsights } from './ConversationInsights';
 import { ConversationMetrics } from './ConversationMetrics';
 import { ConversationTimeline } from './ConversationTimeline';
 import { IndividualConversationAnalysis } from './IndividualConversationAnalysis';
+import { AnalysisDiagnostic } from './AnalysisDiagnostic';
 import { 
   Brain,
   MessageSquare,
@@ -28,7 +28,8 @@ import {
   XCircle,
   Bug,
   Trash2,
-  Zap
+  Zap,
+  Stethoscope
 } from 'lucide-react';
 
 export function ConversationAnalysisDashboard() {
@@ -254,7 +255,7 @@ export function ConversationAnalysisDashboard() {
 
         {/* Tabs de Navegação */}
         <Tabs defaultValue="conversations" className="w-full">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="conversations" className="flex items-center gap-2">
               <MessageSquare className="h-4 w-4" />
               Conversas ({conversations.length})
@@ -262,6 +263,10 @@ export function ConversationAnalysisDashboard() {
             <TabsTrigger value="individual" className="flex items-center gap-2">
               <Zap className="h-4 w-4" />
               Análise Individual
+            </TabsTrigger>
+            <TabsTrigger value="diagnostic" className="flex items-center gap-2">
+              <Stethoscope className="h-4 w-4" />
+              Diagnóstico
             </TabsTrigger>
             <TabsTrigger value="insights" className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4" />
@@ -374,6 +379,10 @@ export function ConversationAnalysisDashboard() {
                 </CardContent>
               </Card>
             )}
+          </TabsContent>
+
+          <TabsContent value="diagnostic" className="space-y-4">
+            <AnalysisDiagnostic />
           </TabsContent>
 
           <TabsContent value="insights">
