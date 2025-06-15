@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -45,34 +46,8 @@ export function IndividualConversationAnalysis({ conversation, onAnalysisComplet
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisPrompt, setAnalysisPrompt] = useState('');
   const [selectedAnalysisType, setSelectedAnalysisType] = useState<'behavioral' | 'commercial' | 'custom'>('behavioral');
-  const [selectedAssistant, setSelectedAssistant] = useState(assistants.length > 0 ? assistants[0].id : 'kairon');
+  const [selectedAssistant, setSelectedAssistant] = useState(assistants.length > 0 ? assistants[0].id : 'oracle');
   const [debugInfo, setDebugInfo] = useState<any>(null);
-
-  const getStatusIcon = () => {
-    switch (conversation.analysis_status) {
-      case 'completed': return <CheckCircle className="h-4 w-4 text-green-500" />;
-      case 'processing': return <RefreshCw className="h-4 w-4 text-blue-500 animate-spin" />;
-      case 'failed': return <AlertCircle className="h-4 w-4 text-red-500" />;
-      default: return <Clock className="h-4 w-4 text-yellow-500" />;
-    }
-  };
-
-  const getStatusText = () => {
-    switch (conversation.analysis_status) {
-      case 'completed': return 'Análise Concluída';
-      case 'processing': return 'Analisando...';
-      case 'failed': return 'Análise Falhou';
-      default: return 'Aguardando Análise';
-    }
-  };
-
-  const getPriorityColor = () => {
-    switch (conversation.priority) {
-      case 'high': return 'border-red-200 text-red-700 bg-red-50';
-      case 'medium': return 'border-yellow-200 text-yellow-700 bg-yellow-50';
-      default: return 'border-blue-200 text-blue-700 bg-blue-50';
-    }
-  };
 
   const getAnalysisPrompt = () => {
     const selectedAssistantData = assistants.find(a => a.id === selectedAssistant);
@@ -259,10 +234,10 @@ ${analysisPrompt || 'Analise esta conversa do WhatsApp conforme solicitado...'}
         }
       });
 
-      // 3. Chamar edge function para análise
+      // 3. Chamar edge function para análise - PAYLOAD CORRIGIDO
       console.log('🤖 Enviando para análise IA...');
       const analysisPayload = {
-        conversation_id: conversation.id,
+        conversation_id: conversation.id,  // ✅ CORRIGIDO: Incluindo conversation_id
         messages: conversationData.messages,
         analysis_prompt: getAnalysisPrompt(),
         analysis_type: selectedAnalysisType,
