@@ -22,6 +22,12 @@ interface DiagnosticResult {
   details?: any;
 }
 
+interface OpenAIConfig {
+  apiKey?: string;
+  assistants?: any[];
+  [key: string]: any;
+}
+
 export function AnalysisDiagnostic() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -61,25 +67,27 @@ export function AnalysisDiagnostic() {
         .eq('user_id', user.id)
         .single();
 
-      if (configError || !configData?.openai_config?.apiKey) {
+      if (configError || !configData?.openai_config) {
         addResult({
           step: 'Configuração OpenAI',
           status: 'error',
-          message: 'API Key da OpenAI não configurada',
+          message: 'Configuração OpenAI não encontrada',
           details: { error: configError }
         });
         return;
       }
 
-      const hasValidApiKey = configData.openai_config.apiKey.startsWith('sk-');
+      const openaiConfig = configData.openai_config as OpenAIConfig;
+      const hasValidApiKey = openaiConfig?.apiKey && typeof openaiConfig.apiKey === 'string' && openaiConfig.apiKey.startsWith('sk-');
+      
       addResult({
         step: 'Configuração OpenAI',
         status: hasValidApiKey ? 'success' : 'error',
-        message: hasValidApiKey ? 'API Key válida encontrada' : 'API Key inválida',
+        message: hasValidApiKey ? 'API Key válida encontrada' : 'API Key inválida ou não configurada',
         details: { 
-          hasApiKey: !!configData.openai_config.apiKey,
+          hasApiKey: !!openaiConfig?.apiKey,
           isValidFormat: hasValidApiKey,
-          assistants: configData.openai_config.assistants?.length || 0
+          assistants: Array.isArray(openaiConfig?.assistants) ? openaiConfig.assistants.length : 0
         }
       });
 
@@ -142,12 +150,14 @@ export function AnalysisDiagnostic() {
         return;
       }
 
+      const messages = Array.isArray(realConvData.messages) ? realConvData.messages : [];
+      
       addResult({
         step: 'Dados da Conversa',
         status: 'success',
-        message: `Conversa encontrada com ${realConvData.messages.length} mensagens`,
+        message: `Conversa encontrada com ${messages.length} mensagens`,
         details: { 
-          messagesCount: realConvData.messages.length,
+          messagesCount: messages.length,
           contactName: realConvData.contact_name,
           contactPhone: realConvData.contact_phone
         }
@@ -156,7 +166,7 @@ export function AnalysisDiagnostic() {
       // Passo 5: Teste da Edge Function
       const testPayload = {
         conversation_id: testConversation.id,
-        messages: realConvData.messages.slice(0, 5), // Apenas 5 mensagens para teste
+        messages: messages.slice(0, 5), // Apenas 5 mensagens para teste
         analysis_prompt: 'Análise de teste - resuma esta conversa em uma frase.',
         analysis_type: 'test',
         assistant_id: 'kairon',
@@ -205,7 +215,7 @@ export function AnalysisDiagnostic() {
         }
       });
 
-    } catch (error) {
+    } catch (error: any) {
       addResult({
         step: 'Erro Geral',
         status: 'error',
