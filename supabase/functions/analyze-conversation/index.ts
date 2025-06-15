@@ -14,17 +14,17 @@ serve(async (req) => {
   }
 
   try {
-    console.log('🚀 EDGE FUNCTION - analyze-conversation iniciada');
+    console.log('🚀 Edge Function analyze-conversation started');
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     
     if (!supabaseUrl || !supabaseServiceKey) {
-      console.error('❌ Variáveis de ambiente não configuradas');
+      console.error('❌ Missing environment variables');
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'Configuração do servidor incompleta - variáveis de ambiente ausentes'
+          error: 'Server configuration incomplete'
         }),
         { 
           status: 500, 
@@ -35,24 +35,25 @@ serve(async (req) => {
 
     const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
 
+    // Parse request body with error handling
     let requestBody;
     try {
-      requestBody = await req.json();
-      console.log('📥 Request body recebido:', JSON.stringify({
-        conversation_id: requestBody.conversation_id,
-        messages_count: Array.isArray(requestBody.messages) ? requestBody.messages.length : 0,
-        analysis_type: requestBody.analysis_type,
-        assistant_id: requestBody.assistant_id,
-        has_openai_config: !!requestBody.openai_config,
-        openai_model: requestBody.openai_config?.model,
-        has_analysis_prompt: !!requestBody.analysis_prompt
-      }));
-    } catch (error) {
-      console.error('❌ Erro ao fazer parse do JSON:', error);
+      const rawBody = await req.text();
+      console.log('📥 Raw request body length:', rawBody.length);
+      
+      if (!rawBody || rawBody.trim().length === 0) {
+        throw new Error('Empty request body');
+      }
+      
+      requestBody = JSON.parse(rawBody);
+      console.log('✅ Request parsed successfully');
+    } catch (parseError) {
+      console.error('❌ JSON parse error:', parseError);
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'JSON inválido no request body'
+          error: 'Invalid JSON in request body',
+          details: parseError.message
         }),
         { 
           status: 400, 
@@ -61,7 +62,18 @@ serve(async (req) => {
       );
     }
 
-    // Extrair e validar dados do payload
+    // Log request structure (without sensitive data)
+    console.log('📋 Request structure:', {
+      hasConversationId: !!requestBody.conversation_id,
+      hasMessages: !!requestBody.messages,
+      messagesLength: requestBody.messages?.length || 0,
+      hasAnalysisPrompt: !!requestBody.analysis_prompt,
+      hasOpenaiConfig: !!requestBody.openai_config,
+      analysisType: requestBody.analysis_type,
+      assistantId: requestBody.assistant_id
+    });
+
+    // Extract and validate required fields
     const {
       conversation_id,
       messages,
@@ -72,13 +84,13 @@ serve(async (req) => {
       openai_config
     } = requestBody;
 
-    // Validação completa dos dados obrigatórios
-    if (!conversation_id) {
-      console.error('❌ conversation_id ausente');
+    // Validate conversation_id
+    if (!conversation_id || typeof conversation_id !== 'string') {
+      console.error('❌ Invalid conversation_id');
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'ID da conversa é obrigatório'
+          error: 'conversation_id is required and must be a string'
         }),
         { 
           status: 400, 
@@ -87,16 +99,13 @@ serve(async (req) => {
       );
     }
 
-    if (!messages || !Array.isArray(messages) || messages.length === 0) {
-      console.error('❌ Mensagens inválidas:', { 
-        hasMessages: !!messages,
-        isArray: Array.isArray(messages),
-        length: messages?.length || 0
-      });
+    // Validate messages
+    if (!Array.isArray(messages) || messages.length === 0) {
+      console.error('❌ Invalid messages array');
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'Nenhuma mensagem válida encontrada para análise'
+          error: 'messages must be a non-empty array'
         }),
         { 
           status: 400, 
@@ -105,16 +114,13 @@ serve(async (req) => {
       );
     }
 
+    // Validate analysis_prompt
     if (!analysis_prompt || typeof analysis_prompt !== 'string' || analysis_prompt.trim().length === 0) {
-      console.error('❌ Prompt de análise inválido:', { 
-        hasPrompt: !!analysis_prompt,
-        type: typeof analysis_prompt,
-        length: analysis_prompt?.length || 0
-      });
+      console.error('❌ Invalid analysis_prompt');
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'Prompt de análise é obrigatório e deve ser uma string válida'
+          error: 'analysis_prompt is required and must be a non-empty string'
         }),
         { 
           status: 400, 
@@ -123,13 +129,13 @@ serve(async (req) => {
       );
     }
 
-    // Validação rigorosa da configuração OpenAI
-    if (!openai_config) {
-      console.error('❌ Configuração OpenAI não fornecida');
+    // Validate OpenAI config
+    if (!openai_config || typeof openai_config !== 'object') {
+      console.error('❌ Missing openai_config');
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'Configuração OpenAI não foi fornecida. Configure sua API key da OpenAI nas configurações.'
+          error: 'openai_config is required'
         }),
         { 
           status: 400, 
@@ -140,12 +146,12 @@ serve(async (req) => {
 
     const { apiKey, model, temperature, maxTokens } = openai_config;
     
-    if (!apiKey || typeof apiKey !== 'string') {
-      console.error('❌ API Key da OpenAI ausente ou inválida');
+    if (!apiKey || typeof apiKey !== 'string' || apiKey.length < 20) {
+      console.error('❌ Invalid OpenAI API key');
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'API Key da OpenAI não fornecida'
+          error: 'Valid OpenAI API key is required'
         }),
         { 
           status: 400, 
@@ -154,50 +160,14 @@ serve(async (req) => {
       );
     }
 
-    if (!apiKey.startsWith('sk-')) {
-      console.error('❌ API Key da OpenAI com formato inválido');
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: 'API Key da OpenAI inválida. Deve começar com sk-'
-        }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
-    }
-
-    if (apiKey.length < 50) {
-      console.error('❌ API Key da OpenAI muito curta');
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: 'API Key da OpenAI parece estar incompleta'
-        }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
-    }
-
-    console.log('✅ Configuração OpenAI validada:', {
-      keyLength: apiKey.length,
-      keyPrefix: apiKey.substring(0, 15) + '...',
-      model: model || 'gpt-4o-mini',
-      temperature: temperature || 0.7,
-      maxTokens: maxTokens || 2000
-    });
-
-    // Verificar autenticação do usuário
+    // Check authorization
     const authHeader = req.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      console.error('❌ Token de autorização ausente ou inválido');
+    if (!authHeader?.startsWith('Bearer ')) {
+      console.error('❌ Missing authorization');
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'Token de autorização obrigatório'
+          error: 'Authorization required'
         }),
         { 
           status: 401, 
@@ -210,11 +180,11 @@ serve(async (req) => {
     const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
     
     if (userError || !userData.user) {
-      console.error('❌ Erro de autenticação:', userError);
+      console.error('❌ Authentication failed:', userError);
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'Usuário não autenticado'
+          error: 'User not authenticated'
         }),
         { 
           status: 401, 
@@ -223,36 +193,26 @@ serve(async (req) => {
       );
     }
 
-    const userId = userData.user.id;
-    console.log('✅ Usuário autenticado:', userId);
+    console.log('✅ User authenticated:', userData.user.id);
 
-    // Processar e filtrar mensagens válidas
-    console.log('📝 Processando mensagens...');
+    // Filter and process messages
     const validMessages = messages.filter(msg => {
       if (!msg || !msg.text || typeof msg.text !== 'string') return false;
-      
       const text = msg.text.trim();
       if (text.length === 0) return false;
       if (text === 'Mensagem sem texto') return false;
       if (text.includes('🎵 Áudio')) return false;
-      if (text.startsWith('/9j/')) return false; // Base64 images
-      if (text.startsWith('data:')) return false; // Data URLs
-      
+      if (text.startsWith('/9j/') || text.startsWith('data:')) return false;
       return true;
     });
 
-    console.log('📊 Mensagens processadas:', {
-      totalOriginal: messages.length,
-      validAfterFilter: validMessages.length,
-      filterRatio: `${((validMessages.length / messages.length) * 100).toFixed(1)}%`
-    });
+    console.log(`📝 Filtered messages: ${validMessages.length} of ${messages.length}`);
 
     if (validMessages.length === 0) {
-      console.error('❌ Nenhuma mensagem válida após filtragem');
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'Nenhuma mensagem de texto válida encontrada para análise. A conversa pode conter apenas áudios, imagens ou mensagens vazias.'
+          error: 'No valid text messages found for analysis'
         }),
         { 
           status: 400, 
@@ -261,41 +221,28 @@ serve(async (req) => {
       );
     }
 
-    // Preparar texto da conversa
+    // Prepare conversation text
     const conversationText = validMessages
       .map(msg => {
         const sender = msg.fromMe ? 'Você' : (contact_info?.name || 'Contato');
-        const timestamp = msg.timestamp ? new Date(msg.timestamp * 1000).toLocaleString('pt-BR') : '';
+        const timestamp = msg.timestamp 
+          ? new Date(msg.timestamp * 1000).toLocaleString('pt-BR') 
+          : new Date().toLocaleString('pt-BR');
         return `[${timestamp}] ${sender}: ${msg.text.trim()}`;
       })
       .join('\n\n');
 
-    console.log('📋 Conversa preparada:', {
-      textLength: conversationText.length,
-      estimatedTokens: Math.ceil(conversationText.length / 4),
-      promptLength: analysis_prompt.length
-    });
+    console.log(`📋 Conversation prepared: ${conversationText.length} characters`);
 
-    // Validar se o texto não é muito longo
-    const estimatedTokens = Math.ceil((conversationText.length + analysis_prompt.length) / 4);
-    const maxAllowedTokens = (maxTokens || 2000) * 3; // 3x buffer for safety
-    
-    if (estimatedTokens > maxAllowedTokens) {
-      console.warn('⚠️ Texto muito longo, truncando...');
-      const maxChars = maxAllowedTokens * 4;
-      const truncatedText = conversationText.substring(0, maxChars) + '\n\n[... conversa truncada para caber no limite de tokens ...]';
-      conversationText = truncatedText;
-    }
-
-    // Chamar OpenAI API
-    console.log('🤖 Enviando para OpenAI...');
+    // Call OpenAI API
+    console.log('🤖 Calling OpenAI API...');
     
     const openaiPayload = {
       model: model || 'gpt-4o-mini',
       messages: [
         {
           role: 'system',
-          content: analysis_prompt
+          content: analysis_prompt.trim()
         },
         {
           role: 'user',
@@ -306,14 +253,6 @@ serve(async (req) => {
       max_tokens: maxTokens || 2000
     };
 
-    console.log('🔄 Payload para OpenAI:', {
-      model: openaiPayload.model,
-      systemPromptLength: openaiPayload.messages[0].content.length,
-      userContentLength: openaiPayload.messages[1].content.length,
-      temperature: openaiPayload.temperature,
-      maxTokens: openaiPayload.max_tokens
-    });
-
     const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -323,30 +262,24 @@ serve(async (req) => {
       body: JSON.stringify(openaiPayload),
     });
 
-    console.log('📡 Status da resposta OpenAI:', openaiResponse.status);
+    console.log('📡 OpenAI response status:', openaiResponse.status);
 
     if (!openaiResponse.ok) {
       const errorText = await openaiResponse.text();
-      console.error('❌ Erro da OpenAI:', {
-        status: openaiResponse.status,
-        statusText: openaiResponse.statusText,
-        error: errorText
-      });
+      console.error('❌ OpenAI API error:', errorText);
       
-      let errorMessage = 'Erro na API da OpenAI';
+      let errorMessage = 'OpenAI API error';
       if (openaiResponse.status === 401) {
-        errorMessage = 'API Key da OpenAI inválida. Verifique sua configuração.';
+        errorMessage = 'Invalid OpenAI API key';
       } else if (openaiResponse.status === 429) {
-        errorMessage = 'Limite de uso da OpenAI excedido. Tente novamente em alguns minutos.';
-      } else if (openaiResponse.status === 400) {
-        errorMessage = 'Requisição inválida para OpenAI. Verifique o prompt e dados.';
+        errorMessage = 'OpenAI rate limit exceeded';
       }
       
       return new Response(
         JSON.stringify({ 
           success: false, 
           error: errorMessage,
-          details: `Status ${openaiResponse.status}: ${errorText}`
+          details: errorText
         }),
         { 
           status: 500, 
@@ -356,20 +289,14 @@ serve(async (req) => {
     }
 
     const aiData = await openaiResponse.json();
-    console.log('✅ Resposta da OpenAI recebida:', {
-      hasChoices: !!aiData.choices,
-      choicesLength: aiData.choices?.length || 0,
-      usage: aiData.usage
-    });
-
     const analysisResult = aiData.choices?.[0]?.message?.content;
 
-    if (!analysisResult || typeof analysisResult !== 'string' || analysisResult.trim().length === 0) {
-      console.error('❌ Resposta vazia ou inválida da OpenAI');
+    if (!analysisResult) {
+      console.error('❌ Empty response from OpenAI');
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'A IA não conseguiu gerar uma análise válida'
+          error: 'AI did not generate a valid analysis'
         }),
         { 
           status: 500, 
@@ -378,14 +305,11 @@ serve(async (req) => {
       );
     }
 
-    console.log('📊 Análise gerada:', {
-      length: analysisResult.length,
-      preview: analysisResult.substring(0, 100) + '...'
-    });
+    console.log('✅ Analysis generated successfully');
 
-    // Salvar insight no banco
+    // Save insight to database
     const insightData = {
-      user_id: userId,
+      user_id: userData.user.id,
       title: `Análise ${analysis_type}: ${contact_info?.name || 'Conversa'}`,
       description: analysisResult.substring(0, 200) + (analysisResult.length > 200 ? '...' : ''),
       content: analysisResult,
@@ -405,7 +329,6 @@ serve(async (req) => {
       }
     };
 
-    console.log('💾 Salvando insight...');
     const { data: savedInsight, error: insightError } = await supabaseClient
       .from('insights')
       .insert(insightData)
@@ -413,12 +336,12 @@ serve(async (req) => {
       .single();
 
     if (insightError) {
-      console.error('⚠️ Erro ao salvar insight:', insightError);
-      console.warn('Continuando sem salvar insight...');
+      console.warn('⚠️ Failed to save insight:', insightError);
     } else {
-      console.log('✅ Insight salvo:', savedInsight?.id);
+      console.log('✅ Insight saved:', savedInsight.id);
     }
 
+    // Return success response
     const response = {
       success: true,
       insights: [{
@@ -430,18 +353,17 @@ serve(async (req) => {
         insight_type: analysis_type || 'geral',
         created_at: new Date().toISOString()
       }],
-      message: 'Análise concluída com sucesso',
+      message: 'Analysis completed successfully',
       metadata: {
         messages_analyzed: validMessages.length,
         analysis_type,
         assistant_id,
         openai_model_used: model || 'gpt-4o-mini',
-        tokens_used: aiData.usage?.total_tokens || 0,
-        processing_time_ms: Date.now()
+        tokens_used: aiData.usage?.total_tokens || 0
       }
     };
 
-    console.log('🎉 Análise concluída com sucesso');
+    console.log('🎉 Analysis completed successfully');
 
     return new Response(
       JSON.stringify(response),
@@ -452,14 +374,12 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('💥 ERRO CRÍTICO na Edge Function:', error);
-    console.error('Stack trace completo:', error.stack);
+    console.error('💥 Critical error in edge function:', error);
     
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: `Erro interno do servidor: ${error.message}`,
-        details: error.stack,
+        error: `Server error: ${error.message}`,
         timestamp: new Date().toISOString()
       }),
       {
