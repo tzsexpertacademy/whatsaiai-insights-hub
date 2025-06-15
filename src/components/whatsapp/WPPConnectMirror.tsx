@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,8 +5,10 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { useWPPConnect } from '@/hooks/useWPPConnect';
+import { useGreenAPI, MessagePeriod } from '@/hooks/useGreenAPI';
+import { useClientConfig } from '@/contexts/ClientConfigContext';
 import { 
   Send, 
   MessageSquare,
@@ -24,49 +25,143 @@ import {
   Settings,
   Play,
   Square,
-  Search,
-  Circle
+  Pin,
+  ArrowDown,
+  ArrowUp
 } from 'lucide-react';
 
 export function WPPConnectMirror() {
   const { toast } = useToast();
+  const { config, updateConfig } = useClientConfig();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
   const {
-    sessionStatus,
+    connectionState,
     chats,
     messages,
-    currentChatId,
-    isLiveMode,
-    isLoadingChats,
+    currentPeriod,
     isLoadingMessages,
-    loadRealChats,
-    loadRealMessages,
+    isLiveMode,
+    currentChatId,
+    checkInstanceStatus,
+    loadChats,
+    loadChatMessages,
     sendMessage,
     startLiveMode,
     stopLiveMode
-  } = useWPPConnect();
+  } = useGreenAPI();
 
   const [selectedChat, setSelectedChat] = useState<any>(null);
   const [newMessage, setNewMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [specificContact, setSpecificContact] = useState('');
+  const [showContactFilter, setShowContactFilter] = useState(false);
+
+  // Novo estado para quantidade de mensagens
+  const [messageLimit, setMessageLimit] = useState<number>(50);
+
+  // Estado para fixar conversas (persistido em localStorage)
+  const [pinnedChats, setPinnedChats] = useState<string[]>(() => {
+    const pins = localStorage.getItem("wpp_pinned_chats");
+    return pins ? JSON.parse(pins) : [];
+  });
+
+  useEffect(() => {
+    localStorage.setItem("wpp_pinned_chats", JSON.stringify(pinnedChats));
+  }, [pinnedChats]);
+
+  // Função para alternar fixação de conversa
+  const togglePinChat = (chatId: string) => {
+    setPinnedChats((prevPins) =>
+      prevPins.includes(chatId)
+        ? prevPins.filter((id) => id !== chatId)
+        : [chatId, ...prevPins]
+    );
+  };
+
+  // Verificar conexão e carregar conversas quando componente montar
+  useEffect(() => {
+    const initializeConnection = async () => {
+      console.log('🔄 Inicializando conexão WhatsApp...');
+      setIsInitialLoading(true);
+      
+      try {
+        const isConnected = await checkInstanceStatus();
+        console.log('📱 Status de conexão:', isConnected);
+        
+        if (isConnected) {
+          console.log('✅ WhatsApp conectado, carregando conversas...');
+          await loadChats();
+          
+          toast({
+            title: "WhatsApp conectado!",
+            description: "Conversas carregadas com sucesso"
+          });
+        }
+      } catch (error) {
+        console.error('❌ Erro ao inicializar conexão:', error);
+        toast({
+          title: "Erro de conexão",
+          description: "Verifique suas configurações GREEN-API",
+          variant: "destructive"
+        });
+      } finally {
+        setIsInitialLoading(false);
+      }
+    };
+
+    initializeConnection();
+  }, [checkInstanceStatus, loadChats, toast]);
 
   // Auto-scroll para última mensagem
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Carregar conversas quando conectado
-  useEffect(() => {
-    if (sessionStatus.isConnected && !isLoadingChats && chats.length === 0) {
-      loadRealChats();
-    }
-  }, [sessionStatus.isConnected, isLoadingChats, chats.length, loadRealChats]);
-
+  // Adapta o handler de seleção de conversa para usar o limite selecionado
   const handleSelectChat = async (chat: any) => {
+    console.log('📱 Selecionando conversa:', chat.name);
+    console.log('🔍 ChatId original:', chat.chatId);
+    
+    // Parar modo ao vivo anterior se existir
+    if (isLiveMode && currentChatId !== chat.chatId) {
+      stopLiveMode();
+    }
+    
+    if (!chat.chatId.includes('@')) {
+      console.log('⚠️ ChatId sem formato @, tentando corrigir...');
+      let correctedChatId = chat.chatId;
+      
+      if (/^\d+$/.test(chat.chatId)) {
+        correctedChatId = chat.chatId + '@c.us';
+        console.log('🔧 ChatId corrigido para:', correctedChatId);
+      }
+      
+      chat.chatId = correctedChatId;
+    }
+    
     setSelectedChat(chat);
-    await loadRealMessages(chat.chatId);
+    
+    try {
+      await loadChatMessages(chat.chatId, 'today', messageLimit);
+      console.log('✅ Mensagens carregadas para:', chat.name);
+    } catch (error) {
+      console.error('❌ Erro ao carregar mensagens:', error);
+      toast({
+        title: "Erro ao carregar mensagens",
+        description: "Formato de ID de chat inválido ou problema na API",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleLoadMessagesByPeriod = async (period: MessagePeriod) => {
+    if (!selectedChat) return;
+    
+    console.log(`📅 Carregando mensagens do período: ${period}`);
+    await loadChatMessages(selectedChat.chatId, period);
   };
 
   const handleToggleLiveMode = () => {
@@ -89,16 +184,71 @@ export function WPPConnectMirror() {
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !selectedChat || isSending) return;
 
+    console.log('📤 Enviando mensagem para:', selectedChat.name);
     setIsSending(true);
+    
     try {
       const success = await sendMessage(selectedChat.chatId, newMessage);
+      
       if (success) {
         setNewMessage('');
+        console.log('✅ Mensagem enviada com sucesso');
       }
     } catch (error) {
-      console.error('Erro ao enviar mensagem:', error);
+      console.error('❌ Erro ao enviar mensagem:', error);
     } finally {
       setIsSending(false);
+    }
+  };
+
+  const handleRefreshChats = async () => {
+    console.log('🔄 Atualizando lista de conversas...');
+    setIsRefreshing(true);
+    
+    try {
+      await loadChats(specificContact || undefined);
+      
+      toast({
+        title: "Conversas atualizadas",
+        description: specificContact 
+          ? `Carregando conversa de: ${specificContact}`
+          : "Lista de conversas foi recarregada"
+      });
+    } catch (error) {
+      console.error('❌ Erro ao atualizar conversas:', error);
+      toast({
+        title: "Erro ao atualizar",
+        description: "Não foi possível recarregar as conversas",
+        variant: "destructive"
+      });
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  const handleApplyContactFilter = async () => {
+    console.log('🎯 Aplicando filtro para contato:', specificContact);
+    setIsRefreshing(true);
+    
+    try {
+      await loadChats(specificContact || undefined);
+      
+      toast({
+        title: "Filtro aplicado",
+        description: specificContact 
+          ? `Carregando apenas conversas de: ${specificContact}` 
+          : "Filtro removido - carregando todas as conversas",
+      });
+    } catch (error) {
+      console.error('❌ Erro ao aplicar filtro:', error);
+      toast({
+        title: "Erro ao aplicar filtro",
+        description: "Não foi possível filtrar as conversas",
+        variant: "destructive"
+      });
+    } finally {
+      setIsRefreshing(false);
+      setShowContactFilter(false);
     }
   };
 
@@ -109,21 +259,45 @@ export function WPPConnectMirror() {
     });
   };
 
-  const filteredChats = chats.filter(chat => 
-    chat.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const getPeriodLabel = (period: MessagePeriod) => {
+    switch (period) {
+      case 'today': return 'Hoje';
+      case '7days': return '7 dias';
+      case '1month': return '1 mês';
+      case '3months': return '3 meses';
+      case 'all': return 'Todas';
+      default: return 'Hoje';
+    }
+  };
+
+  // Loading inicial
+  if (isInitialLoading) {
+    return (
+      <Card>
+        <CardContent className="p-8 text-center">
+          <Loader2 className="h-12 w-12 text-blue-500 mx-auto mb-4 animate-spin" />
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+            Conectando ao WhatsApp
+          </h3>
+          <p className="text-gray-600">
+            Verificando conexão e carregando conversas...
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   // WhatsApp não conectado
-  if (!sessionStatus.isConnected) {
+  if (!connectionState.isConnected) {
     return (
       <Card>
         <CardContent className="p-8 text-center">
           <AlertCircle className="h-12 w-12 text-red-400 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-gray-900 mb-2">
-            WPPConnect não conectado
+            WhatsApp não conectado
           </h3>
           <p className="text-gray-600 mb-4">
-            Configure sua conexão WPPConnect nas configurações para acessar as conversas
+            Conecte seu WhatsApp Business nas configurações para acessar as conversas
           </p>
           <Button onClick={() => window.location.href = '/dashboard/settings'}>
             Ir para Configurações
@@ -133,100 +307,163 @@ export function WPPConnectMirror() {
     );
   }
 
+  const sortedChats = [
+    ...chats.filter((c) => pinnedChats.includes(c.chatId)),
+    ...chats.filter((c) => !pinnedChats.includes(c.chatId)),
+  ];
+
   return (
-    <div className="h-full flex gap-4">
-      {/* Lista de Conversas - Estilo da imagem */}
-      <Card className="w-80 flex flex-col bg-white border border-gray-200">
-        <CardHeader className="pb-3 border-b">
+    <div className="h-full flex flex-col lg:flex-row gap-4">
+      {/* Lista de Conversas */}
+      <Card className="lg:w-1/3 flex flex-col">
+        <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2 text-lg">
+            <CardTitle className="flex items-center gap-2">
               <MessageSquare className="h-5 w-5" />
               Conversas
-              <Badge variant="secondary" className="bg-red-100 text-red-600 text-xs">
-                {filteredChats.length}
-              </Badge>
             </CardTitle>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={loadRealChats}
-              disabled={isLoadingChats}
-            >
-              <RefreshCw className={`h-4 w-4 ${isLoadingChats ? 'animate-spin' : ''}`} />
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowContactFilter(!showContactFilter)}
+              >
+                <Filter className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRefreshChats}
+                disabled={isRefreshing}
+              >
+                <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+              </Button>
+              <Badge variant="secondary">{chats.length}</Badge>
+            </div>
           </div>
           
-          {/* Barra de pesquisa */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <Input
-              placeholder="Pesquisar conversas..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
+          {/* Filtro de Contato Específico */}
+          {showContactFilter && (
+            <div className="space-y-3 p-3 bg-gray-50 rounded-lg border">
+              <div className="flex items-center gap-2">
+                <Filter className="h-4 w-4 text-gray-500" />
+                <Label className="text-sm font-medium">Filtro por Contato</Label>
+              </div>
+              <div className="space-y-2">
+                <Input
+                  placeholder="Ex: 5511999999999 ou nome do contato"
+                  value={specificContact}
+                  onChange={(e) => setSpecificContact(e.target.value)}
+                  className="text-sm"
+                />
+                <div className="flex gap-2">
+                  <Button 
+                    onClick={handleApplyContactFilter}
+                    size="sm"
+                    disabled={isRefreshing}
+                  >
+                    {isRefreshing ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Aplicar Filtro'}
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => {
+                      setSpecificContact('');
+                      handleApplyContactFilter();
+                    }}
+                    disabled={isRefreshing}
+                  >
+                    Todas as Conversas
+                  </Button>
+                </div>
+              </div>
+              {specificContact && (
+                <div className="text-xs text-blue-600 bg-blue-50 p-2 rounded">
+                  <strong>Filtro aplicado:</strong> {specificContact}
+                </div>
+              )}
+            </div>
+          )}
+          
+          <div className="flex items-center gap-2 text-sm text-green-600">
+            <Smartphone className="h-4 w-4" />
+            <span>Conectado: {connectionState.phoneNumber}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            {/* Novo seletor de quantidade de mensagens */}
+            <label htmlFor="messageLimit" className="text-xs text-gray-500">
+              Mensagens/carregar:
+            </label>
+            <select
+              id="messageLimit"
+              value={messageLimit}
+              onChange={(e) => setMessageLimit(Number(e.target.value))}
+              className="border rounded px-1 py-0.5 text-xs"
+            >
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+              <option value={200}>200</option>
+              <option value={500}>500</option>
+            </select>
           </div>
         </CardHeader>
-        
         <CardContent className="flex-1 p-0">
-          <ScrollArea className="h-[600px]">
-            {isLoadingChats ? (
-              <div className="p-4 text-center text-gray-500">
-                <Loader2 className="h-8 w-8 mx-auto mb-2 animate-spin" />
-                <p>Carregando conversas...</p>
-              </div>
-            ) : filteredChats.length === 0 ? (
+          <ScrollArea className="h-[500px]">
+            {sortedChats.length === 0 ? (
               <div className="p-4 text-center text-gray-500">
                 <MessageSquare className="h-8 w-8 mx-auto mb-2" />
                 <p>Nenhuma conversa encontrada</p>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleRefreshChats}
+                  className="mt-2"
+                >
+                  Atualizar Lista
+                </Button>
               </div>
             ) : (
-              filteredChats.map((chat) => (
+              sortedChats.map((chat) => (
                 <div
                   key={chat.chatId}
                   className={`p-3 border-b cursor-pointer hover:bg-gray-50 transition-colors ${
-                    selectedChat?.chatId === chat.chatId ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''
-                  }`}
+                    selectedChat?.chatId === chat.chatId ? "bg-blue-50 border-blue-200" : ""
+                  } flex justify-between`}
                   onClick={() => handleSelectChat(chat)}
                 >
-                  <div className="flex items-start gap-3">
-                    <div className="flex-shrink-0">
-                      <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                        {chat.isGroup ? (
-                          <Users className="h-5 w-5 text-green-600" />
-                        ) : (
-                          <Circle className="h-5 w-5 text-green-600 fill-current" />
-                        )}
-                      </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      {chat.isGroup ? (
+                        <Users className="h-4 w-4 text-gray-400" />
+                      ) : (
+                        <MessageSquare className="h-4 w-4 text-gray-400" />
+                      )}
+                      <span className="font-medium truncate">{chat.name}</span>
+                      {/* Indicador de modo ao vivo */}
+                      {isLiveMode && currentChatId === chat.chatId && (
+                        <div className="flex items-center gap-1">
+                          <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                          <span className="text-xs text-red-600 font-medium">LIVE</span>
+                        </div>
+                      )}
                     </div>
-                    
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium text-sm truncate">{chat.name}</span>
-                        {/* Indicador de modo ao vivo */}
-                        {isLiveMode && currentChatId === chat.chatId && (
-                          <Badge className="bg-red-500 text-white text-xs ml-2">
-                            LIVE
-                          </Badge>
-                        )}
-                      </div>
-                      
-                      <p className="text-xs text-gray-500 truncate mt-1">
-                        {chat.lastMessage || 'Sem mensagens'}
-                      </p>
-                      
-                      <div className="flex items-center justify-between mt-1">
-                        <span className="text-xs text-gray-400">
-                          {formatTime(chat.timestamp)}
-                        </span>
-                        {chat.unreadCount > 0 && (
-                          <Badge className="bg-green-500 text-white text-xs">
-                            {chat.unreadCount}
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
+                    <p className="text-sm text-gray-500 truncate mt-1">
+                      {chat.lastMessage}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-1">
+                      ID: {chat.chatId}
+                    </p>
                   </div>
+                  {/* Botão de fixar/desafixar */}
+                  <button
+                    className="ml-2 text-gray-400 hover:text-blue-800 focus:outline-none"
+                    title={pinnedChats.includes(chat.chatId) ? "Desafixar" : "Fixar no topo"}
+                    onClick={e => { e.stopPropagation(); togglePinChat(chat.chatId); }}
+                  >
+                    <Pin
+                      className={`h-4 w-4 ${pinnedChats.includes(chat.chatId) ? "text-blue-700 fill-blue-300" : ""}`}
+                    />
+                  </button>
                 </div>
               ))
             )}
@@ -234,55 +471,70 @@ export function WPPConnectMirror() {
         </CardContent>
       </Card>
 
-      {/* Área de Chat - Estilo da imagem */}
-      <Card className="flex-1 flex flex-col bg-white border border-gray-200">
+      {/* Área de Chat */}
+      <Card className="lg:w-2/3 flex flex-col">
         {selectedChat ? (
           <>
-            <CardHeader className="pb-3 border-b">
+            <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                    {selectedChat.isGroup ? (
-                      <Users className="h-5 w-5 text-green-600" />
-                    ) : (
-                      <Circle className="h-5 w-5 text-green-600 fill-current" />
-                    )}
-                  </div>
+                <div className="flex items-center gap-2">
+                  {selectedChat.isGroup ? (
+                    <Users className="h-5 w-5" />
+                  ) : (
+                    <MessageSquare className="h-5 w-5" />
+                  )}
                   <div>
-                    <CardTitle className="text-lg">{selectedChat.name}</CardTitle>
+                    <CardTitle className="flex items-center gap-2">
+                      {selectedChat.name}
+                      {/* Botão de Modo Ao Vivo */}
+                      <Button
+                        variant={isLiveMode && currentChatId === selectedChat.chatId ? "destructive" : "default"}
+                        size="sm"
+                        onClick={handleToggleLiveMode}
+                        className="ml-2"
+                      >
+                        {isLiveMode && currentChatId === selectedChat.chatId ? (
+                          <>
+                            <Square className="h-4 w-4 mr-1" />
+                            Parar Live
+                          </>
+                        ) : (
+                          <>
+                            <Play className="h-4 w-4 mr-1" />
+                            Modo Live
+                          </>
+                        )}
+                      </Button>
+                    </CardTitle>
                     <p className="text-sm text-gray-500">
-                      {selectedChat.chatId}
+                      {selectedChat.isGroup ? 'Grupo' : 'Conversa individual'} • ID: {selectedChat.chatId}
+                      {/* Status do modo ao vivo */}
+                      {isLiveMode && currentChatId === selectedChat.chatId && (
+                        <span className="ml-2 text-red-600 font-medium">
+                          🔴 AO VIVO - Atualizando automaticamente
+                        </span>
+                      )}
                     </p>
                   </div>
                 </div>
                 
+                {/* Filtros de Período */}
                 <div className="flex items-center gap-2">
-                  {/* Status do modo ao vivo */}
-                  {isLiveMode && currentChatId === selectedChat.chatId && (
-                    <div className="flex items-center gap-2 bg-red-50 px-3 py-1 rounded-full">
-                      <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-                      <span className="text-xs text-red-600 font-medium">Modo Live Ativo</span>
-                      <span className="text-xs text-gray-500">Mensagens sendo atualizadas automaticamente a cada 3s</span>
-                    </div>
-                  )}
-                  
-                  <Button
-                    variant={isLiveMode && currentChatId === selectedChat.chatId ? "destructive" : "default"}
-                    size="sm"
-                    onClick={handleToggleLiveMode}
-                  >
-                    {isLiveMode && currentChatId === selectedChat.chatId ? (
-                      <>
-                        <Square className="h-4 w-4 mr-1" />
-                        Parar Live
-                      </>
-                    ) : (
-                      <>
-                        <Play className="h-4 w-4 mr-1" />
-                        Modo Live
-                      </>
-                    )}
-                  </Button>
+                  <Calendar className="h-4 w-4 text-gray-500" />
+                  <div className="flex gap-1">
+                    {(['today', '7days', '1month', '3months', 'all'] as MessagePeriod[]).map((period) => (
+                      <Button
+                        key={period}
+                        variant={currentPeriod === period ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => handleLoadMessagesByPeriod(period)}
+                        disabled={isLoadingMessages}
+                        className="text-xs"
+                      >
+                        {getPeriodLabel(period)}
+                      </Button>
+                    ))}
+                  </div>
                 </div>
               </div>
             </CardHeader>
@@ -297,8 +549,8 @@ export function WPPConnectMirror() {
                 ) : messages.length === 0 ? (
                   <div className="text-center text-gray-500 py-8">
                     <History className="h-8 w-8 mx-auto mb-2" />
-                    <p>Nenhuma mensagem encontrada</p>
-                    <p className="text-xs mt-1">Ative o modo ao vivo para ver mensagens em tempo real</p>
+                    <p>Nenhuma mensagem encontrada para este período</p>
+                    <p className="text-xs mt-1">Experimente carregar um período maior ou ativar o modo ao vivo</p>
                   </div>
                 ) : (
                   messages
@@ -313,18 +565,16 @@ export function WPPConnectMirror() {
                         <div
                           className={`rounded-lg px-3 py-2 max-w-[75%] ${
                             msg.sender === 'user'
-                              ? 'bg-green-500 text-white rounded-br-none'
-                              : 'bg-gray-100 text-gray-800 rounded-bl-none'
+                              ? 'bg-blue-500 text-white'
+                              : 'bg-gray-100 text-gray-800'
                           }`}
                         >
                           <p className="text-sm">{msg.text}</p>
                           <div className={`text-xs mt-1 flex items-center gap-1 ${
-                            msg.sender === 'user' ? 'text-green-100 justify-end' : 'text-gray-500'
+                            msg.sender === 'user' ? 'text-blue-100' : 'text-gray-500'
                           }`}>
+                            <Clock className="h-3 w-3" />
                             {formatTime(msg.timestamp)}
-                            {msg.sender === 'user' && (
-                              <span className="text-xs">✓✓</span>
-                            )}
                           </div>
                         </div>
                       </div>
@@ -335,21 +585,19 @@ export function WPPConnectMirror() {
               
               <Separator />
               
-              <div className="p-4 bg-gray-50">
+              <div className="p-4">
                 <div className="flex gap-2">
                   <Input
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
-                    placeholder="Ela tava muito espoleta"
+                    placeholder="Digite uma mensagem..."
                     onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
                     disabled={isSending}
-                    className="flex-1"
                   />
                   <Button 
                     onClick={handleSendMessage}
                     disabled={!newMessage.trim() || isSending}
                     size="sm"
-                    className="bg-green-500 hover:bg-green-600"
                   >
                     {isSending ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -365,8 +613,8 @@ export function WPPConnectMirror() {
           <CardContent className="flex-1 flex items-center justify-center">
             <div className="text-center text-gray-500">
               <MessageSquare className="h-12 w-12 mx-auto mb-4" />
-              <p className="text-lg mb-2">Selecione uma conversa para começar</p>
-              <p className="text-sm">💡 Use o botão "Modo Live" para ver mensagens em tempo real</p>
+              <p>Selecione uma conversa para começar</p>
+              <p className="text-sm mt-2">💡 Use o botão "Modo Live" para ver mensagens em tempo real</p>
             </div>
           </CardContent>
         )}
