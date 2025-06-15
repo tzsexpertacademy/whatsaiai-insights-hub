@@ -44,7 +44,8 @@ export function RealWhatsAppMirror() {
     loadRealMessages,
     getConnectionStatus,
     startLiveMode,
-    stopLiveMode
+    stopLiveMode,
+    updateMessageHistoryLimit
   } = useWPPConnect();
   
   const [selectedContact, setSelectedContact] = useState<string | null>(null);
@@ -131,6 +132,63 @@ export function RealWhatsAppMirror() {
     contact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     contact.phone.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // --- RESTORED: Função para carregar conversas reais ---
+  const handleLoadRealChats = async (isAutomatic = false) => {
+    console.log('📱 [DEBUG] handleLoadRealChats chamado:', {
+      isAutomatic,
+      isConnected,
+      hasAutoLoadedChats
+    });
+    
+    if (!isConnected && !isAutomatic) {
+      toast({
+        title: "WhatsApp não conectado",
+        description: "Conecte seu WhatsApp primeiro",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      console.log('📱 [DEBUG] Carregando conversas reais do WPPConnect...');
+      const chatsData = await loadRealChats();
+      
+      console.log('📊 [DEBUG] Resultado loadRealChats:', chatsData);
+      
+      if (!chatsData || chatsData.length === 0) {
+        console.log('⚠️ [DEBUG] Nenhuma conversa encontrada');
+        if (!isAutomatic) {
+          toast({
+            title: "Nenhuma conversa encontrada",
+            description: "Não há conversas disponíveis no momento",
+            variant: "destructive"
+          });
+        }
+        return;
+      }
+      
+      console.log(`✅ [DEBUG] ${chatsData.length} conversas carregadas com sucesso`);
+      
+      if (!isAutomatic) {
+        toast({
+          title: "🎉 Conversas carregadas!",
+          description: `${chatsData.length} conversas encontradas`
+        });
+      }
+      
+    } catch (error) {
+      console.error('❌ [DEBUG] Erro ao carregar conversas:', error);
+      
+      if (!isAutomatic) {
+        toast({
+          title: "❌ Erro ao carregar conversas",
+          description: error instanceof Error ? error.message : "Verifique se o WPPConnect está rodando corretamente",
+          variant: "destructive"
+        });
+      }
+    }
+  };
 
   // Função para atualizar o limite e recarregar mensagens do contato atual
   const handleChangeMessageLimit = (limit: number) => {
