@@ -12,6 +12,31 @@ interface AnalysisConfig {
   temperature?: number;
 }
 
+interface ConversationData {
+  type: 'whatsapp_conversation';
+  contact: string;
+  phone: string;
+  messages: any[];
+  created_at: string;
+}
+
+interface ChatData {
+  type: 'chat_message';
+  assistant_id: string;
+  user_message: string;
+  assistant_response: string;
+  timestamp: string;
+}
+
+type CombinedData = ConversationData | ChatData;
+
+interface AnalysisResult {
+  assistant: string;
+  insights?: any[];
+  success: boolean;
+  error?: string;
+}
+
 export function useAIAnalysisFixed() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const { user } = useAuth();
@@ -103,19 +128,19 @@ export function useAIAnalysisFixed() {
       console.log(`🔄 Executando ${analysesToRun.length} análises com diferentes assistentes...`);
 
       // Executar análises para cada assistente ativo
-      const analysisPromises = analysesToRun.map(async ({ assistant, conversations, chatHistory }) => {
+      const analysisPromises = analysesToRun.map(async ({ assistant, conversations, chatHistory }): Promise<AnalysisResult> => {
         try {
           // Preparar dados combinados para análise
-          const combinedData = [
+          const combinedData: CombinedData[] = [
             ...conversations.map(conv => ({
-              type: 'whatsapp_conversation',
+              type: 'whatsapp_conversation' as const,
               contact: conv.contact_name,
               phone: conv.contact_phone,
               messages: conv.messages || [],
               created_at: conv.created_at
             })),
             ...chatHistory.map(chat => ({
-              type: 'chat_message',
+              type: 'chat_message' as const,
               assistant_id: chat.assistant_id,
               user_message: chat.user_message,
               assistant_response: chat.assistant_response,
@@ -193,7 +218,7 @@ Foque na sua área de especialização: ${assistant.area || 'análise geral'}`;
             success: true
           };
 
-        } catch (error) {
+        } catch (error: any) {
           console.error(`❌ Erro na análise do assistente ${assistant.name}:`, error);
           return {
             assistant: assistant.name,
@@ -207,11 +232,15 @@ Foque na sua área de especialização: ${assistant.area || 'análise geral'}`;
       const results = await Promise.allSettled(analysisPromises);
       
       const successfulAnalyses = results
-        .filter(result => result.status === 'fulfilled' && result.value.success)
+        .filter((result): result is PromiseFulfilledResult<AnalysisResult> => 
+          result.status === 'fulfilled' && result.value.success
+        )
         .map(result => result.value);
 
       const failedAnalyses = results
-        .filter(result => result.status === 'rejected' || (result.status === 'fulfilled' && !result.value.success));
+        .filter((result): result is PromiseRejectedResult | PromiseFulfilledResult<AnalysisResult> => 
+          result.status === 'rejected' || (result.status === 'fulfilled' && !result.value.success)
+        );
 
       console.log(`📊 Resultado: ${successfulAnalyses.length} análises bem-sucedidas, ${failedAnalyses.length} falharam`);
 
@@ -232,7 +261,7 @@ Foque na sua área de especialização: ${assistant.area || 'análise geral'}`;
         throw new Error('Todas as análises falharam');
       }
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Erro na análise geral:', error);
       
       toast({
