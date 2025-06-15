@@ -34,18 +34,20 @@ export interface WPPConnectContact {
 export function useWPPMessages(chats: WPPConnectChat[]) {
   const [messages, setMessages] = useState<WPPConnectMessage[]>([]);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
-  const [messageHistoryLimit, setMessageHistoryLimit] = useState(50);
+  const [messageHistoryLimit, setMessageHistoryLimit] = useState(200); // Aumentado o padrão para 200
   
   const { toast } = useToast();
   const { getWPPConfig } = useWPPConfig();
 
-  const loadRealMessages = useCallback(async (chatId: string, silent = false) => {
+  const loadRealMessages = useCallback(async (chatId: string, silent = false, customLimit?: number) => {
     if (!silent) {
       setIsLoadingMessages(true);
     }
     
+    const limitToUse = customLimit || messageHistoryLimit;
+    
     try {
-      console.log('💬 [MESSAGES DEBUG] Carregando mensagens para:', chatId, 'Limite:', messageHistoryLimit);
+      console.log('💬 [MESSAGES DEBUG] Carregando mensagens para:', chatId, 'Limite:', limitToUse);
       const config = getWPPConfig();
       
       const messageEndpoints = [
@@ -56,17 +58,17 @@ export function useWPPMessages(chats: WPPConnectChat[]) {
         {
           url: `${config.serverUrl}/api/${config.sessionName}/get-messages`,
           method: 'GET',
-          params: { chatId, count: messageHistoryLimit }
+          params: { chatId, count: limitToUse }
         },
         {
           url: `${config.serverUrl}/api/${config.sessionName}/chat-messages`,
           method: 'POST',
-          body: { chatId, limit: messageHistoryLimit }
+          body: { chatId, limit: limitToUse }
         },
         {
           url: `${config.serverUrl}/api/${config.sessionName}/messages`,
           method: 'GET',
-          params: { chat: chatId, limit: messageHistoryLimit }
+          params: { chat: chatId, limit: limitToUse }
         }
       ];
 
@@ -298,7 +300,7 @@ export function useWPPMessages(chats: WPPConnectChat[]) {
     setMessageHistoryLimit(newLimit);
     toast({
       title: "📊 Limite atualizado",
-      description: `Agora carregando ${newLimit} mensagens por conversa`
+      description: `Agora carregando até ${newLimit} mensagens por conversa`
     });
   }, [toast]);
 

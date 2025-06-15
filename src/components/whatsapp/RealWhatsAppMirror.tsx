@@ -23,7 +23,8 @@ import {
   Radio,
   RadioIcon,
   Pause,
-  Play
+  Play,
+  Settings
 } from 'lucide-react';
 
 export function RealWhatsAppMirror() {
@@ -36,6 +37,7 @@ export function RealWhatsAppMirror() {
     isLoadingMessages,
     isLiveMode,
     currentChatId,
+    messageHistoryLimit,
     generateQRCode, 
     checkConnectionStatus,
     disconnectWhatsApp,
@@ -44,7 +46,8 @@ export function RealWhatsAppMirror() {
     loadRealMessages,
     getConnectionStatus,
     startLiveMode,
-    stopLiveMode
+    stopLiveMode,
+    updateMessageHistoryLimit
   } = useWPPConnect();
   
   const [selectedContact, setSelectedContact] = useState<string | null>(null);
@@ -54,7 +57,7 @@ export function RealWhatsAppMirror() {
   const [hasAutoChecked, setHasAutoChecked] = useState(false);
   const [hasAutoLoadedChats, setHasAutoLoadedChats] = useState(false);
   const [isForceLoading, setIsForceLoading] = useState(false);
-  const [messageLimit, setMessageLimit] = useState<number>(50); // NOVO: limite de mensagens
+  const [showLimitSettings, setShowLimitSettings] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const connectionStatus = getConnectionStatus();
@@ -189,9 +192,9 @@ export function RealWhatsAppMirror() {
   };
 
   // Alterar para receber o limite de mensagens
-  const handleLoadRealMessages = async (contactId: string, limit: number = messageLimit) => {
+  const handleLoadRealMessages = async (contactId: string, customLimit?: number) => {
     try {
-      await loadRealMessages(contactId, limit); // Espera-se que seu hook aceite o limit!
+      await loadRealMessages(contactId, false, customLimit);
     } catch (error) {
       console.error('❌ Erro ao carregar mensagens:', error);
       toast({
@@ -208,7 +211,7 @@ export function RealWhatsAppMirror() {
 
   const selectContact = (contact: any) => {
     setSelectedContact(contact.id);
-    handleLoadRealMessages(contact.id, messageLimit);
+    handleLoadRealMessages(contact.id, messageHistoryLimit);
     
     // Parar modo live anterior se houver
     if (isLiveMode && currentChatId !== contact.id) {
@@ -359,6 +362,43 @@ export function RealWhatsAppMirror() {
             <div>
               <span className="font-semibold">Modo Live:</span> {isLiveMode ? '🔴 ATIVO' : '⏸️ Inativo'}
             </div>
+          </div>
+          
+          <div className="mt-2 p-2 bg-green-50 rounded border border-green-200">
+            <div className="flex items-center justify-between">
+              <span className="font-semibold text-green-700">
+                📚 Limite de mensagens: {messageHistoryLimit}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowLimitSettings(!showLimitSettings)}
+              >
+                <Settings className="h-4 w-4" />
+              </Button>
+            </div>
+            
+            {showLimitSettings && (
+              <div className="mt-3 space-y-2">
+                <p className="text-sm text-green-600">Escolha quantas mensagens carregar por conversa:</p>
+                <div className="flex gap-2 flex-wrap">
+                  {[50, 100, 200, 500, 1000, 2000].map((limit) => (
+                    <Button
+                      key={limit}
+                      variant={messageHistoryLimit === limit ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => updateMessageHistoryLimit(limit)}
+                      className="text-xs"
+                    >
+                      {limit}
+                    </Button>
+                  ))}
+                </div>
+                <p className="text-xs text-green-600">
+                  💡 Limites maiores podem demorar mais para carregar
+                </p>
+              </div>
+            )}
           </div>
           
           {isLiveMode && currentChatId && (
