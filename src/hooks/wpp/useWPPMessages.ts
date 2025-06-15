@@ -1,7 +1,7 @@
-
 import { useState, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useWPPConfig } from './useWPPConfig';
+import { createClient } from '@/integrations/supabase/client';
 
 export interface WPPConnectMessage {
   id: string;
@@ -38,6 +38,7 @@ export function useWPPMessages(chats: WPPConnectChat[]) {
   
   const { toast } = useToast();
   const { getWPPConfig } = useWPPConfig();
+  const supabase = createClient();
 
   const loadRealMessages = useCallback(async (chatId: string, silent = false) => {
     if (!silent) {
@@ -45,9 +46,10 @@ export function useWPPMessages(chats: WPPConnectChat[]) {
     }
     
     try {
-      console.log('💬 [MESSAGES DEBUG] Carregando mensagens para:', chatId, 'Limite:', messageHistoryLimit);
+      console.log('💬 [MESSAGES DEBUG] Carregando mensagens via proxy para:', chatId, 'Limite:', messageHistoryLimit);
       const config = getWPPConfig();
       
+      // Lista de endpoints para tentar, usando o proxy
       const messageEndpoints = [
         {
           url: `${config.serverUrl}/api/${config.sessionName}/get-messages/${chatId}`,
@@ -72,133 +74,129 @@ export function useWPPMessages(chats: WPPConnectChat[]) {
 
       for (const endpoint of messageEndpoints) {
         try {
-          console.log('🎯 [MESSAGES DEBUG] Testando endpoint:', endpoint.url);
+          console.log('🎯 [MESSAGES DEBUG] Testando endpoint via proxy:', endpoint.url);
           
-          let response;
-          if (endpoint.method === 'GET') {
-            let url = endpoint.url;
-            if (endpoint.params) {
-              const params = new URLSearchParams();
-              Object.entries(endpoint.params).forEach(([key, value]) => {
-                params.append(key, value.toString());
-              });
-              url += `?${params.toString()}`;
-            }
-            
-            response = await fetch(url, {
-              method: 'GET',
-              headers: {
-                'Authorization': `Bearer ${config.token}`,
-                'Content-Type': 'application/json'
-              }
+          // Prepara dados para o proxy
+          let proxyPayload: any = {
+            method: endpoint.method,
+            url: endpoint.url,
+            headers: {
+              'Authorization': `Bearer ${config.token}`,
+              'X-Session-Token': config.token
+            },
+            chatId: chatId,
+            messageLimit: messageHistoryLimit
+          };
+
+          // Adiciona parâmetros ou body conforme o método
+          if (endpoint.method === 'GET' && endpoint.params) {
+            const url = new URL(endpoint.url);
+            Object.entries(endpoint.params).forEach(([key, value]) => {
+              url.searchParams.append(key, value.toString());
             });
-          } else {
-            response = await fetch(endpoint.url, {
-              method: endpoint.method,
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${config.token}`
-              },
-              body: JSON.stringify(endpoint.body)
-            });
+            proxyPayload.url = url.toString();
+          } else if (endpoint.method === 'POST' && endpoint.body) {
+            proxyPayload.body = JSON.stringify(endpoint.body);
           }
 
-          console.log('📊 [MESSAGES DEBUG] Response status:', response.status);
+          // Chama o proxy Supabase que corrige o limite
+          const { data: result, error } = await supabase.functions.invoke('wppconnect-proxy', {
+            body: proxyPayload
+          });
 
-          if (response.ok) {
-            const result = await response.json();
-            console.log('📋 [MESSAGES DEBUG] Response completa:', result);
+          if (error) {
+            console.log('❌ [MESSAGES DEBUG] Erro no proxy:', error);
+            continue;
+          }
 
-            let messagesData = [];
-            
-            if (result.response && Array.isArray(result.response)) {
-              messagesData = result.response;
-            } else if (Array.isArray(result)) {
-              messagesData = result;
-            } else if (result.messages && Array.isArray(result.messages)) {
-              messagesData = result.messages;
-            } else if (result.data && Array.isArray(result.data)) {
-              messagesData = result.data;
-            }
+          console.log('📋 [MESSAGES DEBUG] Response do proxy:', result);
 
-            console.log('📊 [MESSAGES DEBUG] Mensagens extraídas:', messagesData.length);
+          let messagesData = [];
+          
+          if (result.response && Array.isArray(result.response)) {
+            messagesData = result.response;
+          } else if (Array.isArray(result)) {
+            messagesData = result;
+          } else if (result.messages && Array.isArray(result.messages)) {
+            messagesData = result.messages;
+          } else if (result.data && Array.isArray(result.data)) {
+            messagesData = result.data;
+          }
 
-            if (messagesData.length > 0) {
-              const formattedMessages: WPPConnectMessage[] = messagesData.map((msg: any) => {
-                let messageText = '';
-                if (msg.body) {
-                  messageText = msg.body;
-                } else if (msg.text) {
-                  messageText = msg.text;
-                } else if (msg.content) {
-                  messageText = msg.content;
-                } else if (msg.message) {
-                  messageText = msg.message;
-                } else if (msg.type === 'ptt') {
-                  messageText = '🎵 Áudio';
-                } else {
-                  messageText = 'Mensagem sem texto';
+          console.log('📊 [MESSAGES DEBUG] Mensagens extraídas via proxy:', messagesData.length);
+
+          if (messagesData.length > 0) {
+            const formattedMessages: WPPConnectMessage[] = messagesData.map((msg: any) => {
+              let messageText = '';
+              if (msg.body) {
+                messageText = msg.body;
+              } else if (msg.text) {
+                messageText = msg.text;
+              } else if (msg.content) {
+                messageText = msg.content;
+              } else if (msg.message) {
+                messageText = msg.message;
+              } else if (msg.type === 'ptt') {
+                messageText = '🎵 Áudio';
+              } else {
+                messageText = 'Mensagem sem texto';
+              }
+
+              const isFromMe = msg.fromMe || msg.from === config.sessionName || (msg.sender && msg.sender.isMe);
+
+              return {
+                id: msg.id || msg._id || `msg_${Date.now()}_${Math.random()}`,
+                text: messageText,
+                sender: isFromMe ? 'user' : 'contact',
+                timestamp: msg.timestamp ? new Date(msg.timestamp * 1000).toISOString() : 
+                         msg.t ? new Date(msg.t * 1000).toISOString() : 
+                         msg.time ? new Date(msg.time).toISOString() : 
+                         new Date().toISOString(),
+                fromMe: isFromMe,
+                chatId: chatId,
+                isAudio: msg.type === 'ptt' || msg.type === 'audio' || msg.isAudio || false,
+                status: msg.ack ? (msg.ack === 1 ? 'sent' : msg.ack === 2 ? 'delivered' : 'read') : 'sent'
+              };
+            });
+
+            console.log('✅ [MESSAGES DEBUG] Mensagens formatadas via proxy:', formattedMessages.length);
+
+            setMessages(prev => {
+              const currentMessages = prev.filter(m => m.chatId === chatId);
+              const newMessages = formattedMessages.filter(newMsg => 
+                !currentMessages.some(currentMsg => currentMsg.id === newMsg.id)
+              );
+
+              if (newMessages.length > 0 && silent) {
+                console.log('🔥 [LIVE] Novas mensagens detectadas via proxy:', newMessages.length);
+                if (!document.hidden) {
+                  toast({
+                    title: "💬 Nova mensagem!",
+                    description: `${newMessages.length} mensagem(s) nova(s) em ${chats.find(c => c.chatId === chatId)?.name || 'conversa'}`,
+                    duration: 3000
+                  });
                 }
+              }
 
-                const isFromMe = msg.fromMe || msg.from === config.sessionName || (msg.sender && msg.sender.isMe);
+              const filteredPrev = prev.filter(m => m.chatId !== chatId);
+              return [...filteredPrev, ...formattedMessages.reverse()];
+            });
 
-                return {
-                  id: msg.id || msg._id || `msg_${Date.now()}_${Math.random()}`,
-                  text: messageText,
-                  sender: isFromMe ? 'user' : 'contact',
-                  timestamp: msg.timestamp ? new Date(msg.timestamp * 1000).toISOString() : 
-                           msg.t ? new Date(msg.t * 1000).toISOString() : 
-                           msg.time ? new Date(msg.time).toISOString() : 
-                           new Date().toISOString(),
-                  fromMe: isFromMe,
-                  chatId: chatId,
-                  isAudio: msg.type === 'ptt' || msg.type === 'audio' || msg.isAudio || false,
-                  status: msg.ack ? (msg.ack === 1 ? 'sent' : msg.ack === 2 ? 'delivered' : 'read') : 'sent'
-                };
-              });
-
-              console.log('✅ [MESSAGES DEBUG] Mensagens formatadas:', formattedMessages.length);
-
-              setMessages(prev => {
-                const currentMessages = prev.filter(m => m.chatId === chatId);
-                const newMessages = formattedMessages.filter(newMsg => 
-                  !currentMessages.some(currentMsg => currentMsg.id === newMsg.id)
-                );
-
-                if (newMessages.length > 0 && silent) {
-                  console.log('🔥 [LIVE] Novas mensagens detectadas:', newMessages.length);
-                  if (!document.hidden) {
-                    toast({
-                      title: "💬 Nova mensagem!",
-                      description: `${newMessages.length} mensagem(s) nova(s) em ${chats.find(c => c.chatId === chatId)?.name || 'conversa'}`,
-                      duration: 3000
-                    });
-                  }
-                }
-
-                const filteredPrev = prev.filter(m => m.chatId !== chatId);
-                return [...filteredPrev, ...formattedMessages.reverse()];
-              });
-
-              console.log('✅ [MESSAGES DEBUG] Sucesso no endpoint:', endpoint.url);
-              return formattedMessages;
-            }
-          } else {
-            const errorText = await response.text();
-            console.log('❌ [MESSAGES DEBUG] Erro no endpoint:', endpoint.url, 'Status:', response.status, 'Error:', errorText);
+            console.log('✅ [MESSAGES DEBUG] Sucesso no endpoint via proxy:', endpoint.url);
+            return formattedMessages;
           }
         } catch (endpointError) {
-          console.log('❌ [MESSAGES DEBUG] Erro ao testar endpoint:', endpoint.url, 'Error:', endpointError);
+          console.log('❌ [MESSAGES DEBUG] Erro ao testar endpoint via proxy:', endpoint.url, 'Error:', endpointError);
           continue;
         }
       }
 
-      console.log('⚠️ [MESSAGES DEBUG] Nenhum endpoint de mensagens funcionou');
+      console.log('⚠️ [MESSAGES DEBUG] Nenhum endpoint funcionou via proxy');
       
       if (!silent) {
         toast({
-          title: "⚠️ Endpoint de mensagens não encontrado",
-          description: "O WPPConnect não possui os endpoints padrão de mensagens. Verifique a documentação da sua versão.",
+          title: "⚠️ Problema na comunicação",
+          description: "Não foi possível carregar as mensagens via proxy. Verifique se o WPPConnect está funcionando.",
           variant: "destructive"
         });
       }
@@ -206,11 +204,11 @@ export function useWPPMessages(chats: WPPConnectChat[]) {
       return [];
       
     } catch (error) {
-      console.error('❌ [MESSAGES DEBUG] Erro geral ao carregar mensagens:', error);
+      console.error('❌ [MESSAGES DEBUG] Erro geral ao carregar mensagens via proxy:', error);
       if (!silent) {
         toast({
           title: "❌ Erro ao carregar mensagens",
-          description: "Não foi possível carregar as mensagens",
+          description: "Problema na comunicação via proxy",
           variant: "destructive"
         });
       }
@@ -220,7 +218,7 @@ export function useWPPMessages(chats: WPPConnectChat[]) {
         setIsLoadingMessages(false);
       }
     }
-  }, [messageHistoryLimit, toast, getWPPConfig, chats]);
+  }, [messageHistoryLimit, toast, getWPPConfig, chats, supabase.functions]);
 
   const sendMessage = useCallback(async (chatId: string, message: string) => {
     console.log('📤 Enviando mensagem via WPPConnect:', { chatId, message });
@@ -298,7 +296,7 @@ export function useWPPMessages(chats: WPPConnectChat[]) {
     setMessageHistoryLimit(newLimit);
     toast({
       title: "📊 Limite atualizado",
-      description: `Agora carregando ${newLimit} mensagens por conversa`
+      description: `Agora carregando ${newLimit} mensagens por conversa via proxy corrigido`
     });
   }, [toast]);
 
