@@ -9,32 +9,63 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    console.log('🚀 ANÁLISE DE CONVERSA - Iniciando processamento...');
+    console.log('🚀 EDGE FUNCTION - analyze-conversation iniciada');
     
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
-
-    // Verificar se as variáveis de ambiente estão configuradas
-    if (!Deno.env.get('SUPABASE_URL') || !Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')) {
-      console.error('❌ Variáveis de ambiente do Supabase não configuradas');
+    // Verificar variáveis de ambiente
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    
+    if (!supabaseUrl || !supabaseServiceKey) {
+      console.error('❌ Variáveis de ambiente não configuradas');
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'Configuração do servidor incompleta' 
+          error: 'Configuração do servidor incompleta',
+          details: 'SUPABASE_URL ou SUPABASE_SERVICE_ROLE_KEY não configurados'
         }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { 
+          status: 500, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
       );
     }
 
-    const requestBody = await req.json();
-    console.log('📥 Request recebido:', JSON.stringify(requestBody, null, 2));
+    console.log('✅ Variáveis de ambiente OK');
+
+    const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Parse do request body
+    let requestBody;
+    try {
+      requestBody = await req.json();
+      console.log('📥 Request body recebido:', {
+        hasConversationId: !!requestBody.conversation_id,
+        hasMessages: !!requestBody.messages,
+        messagesCount: requestBody.messages?.length || 0,
+        hasPrompt: !!requestBody.analysis_prompt,
+        analysisType: requestBody.analysis_type,
+        assistantId: requestBody.assistant_id
+      });
+    } catch (error) {
+      console.error('❌ Erro ao fazer parse do JSON:', error);
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'JSON inválido no request body',
+          details: error.message
+        }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
 
     const {
       conversation_id,
@@ -45,26 +76,32 @@ serve(async (req) => {
       contact_info
     } = requestBody;
 
-    // Validações rigorosas
+    // Validações básicas
     if (!conversation_id) {
       console.error('❌ conversation_id ausente');
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'ID da conversa é obrigatório' 
+          error: 'conversation_id é obrigatório'
         }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
       );
     }
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
-      console.error('❌ Mensagens inválidas:', { messages });
+      console.error('❌ Mensagens inválidas:', { messages: messages?.slice(0, 3) });
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'Nenhuma mensagem válida encontrada para análise' 
+          error: 'Nenhuma mensagem válida encontrada para análise'
         }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
       );
     }
 
@@ -73,9 +110,12 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'Prompt de análise é obrigatório' 
+          error: 'Prompt de análise é obrigatório'
         }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
       );
     }
 
@@ -86,9 +126,12 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'Token de autorização obrigatório' 
+          error: 'Token de autorização obrigatório'
         }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { 
+          status: 401, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
       );
     }
 
@@ -102,9 +145,13 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'Usuário não autenticado' 
+          error: 'Usuário não autenticado',
+          details: userError?.message
         }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { 
+          status: 401, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
       );
     }
 
@@ -124,9 +171,13 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'Erro ao acessar configuração do usuário' 
+          error: 'Erro ao acessar configuração do usuário',
+          details: configError.message
         }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { 
+          status: 500, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
       );
     }
 
@@ -135,17 +186,20 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'Configure sua API key da OpenAI nas configurações do sistema' 
+          error: 'Configure sua API key da OpenAI nas configurações do sistema'
         }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
       );
     }
 
     const openaiConfig = configData.openai_config;
     console.log('✅ Configuração OpenAI encontrada');
 
-    // Preparar texto da conversa
-    console.log('📝 Processando mensagens da conversa...');
+    // Processar mensagens
+    console.log('📝 Processando mensagens...');
     const validMessages = messages.filter(msg => 
       msg && 
       msg.text && 
@@ -159,9 +213,12 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'Nenhuma mensagem válida encontrada para análise' 
+          error: 'Nenhuma mensagem válida encontrada para análise'
         }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
       );
     }
 
@@ -175,8 +232,7 @@ serve(async (req) => {
     console.log('📊 Conversa preparada:', {
       totalMessages: messages.length,
       validMessages: validMessages.length,
-      textLength: conversationText.length,
-      preview: conversationText.substring(0, 200) + '...'
+      textLength: conversationText.length
     });
 
     // Chamar OpenAI
@@ -210,16 +266,19 @@ serve(async (req) => {
       const errorText = await openaiResponse.text();
       console.error('❌ Erro da OpenAI:', {
         status: openaiResponse.status,
-        statusText: openaiResponse.statusText,
         error: errorText
       });
       
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: `Erro da OpenAI: ${openaiResponse.status} - ${errorText}` 
+          error: `Erro da OpenAI: ${openaiResponse.status}`,
+          details: errorText
         }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { 
+          status: 500, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
       );
     }
 
@@ -233,16 +292,16 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'A IA não conseguiu gerar uma análise' 
+          error: 'A IA não conseguiu gerar uma análise'
         }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { 
+          status: 500, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
       );
     }
 
-    console.log('📊 Análise gerada:', {
-      length: analysisResult.length,
-      preview: analysisResult.substring(0, 100) + '...'
-    });
+    console.log('📊 Análise gerada com sucesso');
 
     // Salvar insight
     const insightData = {
@@ -301,11 +360,14 @@ serve(async (req) => {
 
     return new Response(
       JSON.stringify(response),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { 
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
     );
 
   } catch (error) {
-    console.error('💥 ERRO CRÍTICO:', error);
+    console.error('💥 ERRO CRÍTICO na Edge Function:', error);
     console.error('Stack trace:', error.stack);
     
     return new Response(

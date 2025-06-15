@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -145,14 +144,13 @@ ${analysisPrompt || 'Analise esta conversa do WhatsApp conforme solicitado...'}
         throw new Error(`Erro ao atualizar status: ${updateError.message}`);
       }
 
-      // 2. Buscar conversa no banco com múltiplas estratégias
+      // 2. Buscar conversa no banco
       console.log('🔍 Buscando conversa no banco...');
       
       let conversationData = null;
       let searchStrategy = '';
 
-      // Estratégia 1: Buscar por telefone
-      console.log('📱 Tentativa 1: Busca por telefone...');
+      // Buscar por telefone
       const { data: phoneData, error: phoneError } = await supabase
         .from('whatsapp_conversations')
         .select('messages, contact_name, contact_phone, session_id')
@@ -168,9 +166,8 @@ ${analysisPrompt || 'Analise esta conversa do WhatsApp conforme solicitado...'}
         console.log('✅ Conversa encontrada por telefone:', { messageCount: phoneData.messages.length });
       }
 
-      // Estratégia 2: Buscar por nome (se não encontrou por telefone)
+      // Buscar por nome se não encontrou por telefone
       if (!conversationData) {
-        console.log('📝 Tentativa 2: Busca por nome...');
         const { data: nameData, error: nameError } = await supabase
           .from('whatsapp_conversations')
           .select('messages, contact_name, contact_phone, session_id')
@@ -187,30 +184,11 @@ ${analysisPrompt || 'Analise esta conversa do WhatsApp conforme solicitado...'}
         }
       }
 
-      // Estratégia 3: Buscar por session_id (se não encontrou ainda)
-      if (!conversationData) {
-        console.log('🔑 Tentativa 3: Busca por session_id...');
-        const { data: sessionData, error: sessionError } = await supabase
-          .from('whatsapp_conversations')
-          .select('messages, contact_name, contact_phone, session_id')
-          .eq('user_id', user.id)
-          .eq('session_id', conversation.chat_id)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        if (!sessionError && sessionData?.messages && Array.isArray(sessionData.messages) && sessionData.messages.length > 0) {
-          conversationData = sessionData;
-          searchStrategy = 'por session_id';
-          console.log('✅ Conversa encontrada por session_id:', { messageCount: sessionData.messages.length });
-        }
-      }
-
       if (!conversationData?.messages || !Array.isArray(conversationData.messages) || conversationData.messages.length === 0) {
         console.error('❌ Nenhuma conversa encontrada');
         setDebugInfo({
           error: 'Conversa não encontrada',
-          searchAttempts: ['telefone', 'nome', 'session_id'],
+          searchAttempts: ['telefone', 'nome'],
           conversation: conversation
         });
         
@@ -234,10 +212,10 @@ ${analysisPrompt || 'Analise esta conversa do WhatsApp conforme solicitado...'}
         }
       });
 
-      // 3. Chamar edge function para análise - PAYLOAD CORRIGIDO
+      // 3. Chamar edge function para análise
       console.log('🤖 Enviando para análise IA...');
       const analysisPayload = {
-        conversation_id: conversation.id,  // ✅ CORRIGIDO: Incluindo conversation_id
+        conversation_id: conversation.id,
         messages: conversationData.messages,
         analysis_prompt: getAnalysisPrompt(),
         analysis_type: selectedAnalysisType,
