@@ -348,6 +348,7 @@ export function RealWhatsAppMirror() {
   const sortedMessages = messages
     .filter(m => m.chatId === selectedContact)
     .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+  console.log('🟢 [DEBUG] Chat selecionado:', selectedContact, 'Mensagens do hook:', messages.length, 'Mensagens deste chat:', sortedMessages.length);
 
   return (
     <div className="space-y-6">
