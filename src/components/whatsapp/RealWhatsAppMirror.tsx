@@ -54,6 +54,7 @@ export function RealWhatsAppMirror() {
   const [hasAutoChecked, setHasAutoChecked] = useState(false);
   const [hasAutoLoadedChats, setHasAutoLoadedChats] = useState(false);
   const [isForceLoading, setIsForceLoading] = useState(false);
+  const [messageLimit, setMessageLimit] = useState<number>(50); // NOVO: limite de mensagens
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const connectionStatus = getConnectionStatus();
@@ -187,9 +188,10 @@ export function RealWhatsAppMirror() {
     }
   };
 
-  const handleLoadRealMessages = async (contactId: string) => {
+  // Alterar para receber o limite de mensagens
+  const handleLoadRealMessages = async (contactId: string, limit: number = messageLimit) => {
     try {
-      await loadRealMessages(contactId);
+      await loadRealMessages(contactId, limit); // Espera-se que seu hook aceite o limit!
     } catch (error) {
       console.error('❌ Erro ao carregar mensagens:', error);
       toast({
@@ -206,7 +208,7 @@ export function RealWhatsAppMirror() {
 
   const selectContact = (contact: any) => {
     setSelectedContact(contact.id);
-    handleLoadRealMessages(contact.id);
+    handleLoadRealMessages(contact.id, messageLimit);
     
     // Parar modo live anterior se houver
     if (isLiveMode && currentChatId !== contact.id) {
@@ -542,6 +544,23 @@ export function RealWhatsAppMirror() {
                     <Download className={`h-4 w-4 ${(isLoadingChats || isForceLoading) ? 'animate-spin' : ''}`} />
                   </Button>
                 </div>
+              </div>
+
+              <div className="flex items-center gap-2 mt-2 mb-2">
+                <label htmlFor="messageLimit" className="text-xs text-gray-500">
+                  Mensagens/carregar:
+                </label>
+                <select
+                  id="messageLimit"
+                  value={messageLimit}
+                  onChange={e => setMessageLimit(Number(e.target.value))}
+                  className="border rounded px-1 py-0.5 text-xs"
+                >
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                  <option value={200}>200</option>
+                  <option value={500}>500</option>
+                </select>
               </div>
               
               <div className="relative">
