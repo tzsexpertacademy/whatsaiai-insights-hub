@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,7 +13,8 @@ import {
   XCircle, 
   AlertTriangle,
   Loader2,
-  Eye
+  Eye,
+  RefreshCw
 } from 'lucide-react';
 
 interface DiagnosticResult {
@@ -24,13 +26,42 @@ interface DiagnosticResult {
 
 export function AnalysisDiagnostic() {
   const { user } = useAuth();
-  const { config } = useClientConfig();
+  const { config, saveConfig } = useClientConfig();
   const { toast } = useToast();
   const [isRunning, setIsRunning] = useState(false);
   const [results, setResults] = useState<DiagnosticResult[]>([]);
 
   const addResult = (result: DiagnosticResult) => {
     setResults(prev => [...prev, result]);
+  };
+
+  const syncConfigToDatabase = async () => {
+    try {
+      console.log('🔄 Sincronizando configuração OpenAI com o banco...');
+      await saveConfig();
+      
+      addResult({
+        step: 'Sincronização',
+        status: 'success',
+        message: 'Configuração OpenAI sincronizada entre ClientConfig e banco de dados'
+      });
+      
+      toast({
+        title: "Configuração sincronizada",
+        description: "OpenAI API Key sincronizada com sucesso",
+      });
+      
+      return true;
+    } catch (error) {
+      console.error('❌ Erro na sincronização:', error);
+      addResult({
+        step: 'Sincronização',
+        status: 'error',
+        message: 'Erro ao sincronizar configuração com o banco',
+        details: { error }
+      });
+      return false;
+    }
   };
 
   const runDiagnostic = async () => {
@@ -55,18 +86,11 @@ export function AnalysisDiagnostic() {
         details: { userId: user.id }
       });
 
-      // Passo 2: Verificar configuração OpenAI do ClientConfig (mesma fonte dos assistentes)
+      // Passo 2: Verificar configuração OpenAI do ClientConfig
       console.log('🔍 Verificando configuração OpenAI do ClientConfig...');
-      console.log('📊 Config atual:', { 
-        hasOpenAIConfig: !!config.openai,
-        apiKeyExists: !!config.openai?.apiKey,
-        apiKeyLength: config.openai?.apiKey?.length || 0,
-        apiKeyStart: config.openai?.apiKey?.substring(0, 10) || 'N/A'
-      });
-
+      
       const openaiApiKey = config.openai?.apiKey;
       
-      // Validar API Key mais rigorosamente
       const hasValidApiKey = openaiApiKey && 
                            typeof openaiApiKey === 'string' && 
                            openaiApiKey.length > 20 && 
@@ -82,19 +106,29 @@ export function AnalysisDiagnostic() {
           hasApiKey: !!openaiApiKey,
           apiKeyLength: openaiApiKey?.length || 0,
           isValidFormat: hasValidApiKey,
-          keyPrefix: openaiApiKey?.substring(0, 10) || 'N/A',
-          configSource: 'ClientConfig Context'
+          keyPrefix: openaiApiKey?.substring(0, 10) || 'N/A'
         }
       });
 
-      // Passo 3: Verificar também no banco de dados (como fallback)
-      console.log('🔍 Verificando também configuração no banco de dados...');
+      if (!hasValidApiKey) {
+        addResult({
+          step: 'Sugestão',
+          status: 'warning',
+          message: 'Vá para Configurações > OpenAI e configure sua API key'
+        });
+        return;
+      }
+
+      // Passo 3: Verificar configuração no banco de dados
+      console.log('🔍 Verificando configuração no banco de dados...');
       
       const { data: configData, error: configError } = await supabase
         .from('client_configs')
         .select('openai_config')
         .eq('user_id', user.id)
         .maybeSingle();
+
+      let needsSync = false;
 
       if (configError) {
         addResult({
@@ -103,33 +137,34 @@ export function AnalysisDiagnostic() {
           message: 'Erro ao acessar configuração no banco de dados',
           details: { error: configError }
         });
+        needsSync = true;
       } else if (configData?.openai_config) {
-        let dbOpenaiConfig;
         try {
-          dbOpenaiConfig = typeof configData.openai_config === 'string' 
+          const dbOpenaiConfig = typeof configData.openai_config === 'string' 
             ? JSON.parse(configData.openai_config) 
             : configData.openai_config;
           
           const dbApiKey = dbOpenaiConfig?.apiKey;
-          const dbHasValidApiKey = dbApiKey && 
-                                 typeof dbApiKey === 'string' && 
-                                 dbApiKey.length > 20 && 
-                                 (dbApiKey.startsWith('sk-') || dbApiKey.startsWith('sk-proj-'));
+          const configsMatch = dbApiKey === openaiApiKey;
           
-          addResult({
-            step: 'Configuração OpenAI (Banco)',
-            status: dbHasValidApiKey ? 'success' : 'warning',
-            message: dbHasValidApiKey 
-              ? `API Key também encontrada no banco (${dbApiKey.substring(0, 10)}...)` 
-              : 'Configuração no banco difere do ClientConfig',
-            details: { 
-              dbHasApiKey: !!dbApiKey,
-              dbApiKeyLength: dbApiKey?.length || 0,
-              dbIsValidFormat: dbHasValidApiKey,
-              dbKeyPrefix: dbApiKey?.substring(0, 10) || 'N/A',
-              configSource: 'Database'
-            }
-          });
+          if (configsMatch) {
+            addResult({
+              step: 'Configuração OpenAI (Banco)',
+              status: 'success',
+              message: 'Configuração no banco está sincronizada com o ClientConfig'
+            });
+          } else {
+            addResult({
+              step: 'Configuração OpenAI (Banco)',
+              status: 'warning',
+              message: 'Divergência detectada entre ClientConfig e banco de dados',
+              details: { 
+                clientConfigKey: openaiApiKey?.substring(0, 10) + '...',
+                dbKey: dbApiKey?.substring(0, 10) + '...'
+              }
+            });
+            needsSync = true;
+          }
         } catch (parseError) {
           addResult({
             step: 'Configuração OpenAI (Banco)',
@@ -137,19 +172,27 @@ export function AnalysisDiagnostic() {
             message: 'Configuração no banco com formato inválido',
             details: { parseError }
           });
+          needsSync = true;
+        }
+      } else {
+        addResult({
+          step: 'Configuração OpenAI (Banco)',
+          status: 'warning',
+          message: 'Nenhuma configuração encontrada no banco de dados'
+        });
+        needsSync = true;
+      }
+
+      // Passo 4: Sincronizar se necessário
+      if (needsSync) {
+        console.log('🔄 Sincronização necessária detectada...');
+        const syncSuccess = await syncConfigToDatabase();
+        if (!syncSuccess) {
+          return;
         }
       }
 
-      if (!hasValidApiKey) {
-        addResult({
-          step: 'Sugestão',
-          status: 'warning',
-          message: 'Vá para Configurações > OpenAI e reconecte sua API key. Se já está conectada, desconecte e conecte novamente.'
-        });
-        return;
-      }
-
-      // Passo 4: Testar conexão real com OpenAI
+      // Passo 5: Testar conexão real com OpenAI
       console.log('🔍 Testando conexão real com OpenAI...');
       
       try {
@@ -188,7 +231,7 @@ export function AnalysisDiagnostic() {
         return;
       }
 
-      // Passo 5: Verificar conversas marcadas
+      // Passo 6: Verificar conversas marcadas
       console.log('🔍 Buscando conversas marcadas...');
       
       const { data: conversations, error: convError } = await supabase
@@ -292,6 +335,16 @@ export function AnalysisDiagnostic() {
                 Executar Diagnóstico
               </>
             )}
+          </Button>
+          
+          <Button 
+            onClick={syncConfigToDatabase}
+            disabled={isRunning}
+            variant="outline"
+            className="text-blue-600 border-blue-600 hover:bg-blue-50"
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Sincronizar Config
           </Button>
         </div>
 
