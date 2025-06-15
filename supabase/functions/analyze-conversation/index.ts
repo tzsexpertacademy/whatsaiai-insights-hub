@@ -38,7 +38,12 @@ serve(async (req) => {
     let requestBody;
     try {
       requestBody = await req.json();
-      console.log('📥 Request body completo:', JSON.stringify(requestBody, null, 2));
+      console.log('📥 Request body recebido:', JSON.stringify({
+        conversation_id: requestBody.conversation_id,
+        messages_count: Array.isArray(requestBody.messages) ? requestBody.messages.length : 0,
+        analysis_type: requestBody.analysis_type,
+        assistant_id: requestBody.assistant_id
+      }));
     } catch (error) {
       console.error('❌ Erro ao fazer parse do JSON:', error);
       return new Response(
@@ -53,7 +58,7 @@ serve(async (req) => {
       );
     }
 
-    // Extrair dados do payload - suportando ambos os formatos
+    // Extrair dados do payload
     const conversation_id = requestBody.conversation_id;
     const messages = requestBody.messages;
     const analysis_prompt = requestBody.analysis_prompt;
@@ -61,23 +66,13 @@ serve(async (req) => {
     const assistant_id = requestBody.assistant_id;
     const contact_info = requestBody.contact_info;
 
-    console.log('📋 Dados extraídos:', {
-      conversation_id,
-      hasMessages: !!messages,
-      messagesCount: Array.isArray(messages) ? messages.length : 0,
-      analysis_type,
-      assistant_id,
-      contact_info
-    });
-
     // Validações básicas
     if (!conversation_id) {
       console.error('❌ conversation_id ausente no payload');
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'conversation_id é obrigatório',
-          received_data: Object.keys(requestBody)
+          error: 'conversation_id é obrigatório'
         }),
         { 
           status: 400, 
@@ -87,7 +82,7 @@ serve(async (req) => {
     }
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
-      console.error('❌ Mensagens inválidas:', { messages: messages?.slice(0, 3) });
+      console.error('❌ Mensagens inválidas');
       return new Response(
         JSON.stringify({ 
           success: false, 
@@ -152,13 +147,19 @@ serve(async (req) => {
     const userId = userData.user.id;
     console.log('✅ Usuário autenticado:', userId);
 
-    // Buscar configuração OpenAI
+    // Buscar configuração OpenAI com mais robustez
     console.log('🔍 Buscando configuração OpenAI...');
     const { data: configData, error: configError } = await supabaseClient
       .from('client_configs')
       .select('openai_config')
       .eq('user_id', userId)
-      .single();
+      .maybeSingle();
+
+    console.log('📊 Resultado da busca de config:', {
+      hasData: !!configData,
+      hasOpenaiConfig: !!configData?.openai_config,
+      configError: configError?.message
+    });
 
     if (configError) {
       console.error('❌ Erro ao buscar configuração:', configError);
@@ -174,12 +175,45 @@ serve(async (req) => {
       );
     }
 
-    if (!configData?.openai_config?.apiKey) {
-      console.error('❌ API Key da OpenAI não encontrada');
+    let openaiApiKey = null;
+
+    // Tentar extrair a API key de diferentes formatos
+    if (configData?.openai_config) {
+      console.log('🔍 Analisando openai_config...');
+      
+      try {
+        let openaiConfig = configData.openai_config;
+        
+        // Se for string, fazer parse
+        if (typeof openaiConfig === 'string') {
+          openaiConfig = JSON.parse(openaiConfig);
+        }
+        
+        console.log('📋 Estrutura do openai_config:', {
+          type: typeof openaiConfig,
+          keys: Object.keys(openaiConfig || {}),
+          hasApiKey: !!(openaiConfig?.apiKey)
+        });
+        
+        openaiApiKey = openaiConfig?.apiKey;
+        
+      } catch (parseError) {
+        console.error('❌ Erro ao fazer parse da configuração OpenAI:', parseError);
+      }
+    }
+
+    // Validar se a API key é válida
+    if (!openaiApiKey || typeof openaiApiKey !== 'string' || openaiApiKey.length < 20) {
+      console.error('❌ API Key da OpenAI inválida ou não encontrada:', {
+        hasApiKey: !!openaiApiKey,
+        apiKeyLength: openaiApiKey?.length || 0,
+        apiKeyStart: openaiApiKey?.substring(0, 10) || 'N/A'
+      });
+      
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'Configure sua API key da OpenAI nas configurações do sistema'
+          error: 'Configure sua API key da OpenAI nas configurações do sistema. Vá em Configurações > OpenAI e adicione uma API key válida.'
         }),
         { 
           status: 400, 
@@ -188,8 +222,10 @@ serve(async (req) => {
       );
     }
 
-    const openaiConfig = configData.openai_config;
-    console.log('✅ Configuração OpenAI encontrada');
+    console.log('✅ API Key da OpenAI encontrada e validada:', {
+      length: openaiApiKey.length,
+      prefix: openaiApiKey.substring(0, 10) + '...'
+    });
 
     // Processar mensagens
     console.log('📝 Processando mensagens...');
@@ -235,7 +271,7 @@ serve(async (req) => {
     const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${openaiConfig.apiKey}`,
+        'Authorization': `Bearer ${openaiApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -267,7 +303,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: `Erro da OpenAI: ${openaiResponse.status}`,
+          error: `Erro da OpenAI (${openaiResponse.status}): Verifique sua API key nas configurações.`,
           details: errorText
         }),
         { 
