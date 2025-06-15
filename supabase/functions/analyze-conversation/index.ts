@@ -42,7 +42,9 @@ serve(async (req) => {
         conversation_id: requestBody.conversation_id,
         messages_count: Array.isArray(requestBody.messages) ? requestBody.messages.length : 0,
         analysis_type: requestBody.analysis_type,
-        assistant_id: requestBody.assistant_id
+        assistant_id: requestBody.assistant_id,
+        has_openai_config: !!requestBody.openai_config,
+        openai_model: requestBody.openai_config?.model
       }));
     } catch (error) {
       console.error('❌ Erro ao fazer parse do JSON:', error);
@@ -65,6 +67,7 @@ serve(async (req) => {
     const analysis_type = requestBody.analysis_type;
     const assistant_id = requestBody.assistant_id;
     const contact_info = requestBody.contact_info;
+    const openai_config = requestBody.openai_config; // ✅ NOVA: Receber config OpenAI do payload
 
     // Validações básicas
     if (!conversation_id) {
@@ -109,6 +112,48 @@ serve(async (req) => {
       );
     }
 
+    // ✅ NOVA: Verificar se a configuração OpenAI foi enviada no payload
+    if (!openai_config || !openai_config.apiKey) {
+      console.error('❌ Configuração OpenAI não enviada no payload');
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'Configuração OpenAI não foi fornecida. Configure sua API key da OpenAI nas configurações.'
+        }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+
+    // ✅ NOVA: Validar a API key recebida
+    const openaiApiKey = openai_config.apiKey;
+    if (!openaiApiKey || typeof openaiApiKey !== 'string' || openaiApiKey.length < 20 || !openaiApiKey.startsWith('sk-')) {
+      console.error('❌ API Key da OpenAI inválida recebida no payload:', {
+        hasApiKey: !!openaiApiKey,
+        apiKeyLength: openaiApiKey?.length || 0,
+        startsWithSk: openaiApiKey?.startsWith('sk-') || false
+      });
+      
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'API Key da OpenAI inválida. Verifique sua configuração OpenAI.'
+        }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+
+    console.log('✅ API Key da OpenAI recebida e validada:', {
+      length: openaiApiKey.length,
+      prefix: openaiApiKey.substring(0, 10) + '...',
+      model: openai_config.model || 'gpt-4o-mini'
+    });
+
     // Verificar autenticação
     const authHeader = req.headers.get('authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -146,86 +191,6 @@ serve(async (req) => {
 
     const userId = userData.user.id;
     console.log('✅ Usuário autenticado:', userId);
-
-    // Buscar configuração OpenAI com mais robustez
-    console.log('🔍 Buscando configuração OpenAI...');
-    const { data: configData, error: configError } = await supabaseClient
-      .from('client_configs')
-      .select('openai_config')
-      .eq('user_id', userId)
-      .maybeSingle();
-
-    console.log('📊 Resultado da busca de config:', {
-      hasData: !!configData,
-      hasOpenaiConfig: !!configData?.openai_config,
-      configError: configError?.message
-    });
-
-    if (configError) {
-      console.error('❌ Erro ao buscar configuração:', configError);
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: 'Erro ao acessar configuração do usuário'
-        }),
-        { 
-          status: 500, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
-    }
-
-    let openaiApiKey = null;
-
-    // Tentar extrair a API key de diferentes formatos
-    if (configData?.openai_config) {
-      console.log('🔍 Analisando openai_config...');
-      
-      try {
-        let openaiConfig = configData.openai_config;
-        
-        // Se for string, fazer parse
-        if (typeof openaiConfig === 'string') {
-          openaiConfig = JSON.parse(openaiConfig);
-        }
-        
-        console.log('📋 Estrutura do openai_config:', {
-          type: typeof openaiConfig,
-          keys: Object.keys(openaiConfig || {}),
-          hasApiKey: !!(openaiConfig?.apiKey)
-        });
-        
-        openaiApiKey = openaiConfig?.apiKey;
-        
-      } catch (parseError) {
-        console.error('❌ Erro ao fazer parse da configuração OpenAI:', parseError);
-      }
-    }
-
-    // Validar se a API key é válida
-    if (!openaiApiKey || typeof openaiApiKey !== 'string' || openaiApiKey.length < 20) {
-      console.error('❌ API Key da OpenAI inválida ou não encontrada:', {
-        hasApiKey: !!openaiApiKey,
-        apiKeyLength: openaiApiKey?.length || 0,
-        apiKeyStart: openaiApiKey?.substring(0, 10) || 'N/A'
-      });
-      
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: 'Configure sua API key da OpenAI nas configurações do sistema. Vá em Configurações > OpenAI e adicione uma API key válida.'
-        }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
-    }
-
-    console.log('✅ API Key da OpenAI encontrada e validada:', {
-      length: openaiApiKey.length,
-      prefix: openaiApiKey.substring(0, 10) + '...'
-    });
 
     // Processar mensagens
     console.log('📝 Processando mensagens...');
@@ -266,16 +231,16 @@ serve(async (req) => {
       textLength: conversationText.length
     });
 
-    // Chamar OpenAI
-    console.log('🤖 Enviando para OpenAI...');
+    // ✅ USAR A API KEY RECEBIDA NO PAYLOAD PARA CHAMAR OPENAI
+    console.log('🤖 Enviando para OpenAI COM API KEY DO PAYLOAD...');
     const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${openaiApiKey}`,
+        'Authorization': `Bearer ${openaiApiKey}`, // ✅ Usar a API key do payload
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: openai_config.model || 'gpt-4o-mini',
         messages: [
           {
             role: 'system',
@@ -286,8 +251,8 @@ serve(async (req) => {
             content: `Analise esta conversa do WhatsApp:\n\n${conversationText}`
           }
         ],
-        temperature: 0.7,
-        max_tokens: 2000
+        temperature: openai_config.temperature || 0.7,
+        max_tokens: openai_config.maxTokens || 2000
       }),
     });
 
@@ -382,7 +347,8 @@ serve(async (req) => {
       metadata: {
         messages_analyzed: validMessages.length,
         analysis_type,
-        assistant_id
+        assistant_id,
+        openai_model_used: openai_config.model || 'gpt-4o-mini'
       }
     };
 

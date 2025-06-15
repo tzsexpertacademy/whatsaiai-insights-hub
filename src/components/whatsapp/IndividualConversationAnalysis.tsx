@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useClientConfig } from '@/contexts/ClientConfigContext';
 import { AssistantSelector } from '@/components/AssistantSelector';
 import { useAssistantsConfig } from '@/hooks/useAssistantsConfig';
 import { 
@@ -40,6 +42,7 @@ interface ConversationAnalysisProps {
 
 export function IndividualConversationAnalysis({ conversation, onAnalysisComplete }: ConversationAnalysisProps) {
   const { user } = useAuth();
+  const { config } = useClientConfig();
   const { toast } = useToast();
   const { assistants } = useAssistantsConfig();
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -107,6 +110,16 @@ ${analysisPrompt || 'Analise esta conversa do WhatsApp conforme solicitado...'}
       return;
     }
 
+    // ✅ VERIFICAR CONFIGURAÇÃO OPENAI ANTES DE PROSSEGUIR
+    if (!config.openai?.apiKey || !config.openai.apiKey.startsWith('sk-')) {
+      toast({
+        title: "❌ Configuração OpenAI necessária",
+        description: "Configure sua API Key da OpenAI em Configurações > OpenAI antes de executar análises",
+        variant: "destructive"
+      });
+      return;
+    }
+
     if (selectedAnalysisType === 'custom' && !analysisPrompt.trim()) {
       toast({
         title: "⚠️ Prompt necessário",
@@ -119,13 +132,15 @@ ${analysisPrompt || 'Analise esta conversa do WhatsApp conforme solicitado...'}
     setIsAnalyzing(true);
     setDebugInfo(null);
     
-    console.log('🚀 INICIANDO ANÁLISE INDIVIDUAL:', {
+    console.log('🚀 INICIANDO ANÁLISE INDIVIDUAL COM OPENAI CONFIG:', {
       conversationId: conversation.id,
       chatId: conversation.chat_id,
       contactName: conversation.contact_name,
       contactPhone: conversation.contact_phone,
       analysisType: selectedAnalysisType,
-      assistantId: selectedAssistant
+      assistantId: selectedAssistant,
+      hasOpenAIKey: !!config.openai?.apiKey,
+      openAIKeyPrefix: config.openai?.apiKey?.substring(0, 10) + '...'
     });
 
     try {
@@ -209,13 +224,14 @@ ${analysisPrompt || 'Analise esta conversa do WhatsApp conforme solicitado...'}
         contactInfo: {
           name: conversationData.contact_name,
           phone: conversationData.contact_phone
-        }
+        },
+        openAIConfigSent: true
       });
 
-      // 3. Chamar edge function para análise
-      console.log('🤖 Enviando para análise IA...');
+      // 3. Chamar edge function para análise COM CONFIGURAÇÃO OPENAI
+      console.log('🤖 Enviando para análise IA COM CONFIGURAÇÃO OPENAI...');
       
-      // Preparar payload com estrutura simples
+      // ✅ PREPARAR PAYLOAD COMPLETO COM OPENAI CONFIG
       const analysisPayload = {
         conversation_id: conversation.id,
         messages: conversationData.messages,
@@ -225,16 +241,25 @@ ${analysisPrompt || 'Analise esta conversa do WhatsApp conforme solicitado...'}
         contact_info: {
           name: conversation.contact_name,
           phone: conversation.contact_phone
+        },
+        // ✅ INCLUIR CONFIGURAÇÃO OPENAI NO PAYLOAD
+        openai_config: {
+          apiKey: config.openai.apiKey,
+          model: config.openai.model || 'gpt-4o-mini',
+          temperature: config.openai.temperature || 0.7,
+          maxTokens: config.openai.maxTokens || 2000
         }
       };
 
-      console.log('📦 Payload final da análise:', {
+      console.log('📦 Payload final da análise COM OPENAI:', {
         conversation_id: analysisPayload.conversation_id,
         messages_count: analysisPayload.messages.length,
         analysis_type: analysisPayload.analysis_type,
         assistant_id: analysisPayload.assistant_id,
         prompt_length: analysisPayload.analysis_prompt.length,
-        contact_info: analysisPayload.contact_info
+        contact_info: analysisPayload.contact_info,
+        openai_model: analysisPayload.openai_config.model,
+        has_openai_key: !!analysisPayload.openai_config.apiKey
       });
 
       // Chamar a edge function
@@ -354,6 +379,21 @@ ${analysisPrompt || 'Analise esta conversa do WhatsApp conforme solicitado...'}
       </CardHeader>
 
       <CardContent>
+        {/* Verificação de configuração OpenAI */}
+        {(!config.openai?.apiKey || !config.openai.apiKey.startsWith('sk-')) && (
+          <Card className="mb-4 bg-red-50 border-red-200">
+            <CardContent className="p-3">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="h-4 w-4 text-red-500 mt-0.5" />
+                <div className="text-sm">
+                  <p className="font-medium text-red-900">Configuração OpenAI necessária</p>
+                  <p className="text-red-700">Configure sua API Key da OpenAI em Configurações > OpenAI antes de executar análises.</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {debugInfo && (
           <Card className="mb-4 bg-blue-50 border-blue-200">
             <CardContent className="p-3">
@@ -361,7 +401,7 @@ ${analysisPrompt || 'Analise esta conversa do WhatsApp conforme solicitado...'}
                 <Info className="h-4 w-4 text-blue-500 mt-0.5" />
                 <div className="text-sm">
                   <p className="font-medium text-blue-900">Debug Info:</p>
-                  <pre className="text-xs bg-white p-2 rounded mt-1 overflow-auto">
+                  <pre className="text-xs bg-white p-2 rounded mt-1 overflow-auto max-h-32">
                     {JSON.stringify(debugInfo, null, 2)}
                   </pre>
                 </div>
@@ -440,7 +480,7 @@ ${analysisPrompt || 'Analise esta conversa do WhatsApp conforme solicitado...'}
             <div className="pt-4 border-t">
               <Button 
                 onClick={handleAnalyzeConversation}
-                disabled={isAnalyzing || conversation.analysis_status === 'processing'}
+                disabled={isAnalyzing || conversation.analysis_status === 'processing' || !config.openai?.apiKey}
                 className="w-full"
               >
                 {isAnalyzing ? (
