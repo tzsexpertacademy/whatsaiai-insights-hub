@@ -191,11 +191,14 @@ export function RealWhatsAppMirror() {
   };
 
   // Função para atualizar o limite e recarregar mensagens do contato atual
-  const handleChangeMessageLimit = (limit: number) => {
+  const handleChangeMessageLimit = async (limit: number) => {
     setMessageLimit(limit);
-    updateMessageHistoryLimit(limit);
+    await updateMessageHistoryLimit(limit); // Garante que o hook seja atualizado antes de buscar as mensagens
     if (selectedContact) {
-      handleLoadRealMessages(selectedContact, true); // true = silent (não mostra toast)
+      // Aguarda pequeno delay para garantir sincronização (react pode agendar o re-render)
+      setTimeout(() => {
+        handleLoadRealMessages(selectedContact, false);
+      }, 150);
     }
   };
 
