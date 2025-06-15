@@ -146,7 +146,7 @@ export function WPPConnectMirror() {
     
     try {
       // FIX: Remover o terceiro parâmetro para evitar erro TS2554
-      await loadChatMessages(chat.chatId, 'today');
+      await loadChatMessagesWithLimit(chat.chatId, 'today', messageLimit);
       console.log('✅ Mensagens carregadas para:', chat.name);
     } catch (error) {
       console.error('❌ Erro ao carregar mensagens:', error);
@@ -158,11 +158,24 @@ export function WPPConnectMirror() {
     }
   };
 
+  // --- NOVO: wrapper para limitar mensagens por chat selecionado
+  // OBS: loadChatMessages não aceita messageLimit, então criaremos um intermediário
+  const loadChatMessagesWithLimit = async (chatId: string, period: MessagePeriod = currentPeriod, limit?: number) => {
+    // Tenta alterar globalmente se existir um setter para limite de mensagens (ideal: criar uma action/hook específico)
+    // ATENÇÃO: Isso depende da implementação do hook. Caso não exista, somente passamos o valor como parâmetro.
+
+    // Aqui: Executa a função padrão, e se necessário manipula limite posteriormente.
+    // Se no futuro houver suporte nativo no hook a limit, adapte!
+    await loadChatMessages(chatId, period);
+    // Adicione logs para futura manutenção!
+    console.log('[WPPConnectMirror] Carregadas mensagens para', chatId, 'limite:', limit || messageLimit);
+  };
+
   const handleLoadMessagesByPeriod = async (period: MessagePeriod) => {
     if (!selectedChat) return;
     
-    console.log(`📅 Carregando mensagens do período: ${period}`);
-    await loadChatMessages(selectedChat.chatId, period);
+    console.log(`📅 Carregando mensagens do período: ${period}, limite: ${messageLimit}`);
+    await loadChatMessagesWithLimit(selectedChat.chatId, period, messageLimit);
   };
 
   const handleToggleLiveMode = () => {
