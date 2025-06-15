@@ -132,66 +132,19 @@ export function RealWhatsAppMirror() {
     contact.phone.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleLoadRealChats = async (isAutomatic = false) => {
-    console.log('📱 [DEBUG] handleLoadRealChats chamado:', {
-      isAutomatic,
-      isConnected,
-      hasAutoLoadedChats
-    });
-    
-    if (!isConnected && !isAutomatic) {
-      toast({
-        title: "WhatsApp não conectado",
-        description: "Conecte seu WhatsApp primeiro",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    try {
-      console.log('📱 [DEBUG] Carregando conversas reais do WPPConnect...');
-      const chatsData = await loadRealChats();
-      
-      console.log('📊 [DEBUG] Resultado loadRealChats:', chatsData);
-      
-      if (!chatsData || chatsData.length === 0) {
-        console.log('⚠️ [DEBUG] Nenhuma conversa encontrada');
-        if (!isAutomatic) {
-          toast({
-            title: "Nenhuma conversa encontrada",
-            description: "Não há conversas disponíveis no momento",
-            variant: "destructive"
-          });
-        }
-        return;
-      }
-      
-      console.log(`✅ [DEBUG] ${chatsData.length} conversas carregadas com sucesso`);
-      
-      if (!isAutomatic) {
-        toast({
-          title: "🎉 Conversas carregadas!",
-          description: `${chatsData.length} conversas encontradas`
-        });
-      }
-      
-    } catch (error) {
-      console.error('❌ [DEBUG] Erro ao carregar conversas:', error);
-      
-      if (!isAutomatic) {
-        toast({
-          title: "❌ Erro ao carregar conversas",
-          description: error instanceof Error ? error.message : "Verifique se o WPPConnect está rodando corretamente",
-          variant: "destructive"
-        });
-      }
+  // Função para atualizar o limite e recarregar mensagens do contato atual
+  const handleChangeMessageLimit = (limit: number) => {
+    setMessageLimit(limit);
+    updateMessageHistoryLimit(limit);
+    if (selectedContact) {
+      handleLoadRealMessages(selectedContact, true); // true = silent (não mostra toast)
     }
   };
 
-  // Alterar para receber o limite de mensagens
-  const handleLoadRealMessages = async (contactId: string, limit: number = messageLimit) => {
+  // Corrigido: Agora não aceita "limit", só o silent (tipo boolean)
+  const handleLoadRealMessages = async (contactId: string, silent: boolean = false) => {
     try {
-      await loadRealMessages(contactId, limit); // Espera-se que seu hook aceite o limit!
+      await loadRealMessages(contactId, silent);
     } catch (error) {
       console.error('❌ Erro ao carregar mensagens:', error);
       toast({
@@ -208,8 +161,8 @@ export function RealWhatsAppMirror() {
 
   const selectContact = (contact: any) => {
     setSelectedContact(contact.id);
-    handleLoadRealMessages(contact.id, messageLimit);
-    
+    handleLoadRealMessages(contact.id);
+
     // Parar modo live anterior se houver
     if (isLiveMode && currentChatId !== contact.id) {
       stopLiveMode();
@@ -553,7 +506,7 @@ export function RealWhatsAppMirror() {
                 <select
                   id="messageLimit"
                   value={messageLimit}
-                  onChange={e => setMessageLimit(Number(e.target.value))}
+                  onChange={e => handleChangeMessageLimit(Number(e.target.value))}
                   className="border rounded px-1 py-0.5 text-xs"
                 >
                   <option value={50}>50</option>
