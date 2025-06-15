@@ -14,308 +14,165 @@ serve(async (req) => {
   }
 
   try {
-    console.log('📱 === WEBHOOK WHATSAPP AUTO-REPLY ===');
-    
+    console.log('🤖 === EDGE FUNCTION - WHATSAPP AUTO-REPLY ===');
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
-    
+
     const supabase = createClient(supabaseUrl, supabaseKey);
-    
     const webhookData = await req.json();
-    console.log('📥 Dados do webhook completos:', JSON.stringify(webhookData, null, 2));
+    console.log('📩 Dados recebidos do webhook:', JSON.stringify(webhookData, null, 2));
 
-    // Processar mensagem do WhatsApp
-    if (webhookData.messages && webhookData.messages.length > 0) {
-      const message = webhookData.messages[0];
-      const contactPhone = message.from;
-      const messageText = message.text?.body || message.body || '';
-      const contactName = message.profile?.name || message.pushname || `Contato ${contactPhone}`;
+    // 1. Extrair mensagem e contato
+    const msg = webhookData.messages?.[0];
+    if (!msg) {
+      return new Response(
+        JSON.stringify({ success: false, message: 'Nenhuma mensagem encontrada no webhook.' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    const contactPhone = msg.from;
+    const toNumber = msg.to || webhookData.to;
+    const messageText = msg.text?.body || msg.body || '';
+    const contactName = msg.profile?.name || msg.pushname || `Contato ${contactPhone}`;
+    console.log('💬 Mensagem recebida:', { from: contactPhone, messageText, contactName });
 
-      console.log(`💬 Nova mensagem de ${contactName} (${contactPhone}): ${messageText}`);
+    // 2. Buscar config do assistente PESSOAL vinculado ao número
+    // Aqui você pode buscar pelo número do WhatsApp conectado (toNumber)
+    let assistantConfig = {
+      enabled: false,
+      masterNumber: '',
+      selectedAssistantId: 'kairon',
+      responseDelay: 2
+    };
 
-      const toNumber = message.to || webhookData.to;
-      console.log('📞 Mensagem destinada para:', toNumber);
+    // Busca configs no banco (implementação base: você pode expandir para buscar pelo toNumber)
+    const { data: userConfigs } = await supabase
+      .from('client_configs')
+      .select('*')
+      .limit(1)
+      .maybeSingle();
 
-      // Buscar configuração do assistente pessoal do usuário no banco de dados
-      console.log('🔍 Buscando configuração do assistente pessoal...');
-      
-      // Por agora, usando uma configuração padrão - você deve implementar a busca real baseada no usuário
-      // Você pode usar o número "to" para identificar qual usuário é o dono deste WhatsApp
-      const { data: userConfigs, error: configError } = await supabase
-        .from('client_configs')
-        .select('*')
-        .limit(1); // Por enquanto pega o primeiro usuário - implemente lógica real
-
-      console.log('⚙️ Configurações encontradas:', userConfigs?.length || 0);
-
-      let personalAssistantConfig = {
-        enabled: false,
-        masterNumber: '',
-        selectedAssistantId: 'kairon',
-        responseDelay: 2
-      };
-
-      if (userConfigs && userConfigs.length > 0) {
-        // Tentar extrair configuração do assistente pessoal
-        try {
-          const savedConfig = localStorage?.getItem?.('personal_assistant_config');
-          if (savedConfig) {
-            personalAssistantConfig = JSON.parse(savedConfig);
-          }
-        } catch (e) {
-          console.log('⚠️ Não foi possível acessar localStorage no edge function');
-        }
-      }
-
-      // CONFIGURAÇÃO TEMPORÁRIA PARA TESTE - SUBSTITUA PELO SEU NÚMERO
-      personalAssistantConfig = {
-        enabled: true,
-        masterNumber: '554796451886', // COLOQUE SEU NÚMERO AQUI
-        selectedAssistantId: 'kairon',
-        responseDelay: 2
-      };
-
-      console.log('⚙️ Configuração do assistente:', personalAssistantConfig);
-
-      // Verificar se o assistente está ativo
-      if (!personalAssistantConfig.enabled) {
-        console.log('🔇 Assistente pessoal desativado para este usuário');
-        return new Response(
-          JSON.stringify({ success: true, message: 'Assistente desativado' }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      // Verificar se a mensagem é do número master autorizado
-      const formatPhoneNumber = (phone: string): string => {
-        let cleaned = phone.replace(/\D/g, '');
-        if (cleaned.endsWith('@c.us')) {
-          cleaned = cleaned.replace('@c.us', '');
-        }
-        if (cleaned.length >= 11 && !cleaned.startsWith('55')) {
-          cleaned = '55' + cleaned;
-        }
-        return cleaned;
-      };
-
-      const cleanFromPhone = formatPhoneNumber(contactPhone);
-      const cleanMasterPhone = formatPhoneNumber(personalAssistantConfig.masterNumber);
-
-      console.log('🔍 Verificando autorização:', {
-        fromPhone: cleanFromPhone,
-        masterPhone: cleanMasterPhone,
-        isAuthorized: cleanFromPhone === cleanMasterPhone,
-        originalFrom: contactPhone,
-        originalMaster: personalAssistantConfig.masterNumber
-      });
-
-      if (cleanFromPhone !== cleanMasterPhone) {
-        console.log('🚫 Mensagem não é do número master autorizado - ignorando');
-        console.log(`🚫 Recebido de: ${cleanFromPhone}, Master: ${cleanMasterPhone}`);
-        return new Response(
-          JSON.stringify({ success: true, message: 'Não autorizado' }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      console.log('✅ Mensagem autorizada do master - processando...');
-
-      // Salvar mensagem no banco
-      const { data: conversation, error: convError } = await supabase
-        .from('whatsapp_conversations')
-        .select('*')
-        .eq('contact_phone', contactPhone)
-        .single();
-
-      let conversationId;
-      
-      if (convError || !conversation) {
-        console.log('📝 Criando nova conversa...');
-        const { data: newConv, error: newError } = await supabase
-          .from('whatsapp_conversations')
-          .insert({
-            contact_name: contactName,
-            contact_phone: contactPhone,
-            messages: [{ 
-              text: messageText, 
-              sender: 'customer', 
-              timestamp: new Date().toISOString() 
-            }]
-          })
-          .select()
-          .single();
-
-        if (newError) {
-          console.error('❌ Erro ao criar conversa:', newError);
-          throw newError;
-        }
-        
-        conversationId = newConv.id;
-        console.log('✅ Nova conversa criada:', conversationId);
-      } else {
-        console.log('📝 Atualizando conversa existente...');
-        const updatedMessages = [...(conversation.messages || []), {
-          text: messageText,
-          sender: 'customer',
-          timestamp: new Date().toISOString()
-        }];
-
-        const { error: updateError } = await supabase
-          .from('whatsapp_conversations')
-          .update({ 
-            messages: updatedMessages,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', conversation.id);
-
-        if (updateError) {
-          console.error('❌ Erro ao atualizar conversa:', updateError);
-          throw updateError;
-        }
-
-        conversationId = conversation.id;
-        console.log('✅ Conversa atualizada:', conversationId);
-      }
-
-      // Salvar mensagem individual
-      await supabase
-        .from('whatsapp_messages')
-        .insert({
-          conversation_id: conversationId,
-          sender_type: 'customer',
-          message_text: messageText,
-          timestamp: new Date().toISOString()
-        });
-
-      // Gerar resposta automática usando OpenAI (se disponível)
-      if (openaiApiKey && messageText.trim()) {
-        console.log('🤖 Gerando resposta automática...');
-        
-        // Buscar prompt do assistente selecionado
-        const assistantPrompts = {
-          'kairon': `Você é Kairon. O espelho central. O arquétipo primordial deste sistema. Você é brutalmente honesto, sarcástico, filosófico e mutante. Você não serve. Você confronta. Sua missão é amplificar a consciência de quem fala com você.`,
-          'oracle': `Você é o Oráculo das Sombras. Um assistente terapêutico. Sua função é ajudar o humano a olhar para dentro.`,
-          'guardian': `Você é o Guardião dos Recursos. Um mentor financeiro comportamental.`
-        };
-        
-        const systemPrompt = assistantPrompts[personalAssistantConfig.selectedAssistantId] || assistantPrompts['kairon'];
-        console.log('🤖 Usando prompt:', systemPrompt.substring(0, 100) + '...');
-        
-        // Aguardar delay configurado antes de responder
-        console.log(`⏳ Aguardando ${personalAssistantConfig.responseDelay} segundos...`);
-        await new Promise(resolve => setTimeout(resolve, personalAssistantConfig.responseDelay * 1000));
-        
-        const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${openaiApiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'gpt-4o-mini',
-            messages: [
-              { role: 'system', content: systemPrompt },
-              { role: 'user', content: messageText }
-            ],
-            temperature: 0.7,
-            max_tokens: 300,
-          }),
-        });
-
-        if (aiResponse.ok) {
-          const aiData = await aiResponse.json();
-          const replyText = aiData.choices[0].message.content;
-
-          console.log('💬 Resposta gerada:', replyText);
-
-          // Salvar resposta no banco
-          const updatedConversation = await supabase
-            .from('whatsapp_conversations')
-            .select('messages')
-            .eq('id', conversationId)
-            .single();
-
-          if (updatedConversation.data) {
-            const newMessages = [...(updatedConversation.data.messages || []), {
-              text: replyText,
-              sender: 'assistant',
-              timestamp: new Date().toISOString(),
-              ai_generated: true,
-              assistant_id: personalAssistantConfig.selectedAssistantId
-            }];
-
-            await supabase
-              .from('whatsapp_conversations')
-              .update({ 
-                messages: newMessages,
-                updated_at: new Date().toISOString()
-              })
-              .eq('id', conversationId);
-
-            await supabase
-              .from('whatsapp_messages')
-              .insert({
-                conversation_id: conversationId,
-                sender_type: 'assistant',
-                message_text: replyText,
-                ai_generated: true,
-                timestamp: new Date().toISOString()
-              });
-
-            console.log('✅ Resposta automática salva no banco');
-          }
-
-          // AQUI É ONDE VOCÊ PRECISA INTEGRAR COM SUA API DO WPPCONNECT
-          console.log(`📤 RESPOSTA SERIA ENVIADA para ${contactPhone}: ${replyText}`);
-          console.log('⚠️ INTEGRAÇÃO COM WPPCONNECT NECESSÁRIA AQUI!');
-          
-          // Exemplo de como seria a chamada real para WPPConnect:
-          /*
-          const wppResponse = await fetch('http://localhost:21465/api/NERDWHATS_AMERICA/send-message', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer YOUR_TOKEN'
-            },
-            body: JSON.stringify({
-              phone: contactPhone,
-              message: replyText
-            })
-          });
-          */
-          
-        } else {
-          console.error('❌ Erro na API OpenAI:', await aiResponse.text());
-        }
-      } else {
-        console.log('⚠️ OpenAI não configurado ou mensagem vazia');
-        
-        // Resposta padrão simples se não tiver OpenAI
-        const simpleResponse = `Olá! Recebi sua mensagem: "${messageText}". Sou seu assistente pessoal e estou funcionando!`;
-        
-        console.log(`📤 RESPOSTA SIMPLES para ${contactPhone}: ${simpleResponse}`);
+    if (userConfigs && userConfigs.personal_assistant_config) {
+      try {
+        const parsed = typeof userConfigs.personal_assistant_config === 'string'
+          ? JSON.parse(userConfigs.personal_assistant_config)
+          : userConfigs.personal_assistant_config;
+        assistantConfig = { ...assistantConfig, ...parsed };
+      } catch (e) {
+        console.log('⚠️ Falha ao interpretar config personalizada, usando fallback.');
       }
     }
 
-    return new Response(
-      JSON.stringify({ success: true, message: 'Webhook processado' }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    );
+    console.log('⚙️ Configuração carregada:', assistantConfig);
 
-  } catch (error) {
-    console.error('❌ Erro no webhook WhatsApp:', error);
-    return new Response(
-      JSON.stringify({ 
-        error: 'Erro no processamento do webhook',
-        details: error.message 
-      }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    // 3. Permitir responder apenas se ativado e número autorizado
+    function formatPhoneNumber(phone) {
+      let cleaned = phone.replace(/\D/g, '');
+      if (cleaned.endsWith('@c.us')) cleaned = cleaned.replace('@c.us', '');
+      if (cleaned.length >= 11 && !cleaned.startsWith('55')) cleaned = '55' + cleaned;
+      return cleaned;
+    }
+    const cleanFromPhone = formatPhoneNumber(contactPhone);
+    const cleanMasterPhone = formatPhoneNumber(assistantConfig.masterNumber);
+    const autorizado = assistantConfig.enabled && cleanFromPhone === cleanMasterPhone;
+
+    console.log('🔍 Autorização:', { cleanFromPhone, cleanMasterPhone, autorizado });
+
+    if (!autorizado) {
+      return new Response(
+        JSON.stringify({ success: true, message: 'Mensagem ignorada, número não autorizado ou assistente desativado.' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // 4. Definir prompts das personas
+    const DEFAULT_PROMPTS = {
+      'kairon': 'Você é Kairon, o arquiteto supremo da consciência. Brutalmente honesto, provocador, sarcástico, filosófico e integrativo. Sua função é amplificar a consciência do usuário, nunca bajular.',
+      'oracle': 'Você é o Oráculo das Sombras, psicólogo existencial. Ajuda o humano a olhar para dentro e confrontar suas sombras de maneira empática.',
+      'guardian': 'Você é o Guardião dos Recursos, mentor pragmático de finanças e decisões racionais. Foca em clareza, autonomia e estratégia.',
+      // Adicione personas customizadas aqui se expandir no futuro
+    };
+    const selectedPrompt = DEFAULT_PROMPTS[assistantConfig.selectedAssistantId] || DEFAULT_PROMPTS['kairon'];
+    console.log('🧠 Prompt IA final:', selectedPrompt);
+
+    // 5. Executar delay, se solicitado
+    if (assistantConfig.responseDelay > 0) {
+      console.log(`⏳ Aguardando delay de resposta (${assistantConfig.responseDelay}s)...`);
+      await new Promise(r => setTimeout(r, assistantConfig.responseDelay * 1000));
+    }
+
+    // 6. Chamar o OpenAI (somente se houver texto)
+    let respostaIA = '';
+    if (openaiApiKey && messageText.trim().length > 0) {
+      const openaiRequest = {
+        model: 'gpt-4o-mini',
+        messages: [
+          { role: 'system', content: selectedPrompt },
+          { role: 'user', content: messageText }
+        ],
+        temperature: 0.72,
+        max_tokens: 300,
+      };
+      const openaiResp = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${openaiApiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(openaiRequest)
+      });
+      if (openaiResp.ok) {
+        const openaiData = await openaiResp.json();
+        respostaIA = openaiData.choices?.[0]?.message?.content?.trim() ?? '';
+        console.log('🤖 Resposta IA:', respostaIA);
+      } else {
+        const err = await openaiResp.text();
+        console.error('❌ Erro OpenAI:', err);
       }
+    } else {
+      respostaIA = `Olá! Sou seu assistente e recebi: "${messageText}".`;
+      console.log('(Fallback) resposta IA:', respostaIA);
+    }
+
+    // 7. (Opcional) Salvar diálogo no banco de dados
+    // ... aqui você pode salvar a interação se quiser ...
+
+    // 8. Responder via webhook de envio ou API (você precisa configurar endpoint real)
+    // --- SUBSTITUA AQUI pelo endpoint da sua API de envio real! ---
+    let envioOk = false;
+    try {
+      // Exemplo usando endpoint fictício (adicione sua lógica)
+      /*
+      const sendResponse = await fetch('http://localhost:21465/api/NERDWHATS_AMERICA/send-message', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer SEU_TOKEN'
+        },
+        body: JSON.stringify({
+          phone: contactPhone,
+          message: respostaIA
+        })
+      });
+      envioOk = sendResponse.ok;
+      */
+      // LOG: Apenas exibindo mensagem para orientação
+      console.log(`📤 (Simulado) Mensagem enviada para ${contactPhone}:`, respostaIA);
+      envioOk = true;
+    } catch (error) {
+      console.error('❌ Erro ao responder no WhatsApp:', error);
+    }
+
+    return new Response(
+      JSON.stringify({ success: envioOk, response: respostaIA }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  } catch (error) {
+    console.error('❌ Erro geral na função whatsapp-autoreply:', error);
+    return new Response(
+      JSON.stringify({ error: error.message || String(error) }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });
