@@ -34,7 +34,7 @@ export function ConversationMarker({
   const { user } = useAuth();
   const { markConversationForAnalysis, isMarking } = useConversationMarking();
   const [isMarked, setIsMarked] = useState(false);
-  const [currentPriority, setCurrentPriority] = useState(priority);
+  const [currentPriority, setCurrentPriority] = useState<'high' | 'medium' | 'low'>(priority);
 
   // Verificar se a conversa já está marcada
   useEffect(() => {
@@ -52,7 +52,11 @@ export function ConversationMarker({
 
         if (data && !error) {
           setIsMarked(true);
-          setCurrentPriority(data.priority || 'medium');
+          // Garantir que o valor seja válido antes de definir
+          const validPriority = data.priority as 'high' | 'medium' | 'low';
+          if (['high', 'medium', 'low'].includes(validPriority)) {
+            setCurrentPriority(validPriority);
+          }
         } else {
           setIsMarked(false);
         }
