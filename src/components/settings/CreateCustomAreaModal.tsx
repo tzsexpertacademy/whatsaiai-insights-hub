@@ -23,23 +23,49 @@ export function CreateCustomAreaModal({ onAreaCreated }: { onAreaCreated?: () =>
   const { user } = useAuth();
   const { register, handleSubmit, reset } = useForm<CustomAreaForm>();
 
-  // Função para criar nova área
+  // Função para criar nova área + assistente
   const onSubmit = async (data: CustomAreaForm) => {
     if (!user?.id) return;
     setLoading(true);
-    const { error } = await supabase
+
+    // Criar área personalizada primeiro
+    const { data: customArea, error: areaError } = await supabase
       .from('custom_areas')
       .insert({
         ...data,
         user_id: user.id,
+      })
+      .select()
+      .single();
+
+    if (areaError) {
+      setLoading(false);
+      alert('Erro ao criar área personalizada: ' + areaError.message);
+      return;
+    }
+
+    // Criar assistente correspondente
+    const assistantPrompt = data.assistant_persona
+      ? `Você é ${data.assistant_name}, um especialista da área de "${data.area_name}". Exerça sua persona: ${data.assistant_persona}.`
+      : `Você é ${data.assistant_name}, um especialista da área de "${data.area_name}".`;
+
+    const { error: assistantError } = await supabase
+      .from('assistants_config')
+      .insert({
+        user_id: user.id,
+        assistant_name: data.assistant_name,
+        assistant_role: `Especialista em ${data.area_name}`,
+        prompt: assistantPrompt,
+        is_active: true
       });
+
     setLoading(false);
-    if (!error) {
+    if (!assistantError) {
       setOpen(false);
       reset();
       onAreaCreated?.();
     } else {
-      alert('Erro ao criar área personalizada: ' + error.message);
+      alert('Erro ao criar assistente personalizado: ' + assistantError.message);
     }
   };
 
