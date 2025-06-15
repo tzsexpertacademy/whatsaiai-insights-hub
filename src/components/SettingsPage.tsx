@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Settings, Database, Bot, MessageSquare, Users, AlertCircle, Shield } from 'lucide-react';
@@ -10,6 +9,9 @@ import { AssistantsConfig } from '@/components/settings/AssistantsConfig';
 import { ClientConfig } from '@/components/settings/ClientConfig';
 import { AnalysisSystemStatus } from '@/components/AnalysisSystemStatus';
 import { PageLayout } from '@/components/layout/PageLayout';
+import { CreateCustomAreaModal } from "@/components/settings/CreateCustomAreaModal";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 export function SettingsPage() {
   console.log('SettingsPage - Componente sendo renderizado');
@@ -20,6 +22,22 @@ export function SettingsPage() {
     isAuthenticated,
     user: user ? { id: user.id, email: user.email } : null
   });
+
+  const [customAreas, setCustomAreas] = useState<any[]>([]);
+
+  // Buscar áreas customizadas do usuário
+  const fetchCustomAreas = async () => {
+    const { data, error } = await supabase
+      .from("custom_areas")
+      .select("*")
+      .order('created_at', { ascending: true });
+    if (!error && data) setCustomAreas(data);
+  };
+
+  useEffect(() => {
+    fetchCustomAreas();
+    // eslint-disable-next-line
+  }, []);
 
   if (!isAuthenticated) {
     console.log('SettingsPage - Usuário não autenticado');
@@ -49,6 +67,30 @@ export function SettingsPage() {
     >
       {/* Status do Sistema Blindado */}
       <AnalysisSystemStatus />
+
+      {/* Botão para criar área personalizada */}
+      <div className="mb-6 flex justify-end">
+        <CreateCustomAreaModal onAreaCreated={fetchCustomAreas} />
+      </div>
+
+      {/* Exibir áreas personalizadas cadastradas (apenas nome e assistente por enquanto) */}
+      {customAreas.length > 0 && (
+        <div className="mb-8">
+          <h3 className="text-lg font-semibold text-slate-700 mb-2">Áreas Personalizadas</h3>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {customAreas.map(area => (
+              <div key={area.id} className="p-4 rounded border bg-white shadow-sm">
+                <span className="text-xs text-gray-500 block mb-1">Área:</span>
+                <h4 className="font-bold text-indigo-700 mb-1">{area.area_name}</h4>
+                <span className="text-xs text-gray-500 block mb-1">Assistente:</span>
+                <div className="font-semibold">{area.assistant_name}</div>
+                {area.focus && <div className="text-xs mt-1 text-gray-700"><b>Foco:</b> {area.focus}</div>}
+                {area.objective && <div className="text-xs mt-1 text-gray-700"><b>Objetivo:</b> {area.objective}</div>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <Tabs defaultValue="whatsapp" className="w-full">
         <div className="overflow-x-auto">

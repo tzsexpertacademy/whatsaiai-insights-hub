@@ -400,6 +400,48 @@ export type Database = {
         }
         Relationships: []
       }
+      custom_areas: {
+        Row: {
+          area_name: string
+          assistant_name: string
+          assistant_persona: string | null
+          assistant_tone: string | null
+          created_at: string | null
+          focus: string | null
+          id: string
+          metrics: Json | null
+          objective: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          area_name: string
+          assistant_name: string
+          assistant_persona?: string | null
+          assistant_tone?: string | null
+          created_at?: string | null
+          focus?: string | null
+          id?: string
+          metrics?: Json | null
+          objective?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          area_name?: string
+          assistant_name?: string
+          assistant_persona?: string | null
+          assistant_tone?: string | null
+          created_at?: string | null
+          focus?: string | null
+          id?: string
+          metrics?: Json | null
+          objective?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       insights: {
         Row: {
           category: string | null
