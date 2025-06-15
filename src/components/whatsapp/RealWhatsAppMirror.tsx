@@ -63,6 +63,9 @@ export function RealWhatsAppMirror() {
   const connectionStatus = getConnectionStatus();
   const isConnected = sessionStatus.isConnected;
 
+  // Adicione o estado de messageLimit (igual ao WPPConnectMirror)
+  const [messageLimit, setMessageLimit] = useState<number>(messageHistoryLimit);
+
   // Verificação IMEDIATA ao entrar na página com logs detalhados
   useEffect(() => {
     const performImmediateCheck = async () => {
@@ -211,8 +214,9 @@ export function RealWhatsAppMirror() {
 
   const selectContact = (contact: any) => {
     setSelectedContact(contact.id);
-    handleLoadRealMessages(contact.id, messageHistoryLimit);
-    
+    // Agora passa o messageLimit atual como limite customizado
+    handleLoadRealMessages(contact.id, messageLimit);
+
     // Parar modo live anterior se houver
     if (isLiveMode && currentChatId !== contact.id) {
       stopLiveMode();
