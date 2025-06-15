@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -100,7 +101,7 @@ ${analysisPrompt || 'Analyze this WhatsApp conversation as requested...'}
   };
 
   const handleAnalyzeConversation = async () => {
-    console.log('🚀 Starting individual analysis - FIXED VERSION');
+    console.log('🚀 Starting individual analysis');
     
     if (!user?.id) {
       toast({
@@ -111,12 +112,11 @@ ${analysisPrompt || 'Analyze this WhatsApp conversation as requested...'}
       return;
     }
 
-    // Strict OpenAI config validation
     if (!config?.openai?.apiKey) {
       console.error('❌ Missing OpenAI config');
       toast({
         title: "❌ OpenAI configuration required",
-        description: "Configure your OpenAI API Key in Settings > OpenAI before running analysis",
+        description: "Configure your OpenAI API Key in Settings before running analysis",
         variant: "destructive"
       });
       return;
@@ -126,7 +126,7 @@ ${analysisPrompt || 'Analyze this WhatsApp conversation as requested...'}
       console.error('❌ Invalid OpenAI API key');
       toast({
         title: "❌ Invalid API Key",
-        description: "OpenAI API Key must start with 'sk-'. Check your configuration.",
+        description: "OpenAI API Key must start with 'sk-'",
         variant: "destructive"
       });
       return;
@@ -146,18 +146,12 @@ ${analysisPrompt || 'Analyze this WhatsApp conversation as requested...'}
     
     console.log('📋 Analysis configuration:', {
       conversationId: conversation.id,
-      chatId: conversation.chat_id,
-      contactName: conversation.contact_name,
-      contactPhone: conversation.contact_phone,
       analysisType: selectedAnalysisType,
-      assistantId: selectedAssistant,
-      hasOpenAIKey: !!config.openai?.apiKey,
-      openAIModel: config.openai.model
+      assistantId: selectedAssistant
     });
 
     try {
-      // 1. Update status to processing
-      console.log('🔄 Updating status to processing...');
+      // Update status to processing
       const { error: updateError } = await supabase
         .from('whatsapp_conversations_analysis')
         .update({ 
@@ -167,77 +161,26 @@ ${analysisPrompt || 'Analyze this WhatsApp conversation as requested...'}
         .eq('id', conversation.id);
 
       if (updateError) {
-        console.error('❌ Error updating status:', updateError);
         throw new Error(`Failed to update status: ${updateError.message}`);
       }
 
-      // 2. Search conversation with multiple strategies
-      console.log('🔍 Searching conversation in database...');
-      
-      let conversationData = null;
-      let searchStrategy = '';
-
-      // Strategy 1: Search by phone
-      console.log('🔍 Attempt 1: Search by phone...');
-      const { data: phoneData, error: phoneError } = await supabase
+      // Search for conversation data
+      const { data: conversationData, error: searchError } = await supabase
         .from('whatsapp_conversations')
-        .select('messages, contact_name, contact_phone, session_id')
+        .select('messages, contact_name, contact_phone')
         .eq('user_id', user.id)
         .eq('contact_phone', conversation.contact_phone)
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
 
-      if (!phoneError && phoneData?.messages && Array.isArray(phoneData.messages) && phoneData.messages.length > 0) {
-        conversationData = phoneData;
-        searchStrategy = 'by phone';
-        console.log('✅ Conversation found by phone:', { messageCount: phoneData.messages.length });
+      if (searchError || !conversationData?.messages || !Array.isArray(conversationData.messages) || conversationData.messages.length === 0) {
+        throw new Error('No messages found for analysis');
       }
 
-      // Strategy 2: Search by name if not found by phone
-      if (!conversationData) {
-        console.log('🔍 Attempt 2: Search by name...');
-        const { data: nameData, error: nameError } = await supabase
-          .from('whatsapp_conversations')
-          .select('messages, contact_name, contact_phone, session_id')
-          .eq('user_id', user.id)
-          .eq('contact_name', conversation.contact_name)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
+      console.log('✅ Conversation found:', { messageCount: conversationData.messages.length });
 
-        if (!nameError && nameData?.messages && Array.isArray(nameData.messages) && nameData.messages.length > 0) {
-          conversationData = nameData;
-          searchStrategy = 'by name';
-          console.log('✅ Conversation found by name:', { messageCount: nameData.messages.length });
-        }
-      }
-
-      if (!conversationData?.messages || !Array.isArray(conversationData.messages) || conversationData.messages.length === 0) {
-        console.error('❌ No conversation found');
-        
-        setDebugInfo({
-          error: 'Conversation not found',
-          searchAttempts: [
-            `phone: ${conversation.contact_phone}`,
-            `name: ${conversation.contact_name}`
-          ],
-          conversation: conversation
-        });
-        
-        throw new Error('No messages found for analysis. Verify that the conversation was synced from WhatsApp.');
-      }
-
-      console.log('✅ Conversation found', { 
-        strategy: searchStrategy,
-        messageCount: conversationData.messages.length,
-        contactName: conversationData.contact_name,
-        contactPhone: conversationData.contact_phone
-      });
-
-      // 3. Prepare complete payload for analysis
-      console.log('🤖 Preparing AI analysis...');
-      
+      // Prepare analysis payload
       const analysisPayload = {
         conversation_id: conversation.id,
         messages: conversationData.messages,
@@ -256,47 +199,20 @@ ${analysisPrompt || 'Analyze this WhatsApp conversation as requested...'}
         }
       };
 
-      console.log('📦 Final payload prepared:', {
-        conversation_id: analysisPayload.conversation_id,
-        messages_count: analysisPayload.messages.length,
-        analysis_type: analysisPayload.analysis_type,
-        assistant_id: analysisPayload.assistant_id,
-        prompt_length: analysisPayload.analysis_prompt.length,
-        contact_info: analysisPayload.contact_info,
-        openai_model: analysisPayload.openai_config.model,
-        has_openai_key: !!analysisPayload.openai_config.apiKey
-      });
-
-      // 4. Call edge function
       console.log('🚀 Calling edge function...');
       const { data: analysisResult, error: analysisError } = await supabase.functions.invoke('analyze-conversation', {
         body: analysisPayload
       });
 
-      console.log('📊 Edge function result:', { 
-        success: analysisResult?.success,
-        error: analysisError,
-        hasInsights: !!analysisResult?.insights,
-        insightCount: analysisResult?.insights?.length || 0
-      });
-
       if (analysisError) {
-        console.error('❌ Edge function error:', analysisError);
-        throw new Error(`Analysis error: ${analysisError.message || 'Error communicating with server'}`);
+        throw new Error(`Analysis error: ${analysisError.message}`);
       }
 
-      if (!analysisResult) {
-        console.error('❌ Empty response from edge function');
-        throw new Error('Server returned empty response');
+      if (!analysisResult?.success) {
+        throw new Error(analysisResult?.error || 'Analysis failed');
       }
 
-      if (!analysisResult.success) {
-        console.error('❌ Analysis failed:', analysisResult);
-        throw new Error(analysisResult.error || 'Analysis failed without specific error message');
-      }
-
-      // 5. Save analysis result
-      console.log('💾 Saving analysis result...');
+      // Save analysis result
       const { error: finalUpdateError } = await supabase
         .from('whatsapp_conversations_analysis')
         .update({ 
@@ -308,35 +224,25 @@ ${analysisPrompt || 'Analyze this WhatsApp conversation as requested...'}
         .eq('id', conversation.id);
 
       if (finalUpdateError) {
-        console.error('❌ Error saving result:', finalUpdateError);
-        console.warn('Analysis was performed but could not be saved to database');
+        console.warn('Analysis completed but could not save to database');
       }
-
-      console.log('🎉 Analysis completed successfully!');
 
       toast({
         title: "✅ Analysis completed",
-        description: `Conversation analyzed successfully! ${conversationData.messages.length} messages processed.`
+        description: "Conversation analyzed successfully!"
       });
 
       setDebugInfo({
         success: true,
-        searchStrategy,
         messageCount: conversationData.messages.length,
-        contactInfo: {
-          name: conversationData.contact_name,
-          phone: conversationData.contact_phone
-        },
-        analysisCompleted: true,
         insightsGenerated: analysisResult?.insights?.length || 0
       });
 
       onAnalysisComplete();
 
     } catch (error) {
-      console.error('💥 ERROR in analysis:', error);
+      console.error('💥 Analysis error:', error);
       
-      // Mark as failed
       try {
         await supabase
           .from('whatsapp_conversations_analysis')
@@ -351,8 +257,7 @@ ${analysisPrompt || 'Analyze this WhatsApp conversation as requested...'}
 
       setDebugInfo({
         error: error.message,
-        timestamp: new Date().toISOString(),
-        conversation: conversation
+        timestamp: new Date().toISOString()
       });
 
       toast({
@@ -407,7 +312,6 @@ ${analysisPrompt || 'Analyze this WhatsApp conversation as requested...'}
       </CardHeader>
 
       <CardContent>
-        {/* OpenAI configuration check */}
         {(!config?.openai?.apiKey || !config.openai.apiKey.startsWith('sk-')) && (
           <Card className="mb-4 bg-red-50 border-red-200">
             <CardContent className="p-3">
@@ -415,7 +319,7 @@ ${analysisPrompt || 'Analyze this WhatsApp conversation as requested...'}
                 <AlertCircle className="h-4 w-4 text-red-500 mt-0.5" />
                 <div className="text-sm">
                   <p className="font-medium text-red-900">OpenAI configuration required</p>
-                  <p className="text-red-700">Configure your OpenAI API Key in Settings > OpenAI before running analysis.</p>
+                  <p className="text-red-700">Configure your OpenAI API Key in Settings before running analysis.</p>
                 </div>
               </div>
             </CardContent>
