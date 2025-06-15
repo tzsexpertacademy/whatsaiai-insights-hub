@@ -387,7 +387,7 @@ ${analysisPrompt || 'Analise esta conversa do WhatsApp conforme solicitado...'}
                 <AlertCircle className="h-4 w-4 text-red-500 mt-0.5" />
                 <div className="text-sm">
                   <p className="font-medium text-red-900">Configuração OpenAI necessária</p>
-                  <p className="text-red-700">Configure sua API Key da OpenAI em Configurações > OpenAI antes de executar análises.</p>
+                  <p className="text-red-700">Configure sua API Key da OpenAI em Configurações &gt; OpenAI antes de executar análises.</p>
                 </div>
               </div>
             </CardContent>
