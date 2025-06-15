@@ -22,14 +22,7 @@ serve(async (req) => {
     );
 
     const requestBody = await req.json();
-    console.log('📊 Dados recebidos:', {
-      conversationId: requestBody.conversation_id,
-      hasMessages: !!requestBody.messages,
-      messagesCount: requestBody.messages?.length || 0,
-      hasPrompt: !!requestBody.analysis_prompt,
-      analysisType: requestBody.analysis_type,
-      assistantId: requestBody.assistant_id
-    });
+    console.log('📊 Dados recebidos:', JSON.stringify(requestBody, null, 2));
 
     const {
       conversation_id,
@@ -41,35 +34,43 @@ serve(async (req) => {
     } = requestBody;
 
     // Validações básicas
-    if (!conversation_id || !messages || !analysis_prompt) {
-      console.error('❌ Dados obrigatórios faltando:', {
-        conversation_id: !!conversation_id,
-        messages: !!messages,
-        analysis_prompt: !!analysis_prompt
-      });
+    if (!conversation_id) {
+      console.error('❌ conversation_id obrigatório');
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'Dados obrigatórios: conversation_id, messages e analysis_prompt' 
+          error: 'conversation_id é obrigatório' 
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    if (!Array.isArray(messages) || messages.length === 0) {
+    if (!messages || !Array.isArray(messages) || messages.length === 0) {
       console.error('❌ Mensagens inválidas ou vazias');
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'Mensagens da conversa são obrigatórias' 
+          error: 'Mensagens da conversa são obrigatórias e devem ser um array não vazio' 
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Buscar configuração do usuário
+    if (!analysis_prompt) {
+      console.error('❌ analysis_prompt obrigatório');
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'analysis_prompt é obrigatório' 
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Buscar configuração do usuário via header Authorization
     const authHeader = req.headers.get('authorization');
     if (!authHeader) {
+      console.error('❌ Token de autorização obrigatório');
       return new Response(
         JSON.stringify({ 
           success: false, 
@@ -109,7 +110,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'Configuração da OpenAI não encontrada. Configure sua API key.' 
+          error: 'Configuração da OpenAI não encontrada. Configure sua API key no painel de configurações.' 
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -120,7 +121,7 @@ serve(async (req) => {
 
     // Preparar texto da conversa para análise
     const conversationText = messages
-      .filter(msg => msg.text && msg.text !== 'Mensagem sem texto')
+      .filter(msg => msg.text && msg.text.trim() !== '' && msg.text !== 'Mensagem sem texto')
       .map(msg => {
         const sender = msg.fromMe ? 'Usuário' : (contact_info?.name || 'Contato');
         return `[${sender}]: ${msg.text}`;
@@ -130,10 +131,12 @@ serve(async (req) => {
     console.log('📝 Texto preparado para análise:', {
       totalMessages: messages.length,
       validMessages: conversationText.split('\n').length,
-      textLength: conversationText.length
+      textLength: conversationText.length,
+      firstChars: conversationText.substring(0, 100)
     });
 
     if (conversationText.length === 0) {
+      console.error('❌ Nenhuma mensagem válida para análise');
       return new Response(
         JSON.stringify({ 
           success: false, 
@@ -145,6 +148,7 @@ serve(async (req) => {
 
     // Chamar OpenAI para análise
     console.log('🧠 Iniciando análise com OpenAI...');
+    console.log('📋 Prompt de análise:', analysis_prompt.substring(0, 200) + '...');
     
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -169,20 +173,41 @@ serve(async (req) => {
       }),
     });
 
+    console.log('🔄 Resposta da OpenAI - Status:', response.status);
+
     if (!response.ok) {
       const errorText = await response.text();
       console.error('❌ Erro da OpenAI:', response.status, errorText);
-      throw new Error(`Erro da OpenAI (${response.status}): ${errorText}`);
+      
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: `Erro da OpenAI (${response.status}): ${errorText}` 
+        }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     const aiData = await response.json();
+    console.log('📊 Dados da IA recebidos:', {
+      hasChoices: !!aiData.choices,
+      choicesLength: aiData.choices?.length || 0
+    });
+
     const analysisResult = aiData.choices?.[0]?.message?.content;
 
     if (!analysisResult) {
-      throw new Error('Resposta vazia da OpenAI');
+      console.error('❌ Resposta vazia da OpenAI');
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'Resposta vazia da OpenAI' 
+        }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    console.log('✅ Análise gerada com sucesso');
+    console.log('✅ Análise gerada com sucesso - Tamanho:', analysisResult.length);
 
     // Salvar insight gerado
     const insightData = {
@@ -203,24 +228,29 @@ serve(async (req) => {
       }
     };
 
-    const { error: insightError } = await supabaseClient
+    console.log('💾 Salvando insight...');
+    const { data: savedInsight, error: insightError } = await supabaseClient
       .from('insights')
-      .insert(insightData);
+      .insert(insightData)
+      .select()
+      .single();
 
     if (insightError) {
       console.error('❌ Erro ao salvar insight:', insightError);
     } else {
-      console.log('💾 Insight salvo com sucesso');
+      console.log('✅ Insight salvo com sucesso:', savedInsight?.id);
     }
 
     return new Response(
       JSON.stringify({
         success: true,
         insights: [{
+          id: savedInsight?.id || 'temp',
           title: insightData.title,
           description: insightData.description,
           content: analysisResult,
-          priority: 'medium'
+          priority: 'medium',
+          insight_type: analysis_type || 'geral'
         }],
         message: 'Análise concluída com sucesso'
       }),
@@ -228,11 +258,11 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('❌ Erro na análise:', error);
+    console.error('❌ Erro geral na análise:', error);
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: error.message || 'Erro interno do servidor'
+        error: `Erro interno: ${error.message || 'Erro desconhecido'}`
       }),
       {
         status: 500,

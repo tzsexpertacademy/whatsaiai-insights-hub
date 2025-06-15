@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -143,6 +142,7 @@ Telefone: ${conversation.contact_phone}`;
     console.log('🧠 Iniciando análise individual da conversa:', conversation.chat_id);
 
     try {
+      // Atualizar status para 'processing'
       const { error: updateError } = await supabase
         .from('whatsapp_conversations_analysis')
         .update({ 
@@ -164,40 +164,18 @@ Telefone: ${conversation.contact_phone}`;
         chatId: conversation.chat_id
       });
 
-      // Primeiro tentar buscar por chat_id exato
+      // Primeira tentativa: buscar por telefone
       let { data: conversationData, error: conversationError } = await supabase
         .from('whatsapp_conversations')
         .select('messages')
         .eq('user_id', user.id)
-        .or(`contact_phone.eq.${conversation.contact_phone},session_id.eq.${conversation.chat_id}`)
+        .eq('contact_phone', conversation.contact_phone)
         .order('created_at', { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
-      // Se não encontrou, tentar buscar apenas por telefone
-      if (conversationError || !conversationData?.messages || (Array.isArray(conversationData.messages) && conversationData.messages.length === 0)) {
-        console.log('⚠️ Primeira busca falhou, tentando busca alternativa...');
-        
-        const { data: alternativeData, error: alternativeError } = await supabase
-          .from('whatsapp_conversations')
-          .select('messages')
-          .eq('user_id', user.id)
-          .eq('contact_phone', conversation.contact_phone)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        if (alternativeError) {
-          console.error('❌ Erro na busca alternativa:', alternativeError);
-        } else if (alternativeData?.messages && Array.isArray(alternativeData.messages) && alternativeData.messages.length > 0) {
-          conversationData = alternativeData;
-          conversationError = null;
-          console.log('✅ Conversa encontrada na busca alternativa');
-        }
-      }
-
-      // Se ainda não encontrou, tentar busca por nome
-      if (conversationError || !conversationData?.messages || (Array.isArray(conversationData.messages) && conversationData.messages.length === 0)) {
+      // Segunda tentativa: buscar por nome
+      if (!conversationData?.messages || !Array.isArray(conversationData.messages) || conversationData.messages.length === 0) {
         console.log('⚠️ Tentando busca por nome do contato...');
         
         const { data: nameData, error: nameError } = await supabase
@@ -216,13 +194,34 @@ Telefone: ${conversation.contact_phone}`;
         }
       }
 
-      if (conversationError || !conversationData?.messages || (Array.isArray(conversationData.messages) && conversationData.messages.length === 0)) {
-        console.error('❌ Nenhuma conversa encontrada:', { conversationError, conversationData });
-        throw new Error('Nenhuma mensagem encontrada para análise. Verifique se a conversa foi sincronizada corretamente.');
+      // Terceira tentativa: buscar por session_id
+      if (!conversationData?.messages || !Array.isArray(conversationData.messages) || conversationData.messages.length === 0) {
+        console.log('⚠️ Tentando busca por session_id...');
+        
+        const { data: sessionData, error: sessionError } = await supabase
+          .from('whatsapp_conversations')
+          .select('messages')
+          .eq('user_id', user.id)
+          .eq('session_id', conversation.chat_id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (!sessionError && sessionData?.messages && Array.isArray(sessionData.messages) && sessionData.messages.length > 0) {
+          conversationData = sessionData;
+          conversationError = null;
+          console.log('✅ Conversa encontrada por session_id');
+        }
       }
 
-      console.log('✅ Conversa encontrada:', { messageCount: Array.isArray(conversationData.messages) ? conversationData.messages.length : 'Not an array' });
+      if (!conversationData?.messages || !Array.isArray(conversationData.messages) || conversationData.messages.length === 0) {
+        console.error('❌ Nenhuma conversa encontrada:', { conversationError, conversationData });
+        throw new Error('Nenhuma mensagem encontrada para análise. Verifique se a conversa foi sincronizada corretamente do WhatsApp.');
+      }
 
+      console.log('✅ Conversa encontrada:', { messageCount: conversationData.messages.length });
+
+      // Chamar edge function para análise
       const { data: analysisResult, error: analysisError } = await supabase.functions.invoke('analyze-conversation', {
         body: {
           conversation_id: conversation.id,
@@ -237,11 +236,18 @@ Telefone: ${conversation.contact_phone}`;
         }
       });
 
+      console.log('📊 Resultado da análise:', { analysisResult, analysisError });
+
       if (analysisError) {
         console.error('❌ Erro na análise IA:', analysisError);
         throw analysisError;
       }
 
+      if (!analysisResult?.success) {
+        throw new Error(analysisResult?.error || 'Análise falhou');
+      }
+
+      // Salvar resultado da análise
       const { error: finalUpdateError } = await supabase
         .from('whatsapp_conversations_analysis')
         .update({ 
@@ -267,6 +273,7 @@ Telefone: ${conversation.contact_phone}`;
     } catch (error) {
       console.error('❌ Erro na análise:', error);
       
+      // Marcar como falhou
       await supabase
         .from('whatsapp_conversations_analysis')
         .update({ 
@@ -413,6 +420,11 @@ Telefone: ${conversation.contact_phone}`;
                         <div className="flex-1">
                           <h5 className="font-medium text-blue-900">{result.title}</h5>
                           <p className="text-sm text-blue-700 mt-1">{result.description}</p>
+                          {result.content && (
+                            <div className="mt-2 p-2 bg-white rounded border text-sm">
+                              {result.content}
+                            </div>
+                          )}
                           {result.priority && (
                             <Badge variant="outline" className="mt-2 text-xs">
                               {result.priority}
