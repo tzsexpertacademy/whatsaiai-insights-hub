@@ -145,7 +145,8 @@ export function WPPConnectMirror() {
     setSelectedChat(chat);
     
     try {
-      await loadChatMessages(chat.chatId, 'today', messageLimit);
+      // FIX: Remover o terceiro parâmetro para evitar erro TS2554
+      await loadChatMessages(chat.chatId, 'today');
       console.log('✅ Mensagens carregadas para:', chat.name);
     } catch (error) {
       console.error('❌ Erro ao carregar mensagens:', error);
