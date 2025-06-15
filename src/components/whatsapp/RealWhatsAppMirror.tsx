@@ -44,8 +44,7 @@ export function RealWhatsAppMirror() {
     loadRealMessages,
     getConnectionStatus,
     startLiveMode,
-    stopLiveMode,
-    updateMessageHistoryLimit
+    stopLiveMode
   } = useWPPConnect();
   
   const [selectedContact, setSelectedContact] = useState<string | null>(null);
@@ -57,11 +56,6 @@ export function RealWhatsAppMirror() {
   const [isForceLoading, setIsForceLoading] = useState(false);
   const [messageLimit, setMessageLimit] = useState<number>(50); // NOVO: limite de mensagens
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const [lastMessageDebug, setLastMessageDebug] = useState<{
-    debugEndpoint?: string;
-    debugLimit?: number;
-    messagesFetched?: number;
-  }>({});
 
   const connectionStatus = getConnectionStatus();
   const isConnected = sessionStatus.isConnected;
@@ -138,7 +132,6 @@ export function RealWhatsAppMirror() {
     contact.phone.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // --- RESTORED: Função para carregar conversas reais ---
   const handleLoadRealChats = async (isAutomatic = false) => {
     console.log('📱 [DEBUG] handleLoadRealChats chamado:', {
       isAutomatic,
@@ -195,32 +188,10 @@ export function RealWhatsAppMirror() {
     }
   };
 
-  // Função para atualizar o limite e recarregar mensagens do contato atual
-  // Atualizada para registrar informações do backend
-  const handleChangeMessageLimit = async (limit: number) => {
-    setMessageLimit(limit);
-    await updateMessageHistoryLimit(limit);
-    if (selectedContact) {
-      setTimeout(async () => {
-        const messagesBefore = messages.filter(m => m.chatId === selectedContact).length;
-        await handleLoadRealMessages(selectedContact, false);
-
-        // Mostra debug da quantidade na interface
-        const messagesNow = messages.filter(m => m.chatId === selectedContact).length;
-        setLastMessageDebug({
-          debugLimit: limit,
-          messagesFetched: messagesNow,
-        });
-      }, 150);
-    }
-  };
-
-  // Modifica handleLoadRealMessages para capturar endpoint usado e colocar no estado de debug
-  const handleLoadRealMessages = async (contactId: string, silent: boolean = false) => {
+  // Alterar para receber o limite de mensagens
+  const handleLoadRealMessages = async (contactId: string, limit: number = messageLimit) => {
     try {
-      // Espera retorno do hook (se o hook retornar as infos extras, melhor, mas por enquanto apenas length)
-      await loadRealMessages(contactId, silent);
-      // Mensagens resultantes serão exibidas por sortedMessages e pelo nosso setLastMessageDebug acima!
+      await loadRealMessages(contactId, limit); // Espera-se que seu hook aceite o limit!
     } catch (error) {
       console.error('❌ Erro ao carregar mensagens:', error);
       toast({
@@ -237,8 +208,8 @@ export function RealWhatsAppMirror() {
 
   const selectContact = (contact: any) => {
     setSelectedContact(contact.id);
-    handleLoadRealMessages(contact.id);
-
+    handleLoadRealMessages(contact.id, messageLimit);
+    
     // Parar modo live anterior se houver
     if (isLiveMode && currentChatId !== contact.id) {
       stopLiveMode();
@@ -366,8 +337,6 @@ export function RealWhatsAppMirror() {
   const sortedMessages = messages
     .filter(m => m.chatId === selectedContact)
     .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-  // Adiciona display das informações de debug
-  console.log('🟢 [DEBUG] Chat selecionado:', selectedContact, 'Mensagens do hook:', messages.length, 'Mensagens deste chat:', sortedMessages.length);
 
   return (
     <div className="space-y-6">
@@ -584,7 +553,7 @@ export function RealWhatsAppMirror() {
                 <select
                   id="messageLimit"
                   value={messageLimit}
-                  onChange={e => handleChangeMessageLimit(Number(e.target.value))}
+                  onChange={e => setMessageLimit(Number(e.target.value))}
                   className="border rounded px-1 py-0.5 text-xs"
                 >
                   <option value={50}>50</option>
@@ -734,28 +703,6 @@ export function RealWhatsAppMirror() {
                 </CardHeader>
                 
                 <CardContent className="p-0">
-                  {/* Debug extra de mensagens carregadas */}
-                  <div className="bg-yellow-50 border border-yellow-200 text-yellow-900 text-xs p-2 px-4 rounded mb-2 flex flex-wrap gap-3 items-center">
-                    <span>
-                      <strong>Limite solicitado:</strong> {messageLimit}
-                    </span>
-                    <span>
-                      <strong>Mensagens recebidas:</strong> {sortedMessages.length}
-                    </span>
-                    {messageLimit > sortedMessages.length && (
-                      <span className="text-red-600 font-semibold">
-                        ⚠️ O servidor retornou menos mensagens que o limite pedido.
-                      </span>
-                    )}
-                    {/* Exibe dica adicional para problemas */}
-                    <span className="italic">
-                      {messageLimit > sortedMessages.length
-                        ? "Se aparecer sempre 20, verifique o parâmetro limit/count na configuração do backend WPPConnect."
-                        : "O limite está sendo respeitado."}
-                    </span>
-                  </div>
-
-                  {/* Área de mensagens */}
                   <div className="h-[400px] overflow-y-auto p-4 space-y-3">
                     {sortedMessages.map((message) => (
                       <div
@@ -791,7 +738,6 @@ export function RealWhatsAppMirror() {
                     <div ref={messagesEndRef} />
                   </div>
                   
-                  {/* ... keep input area ... */}
                   <div className="border-t p-4">
                     <div className="flex gap-2">
                       <Input
