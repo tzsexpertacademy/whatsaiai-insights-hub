@@ -14,15 +14,27 @@ serve(async (req) => {
   }
 
   try {
-    console.log('🤖 ANÁLISE INDIVIDUAL DE CONVERSA - Iniciando...');
+    console.log('🚀 ANÁLISE DE CONVERSA - Iniciando processamento...');
     
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
+    // Verificar se as variáveis de ambiente estão configuradas
+    if (!Deno.env.get('SUPABASE_URL') || !Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')) {
+      console.error('❌ Variáveis de ambiente do Supabase não configuradas');
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'Configuração do servidor incompleta' 
+        }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const requestBody = await req.json();
-    console.log('📊 Dados recebidos:', JSON.stringify(requestBody, null, 2));
+    console.log('📥 Request recebido:', JSON.stringify(requestBody, null, 2));
 
     const {
       conversation_id,
@@ -33,44 +45,44 @@ serve(async (req) => {
       contact_info
     } = requestBody;
 
-    // Validações básicas
+    // Validações rigorosas
     if (!conversation_id) {
-      console.error('❌ conversation_id obrigatório');
+      console.error('❌ conversation_id ausente');
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'conversation_id é obrigatório' 
+          error: 'ID da conversa é obrigatório' 
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
-      console.error('❌ Mensagens inválidas ou vazias');
+      console.error('❌ Mensagens inválidas:', { messages });
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'Mensagens da conversa são obrigatórias e devem ser um array não vazio' 
+          error: 'Nenhuma mensagem válida encontrada para análise' 
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    if (!analysis_prompt) {
-      console.error('❌ analysis_prompt obrigatório');
+    if (!analysis_prompt || analysis_prompt.trim().length === 0) {
+      console.error('❌ Prompt de análise vazio');
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'analysis_prompt é obrigatório' 
+          error: 'Prompt de análise é obrigatório' 
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Buscar configuração do usuário via header Authorization
+    // Verificar autenticação
     const authHeader = req.headers.get('authorization');
-    if (!authHeader) {
-      console.error('❌ Token de autorização obrigatório');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.error('❌ Token de autorização inválido');
       return new Response(
         JSON.stringify({ 
           success: false, 
@@ -80,12 +92,13 @@ serve(async (req) => {
       );
     }
 
-    // Decodificar token para obter user_id
     const token = authHeader.replace('Bearer ', '');
+    console.log('🔐 Verificando usuário...');
+    
     const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
     
     if (userError || !userData.user) {
-      console.error('❌ Erro ao verificar usuário:', userError);
+      console.error('❌ Erro de autenticação:', userError);
       return new Response(
         JSON.stringify({ 
           success: false, 
@@ -96,47 +109,53 @@ serve(async (req) => {
     }
 
     const userId = userData.user.id;
-    console.log('👤 Usuário autenticado:', userId);
+    console.log('✅ Usuário autenticado:', userId);
 
-    // Buscar configuração OpenAI do usuário
+    // Buscar configuração OpenAI
+    console.log('🔍 Buscando configuração OpenAI...');
     const { data: configData, error: configError } = await supabaseClient
       .from('client_configs')
       .select('openai_config')
       .eq('user_id', userId)
       .single();
 
-    if (configError || !configData?.openai_config?.apiKey) {
-      console.error('❌ Configuração OpenAI não encontrada:', configError);
+    if (configError) {
+      console.error('❌ Erro ao buscar configuração:', configError);
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'Configuração da OpenAI não encontrada. Configure sua API key no painel de configurações.' 
+          error: 'Erro ao acessar configuração do usuário' 
+        }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!configData?.openai_config?.apiKey) {
+      console.error('❌ API Key da OpenAI não encontrada');
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'Configure sua API key da OpenAI nas configurações do sistema' 
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     const openaiConfig = configData.openai_config;
-    console.log('🔑 Configuração OpenAI encontrada');
+    console.log('✅ Configuração OpenAI encontrada');
 
-    // Preparar texto da conversa para análise
-    const conversationText = messages
-      .filter(msg => msg.text && msg.text.trim() !== '' && msg.text !== 'Mensagem sem texto')
-      .map(msg => {
-        const sender = msg.fromMe ? 'Usuário' : (contact_info?.name || 'Contato');
-        return `[${sender}]: ${msg.text}`;
-      })
-      .join('\n');
+    // Preparar texto da conversa
+    console.log('📝 Processando mensagens da conversa...');
+    const validMessages = messages.filter(msg => 
+      msg && 
+      msg.text && 
+      typeof msg.text === 'string' && 
+      msg.text.trim().length > 0 && 
+      msg.text !== 'Mensagem sem texto'
+    );
 
-    console.log('📝 Texto preparado para análise:', {
-      totalMessages: messages.length,
-      validMessages: conversationText.split('\n').length,
-      textLength: conversationText.length,
-      firstChars: conversationText.substring(0, 100)
-    });
-
-    if (conversationText.length === 0) {
-      console.error('❌ Nenhuma mensagem válida para análise');
+    if (validMessages.length === 0) {
+      console.error('❌ Nenhuma mensagem válida após filtragem');
       return new Response(
         JSON.stringify({ 
           success: false, 
@@ -146,11 +165,23 @@ serve(async (req) => {
       );
     }
 
-    // Chamar OpenAI para análise
-    console.log('🧠 Iniciando análise com OpenAI...');
-    console.log('📋 Prompt de análise:', analysis_prompt.substring(0, 200) + '...');
-    
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const conversationText = validMessages
+      .map(msg => {
+        const sender = msg.fromMe ? 'Você' : (contact_info?.name || 'Contato');
+        return `[${sender}]: ${msg.text.trim()}`;
+      })
+      .join('\n\n');
+
+    console.log('📊 Conversa preparada:', {
+      totalMessages: messages.length,
+      validMessages: validMessages.length,
+      textLength: conversationText.length,
+      preview: conversationText.substring(0, 200) + '...'
+    });
+
+    // Chamar OpenAI
+    console.log('🤖 Enviando para OpenAI...');
+    const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${openaiConfig.apiKey}`,
@@ -169,47 +200,51 @@ serve(async (req) => {
           }
         ],
         temperature: 0.7,
-        max_tokens: 1000
+        max_tokens: 2000
       }),
     });
 
-    console.log('🔄 Resposta da OpenAI - Status:', response.status);
+    console.log('📡 Status da resposta OpenAI:', openaiResponse.status);
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('❌ Erro da OpenAI:', response.status, errorText);
+    if (!openaiResponse.ok) {
+      const errorText = await openaiResponse.text();
+      console.error('❌ Erro da OpenAI:', {
+        status: openaiResponse.status,
+        statusText: openaiResponse.statusText,
+        error: errorText
+      });
       
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: `Erro da OpenAI (${response.status}): ${errorText}` 
+          error: `Erro da OpenAI: ${openaiResponse.status} - ${errorText}` 
         }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const aiData = await response.json();
-    console.log('📊 Dados da IA recebidos:', {
-      hasChoices: !!aiData.choices,
-      choicesLength: aiData.choices?.length || 0
-    });
+    const aiData = await openaiResponse.json();
+    console.log('✅ Resposta da OpenAI recebida');
 
     const analysisResult = aiData.choices?.[0]?.message?.content;
 
-    if (!analysisResult) {
+    if (!analysisResult || analysisResult.trim().length === 0) {
       console.error('❌ Resposta vazia da OpenAI');
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'Resposta vazia da OpenAI' 
+          error: 'A IA não conseguiu gerar uma análise' 
         }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log('✅ Análise gerada com sucesso - Tamanho:', analysisResult.length);
+    console.log('📊 Análise gerada:', {
+      length: analysisResult.length,
+      preview: analysisResult.substring(0, 100) + '...'
+    });
 
-    // Salvar insight gerado
+    // Salvar insight
     const insightData = {
       user_id: userId,
       title: `Análise: ${contact_info?.name || 'Conversa'}`,
@@ -224,7 +259,8 @@ serve(async (req) => {
         assistant_id,
         analysis_type,
         contact_info,
-        generated_at: new Date().toISOString()
+        generated_at: new Date().toISOString(),
+        messages_analyzed: validMessages.length
       }
     };
 
@@ -236,33 +272,47 @@ serve(async (req) => {
       .single();
 
     if (insightError) {
-      console.error('❌ Erro ao salvar insight:', insightError);
+      console.error('⚠️ Erro ao salvar insight:', insightError);
+      // Não falhar se não conseguir salvar o insight
     } else {
-      console.log('✅ Insight salvo com sucesso:', savedInsight?.id);
+      console.log('✅ Insight salvo:', savedInsight?.id);
     }
 
+    const response = {
+      success: true,
+      insights: [{
+        id: savedInsight?.id || `temp_${Date.now()}`,
+        title: insightData.title,
+        description: insightData.description,
+        content: analysisResult,
+        priority: 'medium',
+        insight_type: analysis_type || 'geral',
+        created_at: new Date().toISOString()
+      }],
+      message: 'Análise concluída com sucesso',
+      metadata: {
+        messages_analyzed: validMessages.length,
+        analysis_type,
+        assistant_id
+      }
+    };
+
+    console.log('🎉 Análise concluída com sucesso');
+
     return new Response(
-      JSON.stringify({
-        success: true,
-        insights: [{
-          id: savedInsight?.id || 'temp',
-          title: insightData.title,
-          description: insightData.description,
-          content: analysisResult,
-          priority: 'medium',
-          insight_type: analysis_type || 'geral'
-        }],
-        message: 'Análise concluída com sucesso'
-      }),
+      JSON.stringify(response),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
-    console.error('❌ Erro geral na análise:', error);
+    console.error('💥 ERRO CRÍTICO:', error);
+    console.error('Stack trace:', error.stack);
+    
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: `Erro interno: ${error.message || 'Erro desconhecido'}`
+        error: `Erro interno do servidor: ${error.message}`,
+        details: error.stack
       }),
       {
         status: 500,
