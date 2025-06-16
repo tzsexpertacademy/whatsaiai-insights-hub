@@ -1,5 +1,3 @@
-
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -41,7 +39,7 @@ interface ConversationAnalysisProps {
     priority: string;
     marked_at: string;
     last_analyzed_at?: string;
-    analysis_results?: any[];
+    analysis_results?: any;
   };
   onAnalysisComplete: () => void;
 }
@@ -58,8 +56,14 @@ export function IndividualConversationAnalysis({ conversation, onAnalysisComplet
   const [selectedAssistant, setSelectedAssistant] = useState(assistants.length > 0 ? assistants[0].id : 'oracle');
   const [debugInfo, setDebugInfo] = useState<any>(null);
 
-  // Type-safe access to analysis_results
-  const analysisResults = Array.isArray(conversation.analysis_results) ? conversation.analysis_results : [];
+  // Helper function to safely get analysis results as array
+  const getAnalysisResults = () => {
+    if (!conversation.analysis_results) return [];
+    if (Array.isArray(conversation.analysis_results)) return conversation.analysis_results;
+    return [];
+  };
+
+  const analysisResults = getAnalysisResults();
 
   const getAnalysisPrompt = () => {
     const selectedAssistantData = assistants.find(a => a.id === selectedAssistant);
@@ -629,4 +633,3 @@ ${analysisPrompt || 'Analyze this WhatsApp conversation as requested...'}
     </Card>
   );
 }
-
