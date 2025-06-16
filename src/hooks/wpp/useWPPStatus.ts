@@ -51,6 +51,24 @@ export function useWPPStatus() {
         return false;
       }
 
+      // Primeiro, testar se o servidor está rodando
+      const serverTestUrl = `${config.serverUrl}/api/status`;
+      try {
+        const serverResponse = await fetch(serverTestUrl, {
+          method: 'GET',
+          timeout: 5000
+        });
+        console.log('🔍 [DEBUG] Teste do servidor:', serverResponse.status);
+      } catch (serverError) {
+        console.log('❌ [DEBUG] Servidor WPPConnect não está rodando:', config.serverUrl);
+        toast({
+          title: "❌ Servidor WPPConnect não encontrado",
+          description: `Verifique se o WPPConnect está rodando em ${config.serverUrl}`,
+          variant: "destructive"
+        });
+        return false;
+      }
+
       // Testar múltiplos endpoints para verificar status
       const statusEndpoints = [
         `${config.serverUrl}/api/${config.sessionName}/status-session`,
@@ -67,7 +85,8 @@ export function useWPPStatus() {
             headers: {
               'Authorization': `Bearer ${config.token}`,
               'Content-Type': 'application/json'
-            }
+            },
+            timeout: 10000
           });
 
           console.log('📊 [DEBUG] Response status:', response.status);
@@ -147,6 +166,13 @@ export function useWPPStatus() {
       if (!config.token || !config.secretKey) {
         throw new Error('Token ou Secret Key não configurados');
       }
+
+      // Primeiro verificar se já está conectado
+      const isAlreadyConnected = await checkConnectionStatus();
+      if (isAlreadyConnected) {
+        setSessionStatus(prev => ({ ...prev, isLoading: false }));
+        return null;
+      }
       
       const endpoint = `${config.serverUrl}/api/${config.sessionName}/start-session`;
       console.log('🎯 Endpoint start session:', endpoint);
@@ -172,19 +198,7 @@ export function useWPPStatus() {
       const result = await response.json();
       console.log('✅ Resposta start session:', result);
 
-      if (result.qrcode || result.qr) {
-        const qrCodeData = result.qrcode || result.qr;
-        console.log('📱 QR Code recebido');
-
-        setSessionStatus({
-          isConnected: false,
-          qrCode: qrCodeData,
-          isLoading: false,
-          phoneNumber: null
-        });
-        
-        return qrCodeData;
-      } else if (result.status === 'CONNECTED' || result.connected) {
+      if (result.status === 'CONNECTED' || result.connected) {
         setSessionStatus({
           isConnected: true,
           qrCode: null,
@@ -198,6 +212,21 @@ export function useWPPStatus() {
         });
         
         return null;
+      } else if (result.qrcode || result.qr) {
+        const qrCodeData = result.qrcode || result.qr;
+        console.log('📱 QR Code recebido');
+
+        setSessionStatus({
+          isConnected: false,
+          qrCode: qrCodeData,
+          isLoading: false,
+          phoneNumber: null
+        });
+
+        // Iniciar verificação automática de status
+        startConnectionPolling();
+        
+        return qrCodeData;
       }
       
       return null;
@@ -211,12 +240,43 @@ export function useWPPStatus() {
       });
       toast({
         title: "❌ Erro na conexão",
-        description: error.message,
+        description: error instanceof Error ? error.message : "Erro desconhecido",
         variant: "destructive"
       });
       return null;
     }
-  }, [toast, getWPPConfig]);
+  }, [toast, getWPPConfig, checkConnectionStatus]);
+
+  const startConnectionPolling = useCallback(() => {
+    console.log('🔄 Iniciando verificação automática de conexão...');
+    
+    let attempts = 0;
+    const maxAttempts = 30; // 30 tentativas = 1.5 minutos
+    
+    const interval = setInterval(async () => {
+      attempts++;
+      console.log(`🔍 Tentativa ${attempts}/${maxAttempts} de verificar conexão`);
+      
+      const isConnected = await checkConnectionStatus();
+      
+      if (isConnected) {
+        console.log('✅ Conexão estabelecida, parando verificação');
+        clearInterval(interval);
+      } else if (attempts >= maxAttempts) {
+        console.log('⏰ Tempo limite atingido, parando verificação');
+        clearInterval(interval);
+        toast({
+          title: "⏰ Tempo limite",
+          description: "QR Code expirou. Gere um novo QR Code.",
+          variant: "destructive"
+        });
+        setSessionStatus(prev => ({ ...prev, qrCode: null }));
+      }
+    }, 3000); // Verificar a cada 3 segundos
+    
+    // Cleanup em caso de unmount
+    return () => clearInterval(interval);
+  }, [checkConnectionStatus, toast]);
 
   const disconnectWhatsApp = useCallback(async () => {
     try {

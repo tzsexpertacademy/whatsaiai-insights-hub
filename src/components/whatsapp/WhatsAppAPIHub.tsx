@@ -1,10 +1,10 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { QrCode, Wifi, WifiOff, MessageSquare, Settings, Zap, CheckCircle, AlertCircle, Phone } from 'lucide-react';
+import { QrCode, Wifi, WifiOff, MessageSquare, Settings, Zap, CheckCircle, AlertCircle, Phone, RefreshCw } from 'lucide-react';
 import { useWPPConnect } from '@/hooks/useWPPConnect';
 import { useToast } from "@/hooks/use-toast";
 import { WPPConnectSettings } from './WPPConnectSettings';
@@ -24,6 +24,14 @@ export function WhatsAppAPIHub() {
 
   const config = getWPPConfig();
   const isConfigured = config.token && config.secretKey && config.token.length > 10;
+
+  // Verificar status automaticamente ao carregar
+  useEffect(() => {
+    if (isConfigured) {
+      console.log('🔄 Verificando status inicial...');
+      checkConnectionStatus();
+    }
+  }, [isConfigured, checkConnectionStatus]);
 
   const handleGenerateQR = async () => {
     if (!isConfigured) {
@@ -51,6 +59,11 @@ export function WhatsAppAPIHub() {
       title: "Desconectado",
       description: "WhatsApp foi desconectado com sucesso"
     });
+  };
+
+  const handleRefreshStatus = async () => {
+    console.log('🔄 Atualizando status manualmente...');
+    await checkConnectionStatus();
   };
 
   const getStatusBadge = () => {
@@ -93,7 +106,17 @@ export function WhatsAppAPIHub() {
                 Status da conexão com WhatsApp Business
               </CardDescription>
             </div>
-            {getStatusBadge()}
+            <div className="flex items-center gap-2">
+              {getStatusBadge()}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRefreshStatus}
+                disabled={sessionStatus.isLoading}
+              >
+                <RefreshCw className={`h-4 w-4 ${sessionStatus.isLoading ? 'animate-spin' : ''}`} />
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -126,6 +149,17 @@ export function WhatsAppAPIHub() {
                   {sessionStatus.isConnected ? 'Ativas' : 'Inativas'}
                 </p>
               </div>
+            </div>
+          </div>
+
+          {/* Diagnóstico */}
+          <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+            <h4 className="font-medium text-blue-900 mb-2">🔧 Diagnóstico</h4>
+            <div className="text-sm text-blue-700 space-y-1">
+              <p>• Servidor: {config.serverUrl}</p>
+              <p>• Sessão: {config.sessionName}</p>
+              <p>• Token: {config.token ? `${config.token.substring(0, 10)}...` : 'Não configurado'}</p>
+              <p>• Secret Key: {config.secretKey ? 'Configurado' : 'Não configurado'}</p>
             </div>
           </div>
         </CardContent>
@@ -206,6 +240,9 @@ export function WhatsAppAPIHub() {
                           <li>3. Toque em "Conectar um aparelho"</li>
                           <li>4. Escaneie este QR Code</li>
                         </ol>
+                        <p className="text-xs text-blue-600 mt-2">
+                          ⏱️ Verificando conexão automaticamente...
+                        </p>
                       </div>
                       
                       <Button 
