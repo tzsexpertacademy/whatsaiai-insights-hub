@@ -3,15 +3,17 @@ import React from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { LucideIcon } from 'lucide-react';
 import { SidebarMenuItem, SidebarMenuButton, useSidebar } from "@/components/ui/sidebar";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 interface SidebarNavItemProps {
   title: string;
   url: string;
   icon: LucideIcon;
+  badge?: string;
 }
 
-export function SidebarNavItem({ title, url, icon: Icon }: SidebarNavItemProps) {
+export function SidebarNavItem({ title, url, icon: Icon, badge }: SidebarNavItemProps) {
   const location = useLocation();
   const { state } = useSidebar();
   const isActive = location.pathname === url;
@@ -42,6 +44,11 @@ export function SidebarNavItem({ title, url, icon: Icon }: SidebarNavItemProps) 
             )}>
               {title}
             </span>
+          )}
+          {badge && !isCollapsed && (
+            <Badge className="ml-auto bg-green-100 text-green-800 text-xs">
+              {badge}
+            </Badge>
           )}
         </Link>
       </SidebarMenuButton>
