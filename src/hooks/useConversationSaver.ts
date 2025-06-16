@@ -23,7 +23,12 @@ export function useConversationSaver() {
     contactPhone: string,
     messages: ConversationMessage[]
   ) => {
-    console.log('💾 SALVANDO conversa marcada no banco:', { chatId, contactName, totalMessages: messages.length });
+    console.log('💾 SALVANDO conversa marcada no banco:', { 
+      chatId, 
+      contactName, 
+      totalMessages: messages.length,
+      audioMessages: messages.filter(m => m.text.includes('[Transcrição:')).length
+    });
     
     if (!user?.id) {
       console.error('❌ Usuário não autenticado para salvar conversa');
@@ -52,14 +57,20 @@ export function useConversationSaver() {
         throw selectError;
       }
 
-      // Preparar dados das mensagens para o banco
+      // Preparar dados das mensagens para o banco (incluindo transcrições)
       const messagesForDB = messages.map(msg => ({
         id: msg.id,
-        text: msg.text,
+        text: msg.text, // Já inclui transcrições no formato "[Transcrição: ...]"
         sender: msg.sender,
         timestamp: msg.timestamp,
         fromMe: msg.fromMe
       }));
+
+      console.log('📝 Mensagens preparadas para análise:', {
+        totalMessages: messagesForDB.length,
+        withTranscriptions: messagesForDB.filter(m => m.text.includes('[Transcrição:')).length,
+        sampleMessage: messagesForDB[0]?.text.substring(0, 100) + '...'
+      });
 
       const conversationData = {
         user_id: user.id,
@@ -103,14 +114,16 @@ export function useConversationSaver() {
         console.log('✅ Nova conversa salva no banco com sucesso');
       }
 
+      const audioCount = messages.filter(m => m.text.includes('[Transcrição:')).length;
+      
       toast({
         title: "💾 Conversa salva",
-        description: `${messages.length} mensagens salvas no banco de dados para análise comportamental`
+        description: `${messages.length} mensagens salvas (${audioCount} áudios transcritos) para análise comportamental`
       });
 
       return true;
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ ERRO ao salvar conversa no banco:', error);
       toast({
         title: "❌ Erro ao salvar conversa",
