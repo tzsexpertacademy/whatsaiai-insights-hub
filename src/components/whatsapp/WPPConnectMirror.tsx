@@ -107,7 +107,7 @@ export function WPPConnectMirror() {
               timestamp: Date.now() / 1000 - 10 * 60, 
               fromMe: true, 
               senderName: 'Você', 
-              body: 'SGVsbG8gV29ybGQgdGhpcyBpcyBhIHNhbXBsZSBhdWRpbyBtZXNzYWdl', // Base64 simulado
+              body: 'SGVsbG8gV29ybGQgdGhpcyBpcyBhIHNhbXBsZSBhdWRpbyBtZXNzYWdl', // Base64 simulado para áudio
               type: 'audio', 
               hasMedia: true 
             },
@@ -116,7 +116,7 @@ export function WPPConnectMirror() {
               timestamp: Date.now() / 1000 - 5 * 60, 
               fromMe: false, 
               senderName: 'Maria', 
-              body: 'VGVzdGUgZGUgw6F1ZGlvIGVtIHBvcnR1Z3XDqnM=', // Base64 simulado
+              body: 'VGVzdGUgZGUgw6F1ZGlvIGVtIHBvcnR1Z3XDqnM=', // Base64 simulado para áudio
               type: 'audio', 
               hasMedia: true 
             }
@@ -149,7 +149,7 @@ export function WPPConnectMirror() {
               timestamp: Date.now() / 1000 - 30 * 60, 
               fromMe: false, 
               senderName: 'João', 
-              body: 'UGVyZmVpdG8sIGVudGVuZGkgdHVkbyE=', // Base64 simulado 
+              body: 'UGVyZmVpdG8sIGVudGVuZGkgdHVkbyE=', // Base64 simulado para áudio
               type: 'audio', 
               hasMedia: true 
             },
@@ -256,11 +256,30 @@ export function WPPConnectMirror() {
     });
   };
 
+  // Melhorar detecção de mensagens de áudio
   const isAudioMessage = (message: WPPMessage): boolean => {
-    return message.type === 'audio' || 
-           (message.hasMedia && message.body?.length > 20 && message.body?.length < 200) ||
-           message.body?.includes('audio:') ||
-           /^[A-Za-z0-9+/]+=*$/.test(message.body?.substring(0, 50) || ''); // Base64 pattern
+    // 1. Verificar tipo explícito
+    if (message.type === 'audio') {
+      console.log('🎵 Áudio detectado por tipo:', message.id);
+      return true;
+    }
+    
+    // 2. Verificar hasMedia com body que parece base64
+    if (message.hasMedia && message.body) {
+      const isBase64Pattern = /^[A-Za-z0-9+/]+=*$/.test(message.body);
+      if (isBase64Pattern && message.body.length > 20) {
+        console.log('🎵 Áudio detectado por base64:', message.id);
+        return true;
+      }
+    }
+    
+    // 3. Verificar se body contém indicadores de áudio
+    if (message.body?.includes('audio:') || message.body?.includes('voice:')) {
+      console.log('🎵 Áudio detectado por indicador:', message.id);
+      return true;
+    }
+    
+    return false;
   };
 
   const renderMessage = (message: WPPMessage, isMarked: boolean) => {
@@ -272,7 +291,8 @@ export function WPPConnectMirror() {
       type: message.type,
       isAudio,
       bodyLength: message.body?.length,
-      hasTranscription: !!transcription
+      hasTranscription: !!transcription,
+      body: message.body?.substring(0, 30) + '...'
     });
 
     return (
@@ -304,7 +324,7 @@ export function WPPConnectMirror() {
               })}
             </span>
             {isAudio && (
-              <Badge variant="outline" className="text-xs">
+              <Badge variant="outline" className="text-xs bg-orange-100 text-orange-800">
                 <Volume2 className="w-3 h-3 mr-1" />
                 Áudio
               </Badge>
@@ -325,12 +345,17 @@ export function WPPConnectMirror() {
           
           {isAudio ? (
             <div className="space-y-2">
-              <AudioPlayer
-                audioBase64={message.body}
-                duration={30}
-                onTranscriptionComplete={(text) => handleAudioTranscription(message.id, text)}
-                className="max-w-xs"
-              />
+              <div className="p-2 bg-yellow-50 rounded border border-yellow-200">
+                <p className="text-xs text-yellow-700 mb-2">
+                  🎵 Mensagem de áudio detectada
+                </p>
+                <AudioPlayer
+                  audioBase64={message.body}
+                  duration={30}
+                  onTranscriptionComplete={(text) => handleAudioTranscription(message.id, text)}
+                  className="w-full"
+                />
+              </div>
               {transcription && (
                 <div className="bg-white p-2 rounded border-l-4 border-green-400">
                   <p className="text-sm text-gray-700">
@@ -418,7 +443,7 @@ export function WPPConnectMirror() {
           <CardTitle className="text-lg">
             <div className="flex items-center gap-2">
               <MessageSquare className="w-5 h-5" />
-              WPPConnect - Espelho com Áudio
+              WPPConnect - Espelho com Reprodução de Áudio
               {!isConnected && (
                 <Badge variant="destructive" className="ml-2">
                   Desconectado
@@ -474,7 +499,7 @@ export function WPPConnectMirror() {
                           </div>
                           <div className="flex flex-col text-xs text-gray-500">
                             {audioCount > 0 && (
-                              <span className="flex items-center gap-1">
+                              <span className="flex items-center gap-1 text-orange-600 font-medium">
                                 <Volume2 className="w-3 h-3" />
                                 {audioCount} áudios
                               </span>
@@ -504,7 +529,7 @@ export function WPPConnectMirror() {
                 {selectedConversation ? (
                   <>
                     {conversations.find(conv => conv.id === selectedConversation)?.contact.name}
-                    <Badge variant="outline" className="ml-2">
+                    <Badge variant="outline" className="ml-2 bg-orange-100 text-orange-800">
                       {Object.keys(audioTranscriptions).length} áudios transcritos
                     </Badge>
                   </>
@@ -542,8 +567,8 @@ export function WPPConnectMirror() {
             {selectedConversation ? (
               <ScrollArea className="h-[500px]">
                 <div className="space-y-3">
-                  <div className="bg-blue-50 p-3 rounded-lg text-sm text-blue-700">
-                    💡 Clique nas mensagens para selecioná-las para análise. Áudios serão automaticamente transcritos.
+                  <div className="bg-orange-50 p-3 rounded-lg text-sm text-orange-700">
+                    🎵 Clique nas mensagens para selecioná-las. Áudios são reproduzíveis e automaticamente transcritos.
                   </div>
                   
                   {(() => {
@@ -587,7 +612,7 @@ export function WPPConnectMirror() {
             </div>
             <div>
               <p className="text-gray-600">Áudios Detectados</p>
-              <p className="font-bold text-gray-800">
+              <p className="font-bold text-orange-600">
                 {conversations.reduce((acc, conv) => 
                   acc + conv.messages.filter(msg => isAudioMessage(msg)).length, 0
                 )}
