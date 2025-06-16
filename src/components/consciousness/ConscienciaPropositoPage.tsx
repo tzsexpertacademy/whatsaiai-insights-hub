@@ -33,23 +33,42 @@ export function ConscienciaPropositoPage() {
     alerts: []
   });
 
+  console.log('🧠 ConscienciaPropositoPage - Debug:', {
+    isLoading,
+    hasRealData: data.hasRealData,
+    assistantsCount: assistants.length,
+    insightsCount: data.insightsWithAssistant?.length || 0,
+    selectedAssistant
+  });
+
   // Buscar assistente especializado em consciência/propósito
   useEffect(() => {
+    console.log('🔍 Procurando assistente de consciência...');
     const consciousnessAssistant = assistants.find(a => 
       a.description?.toLowerCase().includes('consciência') ||
       a.description?.toLowerCase().includes('propósito') ||
       a.name?.toLowerCase().includes('tecelão') ||
-      a.name?.toLowerCase().includes('alma')
+      a.name?.toLowerCase().includes('alma') ||
+      a.name?.toLowerCase().includes('oráculo')
     );
     
-    if (consciousnessAssistant && !selectedAssistant) {
+    if (consciousnessAssistant) {
+      console.log('✅ Assistente de consciência encontrado:', consciousnessAssistant.name);
       setSelectedAssistant(consciousnessAssistant.id);
+    } else if (assistants.length > 0 && !selectedAssistant) {
+      console.log('📋 Usando primeiro assistente disponível:', assistants[0].name);
+      setSelectedAssistant(assistants[0].id);
     }
   }, [assistants, selectedAssistant]);
 
   // Análise das conversas para extrair dados de consciência
   const analyzeConsciousnessData = async () => {
-    if (!selectedAssistant || !data.conversations.length) return;
+    console.log('🔄 Iniciando análise de consciência...');
+    
+    if (!selectedAssistant || !data.conversations.length) {
+      console.log('⚠️ Sem assistente ou conversas para analisar');
+      return;
+    }
 
     setIsAnalyzing(true);
     
@@ -66,11 +85,13 @@ export function ConscienciaPropositoPage() {
         }
       ) || [];
 
+      console.log('📊 Insights de consciência encontrados:', consciousnessInsights.length);
+
       // Calcular métricas baseadas nos dados reais
       const clarityIndex = consciousnessInsights.length > 0 ? Math.min(85, consciousnessInsights.length * 15) : 25;
       const shadowIndex = Math.max(0, 60 - (consciousnessInsights.length * 10));
       
-      setConsciousnessData({
+      const newConsciousnessData = {
         clarityIndex,
         shadowIndex,
         coherenceLevel: clarityIndex > 70 ? 'Alto' : clarityIndex > 40 ? 'Médio' : 'Baixo',
@@ -80,7 +101,9 @@ export function ConscienciaPropositoPage() {
           trabalho: 100 - shadowIndex,
           relacionamentos: 80,
           saude: 90,
-          proposito: clarityIndex
+          proposito: clarityIndex,
+          financas: 75,
+          crescimento: 85
         },
         insights: consciousnessInsights,
         alerts: consciousnessInsights.length === 0 ? [
@@ -90,16 +113,20 @@ export function ConscienciaPropositoPage() {
             message: 'Suas conversas mostram pouca reflexão sobre sentido e direção de vida.'
           }
         ] : []
-      });
+      };
+
+      console.log('✅ Dados de consciência calculados:', newConsciousnessData);
+      setConsciousnessData(newConsciousnessData);
     } catch (error) {
-      console.error('Erro na análise de consciência:', error);
+      console.error('💥 Erro na análise de consciência:', error);
     } finally {
       setIsAnalyzing(false);
     }
   };
 
   useEffect(() => {
-    if (data.hasRealData && selectedAssistant) {
+    if (data.hasRealData && selectedAssistant && !isAnalyzing) {
+      console.log('🚀 Executando análise automática...');
       analyzeConsciousnessData();
     }
   }, [data.hasRealData, selectedAssistant]);
@@ -119,7 +146,7 @@ export function ConscienciaPropositoPage() {
       </Badge>
       <Button 
         onClick={analyzeConsciousnessData}
-        disabled={isAnalyzing}
+        disabled={isAnalyzing || !selectedAssistant}
         variant="outline"
         size="sm"
       >
@@ -139,6 +166,7 @@ export function ConscienciaPropositoPage() {
   );
 
   if (isLoading) {
+    console.log('⏳ Página em loading...');
     return (
       <PageLayout
         title="Consciência e Propósito"
@@ -156,6 +184,8 @@ export function ConscienciaPropositoPage() {
     );
   }
 
+  console.log('🎨 Renderizando página de consciência...');
+
   return (
     <PageLayout
       title="Consciência e Propósito"
@@ -164,6 +194,24 @@ export function ConscienciaPropositoPage() {
       showBackButton={true}
     >
       <div className="space-y-6">
+        {/* Debug Info */}
+        <Card className="bg-blue-50 border-blue-200">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <Brain className="h-8 w-8 text-blue-600" />
+              <div>
+                <h3 className="font-medium text-blue-800">Status do Sistema</h3>
+                <p className="text-sm text-blue-600">
+                  Dados reais: {data.hasRealData ? 'Sim' : 'Não'} | 
+                  Assistentes: {assistants.length} | 
+                  Insights: {data.insightsWithAssistant?.length || 0} |
+                  Assistente selecionado: {selectedAssistant || 'Nenhum'}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Status de Dados */}
         {!data.hasRealData && (
           <Card className="bg-yellow-50 border-yellow-200">

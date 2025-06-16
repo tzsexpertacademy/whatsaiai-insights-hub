@@ -39,7 +39,7 @@ interface ConversationAnalysisProps {
     priority: string;
     marked_at: string;
     last_analyzed_at?: string;
-    analysis_results?: any;
+    analysis_results?: any[];
   };
   onAnalysisComplete: () => void;
 }
