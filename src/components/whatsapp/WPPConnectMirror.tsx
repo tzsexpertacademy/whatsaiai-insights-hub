@@ -14,7 +14,8 @@ import {
   Loader2,
   CheckCircle2,
   Volume2,
-  FileText
+  FileText,
+  MousePointer
 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { useConversationSaver } from '@/hooks/useConversationSaver';
@@ -68,31 +69,114 @@ export function WPPConnectMirror() {
   const loadConversations = async () => {
     setIsLoading(true);
     try {
-      // Simulação de carregamento de conversas
+      // Simulação com mensagens de áudio mais realistas
       const mockConversations: WPPConversation[] = [
         {
           id: 'chatId1',
           contact: { phone: '+5511999999999', name: 'Maria Silva' },
           messages: [
-            { id: '1', timestamp: Date.now() / 1000 - 60 * 60, fromMe: false, senderName: 'Maria', body: 'Olá! Como posso te ajudar hoje?', type: 'text', hasMedia: false },
-            { id: '2', timestamp: Date.now() / 1000 - 30 * 60, fromMe: true, senderName: 'Você', body: 'Preciso de informações sobre os novos produtos.', type: 'text', hasMedia: false },
-            { id: '3', timestamp: Date.now() / 1000 - 15 * 60, fromMe: false, senderName: 'Maria', body: 'Temos ótimas novidades! Deixe-me apresentar...', type: 'text', hasMedia: false },
-            { id: '4', timestamp: Date.now() / 1000 - 5 * 60, fromMe: true, senderName: 'Você', body: 'audio: ...base64...', type: 'audio', hasMedia: true },
+            { 
+              id: '1', 
+              timestamp: Date.now() / 1000 - 60 * 60, 
+              fromMe: false, 
+              senderName: 'Maria', 
+              body: 'Olá! Como posso te ajudar hoje?', 
+              type: 'text', 
+              hasMedia: false 
+            },
+            { 
+              id: '2', 
+              timestamp: Date.now() / 1000 - 30 * 60, 
+              fromMe: true, 
+              senderName: 'Você', 
+              body: 'Preciso de informações sobre os novos produtos.', 
+              type: 'text', 
+              hasMedia: false 
+            },
+            { 
+              id: '3', 
+              timestamp: Date.now() / 1000 - 15 * 60, 
+              fromMe: false, 
+              senderName: 'Maria', 
+              body: 'Temos ótimas novidades! Deixe-me apresentar...', 
+              type: 'text', 
+              hasMedia: false 
+            },
+            { 
+              id: '4', 
+              timestamp: Date.now() / 1000 - 10 * 60, 
+              fromMe: true, 
+              senderName: 'Você', 
+              body: 'SGVsbG8gV29ybGQgdGhpcyBpcyBhIHNhbXBsZSBhdWRpbyBtZXNzYWdl', // Base64 simulado
+              type: 'audio', 
+              hasMedia: true 
+            },
+            { 
+              id: '5', 
+              timestamp: Date.now() / 1000 - 5 * 60, 
+              fromMe: false, 
+              senderName: 'Maria', 
+              body: 'VGVzdGUgZGUgw6F1ZGlvIGVtIHBvcnR1Z3XDqnM=', // Base64 simulado
+              type: 'audio', 
+              hasMedia: true 
+            }
           ]
         },
         {
           id: 'chatId2',
           contact: { phone: '+5521888888888', name: 'João Santos' },
           messages: [
-            { id: '5', timestamp: Date.now() / 1000 - 2 * 60 * 60, fromMe: false, senderName: 'João', body: 'Gostaria de saber mais sobre os serviços de consultoria.', type: 'text', hasMedia: false },
-            { id: '6', timestamp: Date.now() / 1000 - 45 * 60, fromMe: true, senderName: 'Você', body: 'Nossa consultoria é especializada em...', type: 'text', hasMedia: false },
-            { id: '7', timestamp: Date.now() / 1000 - 20 * 60, fromMe: false, senderName: 'João', body: 'Entendo. Quais são os próximos passos?', type: 'text', hasMedia: false }
+            { 
+              id: '6', 
+              timestamp: Date.now() / 1000 - 2 * 60 * 60, 
+              fromMe: false, 
+              senderName: 'João', 
+              body: 'Gostaria de saber mais sobre os serviços de consultoria.', 
+              type: 'text', 
+              hasMedia: false 
+            },
+            { 
+              id: '7', 
+              timestamp: Date.now() / 1000 - 45 * 60, 
+              fromMe: true, 
+              senderName: 'Você', 
+              body: 'Nossa consultoria é especializada em...', 
+              type: 'text', 
+              hasMedia: false 
+            },
+            { 
+              id: '8', 
+              timestamp: Date.now() / 1000 - 30 * 60, 
+              fromMe: false, 
+              senderName: 'João', 
+              body: 'UGVyZmVpdG8sIGVudGVuZGkgdHVkbyE=', // Base64 simulado 
+              type: 'audio', 
+              hasMedia: true 
+            },
+            { 
+              id: '9', 
+              timestamp: Date.now() / 1000 - 20 * 60, 
+              fromMe: false, 
+              senderName: 'João', 
+              body: 'Entendo. Quais são os próximos passos?', 
+              type: 'text', 
+              hasMedia: false 
+            }
           ]
         }
       ];
 
       setConversations(mockConversations);
       setIsConnected(true);
+      
+      console.log('🎵 Conversas carregadas com áudios:', {
+        totalConversations: mockConversations.length,
+        totalMessages: mockConversations.reduce((acc, conv) => acc + conv.messages.length, 0),
+        audioMessages: mockConversations.reduce((acc, conv) => 
+          acc + conv.messages.filter(msg => msg.type === 'audio').length, 0
+        )
+      });
+      
     } catch (error) {
       console.error('Erro ao carregar conversas:', error);
       toast({
@@ -154,7 +238,13 @@ export function WPPConnectMirror() {
         ...conv,
         messages: conv.messages.map(msg => 
           msg.id === messageId 
-            ? { ...msg, transcription, body: msg.body + ` [Transcrição: ${transcription}]` }
+            ? { 
+                ...msg, 
+                transcription, 
+                body: msg.type === 'audio' 
+                  ? `${msg.body} [Transcrição: ${transcription}]`
+                  : msg.body
+              }
             : msg
         )
       }))
@@ -166,18 +256,34 @@ export function WPPConnectMirror() {
     });
   };
 
+  const isAudioMessage = (message: WPPMessage): boolean => {
+    return message.type === 'audio' || 
+           (message.hasMedia && message.body?.length > 20 && message.body?.length < 200) ||
+           message.body?.includes('audio:') ||
+           /^[A-Za-z0-9+/]+=*$/.test(message.body?.substring(0, 50) || ''); // Base64 pattern
+  };
+
   const renderMessage = (message: WPPMessage, isMarked: boolean) => {
-    const isAudio = message.type === 'audio' || message.hasMedia && message.body?.includes('audio');
+    const isAudio = isAudioMessage(message);
     const transcription = audioTranscriptions[message.id];
+    
+    console.log('🎵 Renderizando mensagem:', {
+      id: message.id,
+      type: message.type,
+      isAudio,
+      bodyLength: message.body?.length,
+      hasTranscription: !!transcription
+    });
 
     return (
       <div
         key={message.id}
-        className={`flex gap-3 p-3 rounded-lg transition-all duration-200 ${
+        className={`flex gap-3 p-3 rounded-lg transition-all duration-200 cursor-pointer ${
           message.fromMe 
             ? 'bg-blue-50 border-l-4 border-blue-400' 
             : 'bg-gray-50 border-l-4 border-gray-300'
-        } ${isMarked ? 'ring-2 ring-green-400 bg-green-50' : ''}`}
+        } ${isMarked ? 'ring-2 ring-green-400 bg-green-50' : ''} hover:shadow-md`}
+        onClick={() => selectedConversation && toggleMessageSelection(selectedConversation, message.id)}
       >
         <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
           message.fromMe ? 'bg-blue-500' : 'bg-gray-400'
@@ -209,13 +315,19 @@ export function WPPConnectMirror() {
                 Transcrito
               </Badge>
             )}
+            {isMarked && (
+              <Badge className="text-xs bg-green-500 text-white">
+                <MousePointer className="w-3 h-3 mr-1" />
+                Selecionada
+              </Badge>
+            )}
           </div>
           
           {isAudio ? (
             <div className="space-y-2">
               <AudioPlayer
-                audioBase64={message.body} // Assumindo que o body contém o base64 do áudio
-                duration={30} // Duração padrão, pode ser ajustada
+                audioBase64={message.body}
+                duration={30}
                 onTranscriptionComplete={(text) => handleAudioTranscription(message.id, text)}
                 className="max-w-xs"
               />
@@ -256,11 +368,18 @@ export function WPPConnectMirror() {
     if (markedMessages.length === 0) {
       toast({
         title: "⚠️ Nenhuma mensagem selecionada",
-        description: "Selecione mensagens para salvar a conversa",
+        description: "Clique nas mensagens para selecioná-las antes de salvar",
         variant: "destructive"
       });
       return;
     }
+
+    console.log('💾 Salvando conversa com transcrições:', {
+      chatId,
+      totalMessages: markedMessages.length,
+      audioMessages: markedMessages.filter(msg => isAudioMessage(msg)).length,
+      transcriptions: Object.keys(audioTranscriptions).length
+    });
 
     // Incluir transcrições nas mensagens salvas
     const messagesWithTranscriptions = markedMessages.map(msg => ({
@@ -299,7 +418,7 @@ export function WPPConnectMirror() {
           <CardTitle className="text-lg">
             <div className="flex items-center gap-2">
               <MessageSquare className="w-5 h-5" />
-              WPPConnect - Espelho
+              WPPConnect - Espelho com Áudio
               {!isConnected && (
                 <Badge variant="destructive" className="ml-2">
                   Desconectado
@@ -312,7 +431,7 @@ export function WPPConnectMirror() {
           {isConnected ? (
             <div className="text-green-600 font-medium flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4" />
-              Conectado!
+              Conectado! {Object.keys(audioTranscriptions).length} áudios transcritos
             </div>
           ) : (
             <div className="text-red-600 font-medium flex items-center gap-2">
@@ -338,18 +457,38 @@ export function WPPConnectMirror() {
             ) : (
               <ScrollArea className="h-[500px]">
                 <div className="space-y-2">
-                  {conversations.map(conversation => (
-                    <div
-                      key={conversation.id}
-                      className={`p-3 rounded-lg cursor-pointer hover:bg-gray-100 ${selectedConversation === conversation.id ? 'bg-blue-100 font-medium' : ''}`}
-                      onClick={() => handleSelectConversation(conversation.id)}
-                    >
-                      <div className="flex items-center gap-2">
-                        <Phone className="w-4 h-4 text-gray-500" />
-                        {conversation.contact.name}
+                  {conversations.map(conversation => {
+                    const audioCount = conversation.messages.filter(msg => isAudioMessage(msg)).length;
+                    const selectedCount = markedConversations[conversation.id]?.messageIds.length || 0;
+                    
+                    return (
+                      <div
+                        key={conversation.id}
+                        className={`p-3 rounded-lg cursor-pointer hover:bg-gray-100 ${selectedConversation === conversation.id ? 'bg-blue-100 font-medium' : ''}`}
+                        onClick={() => handleSelectConversation(conversation.id)}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Phone className="w-4 h-4 text-gray-500" />
+                            {conversation.contact.name}
+                          </div>
+                          <div className="flex flex-col text-xs text-gray-500">
+                            {audioCount > 0 && (
+                              <span className="flex items-center gap-1">
+                                <Volume2 className="w-3 h-3" />
+                                {audioCount} áudios
+                              </span>
+                            )}
+                            {selectedCount > 0 && (
+                              <span className="text-green-600 font-medium">
+                                {selectedCount} selecionadas
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </ScrollArea>
             )}
@@ -390,7 +529,7 @@ export function WPPConnectMirror() {
                     ) : (
                       <>
                         <Save className="w-4 h-4 mr-2" />
-                        Salvar Selecionadas
+                        Salvar Selecionadas ({markedConversations[selectedConversation]?.messageIds.length || 0})
                       </>
                     )}
                   </Button>
@@ -403,6 +542,10 @@ export function WPPConnectMirror() {
             {selectedConversation ? (
               <ScrollArea className="h-[500px]">
                 <div className="space-y-3">
+                  <div className="bg-blue-50 p-3 rounded-lg text-sm text-blue-700">
+                    💡 Clique nas mensagens para selecioná-las para análise. Áudios serão automaticamente transcritos.
+                  </div>
+                  
                   {(() => {
                     const conversation = conversations.find(conv => conv.id === selectedConversation);
                     if (!conversation) return null;
@@ -428,13 +571,33 @@ export function WPPConnectMirror() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Resumo</CardTitle>
+          <CardTitle>Resumo do Sistema</CardTitle>
         </CardHeader>
         <CardContent>
-          <p>
-            Este é um espelho da API do WPPConnect. Ele permite visualizar e
-            interagir com as conversas do WhatsApp.
-          </p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <div>
+              <p className="text-gray-600">Conversas Carregadas</p>
+              <p className="font-bold text-gray-800">{conversations.length}</p>
+            </div>
+            <div>
+              <p className="text-gray-600">Mensagens Totais</p>
+              <p className="font-bold text-gray-800">
+                {conversations.reduce((acc, conv) => acc + conv.messages.length, 0)}
+              </p>
+            </div>
+            <div>
+              <p className="text-gray-600">Áudios Detectados</p>
+              <p className="font-bold text-gray-800">
+                {conversations.reduce((acc, conv) => 
+                  acc + conv.messages.filter(msg => isAudioMessage(msg)).length, 0
+                )}
+              </p>
+            </div>
+            <div>
+              <p className="text-gray-600">Transcrições Feitas</p>
+              <p className="font-bold text-green-600">{Object.keys(audioTranscriptions).length}</p>
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>
