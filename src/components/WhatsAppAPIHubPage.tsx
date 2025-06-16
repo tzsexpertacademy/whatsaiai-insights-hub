@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { PageLayout } from '@/components/layout/PageLayout';
-import { WhatsAppAPIHub } from './whatsapp/WhatsAppAPIHub';
+import { IntegratedWhatsAppHub } from './whatsapp/IntegratedWhatsAppHub';
 import { Badge } from "@/components/ui/badge";
 import { Zap, ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -18,18 +18,18 @@ export function WhatsAppAPIHubPage() {
       </Link>
       <Badge className="bg-green-100 text-green-800 text-xs sm:text-sm flex items-center gap-1">
         <Zap className="h-3 w-3" />
-        API Hub Universal
+        Hub Integrado
       </Badge>
     </div>
   );
 
   return (
     <PageLayout
-      title="WhatsApp API Hub"
-      description="Solução estilo Swagger para integração WhatsApp - Escaneie uma vez, funciona em qualquer sistema"
+      title="WhatsApp API Hub Integrado"
+      description="Solução completa sem necessidade de configuração externa - Conecte seu WhatsApp em segundos"
       headerActions={headerActions}
     >
-      <WhatsAppAPIHub />
+      <IntegratedWhatsAppHub />
     </PageLayout>
   );
 }

@@ -55,8 +55,7 @@ export function useWPPStatus() {
       const serverTestUrl = `${config.serverUrl}/api/status`;
       try {
         const serverResponse = await fetch(serverTestUrl, {
-          method: 'GET',
-          timeout: 5000
+          method: 'GET'
         });
         console.log('🔍 [DEBUG] Teste do servidor:', serverResponse.status);
       } catch (serverError) {
@@ -85,8 +84,7 @@ export function useWPPStatus() {
             headers: {
               'Authorization': `Bearer ${config.token}`,
               'Content-Type': 'application/json'
-            },
-            timeout: 10000
+            }
           });
 
           console.log('📊 [DEBUG] Response status:', response.status);
