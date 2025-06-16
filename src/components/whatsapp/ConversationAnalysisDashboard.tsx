@@ -170,11 +170,6 @@ export function ConversationAnalysisDashboard() {
     }
   };
 
-  const handleAnalysisUpdate = (conversationId: string, results: any) => {
-    console.log('✅ Análise individual atualizada, recarregando dados...');
-    loadAnalysisConversations();
-  };
-
   const handleAnalysisComplete = () => {
     console.log('✅ Análise individual concluída, recarregando dados...');
     loadAnalysisConversations();
@@ -373,7 +368,6 @@ export function ConversationAnalysisDashboard() {
             {selectedConversation ? (
               <IndividualConversationAnalysis
                 conversation={conversations.find(c => c.id === selectedConversation)!}
-                onAnalysisUpdate={handleAnalysisUpdate}
                 onAnalysisComplete={handleAnalysisComplete}
               />
             ) : (
