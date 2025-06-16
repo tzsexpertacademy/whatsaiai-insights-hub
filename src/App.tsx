@@ -1,43 +1,42 @@
-
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter } from "react-router-dom";
-import { AuthProvider } from "@/contexts/AuthContext";
-import { AdminProvider } from "@/contexts/AdminContext";
-import { ClientConfigProvider } from "@/contexts/ClientConfigContext";
-import { AnalysisDataProvider } from "@/contexts/AnalysisDataContext";
-import { ThemeProvider } from "@/hooks/useTheme";
-import { SidebarProvider } from "@/components/ui/sidebar";
-import { AppRouter } from "@/components/AppRouter";
-import { NotificationManager } from "@/components/NotificationManager";
+import React from 'react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { AuthProvider } from './contexts/AuthContext';
+import { ClientConfigProvider } from './contexts/ClientConfigContext';
+import { Dashboard } from './components/Dashboard';
+import { Settings } from './components/Settings';
+import { WhatsAppConnection } from './components/WhatsAppConnection';
+import { ChatInterface } from './components/ChatInterface';
+import { QueryClient, QueryClientProvider } from 'react-query';
+import { Toaster } from "@/components/ui/toaster"
+import { ConversationAnalysisDashboard } from '@/components/whatsapp/ConversationAnalysisDashboard';
+import { WhatsAppAPIHubPage } from '@/components/WhatsAppAPIHubPage';
 
 const queryClient = new QueryClient();
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <ThemeProvider defaultTheme="light" storageKey="vite-ui-theme">
-          <AuthProvider>
-            <AdminProvider>
-              <ClientConfigProvider>
-                <AnalysisDataProvider>
-                  <SidebarProvider defaultOpen={true}>
-                    <AppRouter />
-                    <NotificationManager />
-                  </SidebarProvider>
-                </AnalysisDataProvider>
-              </ClientConfigProvider>
-            </AdminProvider>
-          </AuthProvider>
-        </ThemeProvider>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+function App() {
+  return (
+    <AuthProvider>
+      <ClientConfigProvider>
+        <BrowserRouter>
+          <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+            <Toaster />
+            <QueryClientProvider client={queryClient}>
+              <Routes>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/settings" element={<Settings />} />
+                <Route path="/whatsapp" element={<WhatsAppConnection />} />
+                <Route path="/chat" element={<ChatInterface />} />
+                <Route path="/analysis" element={<ConversationAnalysisDashboard />} />
+                
+                <Route path="/whatsapp-api-hub" element={<WhatsAppAPIHubPage />} />
+                
+              </Routes>
+            </QueryClientProvider>
+          </div>
+        </BrowserRouter>
+      </ClientConfigProvider>
+    </AuthProvider>
+  );
+}
 
 export default App;

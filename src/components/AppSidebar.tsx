@@ -1,4 +1,3 @@
-
 import { Brain, BarChart3, MessageSquare, Target, Zap, Clock, Heart, Users, Settings, User, Bell, Lightbulb } from 'lucide-react';
 import {
   Sidebar,
@@ -37,6 +36,18 @@ export function AppSidebar() {
     { title: 'Notificações', icon: Bell, url: '/dashboard/notifications' },
     { title: 'Configurações', icon: Settings, url: '/dashboard/settings' },
     { title: 'Perfil', icon: User, url: '/dashboard/profile' },
+  ];
+
+  const mainNavItems = [
+    { title: 'Dashboard Geral', icon: BarChart3, url: '/dashboard' },
+    { title: 'Análise de Conversas', icon: MessageSquare, url: '/dashboard/conversation-analysis' },
+    {
+      title: "WhatsApp API Hub",
+      url: "/whatsapp-api-hub",
+      icon: Zap,
+      badge: "NOVO",
+      badgeVariant: "default" as const
+    },
   ];
 
   return (

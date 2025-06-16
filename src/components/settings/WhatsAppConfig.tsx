@@ -23,6 +23,50 @@ export function WhatsAppConfig() {
       {/* Status da Conexão */}
       <WhatsAppConnectionStatus />
 
+      {/* Novo Card do API Hub */}
+      <Card className="bg-gradient-to-r from-green-50 to-blue-50 border-green-200">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Zap className="h-6 w-6 text-green-600" />
+            WhatsApp API Hub
+            <Badge className="bg-green-100 text-green-800">NOVO</Badge>
+          </CardTitle>
+          <CardDescription>
+            Solução estilo Swagger - Escaneie uma vez, funciona em qualquer sistema
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <div className="space-y-2">
+              <ul className="text-sm space-y-1">
+                <li className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                  QR Code Universal para todas as integrações
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                  API Explorer com testes em tempo real
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                  Configuração automática de webhooks
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                  Monitoramento e logs em tempo real
+                </li>
+              </ul>
+            </div>
+            <Button asChild size="lg">
+              <a href="/whatsapp-api-hub">
+                <Zap className="h-4 w-4 mr-2" />
+                Acessar API Hub
+              </a>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       <Tabs defaultValue="real" className="w-full">
         <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="real" className="flex items-center gap-2">
