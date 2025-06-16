@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Bell, MessageCircle, Clock, Send, TestTube, Settings } from 'lucide-react';
-import { useWhatsAppNotifications } from '@/hooks/useWhatsAppNotifications';
+import { useWhatsAppNotifications, defaultMessages } from '@/hooks/useWhatsAppNotifications';
 import { usePersonalAssistant } from '@/hooks/usePersonalAssistant';
 
 export function WhatsAppNotificationsConfig() {
@@ -16,8 +16,7 @@ export function WhatsAppNotificationsConfig() {
     updateConfig, 
     testWhatsAppNotification,
     startScheduledNotifications,
-    clearAllTimeouts,
-    defaultMessages 
+    clearAllTimeouts
   } = useWhatsAppNotifications();
   
   const { config: assistantConfig } = usePersonalAssistant();

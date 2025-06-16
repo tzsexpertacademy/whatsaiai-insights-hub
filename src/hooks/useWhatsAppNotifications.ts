@@ -1,4 +1,3 @@
-
 import { useState, useCallback, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { usePersonalAssistant } from './usePersonalAssistant';
@@ -28,7 +27,7 @@ interface WhatsAppNotificationConfig {
   };
 }
 
-const defaultMessages = {
+export const defaultMessages = {
   morning: '🌅 Bom dia! Como você está se sentindo hoje? Compartilhe seus planos comigo para que eu possa te ajudar melhor!',
   midday: '☀️ Como está sendo sua manhã? Me conte o que você já conseguiu fazer hoje!',
   afternoon: '🌤️ Boa tarde! Como foi sua manhã? Está na hora de fazer uma pausa e me contar como está seu dia.',
