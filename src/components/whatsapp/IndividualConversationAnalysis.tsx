@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -399,6 +400,7 @@ ${analysisPrompt || 'Analyze this WhatsApp conversation as requested...'}
     }
   };
 
+  // Type-safe access to analysis_results
   const analysisResults = Array.isArray(conversation.analysis_results) ? conversation.analysis_results : [];
 
   return (
