@@ -1,25 +1,18 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
 import { 
   MessageSquare, 
-  User, 
-  Clock, 
-  Phone, 
-  Save, 
-  RefreshCw,
+  Save,
   Loader2,
-  CheckCircle2,
-  Volume2,
-  FileText,
-  MousePointer
+  CheckCircle2
 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { useConversationSaver } from '@/hooks/useConversationSaver';
-import { AudioPlayer } from './AudioPlayer';
+import { ConversationList } from './conversation/ConversationList';
+import { MessageItem } from './conversation/MessageItem';
 
 interface WPPMessage {
   id: string;
@@ -52,7 +45,6 @@ interface MarkedConversationState {
 
 export function WPPConnectMirror() {
   const [isConnected, setIsConnected] = useState(false);
-  const [qrCode, setQrCode] = useState('');
   const [conversations, setConversations] = useState<WPPConversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
   const [markedConversations, setMarkedConversations] = useState<MarkedConversationState>({});
@@ -198,7 +190,6 @@ export function WPPConnectMirror() {
       const isSelected = prev[chatId]?.messageIds.includes(messageId) || false;
       
       if (isSelected) {
-        // Remove messageId
         const updatedMessageIds = prev[chatId].messageIds.filter(id => id !== messageId);
         
         if (updatedMessageIds.length === 0) {
@@ -213,7 +204,6 @@ export function WPPConnectMirror() {
           };
         }
       } else {
-        // Add messageId
         return {
           ...prev,
           [chatId]: {
@@ -232,7 +222,6 @@ export function WPPConnectMirror() {
       [messageId]: transcription
     }));
 
-    // Atualizar as conversas com a transcrição
     setConversations(prevConversations => 
       prevConversations.map(conv => ({
         ...conv,
@@ -256,15 +245,12 @@ export function WPPConnectMirror() {
     });
   };
 
-  // Melhorar detecção de mensagens de áudio
   const isAudioMessage = (message: WPPMessage): boolean => {
-    // 1. Verificar tipo explícito
     if (message.type === 'audio') {
       console.log('🎵 Áudio detectado por tipo:', message.id);
       return true;
     }
     
-    // 2. Verificar hasMedia com body que parece base64
     if (message.hasMedia && message.body) {
       const isBase64Pattern = /^[A-Za-z0-9+/]+=*$/.test(message.body);
       if (isBase64Pattern && message.body.length > 20) {
@@ -273,7 +259,6 @@ export function WPPConnectMirror() {
       }
     }
     
-    // 3. Verificar se body contém indicadores de áudio
     if (message.body?.includes('audio:') || message.body?.includes('voice:')) {
       console.log('🎵 Áudio detectado por indicador:', message.id);
       return true;
@@ -282,106 +267,10 @@ export function WPPConnectMirror() {
     return false;
   };
 
-  const renderMessage = (message: WPPMessage, isMarked: boolean) => {
-    const isAudio = isAudioMessage(message);
-    const transcription = audioTranscriptions[message.id];
-    
-    console.log('🎵 Renderizando mensagem:', {
-      id: message.id,
-      type: message.type,
-      isAudio,
-      bodyLength: message.body?.length,
-      hasTranscription: !!transcription,
-      body: message.body?.substring(0, 30) + '...'
-    });
-
-    return (
-      <div
-        key={message.id}
-        className={`flex gap-3 p-3 rounded-lg transition-all duration-200 cursor-pointer ${
-          message.fromMe 
-            ? 'bg-blue-50 border-l-4 border-blue-400' 
-            : 'bg-gray-50 border-l-4 border-gray-300'
-        } ${isMarked ? 'ring-2 ring-green-400 bg-green-50' : ''} hover:shadow-md`}
-        onClick={() => selectedConversation && toggleMessageSelection(selectedConversation, message.id)}
-      >
-        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-          message.fromMe ? 'bg-blue-500' : 'bg-gray-400'
-        }`}>
-          <User className="w-4 h-4 text-white" />
-        </div>
-        
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="font-medium text-sm">
-              {message.fromMe ? 'Você' : 'Contato'}
-            </span>
-            <span className="text-xs text-gray-500 flex items-center gap-1">
-              <Clock className="w-3 h-3" />
-              {new Date(message.timestamp * 1000).toLocaleTimeString('pt-BR', {
-                hour: '2-digit',
-                minute: '2-digit'
-              })}
-            </span>
-            {isAudio && (
-              <Badge variant="outline" className="text-xs bg-orange-100 text-orange-800">
-                <Volume2 className="w-3 h-3 mr-1" />
-                Áudio
-              </Badge>
-            )}
-            {transcription && (
-              <Badge variant="outline" className="text-xs bg-green-100 text-green-800">
-                <FileText className="w-3 h-3 mr-1" />
-                Transcrito
-              </Badge>
-            )}
-            {isMarked && (
-              <Badge className="text-xs bg-green-500 text-white">
-                <MousePointer className="w-3 h-3 mr-1" />
-                Selecionada
-              </Badge>
-            )}
-          </div>
-          
-          {isAudio ? (
-            <div className="space-y-2">
-              <div className="p-2 bg-yellow-50 rounded border border-yellow-200">
-                <p className="text-xs text-yellow-700 mb-2">
-                  🎵 Mensagem de áudio detectada
-                </p>
-                <AudioPlayer
-                  audioBase64={message.body}
-                  duration={30}
-                  onTranscriptionComplete={(text) => handleAudioTranscription(message.id, text)}
-                  className="w-full"
-                />
-              </div>
-              {transcription && (
-                <div className="bg-white p-2 rounded border-l-4 border-green-400">
-                  <p className="text-sm text-gray-700">
-                    <strong>Transcrição:</strong> {transcription}
-                  </p>
-                </div>
-              )}
-            </div>
-          ) : (
-            <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
-              {message.body || <span className="italic text-gray-400">Mídia sem texto</span>}
-            </p>
-          )}
-          
-          {message.hasMedia && !isAudio && (
-            <div className="mt-2 p-2 bg-blue-100 rounded-md">
-              <p className="text-xs text-blue-700 flex items-center gap-1">
-                📎 Mídia anexada ({message.type || 'arquivo'})
-              </p>
-            </div>
-          )}
-        </div>
-      </div>
-    );
+  const getAudioCount = (conversation: WPPConversation) => {
+    return conversation.messages.filter(msg => isAudioMessage(msg)).length;
   };
-  
+
   const handleSaveConversation = async (chatId: string) => {
     const conversation = conversations.find(conv => conv.id === chatId);
     if (!conversation) return;
@@ -468,57 +357,14 @@ export function WPPConnectMirror() {
       </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Lista de Conversas */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Conversas</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="text-center py-8">
-                <Loader2 className="w-6 h-6 animate-spin mx-auto" />
-                <p className="text-gray-500 mt-2">Carregando conversas...</p>
-              </div>
-            ) : (
-              <ScrollArea className="h-[500px]">
-                <div className="space-y-2">
-                  {conversations.map(conversation => {
-                    const audioCount = conversation.messages.filter(msg => isAudioMessage(msg)).length;
-                    const selectedCount = markedConversations[conversation.id]?.messageIds.length || 0;
-                    
-                    return (
-                      <div
-                        key={conversation.id}
-                        className={`p-3 rounded-lg cursor-pointer hover:bg-gray-100 ${selectedConversation === conversation.id ? 'bg-blue-100 font-medium' : ''}`}
-                        onClick={() => handleSelectConversation(conversation.id)}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <Phone className="w-4 h-4 text-gray-500" />
-                            {conversation.contact.name}
-                          </div>
-                          <div className="flex flex-col text-xs text-gray-500">
-                            {audioCount > 0 && (
-                              <span className="flex items-center gap-1 text-orange-600 font-medium">
-                                <Volume2 className="w-3 h-3" />
-                                {audioCount} áudios
-                              </span>
-                            )}
-                            {selectedCount > 0 && (
-                              <span className="text-green-600 font-medium">
-                                {selectedCount} selecionadas
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </ScrollArea>
-            )}
-          </CardContent>
-        </Card>
+        <ConversationList
+          conversations={conversations}
+          selectedConversation={selectedConversation}
+          markedConversations={markedConversations}
+          isLoading={isLoading}
+          audioCount={getAudioCount}
+          onSelectConversation={setSelectedConversation}
+        />
 
         {/* Visualizar Conversa */}
         <Card>
@@ -575,12 +421,17 @@ export function WPPConnectMirror() {
                     const conversation = conversations.find(conv => conv.id === selectedConversation);
                     if (!conversation) return null;
 
-                    return conversation.messages.map((message) => 
-                      renderMessage(
-                        message, 
-                        markedConversations[selectedConversation]?.messageIds.includes(message.id) || false
-                      )
-                    );
+                    return conversation.messages.map((message) => (
+                      <MessageItem
+                        key={message.id}
+                        message={message}
+                        isMarked={markedConversations[selectedConversation]?.messageIds.includes(message.id) || false}
+                        isAudio={isAudioMessage(message)}
+                        transcription={audioTranscriptions[message.id]}
+                        onToggleSelection={() => toggleMessageSelection(selectedConversation, message.id)}
+                        onTranscriptionComplete={handleAudioTranscription}
+                      />
+                    ));
                   })()}
                 </div>
               </ScrollArea>
