@@ -12,25 +12,15 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, Edit, Trash2, Clock, Bell } from 'lucide-react';
 import { useEnhancedNotifications } from '@/hooks/useEnhancedNotifications';
 
-interface CustomNotification {
-  id: string;
-  title: string;
-  message: string;
-  time: string;
-  enabled: boolean;
-  type: 'custom' | 'whatsapp' | 'browser';
-  days?: ('monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday')[];
-}
-
 export function NotificationManager() {
   const { browserNotifications, addNotification, updateNotification, deleteNotification } = useEnhancedNotifications();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingNotification, setEditingNotification] = useState<CustomNotification | null>(null);
+  const [editingNotification, setEditingNotification] = useState<any | null>(null);
   const [formData, setFormData] = useState({
     title: '',
     message: '',
     time: '',
-    type: 'browser' as const,
+    type: 'custom' as const,
     enabled: true,
     days: [] as string[]
   });
@@ -42,7 +32,7 @@ export function NotificationManager() {
       title: '',
       message: '',
       time: '',
-      type: 'browser',
+      type: 'custom',
       enabled: true,
       days: []
     });
@@ -55,7 +45,7 @@ export function NotificationManager() {
       title: notification.title,
       message: notification.message,
       time: notification.time,
-      type: notification.type || 'browser',
+      type: 'custom',
       enabled: notification.enabled,
       days: notification.days || []
     });
@@ -70,7 +60,7 @@ export function NotificationManager() {
       message: formData.message,
       time: formData.time,
       enabled: formData.enabled,
-      type: formData.type
+      type: 'custom' as const
     };
 
     if (editingNotification) {
@@ -202,23 +192,6 @@ export function NotificationManager() {
                   value={formData.time}
                   onChange={(e) => setFormData({ ...formData, time: e.target.value })}
                 />
-              </div>
-
-              {/* Tipo */}
-              <div className="space-y-2">
-                <Label>Tipo de Notificação</Label>
-                <Select
-                  value={formData.type}
-                  onValueChange={(value: 'browser' | 'whatsapp') => setFormData({ ...formData, type: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="browser">Navegador</SelectItem>
-                    <SelectItem value="whatsapp">WhatsApp</SelectItem>
-                  </SelectContent>
-                </Select>
               </div>
 
               {/* Ativo */}

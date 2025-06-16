@@ -23,15 +23,15 @@ export function WhatsAppConfig() {
       {/* Status da Conexão */}
       <WhatsAppConnectionStatus />
 
-      <Tabs defaultValue="real" className="w-full">
+      <Tabs defaultValue="assistant" className="w-full">
         <TabsList className="grid w-full grid-cols-6">
+          <TabsTrigger value="assistant" className="flex items-center gap-2">
+            <Brain className="h-4 w-4" />
+            Assistente & Notificações
+          </TabsTrigger>
           <TabsTrigger value="real" className="flex items-center gap-2">
             <Wifi className="h-4 w-4" />
             WhatsApp Real
-          </TabsTrigger>
-          <TabsTrigger value="assistant" className="flex items-center gap-2">
-            <Brain className="h-4 w-4" />
-            Assistente Pessoal
           </TabsTrigger>
           <TabsTrigger value="wppconnect" className="flex items-center gap-2">
             <Server className="h-4 w-4" />
@@ -51,12 +51,12 @@ export function WhatsAppConfig() {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="real">
-          <RealWhatsAppMirror />
-        </TabsContent>
-
         <TabsContent value="assistant">
           <PersonalAssistantConfig />
+        </TabsContent>
+
+        <TabsContent value="real">
+          <RealWhatsAppMirror />
         </TabsContent>
 
         <TabsContent value="wppconnect">
