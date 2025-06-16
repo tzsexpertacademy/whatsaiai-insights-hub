@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,6 +10,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useClientConfig } from '@/contexts/ClientConfigContext';
 import { AssistantSelector } from '@/components/AssistantSelector';
 import { useAssistantsConfig } from '@/hooks/useAssistantsConfig';
+import { AnalysisChatbot } from './AnalysisChatbot';
 import { 
   Brain, 
   MessageSquare, 
@@ -22,7 +22,8 @@ import {
   CheckCircle,
   Clock,
   AlertCircle,
-  Info
+  Info,
+  MessageCircle
 } from 'lucide-react';
 
 interface ConversationAnalysisProps {
@@ -343,7 +344,7 @@ ${analysisPrompt || 'Analyze this WhatsApp conversation as requested...'}
         )}
 
         <Tabs defaultValue="analyze" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="analyze">
               <Brain className="h-4 w-4 mr-2" />
               Analyze
@@ -351,6 +352,10 @@ ${analysisPrompt || 'Analyze this WhatsApp conversation as requested...'}
             <TabsTrigger value="results" disabled={conversation.analysis_status !== 'completed'}>
               <FileText className="h-4 w-4 mr-2" />
               Results ({analysisResults.length})
+            </TabsTrigger>
+            <TabsTrigger value="chat" disabled={conversation.analysis_status !== 'completed'}>
+              <MessageCircle className="h-4 w-4 mr-2" />
+              Chat sobre Análise
             </TabsTrigger>
           </TabsList>
 
@@ -468,6 +473,17 @@ ${analysisPrompt || 'Analyze this WhatsApp conversation as requested...'}
                 <p className="text-sm">Run an analysis first</p>
               </div>
             )}
+          </TabsContent>
+
+          <TabsContent value="chat" className="space-y-4">
+            <AnalysisChatbot 
+              analysisResults={analysisResults}
+              conversationData={{
+                contact_name: conversation.contact_name,
+                contact_phone: conversation.contact_phone,
+                analysis_status: conversation.analysis_status
+              }}
+            />
           </TabsContent>
         </Tabs>
       </CardContent>
