@@ -1,251 +1,426 @@
 
-import React, { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
-import { Plus, Edit, Trash2, Clock, Bell } from 'lucide-react';
-import { useEnhancedNotifications } from '@/hooks/useEnhancedNotifications';
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { 
+  Bell, 
+  Plus, 
+  Trash2, 
+  Settings, 
+  Clock,
+  MessageSquare,
+  Save
+} from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
-interface CustomNotification {
+interface NotificationConfig {
   id: string;
   title: string;
   message: string;
   time: string;
   enabled: boolean;
-  type: 'custom' | 'whatsapp' | 'browser';
-  days?: ('monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday')[];
+  type: 'daily' | 'custom' | 'trial';
+  createdAt: string;
 }
 
 export function NotificationManager() {
-  const { browserNotifications, addNotification, updateNotification, deleteNotification } = useEnhancedNotifications();
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingNotification, setEditingNotification] = useState<CustomNotification | null>(null);
-  const [formData, setFormData] = useState({
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [notifications, setNotifications] = useState<NotificationConfig[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newNotification, setNewNotification] = useState({
     title: '',
     message: '',
-    time: '',
-    type: 'browser' as const,
+    time: '09:00',
     enabled: true,
-    days: [] as string[]
+    type: 'custom' as const
   });
 
-  const customNotifications = browserNotifications.filter(n => n.type === 'custom');
+  useEffect(() => {
+    if (user?.id) {
+      loadNotifications();
+    }
+  }, [user?.id]);
 
-  const resetForm = () => {
-    setFormData({
-      title: '',
-      message: '',
-      time: '',
-      type: 'browser',
+  const loadNotifications = async () => {
+    if (!user?.id) return;
+
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('notification_configs')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      setNotifications(data || []);
+    } catch (error) {
+      console.error('Erro ao carregar notificações:', error);
+      toast({
+        title: "Erro ao carregar notificações",
+        description: "Não foi possível carregar suas configurações de notificação",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const addDefaultNotification = async () => {
+    if (!user?.id) return;
+
+    const defaultNotification = {
+      title: 'Lembrete Diário',
+      message: 'Hora de revisar seus insights e reflexões do dia!',
+      time: '19:00',
       enabled: true,
-      days: []
-    });
-    setEditingNotification(null);
-  };
-
-  const openEditDialog = (notification: any) => {
-    setEditingNotification(notification);
-    setFormData({
-      title: notification.title,
-      message: notification.message,
-      time: notification.time,
-      type: notification.type || 'browser',
-      enabled: notification.enabled,
-      days: notification.days || []
-    });
-    setIsDialogOpen(true);
-  };
-
-  const handleSave = () => {
-    if (!formData.title || !formData.message || !formData.time) return;
-
-    const notificationData = {
-      title: formData.title,
-      message: formData.message,
-      time: formData.time,
-      enabled: formData.enabled,
-      type: formData.type
+      type: 'daily' as const
     };
 
-    if (editingNotification) {
-      updateNotification(editingNotification.id, notificationData);
-    } else {
-      addNotification(notificationData);
-    }
+    try {
+      const { data, error } = await supabase
+        .from('notification_configs')
+        .insert({
+          user_id: user.id,
+          ...defaultNotification
+        })
+        .select()
+        .single();
 
-    setIsDialogOpen(false);
-    resetForm();
+      if (error) throw error;
+
+      setNotifications(prev => [data, ...prev]);
+      
+      toast({
+        title: "Notificação adicionada",
+        description: "Lembrete diário configurado com sucesso!"
+      });
+    } catch (error) {
+      console.error('Erro ao adicionar notificação:', error);
+      toast({
+        title: "Erro ao adicionar notificação",
+        description: "Não foi possível configurar o lembrete",
+        variant: "destructive"
+      });
+    }
   };
 
-  const handleDelete = (id: string) => {
-    if (confirm('Tem certeza que deseja excluir esta notificação?')) {
-      deleteNotification(id);
+  const saveNotification = async () => {
+    if (!user?.id || !newNotification.title.trim() || !newNotification.message.trim()) {
+      toast({
+        title: "Campos obrigatórios",
+        description: "Preencha título e mensagem",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('notification_configs')
+        .insert({
+          user_id: user.id,
+          ...newNotification
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setNotifications(prev => [data, ...prev]);
+      setNewNotification({
+        title: '',
+        message: '',
+        time: '09:00',
+        enabled: true,
+        type: 'custom'
+      });
+      setShowAddForm(false);
+      
+      toast({
+        title: "Notificação criada",
+        description: "Nova notificação configurada com sucesso!"
+      });
+    } catch (error) {
+      console.error('Erro ao salvar notificação:', error);
+      toast({
+        title: "Erro ao salvar",
+        description: "Não foi possível criar a notificação",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const updateNotification = async (id: string, updates: Partial<NotificationConfig>) => {
+    try {
+      const { error } = await supabase
+        .from('notification_configs')
+        .update(updates)
+        .eq('id', id)
+        .eq('user_id', user?.id);
+
+      if (error) throw error;
+
+      setNotifications(prev => 
+        prev.map(notif => 
+          notif.id === id ? { ...notif, ...updates } : notif
+        )
+      );
+    } catch (error) {
+      console.error('Erro ao atualizar notificação:', error);
+      toast({
+        title: "Erro ao atualizar",
+        description: "Não foi possível atualizar a notificação",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const deleteNotification = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('notification_configs')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', user?.id);
+
+      if (error) throw error;
+
+      setNotifications(prev => prev.filter(notif => notif.id !== id));
+      
+      toast({
+        title: "Notificação removida",
+        description: "Configuração de notificação excluída"
+      });
+    } catch (error) {
+      console.error('Erro ao excluir notificação:', error);
+      toast({
+        title: "Erro ao excluir",
+        description: "Não foi possível remover a notificação",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const getTypeIcon = (type: string) => {
+    switch (type) {
+      case 'daily':
+        return <Clock className="h-4 w-4" />;
+      case 'trial':
+        return <Bell className="h-4 w-4" />;
+      default:
+        return <MessageSquare className="h-4 w-4" />;
+    }
+  };
+
+  const getTypeLabel = (type: string) => {
+    switch (type) {
+      case 'daily':
+        return 'Diário';
+      case 'trial':
+        return 'Trial';
+      default:
+        return 'Personalizado';
     }
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Bell className="h-5 w-5 text-blue-600" />
-          Gerenciar Notificações Extras
-        </CardTitle>
-        <CardDescription>
-          Adicione, edite ou exclua notificações personalizadas
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        {/* Lista de Notificações */}
-        <div className="space-y-3">
-          {customNotifications.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              <Bell className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>Nenhuma notificação personalizada criada</p>
-              <p className="text-sm">Clique em "Adicionar Notificação" para começar</p>
-            </div>
-          ) : (
-            customNotifications.map((notification) => (
-              <div key={notification.id} className="flex items-center justify-between p-4 border rounded-lg">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <h4 className="font-medium">{notification.title}</h4>
-                    <Badge variant={notification.enabled ? "default" : "secondary"}>
-                      {notification.enabled ? 'Ativa' : 'Inativa'}
-                    </Badge>
-                    <Badge variant="outline" className="text-xs">
-                      <Clock className="h-3 w-3 mr-1" />
-                      {notification.time}
-                    </Badge>
-                  </div>
-                  <p className="text-sm text-gray-600 line-clamp-2">{notification.message}</p>
-                </div>
-                <div className="flex items-center gap-2 ml-4">
-                  <Switch
-                    checked={notification.enabled}
-                    onCheckedChange={(enabled) => updateNotification(notification.id, { enabled })}
-                  />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => openEditDialog(notification)}
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleDelete(notification.id)}
-                    className="text-red-600 hover:text-red-700"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            ))
-          )}
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Settings className="h-5 w-5 text-blue-500" />
+          <h3 className="text-lg font-semibold">Gerenciar Notificações</h3>
         </div>
+        <div className="flex gap-2">
+          <Button
+            onClick={addDefaultNotification}
+            variant="outline"
+            size="sm"
+          >
+            <Clock className="h-4 w-4 mr-2" />
+            Lembrete Diário
+          </Button>
+          <Button
+            onClick={() => setShowAddForm(!showAddForm)}
+            variant="outline"
+            size="sm"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Nova Notificação
+          </Button>
+        </div>
+      </div>
 
-        {/* Botão Adicionar */}
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={resetForm} className="w-full">
-              <Plus className="h-4 w-4 mr-2" />
-              Adicionar Notificação
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader>
-              <DialogTitle>
-                {editingNotification ? 'Editar Notificação' : 'Nova Notificação'}
-              </DialogTitle>
-              <DialogDescription>
-                Configure os detalhes da sua notificação personalizada
-              </DialogDescription>
-            </DialogHeader>
+      {showAddForm && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Plus className="h-4 w-4" />
+              Nova Notificação
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label htmlFor="title">Título</Label>
+              <Input
+                id="title"
+                value={newNotification.title}
+                onChange={(e) => setNewNotification(prev => ({ ...prev, title: e.target.value }))}
+                placeholder="Título da notificação"
+              />
+            </div>
             
-            <div className="space-y-4">
-              {/* Título */}
-              <div className="space-y-2">
-                <Label htmlFor="notification-title">Título</Label>
-                <Input
-                  id="notification-title"
-                  placeholder="Ex: Lembrete de exercício"
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                />
-              </div>
+            <div>
+              <Label htmlFor="message">Mensagem</Label>
+              <Textarea
+                id="message"
+                value={newNotification.message}
+                onChange={(e) => setNewNotification(prev => ({ ...prev, message: e.target.value }))}
+                placeholder="Conteúdo da notificação"
+                rows={3}
+              />
+            </div>
 
-              {/* Mensagem */}
-              <div className="space-y-2">
-                <Label htmlFor="notification-message">Mensagem</Label>
-                <Textarea
-                  id="notification-message"
-                  placeholder="Digite a mensagem da notificação..."
-                  value={formData.message}
-                  onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                  rows={3}
-                />
-              </div>
-
-              {/* Horário */}
-              <div className="space-y-2">
-                <Label htmlFor="notification-time">Horário</Label>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="time">Horário</Label>
                 <Input
-                  id="notification-time"
+                  id="time"
                   type="time"
-                  value={formData.time}
-                  onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+                  value={newNotification.time}
+                  onChange={(e) => setNewNotification(prev => ({ ...prev, time: e.target.value }))}
                 />
               </div>
-
-              {/* Tipo */}
-              <div className="space-y-2">
-                <Label>Tipo de Notificação</Label>
+              
+              <div>
+                <Label htmlFor="type">Tipo</Label>
                 <Select
-                  value={formData.type}
-                  onValueChange={(value: 'browser' | 'whatsapp') => setFormData({ ...formData, type: value })}
+                  value={newNotification.type}
+                  onValueChange={(value: 'daily' | 'custom' | 'trial') => 
+                    setNewNotification(prev => ({ ...prev, type: value }))
+                  }
                 >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="browser">Navegador</SelectItem>
-                    <SelectItem value="whatsapp">WhatsApp</SelectItem>
+                    <SelectItem value="custom">Personalizado</SelectItem>
+                    <SelectItem value="daily">Diário</SelectItem>
+                    <SelectItem value="trial">Trial</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-
-              {/* Ativo */}
-              <div className="flex items-center justify-between">
-                <Label htmlFor="notification-enabled">Notificação Ativa</Label>
-                <Switch
-                  id="notification-enabled"
-                  checked={formData.enabled}
-                  onCheckedChange={(enabled) => setFormData({ ...formData, enabled })}
-                />
-              </div>
             </div>
 
-            <div className="flex justify-end gap-3 mt-6">
-              <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-                Cancelar
+            <div className="flex items-center gap-2">
+              <Switch
+                id="enabled"
+                checked={newNotification.enabled}
+                onCheckedChange={(checked) => setNewNotification(prev => ({ ...prev, enabled: checked }))}
+              />
+              <Label htmlFor="enabled">Ativar notificação</Label>
+            </div>
+
+            <div className="flex gap-2">
+              <Button onClick={saveNotification} size="sm">
+                <Save className="h-4 w-4 mr-2" />
+                Salvar
               </Button>
               <Button 
-                onClick={handleSave}
-                disabled={!formData.title || !formData.message || !formData.time}
+                onClick={() => setShowAddForm(false)} 
+                variant="outline" 
+                size="sm"
               >
-                {editingNotification ? 'Salvar Alterações' : 'Criar Notificação'}
+                Cancelar
               </Button>
             </div>
-          </DialogContent>
-        </Dialog>
-      </CardContent>
-    </Card>
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="space-y-4">
+        {isLoading ? (
+          <Card>
+            <CardContent className="p-6 text-center">
+              <p className="text-gray-500">Carregando notificações...</p>
+            </CardContent>
+          </Card>
+        ) : notifications.length === 0 ? (
+          <Card>
+            <CardContent className="p-6 text-center">
+              <Bell className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+              <h3 className="text-lg font-medium mb-2">Nenhuma notificação configurada</h3>
+              <p className="text-gray-500 mb-4">
+                Configure lembretes personalizados para seus insights e reflexões
+              </p>
+              <Button onClick={() => setShowAddForm(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Criar primeira notificação
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          notifications.map((notification) => (
+            <Card key={notification.id}>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2 rounded-lg ${
+                      notification.type === 'daily' ? 'bg-blue-100 text-blue-600' :
+                      notification.type === 'trial' ? 'bg-orange-100 text-orange-600' :
+                      'bg-purple-100 text-purple-600'
+                    }`}>
+                      {getTypeIcon(notification.type)}
+                    </div>
+                    <div>
+                      <h4 className="font-medium">{notification.title}</h4>
+                      <p className="text-sm text-gray-600">{notification.message}</p>
+                      <div className="flex items-center gap-4 mt-1">
+                        <span className="text-xs text-gray-500">
+                          🕒 {notification.time}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          📋 {getTypeLabel(notification.type)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      checked={notification.enabled}
+                      onCheckedChange={(checked) => updateNotification(notification.id, { enabled: checked })}
+                    />
+                    <Button
+                      onClick={() => deleteNotification(notification.id)}
+                      variant="ghost"
+                      size="sm"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        )}
+      </div>
+    </div>
   );
 }
