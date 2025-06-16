@@ -1,4 +1,5 @@
 
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -56,6 +57,9 @@ export function IndividualConversationAnalysis({ conversation, onAnalysisComplet
   const [selectedAnalysisType, setSelectedAnalysisType] = useState<'behavioral' | 'commercial' | 'custom'>('behavioral');
   const [selectedAssistant, setSelectedAssistant] = useState(assistants.length > 0 ? assistants[0].id : 'oracle');
   const [debugInfo, setDebugInfo] = useState<any>(null);
+
+  // Type-safe access to analysis_results
+  const analysisResults = Array.isArray(conversation.analysis_results) ? conversation.analysis_results : [];
 
   const getAnalysisPrompt = () => {
     const selectedAssistantData = assistants.find(a => a.id === selectedAssistant);
@@ -400,9 +404,6 @@ ${analysisPrompt || 'Analyze this WhatsApp conversation as requested...'}
     }
   };
 
-  // Type-safe access to analysis_results
-  const analysisResults = Array.isArray(conversation.analysis_results) ? conversation.analysis_results : [];
-
   return (
     <Card>
       <CardHeader>
@@ -628,3 +629,4 @@ ${analysisPrompt || 'Analyze this WhatsApp conversation as requested...'}
     </Card>
   );
 }
+
