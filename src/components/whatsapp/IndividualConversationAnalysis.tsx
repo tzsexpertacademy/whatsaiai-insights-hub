@@ -40,7 +40,7 @@ interface ConversationAnalysisProps {
     priority: string;
     marked_at: string;
     last_analyzed_at?: string;
-    analysis_results?: any[];
+    analysis_results?: any;
   };
   onAnalysisComplete: () => void;
 }
@@ -61,6 +61,19 @@ export function IndividualConversationAnalysis({ conversation, onAnalysisComplet
   const getAnalysisResults = () => {
     if (!conversation.analysis_results) return [];
     if (Array.isArray(conversation.analysis_results)) return conversation.analysis_results;
+    // If it's a JSON string, try to parse it
+    if (typeof conversation.analysis_results === 'string') {
+      try {
+        const parsed = JSON.parse(conversation.analysis_results);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
+    // If it's an object, convert to array
+    if (typeof conversation.analysis_results === 'object' && conversation.analysis_results !== null) {
+      return [conversation.analysis_results];
+    }
     return [];
   };
 
@@ -366,15 +379,6 @@ ${analysisPrompt || 'Analyze this WhatsApp conversation as requested...'}
       toast({
         title: "✅ Analysis completed",
         description: "Conversation analyzed successfully!"
-      });
-
-      setDebugInfo({
-        success: true,
-        messageCount: conversationData.messages.length,
-        insightsGenerated: analysisResult?.insights?.length || 0,
-        dataSource: conversationData.messages.some(m => m.id?.startsWith('sample_')) ? 'sample' : 'real',
-        processingTime,
-        savedToHistory: true
       });
 
       onAnalysisComplete();
