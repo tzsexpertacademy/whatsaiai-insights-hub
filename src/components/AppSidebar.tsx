@@ -1,5 +1,5 @@
 
-import { Calendar, TrendingUp, TrendingDown, Target, Brain, Users, BarChart3, MessageSquare, FileText, Settings, User, Clock, AlertTriangle, Bell } from 'lucide-react';
+import { Brain, BarChart3, MessageSquare, Target, Zap, Clock, Heart, Users, Settings, User, Bell, Lightbulb } from 'lucide-react';
 import {
   Sidebar,
   SidebarContent,
@@ -12,30 +12,28 @@ import {
 } from "@/components/ui/sidebar";
 import { SidebarNavItem } from '@/components/SidebarNavItem';
 import { SidebarSubscriptionStatus } from '@/components/SidebarSubscriptionStatus';
+import { DynamicAreasDisplay } from '@/components/DynamicAreasDisplay';
 
 export function AppSidebar() {
-  const mainNavItems = [
-    { title: 'Dashboard', icon: BarChart3, url: '/dashboard' },
-    { title: 'Termômetro Emocional', icon: TrendingUp, url: '/dashboard/thermometer' },
-    { title: 'Áreas da Vida', icon: Target, url: '/dashboard/areas' },
-    { title: 'Perfil Comportamental', icon: Brain, url: '/dashboard/behavioral' },
+  const mainAnalysisItems = [
+    { title: 'Dashboard Geral', icon: BarChart3, url: '/dashboard' },
     { title: 'Análise de Conversas', icon: MessageSquare, url: '/dashboard/conversation-analysis' },
   ];
 
-  const analysisNavItems = [
-    { title: 'Chat com Assistentes', icon: MessageSquare, url: '/dashboard/chat' },
+  const consciousnessAreas = [
+    { title: 'Consciência e Propósito', icon: Lightbulb, url: '/dashboard/consciencia-proposito' },
+    { title: 'Ação e Produtividade', icon: Zap, url: '/dashboard/acao-produtividade' },
+    { title: 'Gestão de Recursos', icon: Target, url: '/dashboard/gestao-recursos' },
+    { title: 'Corpo e Vitalidade', icon: Heart, url: '/dashboard/corpo-vitalidade' },
+    { title: 'Relações e Impacto Social', icon: Users, url: '/dashboard/relacoes-impacto' },
   ];
 
-  const standardNavItems = [
+  const interactionItems = [
+    { title: 'Chat com Assistentes', icon: Brain, url: '/dashboard/chat' },
+  ];
+
+  const systemItems = [
     { title: 'Linha do Tempo', icon: Clock, url: '/dashboard/timeline' },
-    { title: 'Insights', icon: TrendingUp, url: '/dashboard/insights' },
-    { title: 'Recomendações', icon: Target, url: '/dashboard/recommendations' },
-    { title: 'Pontos de Dor', icon: AlertTriangle, url: '/dashboard/pain-points' },
-    { title: 'Minha Rotina', icon: Calendar, url: '/dashboard/routine' },
-    { title: 'Documentos', icon: FileText, url: '/dashboard/documents' },
-  ];
-
-  const configNavItems = [
     { title: 'Notificações', icon: Bell, url: '/dashboard/notifications' },
     { title: 'Configurações', icon: Settings, url: '/dashboard/settings' },
     { title: 'Perfil', icon: User, url: '/dashboard/profile' },
@@ -50,20 +48,33 @@ export function AppSidebar() {
           </div>
           <div className="min-w-0">
             <h1 className="font-bold text-sm sm:text-lg text-gray-900 truncate">YumerMind</h1>
-            <p className="text-xs text-muted-foreground hidden sm:block">Análise Comportamental</p>
+            <p className="text-xs text-muted-foreground hidden sm:block">Interface para a Mente</p>
           </div>
         </div>
       </SidebarHeader>
 
       <SidebarContent className="px-2 sm:px-3">
         <SidebarGroup>
-          <SidebarGroupLabel className="text-xs sm:text-sm px-2 py-2">Análise Principal</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-xs sm:text-sm px-2 py-2">Análise Central</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu className="space-y-1">
-              {mainNavItems.map((item) => (
+              {mainAnalysisItems.map((item) => (
                 <SidebarNavItem key={item.url} {...item} />
               ))}
             </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel className="text-xs sm:text-sm px-2 py-2">Dimensões da Consciência</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu className="space-y-1">
+              {consciousnessAreas.map((item) => (
+                <SidebarNavItem key={item.url} {...item} />
+              ))}
+            </SidebarMenu>
+            {/* Áreas Personalizadas Dinâmicas */}
+            <DynamicAreasDisplay />
           </SidebarGroupContent>
         </SidebarGroup>
 
@@ -71,18 +82,7 @@ export function AppSidebar() {
           <SidebarGroupLabel className="text-xs sm:text-sm px-2 py-2">Interação IA</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu className="space-y-1">
-              {analysisNavItems.map((item) => (
-                <SidebarNavItem key={item.url} {...item} />
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <SidebarGroup>
-          <SidebarGroupLabel className="text-xs sm:text-sm px-2 py-2">Insights e Ações</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu className="space-y-1">
-              {standardNavItems.map((item) => (
+              {interactionItems.map((item) => (
                 <SidebarNavItem key={item.url} {...item} />
               ))}
             </SidebarMenu>
@@ -93,7 +93,7 @@ export function AppSidebar() {
           <SidebarGroupLabel className="text-xs sm:text-sm px-2 py-2">Sistema</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu className="space-y-1">
-              {configNavItems.map((item) => (
+              {systemItems.map((item) => (
                 <SidebarNavItem key={item.url} {...item} />
               ))}
             </SidebarMenu>
@@ -106,7 +106,7 @@ export function AppSidebar() {
         
         <div className="text-center text-xs text-muted-foreground mt-3 sm:mt-4">
           <p className="truncate">© {new Date().getFullYear()} Kairon Labs</p>
-          <p className="hidden sm:block">Inteligência Comportamental</p>
+          <p className="hidden sm:block">Interface para a Mente</p>
         </div>
       </SidebarFooter>
     </Sidebar>
