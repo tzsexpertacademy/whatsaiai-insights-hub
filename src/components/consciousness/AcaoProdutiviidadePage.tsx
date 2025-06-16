@@ -7,33 +7,71 @@ import { Zap, Focus, Clock, TrendingUp, Target, AlertTriangle } from 'lucide-rea
 import { useAnalysisData } from '@/contexts/AnalysisDataContext';
 
 export function AcaoProdutiviidadePage() {
-  const { data } = useAnalysisData();
+  const { data, isLoading } = useAnalysisData();
 
-  // Filtrar insights relacionados a ação e produtividade
+  console.log('⚡ AcaoProdutiviidadePage - Dados recebidos:', {
+    hasRealData: data.hasRealData,
+    totalInsights: data.insights.length,
+    insightsWithAssistant: data.insightsWithAssistant.length,
+    assistantsActive: data.metrics.assistantsActive
+  });
+
+  if (isLoading) {
+    return (
+      <PageLayout
+        title="Ação e Produtividade"
+        description="Carregando dados..."
+        showBackButton={true}
+      >
+        <div className="animate-pulse space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="h-24 bg-gray-200 rounded-lg"></div>
+            ))}
+          </div>
+        </div>
+      </PageLayout>
+    );
+  }
+
+  // Filtrar insights relacionados a ação e produtividade de forma mais ampla
   const productivityInsights = data.insightsWithAssistant?.filter(
-    insight => insight.assistantArea?.toLowerCase().includes('produtividade') ||
-               insight.assistantArea?.toLowerCase().includes('ação') ||
-               insight.assistantArea?.toLowerCase().includes('foco') ||
-               insight.title?.toLowerCase().includes('produtividade') ||
-               insight.description?.toLowerCase().includes('procrastinação')
+    insight => {
+      const searchTerms = ['produtividade', 'ação', 'foco', 'execução', 'eficiência', 'procrastinação', 'desempenho', 'metas', 'objetivos', 'tempo'];
+      const textToSearch = `${insight.title || ''} ${insight.description || ''} ${insight.assistantArea || ''}`.toLowerCase();
+      return searchTerms.some(term => textToSearch.includes(term));
+    }
   ) || [];
 
-  // Métricas baseadas em dados reais
+  console.log('🔍 Insights de Produtividade filtrados:', productivityInsights.length);
+
+  // Métricas baseadas em dados reais mais dinâmicas
   const productivityMetrics = {
-    focus: productivityInsights.length > 0 ? `${Math.min(75 + productivityInsights.length * 5, 95)}%` : "0%",
-    rhythm: data.chatMessages.length > 10 ? "Acelerado" : data.chatMessages.length > 3 ? "Moderado" : "Lento",
-    efficiency: productivityInsights.length > 2 ? "Alta" : productivityInsights.length > 0 ? "Média" : "Baixa",
-    procrastination: productivityInsights.filter(i => i.description.toLowerCase().includes('procrastin')).length === 0 ? "Baixa" : "Moderada"
+    focus: data.hasRealData ? 
+      `${Math.min(60 + (productivityInsights.length * 8) + (data.metrics.assistantsActive * 5), 95)}%` : 
+      "0%",
+    rhythm: data.hasRealData ? 
+      (data.chatMessages.length > 20 ? "Alto" : data.chatMessages.length > 10 ? "Moderado" : "Baixo") : 
+      "Sem dados",
+    efficiency: data.hasRealData ? 
+      (productivityInsights.length > 3 ? "Alta" : productivityInsights.length > 1 ? "Média" : "Baixa") : 
+      "Sem dados",
+    procrastination: data.hasRealData ? 
+      (productivityInsights.filter(i => i.description.toLowerCase().includes('procrastin')).length === 0 ? "Baixa" : "Moderada") : 
+      "Sem dados"
   };
 
   const headerActions = (
     <div className="flex flex-wrap items-center gap-2">
       <Badge className="bg-green-100 text-green-800">
-        ⚡ {productivityInsights.length} Insights Ativos
+        ⚡ {productivityInsights.length} Insights
+      </Badge>
+      <Badge className="bg-blue-100 text-blue-800">
+        🤖 {data.metrics.assistantsActive} Assistentes
       </Badge>
       {data.hasRealData && (
-        <Badge className="bg-blue-100 text-blue-800">
-          📊 Dados Reais
+        <Badge className="bg-green-100 text-green-800">
+          ✅ Dados Reais
         </Badge>
       )}
     </div>
@@ -47,6 +85,23 @@ export function AcaoProdutiviidadePage() {
       showBackButton={true}
     >
       <div className="space-y-6">
+        {/* Status de Dados */}
+        {!data.hasRealData && (
+          <Card className="bg-yellow-50 border-yellow-200">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <Zap className="h-8 w-8 text-yellow-600" />
+                <div>
+                  <h3 className="font-medium text-yellow-800">Sistema em Configuração</h3>
+                  <p className="text-sm text-yellow-600">
+                    Configure assistentes especializados para análise de produtividade e desempenho.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Métricas Principais */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card className="bg-gradient-to-r from-green-50 to-emerald-50 border-green-200">
@@ -112,7 +167,7 @@ export function AcaoProdutiviidadePage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Zap className="h-5 w-5 text-green-600" />
-                Insights sobre Ação e Produtividade
+                Insights sobre Ação e Produtividade ({productivityInsights.length})
               </CardTitle>
               <p className="text-sm text-gray-600">
                 Análises especializadas em otimização da performance e execução
@@ -157,10 +212,12 @@ export function AcaoProdutiviidadePage() {
           <Card className="bg-green-50 border-green-200">
             <CardContent className="p-6 text-center">
               <Zap className="h-12 w-12 text-green-400 mx-auto mb-3" />
-              <h3 className="font-medium text-green-800 mb-2">Aguardando Insights de Produtividade</h3>
+              <h3 className="font-medium text-green-800 mb-2">
+                {data.hasRealData ? "Aguardando Insights Específicos" : "Configure o Sistema"}
+              </h3>
               <p className="text-sm text-green-600">
                 {data.hasRealData 
-                  ? "Os assistentes estão analisando seus padrões de produtividade e foco."
+                  ? `${data.insights.length} insights gerais disponíveis. Os assistentes estão analisando padrões de produtividade.`
                   : "Configure assistentes especializados para análise de produtividade."
                 }
               </p>
@@ -168,58 +225,32 @@ export function AcaoProdutiviidadePage() {
           </Card>
         )}
 
-        {/* Áreas de Análise */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card className="bg-gradient-to-br from-green-50 to-emerald-50 border-green-200">
-            <CardHeader>
-              <CardTitle className="text-green-800">Padrões de Foco</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-gray-600 mb-4">
-                Análise dos seus ciclos de concentração e momentos de maior produtividade.
-              </p>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">Períodos de Pico</span>
-                  <Badge className="bg-green-100 text-green-800">
-                    {data.chatMessages.length > 5 ? "Manhã/Tarde" : "A identificar"}
-                  </Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">Distrações Principais</span>
-                  <Badge variant="outline">
-                    {productivityInsights.filter(i => i.description.toLowerCase().includes('distração')).length} identificadas
-                  </Badge>
-                </div>
+        {/* Resumo de Dados */}
+        <Card className="bg-gray-50 border-gray-200">
+          <CardHeader>
+            <CardTitle className="text-gray-800 text-base">Status do Sistema</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div>
+                <p className="text-gray-600">Total de Insights</p>
+                <p className="font-bold text-gray-800">{data.insights.length}</p>
               </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-br from-blue-50 to-cyan-50 border-blue-200">
-            <CardHeader>
-              <CardTitle className="text-blue-800">Estratégia Pessoal</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-gray-600 mb-4">
-                Avaliação da eficiência das suas estratégias e métodos de trabalho.
-              </p>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">Metodologia Atual</span>
-                  <Badge className="bg-blue-100 text-blue-800">
-                    {productivityInsights.length > 1 ? "Eficiente" : "Em desenvolvimento"}
-                  </Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">Oportunidades de Melhoria</span>
-                  <Badge className="bg-yellow-100 text-yellow-800">
-                    {Math.max(2 - productivityInsights.length, 0)} áreas
-                  </Badge>
-                </div>
+              <div>
+                <p className="text-gray-600">Assistentes Ativos</p>
+                <p className="font-bold text-gray-800">{data.metrics.assistantsActive}</p>
               </div>
-            </CardContent>
-          </Card>
-        </div>
+              <div>
+                <p className="text-gray-600">Mensagens Analisadas</p>
+                <p className="font-bold text-gray-800">{data.chatMessages.length}</p>
+              </div>
+              <div>
+                <p className="text-gray-600">Status</p>
+                <p className="font-bold text-gray-800">{data.hasRealData ? "Operacional" : "Configuração"}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </PageLayout>
   );

@@ -7,33 +7,71 @@ import { Lightbulb, Target, Eye, Heart, Brain, TrendingUp } from 'lucide-react';
 import { useAnalysisData } from '@/contexts/AnalysisDataContext';
 
 export function ConscienciaPropositoPage() {
-  const { data } = useAnalysisData();
+  const { data, isLoading } = useAnalysisData();
 
-  // Filtrar insights relacionados a consciência e propósito
+  console.log('🧠 ConscienciaPropositoPage - Dados recebidos:', {
+    hasRealData: data.hasRealData,
+    totalInsights: data.insights.length,
+    insightsWithAssistant: data.insightsWithAssistant.length,
+    assistantsActive: data.metrics.assistantsActive
+  });
+
+  if (isLoading) {
+    return (
+      <PageLayout
+        title="Consciência e Propósito"
+        description="Carregando dados..."
+        showBackButton={true}
+      >
+        <div className="animate-pulse space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="h-24 bg-gray-200 rounded-lg"></div>
+            ))}
+          </div>
+        </div>
+      </PageLayout>
+    );
+  }
+
+  // Filtrar insights relacionados a consciência e propósito de forma mais ampla
   const consciousnessInsights = data.insightsWithAssistant?.filter(
-    insight => insight.assistantArea?.toLowerCase().includes('consciência') ||
-               insight.assistantArea?.toLowerCase().includes('propósito') ||
-               insight.assistantArea?.toLowerCase().includes('sentido') ||
-               insight.title?.toLowerCase().includes('propósito') ||
-               insight.description?.toLowerCase().includes('consciência')
+    insight => {
+      const searchTerms = ['consciência', 'propósito', 'sentido', 'valores', 'missão', 'visão', 'significado', 'direção'];
+      const textToSearch = `${insight.title || ''} ${insight.description || ''} ${insight.assistantArea || ''}`.toLowerCase();
+      return searchTerms.some(term => textToSearch.includes(term));
+    }
   ) || [];
+
+  console.log('🔍 Insights de Consciência filtrados:', consciousnessInsights.length);
 
   // Métricas baseadas em dados reais
   const consciousnessMetrics = {
-    clarity: consciousnessInsights.length > 0 ? "Em Evolução" : "Aguardando análise",
-    alignment: data.insights.length > 2 ? "Moderado" : "Inicial",
-    awareness: consciousnessInsights.length > 1 ? "Crescendo" : "Emergente",
-    coherence: data.hasRealData ? "Estável" : "Em formação"
+    clarity: data.hasRealData ? 
+      (consciousnessInsights.length > 2 ? "Alta" : consciousnessInsights.length > 0 ? "Média" : "Baixa") : 
+      "Sem dados",
+    alignment: data.hasRealData ? 
+      (data.insights.length > 5 ? "Forte" : data.insights.length > 2 ? "Moderado" : "Inicial") : 
+      "Sem dados",
+    awareness: data.hasRealData ? 
+      (consciousnessInsights.length > 3 ? "Elevada" : consciousnessInsights.length > 1 ? "Crescendo" : "Emergente") : 
+      "Sem dados",
+    coherence: data.hasRealData ? 
+      (data.metrics.assistantsActive > 3 ? "Estável" : "Em formação") : 
+      "Sem dados"
   };
 
   const headerActions = (
     <div className="flex flex-wrap items-center gap-2">
       <Badge className="bg-purple-100 text-purple-800">
-        🧠 {consciousnessInsights.length} Insights Ativos
+        🧠 {consciousnessInsights.length} Insights
+      </Badge>
+      <Badge className="bg-blue-100 text-blue-800">
+        🤖 {data.metrics.assistantsActive} Assistentes
       </Badge>
       {data.hasRealData && (
-        <Badge className="bg-blue-100 text-blue-800">
-          📊 Dados Reais
+        <Badge className="bg-green-100 text-green-800">
+          ✅ Dados Reais
         </Badge>
       )}
     </div>
@@ -47,6 +85,23 @@ export function ConscienciaPropositoPage() {
       showBackButton={true}
     >
       <div className="space-y-6">
+        {/* Status de Dados */}
+        {!data.hasRealData && (
+          <Card className="bg-yellow-50 border-yellow-200">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <Brain className="h-8 w-8 text-yellow-600" />
+                <div>
+                  <h3 className="font-medium text-yellow-800">Sistema em Configuração</h3>
+                  <p className="text-sm text-yellow-600">
+                    Configure assistentes especializados para gerar insights sobre consciência e propósito.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Métricas Principais */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card className="bg-gradient-to-r from-purple-50 to-indigo-50 border-purple-200">
@@ -112,7 +167,7 @@ export function ConscienciaPropositoPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Brain className="h-5 w-5 text-purple-600" />
-                Insights sobre Consciência e Propósito
+                Insights sobre Consciência e Propósito ({consciousnessInsights.length})
               </CardTitle>
               <p className="text-sm text-gray-600">
                 Análises dos assistentes especializados em desenvolvimento da consciência
@@ -157,10 +212,12 @@ export function ConscienciaPropositoPage() {
           <Card className="bg-blue-50 border-blue-200">
             <CardContent className="p-6 text-center">
               <Brain className="h-12 w-12 text-blue-400 mx-auto mb-3" />
-              <h3 className="font-medium text-blue-800 mb-2">Aguardando Insights de Consciência</h3>
+              <h3 className="font-medium text-blue-800 mb-2">
+                {data.hasRealData ? "Aguardando Insights Específicos" : "Configure o Sistema"}
+              </h3>
               <p className="text-sm text-blue-600">
                 {data.hasRealData 
-                  ? "Os assistentes estão analisando seus dados para gerar insights sobre consciência e propósito."
+                  ? `${data.insights.length} insights gerais disponíveis. Os assistentes estão analisando padrões relacionados à consciência e propósito.`
                   : "Configure assistentes especializados para começar a análise da sua consciência."
                 }
               </p>
@@ -168,56 +225,32 @@ export function ConscienciaPropositoPage() {
           </Card>
         )}
 
-        {/* Áreas de Desenvolvimento */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card className="bg-gradient-to-br from-purple-50 to-indigo-50 border-purple-200">
-            <CardHeader>
-              <CardTitle className="text-purple-800">Sombra e Autossabotagem</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-gray-600 mb-4">
-                Identificação de padrões inconscientes que limitam seu crescimento e realização.
-              </p>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">Padrões Identificados</span>
-                  <Badge variant="outline">{consciousnessInsights.filter(i => i.description.toLowerCase().includes('padrão')).length} detectados</Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">Nível de Consciência</span>
-                  <Badge className="bg-yellow-100 text-yellow-800">
-                    {consciousnessInsights.length > 2 ? "Expandindo" : "Emergindo"}
-                  </Badge>
-                </div>
+        {/* Resumo de Dados */}
+        <Card className="bg-gray-50 border-gray-200">
+          <CardHeader>
+            <CardTitle className="text-gray-800 text-base">Status do Sistema</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div>
+                <p className="text-gray-600">Total de Insights</p>
+                <p className="font-bold text-gray-800">{data.insights.length}</p>
               </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-br from-blue-50 to-cyan-50 border-blue-200">
-            <CardHeader>
-              <CardTitle className="text-blue-800">Busca de Sentido</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-gray-600 mb-4">
-                Análise da sua jornada em busca de significado e direcionamento existencial.
-              </p>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">Clareza de Valores</span>
-                  <Badge className="bg-blue-100 text-blue-800">
-                    {data.insights.length > 3 ? "Alta" : "Desenvolvendo"}
-                  </Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">Alinhamento Ações/Valores</span>
-                  <Badge className="bg-orange-100 text-orange-800">
-                    {consciousnessInsights.length > 1 ? "Moderado" : "Inicial"}
-                  </Badge>
-                </div>
+              <div>
+                <p className="text-gray-600">Assistentes Ativos</p>
+                <p className="font-bold text-gray-800">{data.metrics.assistantsActive}</p>
               </div>
-            </CardContent>
-          </Card>
-        </div>
+              <div>
+                <p className="text-gray-600">Conversas Analisadas</p>
+                <p className="font-bold text-gray-800">{data.conversations.length}</p>
+              </div>
+              <div>
+                <p className="text-gray-600">Status</p>
+                <p className="font-bold text-gray-800">{data.hasRealData ? "Operacional" : "Configuração"}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </PageLayout>
   );
