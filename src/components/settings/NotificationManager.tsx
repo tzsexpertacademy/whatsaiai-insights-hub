@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,7 +6,6 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { 
   Bell, 
@@ -50,26 +48,23 @@ export function NotificationManager() {
     type: 'custom' as const
   });
 
-  useEffect(() => {
-    if (user?.id) {
-      loadNotifications();
-    }
-  }, [user?.id]);
-
+  // Simulação de dados locais para demonstração
   const loadNotifications = async () => {
-    if (!user?.id) return;
-
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('notification_configs')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-
-      setNotifications(data || []);
+      // Simular carregamento com dados locais
+      const mockNotifications: NotificationConfig[] = [
+        {
+          id: '1',
+          title: 'Lembrete Diário',
+          message: 'Hora de revisar seus insights do dia!',
+          time: '19:00',
+          enabled: true,
+          type: 'daily',
+          createdAt: new Date().toISOString()
+        }
+      ];
+      setNotifications(mockNotifications);
     } catch (error) {
       console.error('Erro ao carregar notificações:', error);
       toast({
@@ -82,47 +77,33 @@ export function NotificationManager() {
     }
   };
 
-  const addDefaultNotification = async () => {
-    if (!user?.id) return;
+  useEffect(() => {
+    if (user?.id) {
+      loadNotifications();
+    }
+  }, [user?.id]);
 
-    const defaultNotification = {
+  const addDefaultNotification = async () => {
+    const defaultNotification: NotificationConfig = {
+      id: Date.now().toString(),
       title: 'Lembrete Diário',
       message: 'Hora de revisar seus insights e reflexões do dia!',
       time: '19:00',
       enabled: true,
-      type: 'daily' as const
+      type: 'daily',
+      createdAt: new Date().toISOString()
     };
 
-    try {
-      const { data, error } = await supabase
-        .from('notification_configs')
-        .insert({
-          user_id: user.id,
-          ...defaultNotification
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      setNotifications(prev => [data, ...prev]);
-      
-      toast({
-        title: "Notificação adicionada",
-        description: "Lembrete diário configurado com sucesso!"
-      });
-    } catch (error) {
-      console.error('Erro ao adicionar notificação:', error);
-      toast({
-        title: "Erro ao adicionar notificação",
-        description: "Não foi possível configurar o lembrete",
-        variant: "destructive"
-      });
-    }
+    setNotifications(prev => [defaultNotification, ...prev]);
+    
+    toast({
+      title: "Notificação adicionada",
+      description: "Lembrete diário configurado com sucesso!"
+    });
   };
 
   const saveNotification = async () => {
-    if (!user?.id || !newNotification.title.trim() || !newNotification.message.trim()) {
+    if (!newNotification.title.trim() || !newNotification.message.trim()) {
       toast({
         title: "Campos obrigatórios",
         description: "Preencha título e mensagem",
@@ -131,91 +112,43 @@ export function NotificationManager() {
       return;
     }
 
-    try {
-      const { data, error } = await supabase
-        .from('notification_configs')
-        .insert({
-          user_id: user.id,
-          ...newNotification
-        })
-        .select()
-        .single();
+    const notification: NotificationConfig = {
+      id: Date.now().toString(),
+      ...newNotification,
+      createdAt: new Date().toISOString()
+    };
 
-      if (error) throw error;
-
-      setNotifications(prev => [data, ...prev]);
-      setNewNotification({
-        title: '',
-        message: '',
-        time: '09:00',
-        enabled: true,
-        type: 'custom'
-      });
-      setShowAddForm(false);
-      
-      toast({
-        title: "Notificação criada",
-        description: "Nova notificação configurada com sucesso!"
-      });
-    } catch (error) {
-      console.error('Erro ao salvar notificação:', error);
-      toast({
-        title: "Erro ao salvar",
-        description: "Não foi possível criar a notificação",
-        variant: "destructive"
-      });
-    }
+    setNotifications(prev => [notification, ...prev]);
+    setNewNotification({
+      title: '',
+      message: '',
+      time: '09:00',
+      enabled: true,
+      type: 'custom'
+    });
+    setShowAddForm(false);
+    
+    toast({
+      title: "Notificação criada",
+      description: "Nova notificação configurada com sucesso!"
+    });
   };
 
   const updateNotification = async (id: string, updates: Partial<NotificationConfig>) => {
-    try {
-      const { error } = await supabase
-        .from('notification_configs')
-        .update(updates)
-        .eq('id', id)
-        .eq('user_id', user?.id);
-
-      if (error) throw error;
-
-      setNotifications(prev => 
-        prev.map(notif => 
-          notif.id === id ? { ...notif, ...updates } : notif
-        )
-      );
-    } catch (error) {
-      console.error('Erro ao atualizar notificação:', error);
-      toast({
-        title: "Erro ao atualizar",
-        description: "Não foi possível atualizar a notificação",
-        variant: "destructive"
-      });
-    }
+    setNotifications(prev => 
+      prev.map(notif => 
+        notif.id === id ? { ...notif, ...updates } : notif
+      )
+    );
   };
 
   const deleteNotification = async (id: string) => {
-    try {
-      const { error } = await supabase
-        .from('notification_configs')
-        .delete()
-        .eq('id', id)
-        .eq('user_id', user?.id);
-
-      if (error) throw error;
-
-      setNotifications(prev => prev.filter(notif => notif.id !== id));
-      
-      toast({
-        title: "Notificação removida",
-        description: "Configuração de notificação excluída"
-      });
-    } catch (error) {
-      console.error('Erro ao excluir notificação:', error);
-      toast({
-        title: "Erro ao excluir",
-        description: "Não foi possível remover a notificação",
-        variant: "destructive"
-      });
-    }
+    setNotifications(prev => prev.filter(notif => notif.id !== id));
+    
+    toast({
+      title: "Notificação removida",
+      description: "Configuração de notificação excluída"
+    });
   };
 
   const getTypeIcon = (type: string) => {

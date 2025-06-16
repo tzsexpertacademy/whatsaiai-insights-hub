@@ -11,6 +11,8 @@ import { useClientConfig } from '@/contexts/ClientConfigContext';
 import { AssistantSelector } from '@/components/AssistantSelector';
 import { useAssistantsConfig } from '@/hooks/useAssistantsConfig';
 import { AnalysisChatbot } from './AnalysisChatbot';
+import { AnalysisHistoryViewer } from './AnalysisHistoryViewer';
+import { useAnalysisHistory } from '@/hooks/useAnalysisHistory';
 import { 
   Brain, 
   MessageSquare, 
@@ -23,7 +25,8 @@ import {
   Clock,
   AlertCircle,
   Info,
-  MessageCircle
+  MessageCircle,
+  History
 } from 'lucide-react';
 
 interface ConversationAnalysisProps {
@@ -46,6 +49,7 @@ export function IndividualConversationAnalysis({ conversation, onAnalysisComplet
   const { config } = useClientConfig();
   const { toast } = useToast();
   const { assistants } = useAssistantsConfig();
+  const { saveAnalysisToHistory } = useAnalysisHistory();
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisPrompt, setAnalysisPrompt] = useState('');
   const [selectedAnalysisType, setSelectedAnalysisType] = useState<'behavioral' | 'commercial' | 'custom'>('behavioral');
@@ -144,6 +148,7 @@ ${analysisPrompt || 'Analyze this WhatsApp conversation as requested...'}
 
     setIsAnalyzing(true);
     setDebugInfo(null);
+    const startTime = Date.now();
     
     console.log('📋 Analysis configuration:', {
       conversationId: conversation.id,
@@ -316,7 +321,9 @@ ${analysisPrompt || 'Analyze this WhatsApp conversation as requested...'}
         throw new Error(analysisResult?.error || 'Analysis failed');
       }
 
-      // Save analysis result
+      const processingTime = Date.now() - startTime;
+
+      // Save to main analysis table
       const { error: finalUpdateError } = await supabase
         .from('whatsapp_conversations_analysis')
         .update({ 
@@ -331,6 +338,21 @@ ${analysisPrompt || 'Analyze this WhatsApp conversation as requested...'}
         console.warn('Analysis completed but could not save to database');
       }
 
+      // Save to analysis history
+      const selectedAssistantData = assistants.find(a => a.id === selectedAssistant);
+      await saveAnalysisToHistory({
+        conversation_analysis_id: conversation.id,
+        analysis_type: selectedAnalysisType,
+        assistant_id: selectedAssistant,
+        assistant_name: selectedAssistantData?.name || selectedAssistant,
+        analysis_results: analysisResult?.insights || [],
+        analysis_prompt: getAnalysisPrompt(),
+        messages_analyzed: conversationData.messages.length,
+        tokens_used: analysisResult?.tokensUsed || 0,
+        cost_estimate: analysisResult?.costEstimate || 0,
+        processing_time_ms: processingTime
+      });
+
       toast({
         title: "✅ Analysis completed",
         description: "Conversation analyzed successfully!"
@@ -340,7 +362,9 @@ ${analysisPrompt || 'Analyze this WhatsApp conversation as requested...'}
         success: true,
         messageCount: conversationData.messages.length,
         insightsGenerated: analysisResult?.insights?.length || 0,
-        dataSource: conversationData.messages.some(m => m.id?.startsWith('sample_')) ? 'sample' : 'real'
+        dataSource: conversationData.messages.some(m => m.id?.startsWith('sample_')) ? 'sample' : 'real',
+        processingTime,
+        savedToHistory: true
       });
 
       onAnalysisComplete();
@@ -448,7 +472,7 @@ ${analysisPrompt || 'Analyze this WhatsApp conversation as requested...'}
         )}
 
         <Tabs defaultValue="analyze" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="analyze">
               <Brain className="h-4 w-4 mr-2" />
               Analyze
@@ -457,9 +481,13 @@ ${analysisPrompt || 'Analyze this WhatsApp conversation as requested...'}
               <FileText className="h-4 w-4 mr-2" />
               Results ({analysisResults.length})
             </TabsTrigger>
+            <TabsTrigger value="history">
+              <History className="h-4 w-4 mr-2" />
+              History
+            </TabsTrigger>
             <TabsTrigger value="chat" disabled={conversation.analysis_status !== 'completed'}>
               <MessageCircle className="h-4 w-4 mr-2" />
-              Chat sobre Análise
+              Chat
             </TabsTrigger>
           </TabsList>
 
@@ -577,6 +605,10 @@ ${analysisPrompt || 'Analyze this WhatsApp conversation as requested...'}
                 <p className="text-sm">Run an analysis first</p>
               </div>
             )}
+          </TabsContent>
+
+          <TabsContent value="history" className="space-y-4">
+            <AnalysisHistoryViewer conversationAnalysisId={conversation.id} />
           </TabsContent>
 
           <TabsContent value="chat" className="space-y-4">

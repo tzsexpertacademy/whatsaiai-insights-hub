@@ -400,6 +400,68 @@ export type Database = {
         }
         Relationships: []
       }
+      conversation_analysis_history: {
+        Row: {
+          analysis_prompt: string | null
+          analysis_results: Json | null
+          analysis_status: string
+          analysis_type: string
+          assistant_id: string
+          assistant_name: string | null
+          conversation_analysis_id: string
+          cost_estimate: number | null
+          created_at: string
+          id: string
+          messages_analyzed: number | null
+          processing_time_ms: number | null
+          tokens_used: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          analysis_prompt?: string | null
+          analysis_results?: Json | null
+          analysis_status?: string
+          analysis_type?: string
+          assistant_id: string
+          assistant_name?: string | null
+          conversation_analysis_id: string
+          cost_estimate?: number | null
+          created_at?: string
+          id?: string
+          messages_analyzed?: number | null
+          processing_time_ms?: number | null
+          tokens_used?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          analysis_prompt?: string | null
+          analysis_results?: Json | null
+          analysis_status?: string
+          analysis_type?: string
+          assistant_id?: string
+          assistant_name?: string | null
+          conversation_analysis_id?: string
+          cost_estimate?: number | null
+          created_at?: string
+          id?: string
+          messages_analyzed?: number | null
+          processing_time_ms?: number | null
+          tokens_used?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_analysis_history_conversation_analysis_id_fkey"
+            columns: ["conversation_analysis_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_conversations_analysis"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       custom_areas: {
         Row: {
           area_name: string
