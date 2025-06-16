@@ -1,9 +1,10 @@
 
 import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Bell, MessageSquare, Smartphone } from 'lucide-react';
+import { Bell, MessageSquare, Smartphone, Settings } from 'lucide-react';
 import { WhatsAppNotificationsConfig } from './WhatsAppNotificationsConfig';
 import { BrowserNotificationsConfig } from './BrowserNotificationsConfig';
+import { NotificationManager } from './NotificationManager';
 
 export function NotificationsConfig() {
   return (
@@ -16,7 +17,7 @@ export function NotificationsConfig() {
       </div>
 
       <Tabs defaultValue="whatsapp" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="whatsapp" className="flex items-center gap-2">
             <MessageSquare className="h-4 w-4" />
             WhatsApp Automático
@@ -24,6 +25,10 @@ export function NotificationsConfig() {
           <TabsTrigger value="browser" className="flex items-center gap-2">
             <Bell className="h-4 w-4" />
             Navegador
+          </TabsTrigger>
+          <TabsTrigger value="manage" className="flex items-center gap-2">
+            <Settings className="h-4 w-4" />
+            Gerenciar
           </TabsTrigger>
         </TabsList>
 
@@ -33,6 +38,10 @@ export function NotificationsConfig() {
 
         <TabsContent value="browser">
           <BrowserNotificationsConfig />
+        </TabsContent>
+
+        <TabsContent value="manage">
+          <NotificationManager />
         </TabsContent>
       </Tabs>
     </div>

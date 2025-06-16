@@ -8,7 +8,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Brain, MessageSquare, Clock, TestTube } from 'lucide-react';
 import { usePersonalAssistant } from '@/hooks/usePersonalAssistant';
-import { Badge } from "@/components/ui/badge";
 
 export function PersonalAssistantSettings() {
   const { config, updateConfig, assistants } = usePersonalAssistant();
@@ -70,9 +69,6 @@ export function PersonalAssistantSettings() {
                 <SelectItem key={assistant.id} value={assistant.id}>
                   <div className="flex items-center gap-2">
                     <span>{assistant.name}</span>
-                    <Badge variant="outline" className="text-xs">
-                      {assistant.type}
-                    </Badge>
                   </div>
                 </SelectItem>
               ))}
