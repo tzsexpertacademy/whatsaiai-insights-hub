@@ -22,6 +22,17 @@ export function WhatsAppNotificationsConfig() {
   const { config: assistantConfig } = usePersonalAssistant();
   const [isTestingNotification, setIsTestingNotification] = useState(false);
 
+  // Verificações de segurança para evitar erros de undefined
+  if (!config || !config.notificationTypes || !config.customMessages || !config.schedules) {
+    return (
+      <Card>
+        <CardContent className="p-6 text-center">
+          <p className="text-gray-600">Carregando configurações...</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   const handleTestNotification = async () => {
     setIsTestingNotification(true);
     try {
