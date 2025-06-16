@@ -8,40 +8,32 @@ import { SidebarSubscriptionStatus } from '@/components/SidebarSubscriptionStatu
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 
 export function AppSidebar() {
-  const { user, signOut, isAdmin } = useAuth();
+  const { user, isAdmin } = useAuth();
   const location = useLocation();
-  const { collapsed } = useSidebar();
+  const { state } = useSidebar();
+  const isCollapsed = state === "collapsed";
 
   const mainItems = [
-    { to: "/dashboard", icon: Home, label: "Dashboard", end: true },
-    { to: "/dashboard/routine", icon: Calendar, label: "Rotina" },
-    { to: "/dashboard/analytics", icon: BarChart3, label: "Analytics" },
-    { to: "/dashboard/chat", icon: MessageSquare, label: "Chat" },
-    { to: "/dashboard/observatory", icon: Brain, label: "Observatório" },
-    { to: "/dashboard/insights", icon: BookOpen, label: "Insights" },
+    { title: "Dashboard", url: "/dashboard", icon: Home, end: true },
+    { title: "Rotina", url: "/dashboard/routine", icon: Calendar },
+    { title: "Analytics", url: "/dashboard/analytics", icon: BarChart3 },
+    { title: "Chat", url: "/dashboard/chat", icon: MessageSquare },
+    { title: "Observatório", url: "/dashboard/observatory", icon: Brain },
+    { title: "Insights", url: "/dashboard/insights", icon: BookOpen },
   ];
 
   const configItems = [
-    { to: "/dashboard/settings", icon: Settings, label: "Configurações" },
-    { to: "/dashboard/profile", icon: UserCircle, label: "Perfil" },
+    { title: "Configurações", url: "/dashboard/settings", icon: Settings },
+    { title: "Perfil", url: "/dashboard/profile", icon: UserCircle },
   ];
 
-  const isActive = (path: string, end?: boolean) => {
-    if (end) {
-      return location.pathname === path;
-    }
-    return location.pathname.startsWith(path);
-  };
-
-  const getNavClassName = (path: string, end?: boolean) => {
-    const baseClasses = "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary";
-    const activeClasses = "bg-muted text-primary";
-    
-    return isActive(path, end) ? `${baseClasses} ${activeClasses}` : baseClasses;
+  const handleSignOut = () => {
+    // Implementar logout
+    console.log('Logout solicitado');
   };
 
   return (
-    <Sidebar className={collapsed ? "w-14" : "w-64"} collapsible>
+    <Sidebar className={isCollapsed ? "w-14" : "w-64"} collapsible="icon">
       <SidebarTrigger className="m-2 self-end" />
       
       <SidebarContent className="flex flex-col h-full">
@@ -52,12 +44,10 @@ export function AppSidebar() {
               <SidebarMenu>
                 {mainItems.map((item) => (
                   <SidebarNavItem
-                    key={item.to}
-                    to={item.to}
+                    key={item.url}
+                    title={item.title}
+                    url={item.url}
                     icon={item.icon}
-                    label={item.label}
-                    end={item.end}
-                    collapsed={collapsed}
                   />
                 ))}
               </SidebarMenu>
@@ -70,11 +60,10 @@ export function AppSidebar() {
               <SidebarMenu>
                 {configItems.map((item) => (
                   <SidebarNavItem
-                    key={item.to}
-                    to={item.to}
+                    key={item.url}
+                    title={item.title}
+                    url={item.url}
                     icon={item.icon}
-                    label={item.label}
-                    collapsed={collapsed}
                   />
                 ))}
               </SidebarMenu>
@@ -87,10 +76,9 @@ export function AppSidebar() {
               <SidebarGroupContent>
                 <SidebarMenu>
                   <SidebarNavItem
-                    to="/admin"
+                    title="Admin Panel"
+                    url="/admin"
                     icon={Users}
-                    label="Admin Panel"
-                    collapsed={collapsed}
                   />
                 </SidebarMenu>
               </SidebarGroupContent>
@@ -100,18 +88,18 @@ export function AppSidebar() {
 
         {/* Status da Assinatura */}
         <div className="mt-auto">
-          <SidebarSubscriptionStatus collapsed={collapsed} />
+          <SidebarSubscriptionStatus />
           
           {/* Logout */}
           <div className="p-3 border-t">
             <button
-              onClick={signOut}
+              onClick={handleSignOut}
               className={`w-full flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary hover:bg-muted ${
-                collapsed ? 'justify-center' : ''
+                isCollapsed ? 'justify-center' : ''
               }`}
             >
               <LogOut className="h-4 w-4" />
-              {!collapsed && <span>Sair</span>}
+              {!isCollapsed && <span>Sair</span>}
             </button>
           </div>
         </div>
