@@ -18,11 +18,24 @@ export function ConscienciaPropositoPage() {
                insight.description?.toLowerCase().includes('consciência')
   ) || [];
 
+  // Métricas baseadas em dados reais
+  const consciousnessMetrics = {
+    clarity: consciousnessInsights.length > 0 ? "Em Evolução" : "Aguardando análise",
+    alignment: data.insights.length > 2 ? "Moderado" : "Inicial",
+    awareness: consciousnessInsights.length > 1 ? "Crescendo" : "Emergente",
+    coherence: data.hasRealData ? "Estável" : "Em formação"
+  };
+
   const headerActions = (
     <div className="flex flex-wrap items-center gap-2">
       <Badge className="bg-purple-100 text-purple-800">
         🧠 {consciousnessInsights.length} Insights Ativos
       </Badge>
+      {data.hasRealData && (
+        <Badge className="bg-blue-100 text-blue-800">
+          📊 Dados Reais
+        </Badge>
+      )}
     </div>
   );
 
@@ -44,7 +57,7 @@ export function ConscienciaPropositoPage() {
                 </div>
                 <div>
                   <p className="text-sm text-gray-600">Clareza de Propósito</p>
-                  <p className="text-xl font-bold text-purple-700">Em Análise</p>
+                  <p className="text-xl font-bold text-purple-700">{consciousnessMetrics.clarity}</p>
                 </div>
               </div>
             </CardContent>
@@ -58,7 +71,7 @@ export function ConscienciaPropositoPage() {
                 </div>
                 <div>
                   <p className="text-sm text-gray-600">Alinhamento</p>
-                  <p className="text-xl font-bold text-blue-700">Moderado</p>
+                  <p className="text-xl font-bold text-blue-700">{consciousnessMetrics.alignment}</p>
                 </div>
               </div>
             </CardContent>
@@ -72,7 +85,7 @@ export function ConscienciaPropositoPage() {
                 </div>
                 <div>
                   <p className="text-sm text-gray-600">Autoconsciência</p>
-                  <p className="text-xl font-bold text-green-700">Crescendo</p>
+                  <p className="text-xl font-bold text-green-700">{consciousnessMetrics.awareness}</p>
                 </div>
               </div>
             </CardContent>
@@ -86,7 +99,7 @@ export function ConscienciaPropositoPage() {
                 </div>
                 <div>
                   <p className="text-sm text-gray-600">Coerência Interna</p>
-                  <p className="text-xl font-bold text-orange-700">Estável</p>
+                  <p className="text-xl font-bold text-orange-700">{consciousnessMetrics.coherence}</p>
                 </div>
               </div>
             </CardContent>
@@ -94,7 +107,7 @@ export function ConscienciaPropositoPage() {
         </div>
 
         {/* Insights da Consciência */}
-        {consciousnessInsights.length > 0 && (
+        {consciousnessInsights.length > 0 ? (
           <Card className="bg-white/70 backdrop-blur-sm border-white/50">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -140,6 +153,19 @@ export function ConscienciaPropositoPage() {
               </div>
             </CardContent>
           </Card>
+        ) : (
+          <Card className="bg-blue-50 border-blue-200">
+            <CardContent className="p-6 text-center">
+              <Brain className="h-12 w-12 text-blue-400 mx-auto mb-3" />
+              <h3 className="font-medium text-blue-800 mb-2">Aguardando Insights de Consciência</h3>
+              <p className="text-sm text-blue-600">
+                {data.hasRealData 
+                  ? "Os assistentes estão analisando seus dados para gerar insights sobre consciência e propósito."
+                  : "Configure assistentes especializados para começar a análise da sua consciência."
+                }
+              </p>
+            </CardContent>
+          </Card>
         )}
 
         {/* Áreas de Desenvolvimento */}
@@ -155,11 +181,13 @@ export function ConscienciaPropositoPage() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-sm">Padrões Identificados</span>
-                  <Badge variant="outline">3 ativos</Badge>
+                  <Badge variant="outline">{consciousnessInsights.filter(i => i.description.toLowerCase().includes('padrão')).length} detectados</Badge>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm">Nível de Consciência</span>
-                  <Badge className="bg-yellow-100 text-yellow-800">Expandindo</Badge>
+                  <Badge className="bg-yellow-100 text-yellow-800">
+                    {consciousnessInsights.length > 2 ? "Expandindo" : "Emergindo"}
+                  </Badge>
                 </div>
               </div>
             </CardContent>
@@ -176,11 +204,15 @@ export function ConscienciaPropositoPage() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-sm">Clareza de Valores</span>
-                  <Badge className="bg-blue-100 text-blue-800">Alta</Badge>
+                  <Badge className="bg-blue-100 text-blue-800">
+                    {data.insights.length > 3 ? "Alta" : "Desenvolvendo"}
+                  </Badge>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm">Alinhamento Ações/Valores</span>
-                  <Badge className="bg-orange-100 text-orange-800">Moderado</Badge>
+                  <Badge className="bg-orange-100 text-orange-800">
+                    {consciousnessInsights.length > 1 ? "Moderado" : "Inicial"}
+                  </Badge>
                 </div>
               </div>
             </CardContent>
