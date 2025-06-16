@@ -2,6 +2,7 @@
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Settings as SettingsIcon, Smartphone, Brain, Zap } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 export function Settings() {
   return (
@@ -27,13 +28,13 @@ export function Settings() {
               <p className="text-sm text-gray-600 mb-4">
                 Gerencie conexões, webhooks e configurações de API
               </p>
-              <a 
-                href="/whatsapp-api-hub"
+              <Link 
+                to="/whatsapp-api-hub"
                 className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
               >
                 <Zap className="h-4 w-4" />
                 Acessar API Hub
-              </a>
+              </Link>
             </CardContent>
           </Card>
 
@@ -51,13 +52,13 @@ export function Settings() {
               <p className="text-sm text-gray-600 mb-4">
                 Personalize como a IA analisa suas conversas
               </p>
-              <a 
-                href="/analysis"
+              <Link 
+                to="/dashboard/conversation-analysis"
                 className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
               >
                 <Brain className="h-4 w-4" />
                 Ver Análises
-              </a>
+              </Link>
             </CardContent>
           </Card>
         </div>

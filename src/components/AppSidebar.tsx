@@ -40,7 +40,12 @@ export function AppSidebar() {
   ];
 
   const whatsappItems = [
-    { title: 'WhatsApp API Hub', icon: Zap, url: '/whatsapp-api-hub' },
+    { 
+      title: 'WhatsApp API Hub', 
+      icon: Zap, 
+      url: '/whatsapp-api-hub',
+      badge: 'NOVO'
+    },
   ];
 
   return (

@@ -12,6 +12,7 @@ import { GreenAPISettings } from './GreenAPISettings';
 import { WPPConnectConfig } from './whatsapp/WPPConnectConfig';
 import { RealWhatsAppMirror } from '../whatsapp/RealWhatsAppMirror';
 import { PersonalAssistantConfig } from './whatsapp/PersonalAssistantConfig';
+import { Link } from 'react-router-dom';
 
 export function WhatsAppConfig() {
   return (
@@ -61,10 +62,10 @@ export function WhatsAppConfig() {
               </ul>
             </div>
             <Button asChild size="lg">
-              <a href="/whatsapp-api-hub">
+              <Link to="/whatsapp-api-hub">
                 <Zap className="h-4 w-4 mr-2" />
                 Acessar API Hub
-              </a>
+              </Link>
             </Button>
           </div>
         </CardContent>
