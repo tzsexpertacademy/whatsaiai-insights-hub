@@ -1,4 +1,3 @@
-
 import { useState, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -11,7 +10,7 @@ interface AnalysisHistoryEntry {
   analysis_type: string;
   assistant_id: string;
   assistant_name?: string;
-  analysis_results: any[];
+  analysis_results: any[]; // Changed from any[] to handle Json type properly
   analysis_prompt?: string;
   analysis_status: string;
   messages_analyzed: number;
@@ -47,7 +46,13 @@ export function useAnalysisHistory() {
 
       if (error) throw error;
 
-      setAnalysisHistory(data || []);
+      // Convert Json type to array properly
+      const processedData = (data || []).map(entry => ({
+        ...entry,
+        analysis_results: Array.isArray(entry.analysis_results) ? entry.analysis_results : []
+      }));
+
+      setAnalysisHistory(processedData);
     } catch (error) {
       console.error('Erro ao carregar histórico de análises:', error);
       toast({
@@ -91,10 +96,15 @@ export function useAnalysisHistory() {
 
       if (error) throw error;
 
-      // Atualizar o state local
-      setAnalysisHistory(prev => [data, ...prev]);
+      // Process the returned data properly
+      const processedData = {
+        ...data,
+        analysis_results: Array.isArray(data.analysis_results) ? data.analysis_results : []
+      };
 
-      return data;
+      setAnalysisHistory(prev => [processedData, ...prev]);
+
+      return processedData;
     } catch (error) {
       console.error('Erro ao salvar análise no histórico:', error);
       toast({

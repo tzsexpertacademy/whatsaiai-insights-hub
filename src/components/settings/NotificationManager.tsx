@@ -40,12 +40,18 @@ export function NotificationManager() {
   const [notifications, setNotifications] = useState<NotificationConfig[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
-  const [newNotification, setNewNotification] = useState({
+  const [newNotification, setNewNotification] = useState<{
+    title: string;
+    message: string;
+    time: string;
+    enabled: boolean;
+    type: 'daily' | 'custom' | 'trial';
+  }>({
     title: '',
     message: '',
     time: '09:00',
     enabled: true,
-    type: 'custom' as const
+    type: 'custom'
   });
 
   // Simulação de dados locais para demonstração
