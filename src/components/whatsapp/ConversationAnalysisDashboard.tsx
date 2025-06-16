@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -168,6 +169,11 @@ export function ConversationAnalysisDashboard() {
     } finally {
       loadingRef.current = false;
     }
+  };
+
+  const handleAnalysisUpdate = (conversationId: string, results: any) => {
+    console.log('✅ Análise individual atualizada, recarregando dados...');
+    loadAnalysisConversations();
   };
 
   const handleAnalysisComplete = () => {
@@ -368,6 +374,7 @@ export function ConversationAnalysisDashboard() {
             {selectedConversation ? (
               <IndividualConversationAnalysis
                 conversation={conversations.find(c => c.id === selectedConversation)!}
+                onAnalysisUpdate={handleAnalysisUpdate}
                 onAnalysisComplete={handleAnalysisComplete}
               />
             ) : (

@@ -16,7 +16,7 @@ export function WhatsAppNotificationsConfig() {
     updateConfig, 
     testWhatsAppNotification,
     startScheduledNotifications,
-    clearAllIntervals,
+    clearAllTimeouts,
     defaultMessages 
   } = useWhatsAppNotifications();
   
@@ -66,7 +66,7 @@ export function WhatsAppNotificationsConfig() {
   };
 
   const handleRestartScheduling = () => {
-    clearAllIntervals();
+    clearAllTimeouts();
     startScheduledNotifications();
   };
 

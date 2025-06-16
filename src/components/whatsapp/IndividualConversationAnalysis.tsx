@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -8,16 +9,18 @@ import { supabase } from '@/integrations/supabase/client';
 import { MessageCircle, Bot, Clock, Sparkles, Download, RefreshCw } from 'lucide-react';
 import type { Database } from '@/integrations/supabase/types';
 
-type ConversationRecord = Database['public']['Tables']['conversations']['Row'];
+type ConversationRecord = Database['public']['Tables']['whatsapp_conversations_analysis']['Row'];
 
 interface IndividualConversationAnalysisProps {
   conversation: ConversationRecord;
   onAnalysisUpdate?: (conversationId: string, results: any) => void;
+  onAnalysisComplete?: () => void;
 }
 
 export function IndividualConversationAnalysis({ 
   conversation, 
-  onAnalysisUpdate 
+  onAnalysisUpdate,
+  onAnalysisComplete 
 }: IndividualConversationAnalysisProps) {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [customPrompt, setCustomPrompt] = useState('');
@@ -63,6 +66,10 @@ export function IndividualConversationAnalysis({
         onAnalysisUpdate(conversation.id, data);
       }
 
+      if (onAnalysisComplete) {
+        onAnalysisComplete();
+      }
+
     } catch (error) {
       console.error('Erro na re-análise:', error);
       toast({
@@ -82,7 +89,7 @@ export function IndividualConversationAnalysis({
       conversation: {
         contact: conversation.contact_name,
         date: conversation.created_at,
-        messageCount: conversation.message_count
+        messageCount: conversation.analysis_results ? (Array.isArray(analysisResults) ? analysisResults.length : 1) : 0
       },
       analysis: analysisResults
     };
@@ -121,7 +128,7 @@ export function IndividualConversationAnalysis({
               <div>
                 <h2 className="text-xl font-bold">{conversation.contact_name}</h2>
                 <p className="text-sm text-gray-600 font-normal">
-                  {conversation.message_count} mensagens • {formatAnalysisDate(conversation.created_at)}
+                  Conversa • {formatAnalysisDate(conversation.created_at)}
                 </p>
               </div>
             </div>
@@ -160,17 +167,15 @@ export function IndividualConversationAnalysis({
         <CardContent>
           <div className="flex flex-wrap gap-2">
             <Badge className="bg-blue-100 text-blue-800">
-              📱 {conversation.message_count} mensagens
+              📱 Conversa WhatsApp
             </Badge>
-            {conversation.platform && (
-              <Badge className="bg-green-100 text-green-800">
-                🔗 {conversation.platform}
-              </Badge>
-            )}
-            {conversation.analysis_date && (
+            <Badge className="bg-green-100 text-green-800">
+              🔗 {conversation.contact_phone}
+            </Badge>
+            {conversation.last_analyzed_at && (
               <Badge className="bg-purple-100 text-purple-800">
                 <Clock className="h-3 w-3 mr-1" />
-                Analisada em {formatAnalysisDate(conversation.analysis_date)}
+                Analisada em {formatAnalysisDate(conversation.last_analyzed_at)}
               </Badge>
             )}
             {analysisResults && Array.isArray(analysisResults) && analysisResults.length > 0 && (
