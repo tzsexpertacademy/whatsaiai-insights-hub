@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Bell, MessageCircle, Clock, Send, TestTube } from 'lucide-react';
+import { Bell, MessageCircle, Clock, Send, TestTube, Settings } from 'lucide-react';
 import { useWhatsAppNotifications } from '@/hooks/useWhatsAppNotifications';
 import { usePersonalAssistant } from '@/hooks/usePersonalAssistant';
 
@@ -16,6 +16,7 @@ export function WhatsAppNotificationsConfig() {
     updateConfig, 
     testWhatsAppNotification,
     startScheduledNotifications,
+    clearAllIntervals,
     defaultMessages 
   } = useWhatsAppNotifications();
   
@@ -49,10 +50,24 @@ export function WhatsAppNotificationsConfig() {
     });
   };
 
+  const handleUpdateSchedule = (type: keyof typeof config.schedules, time: string) => {
+    updateConfig({
+      schedules: {
+        ...config.schedules,
+        [type]: time
+      }
+    });
+  };
+
   const syncWithAssistant = () => {
     if (assistantConfig.masterNumber) {
       updateConfig({ targetNumber: assistantConfig.masterNumber });
     }
+  };
+
+  const handleRestartScheduling = () => {
+    clearAllIntervals();
+    startScheduledNotifications();
   };
 
   return (
@@ -106,7 +121,7 @@ export function WhatsAppNotificationsConfig() {
           </p>
         </div>
 
-        {/* Tipos de Notificação */}
+        {/* Configuração de Horários e Tipos */}
         <div className="space-y-4">
           <h3 className="font-medium flex items-center gap-2">
             <Clock className="h-4 w-4" />
@@ -115,19 +130,32 @@ export function WhatsAppNotificationsConfig() {
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {[
-              { key: 'morning', label: 'Manhã (06:00)', icon: '🌅' },
-              { key: 'midday', label: 'Meio-dia (12:00)', icon: '☀️' },
-              { key: 'afternoon', label: 'Tarde (18:00)', icon: '🌤️' },
-              { key: 'evening', label: 'Noite (21:00)', icon: '🌙' }
+              { key: 'morning', label: 'Manhã', icon: '🌅' },
+              { key: 'midday', label: 'Meio-dia', icon: '☀️' },
+              { key: 'afternoon', label: 'Tarde', icon: '🌤️' },
+              { key: 'evening', label: 'Noite', icon: '🌙' }
             ].map(({ key, label, icon }) => (
-              <div key={key} className="flex items-center justify-between p-3 border rounded-lg">
-                <span className="text-sm font-medium">
-                  {icon} {label}
-                </span>
-                <Switch
-                  checked={config.notificationTypes[key as keyof typeof config.notificationTypes]}
-                  onCheckedChange={() => handleToggleNotificationType(key as keyof typeof config.notificationTypes)}
-                />
+              <div key={key} className="p-3 border rounded-lg space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">
+                    {icon} {label}
+                  </span>
+                  <Switch
+                    checked={config.notificationTypes[key as keyof typeof config.notificationTypes]}
+                    onCheckedChange={() => handleToggleNotificationType(key as keyof typeof config.notificationTypes)}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor={`${key}-time`} className="text-xs">Horário:</Label>
+                  <Input
+                    id={`${key}-time`}
+                    type="time"
+                    value={config.schedules[key as keyof typeof config.schedules]}
+                    onChange={(e) => handleUpdateSchedule(key as keyof typeof config.schedules, e.target.value)}
+                    className="text-sm"
+                  />
+                </div>
               </div>
             ))}
           </div>
@@ -175,6 +203,16 @@ export function WhatsAppNotificationsConfig() {
           </Button>
           
           <Button
+            onClick={handleRestartScheduling}
+            disabled={!config.enabled || !config.targetNumber}
+            variant="outline"
+            className="flex-1"
+          >
+            Reiniciar Agendamento
+            <Settings className="ml-2 h-4 w-4" />
+          </Button>
+          
+          <Button
             onClick={startScheduledNotifications}
             disabled={!config.enabled || !config.targetNumber}
             className="flex-1"
@@ -187,14 +225,31 @@ export function WhatsAppNotificationsConfig() {
         {config.enabled && config.targetNumber && (
           <div className="p-4 bg-green-50 rounded-lg border border-green-200">
             <h4 className="font-medium text-green-900 mb-2">✅ Notificações Configuradas!</h4>
-            <ul className="text-sm text-green-700 space-y-1 list-disc list-inside">
-              <li>Número de destino: {config.targetNumber}</li>
-              <li>Tipos ativos: {Object.entries(config.notificationTypes).filter(([_, enabled]) => enabled).length} de 4</li>
-              <li>As notificações serão enviadas automaticamente nos horários configurados</li>
-              <li>Cada mensagem incentiva você a interagir e manter a conversa ativa</li>
+            <ul className="text-sm text-green-700 space-y-1">
+              <li>• Número de destino: {config.targetNumber}</li>
+              <li>• Tipos ativos: {Object.entries(config.notificationTypes).filter(([_, enabled]) => enabled).length} de 4</li>
+              <li>• Horários configurados:</li>
+              {Object.entries(config.schedules).map(([type, time]) => (
+                config.notificationTypes[type as keyof typeof config.notificationTypes] && (
+                  <li key={type} className="ml-4">- {type}: {time}</li>
+                )
+              ))}
+              <li>• As notificações serão enviadas automaticamente nos horários configurados</li>
             </ul>
           </div>
         )}
+
+        {/* Debug Info */}
+        <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+          <h4 className="font-medium text-blue-900 mb-2">🔍 Debug - Status das Notificações</h4>
+          <div className="text-xs text-blue-700 space-y-1">
+            <p>• Habilitado: {config.enabled ? 'Sim' : 'Não'}</p>
+            <p>• Número configurado: {config.targetNumber || 'Não configurado'}</p>
+            <p>• Hora atual: {new Date().toLocaleTimeString('pt-BR')}</p>
+            <p>• Próxima notificação meio-dia: {config.schedules.midday}</p>
+            <p>• Meio-dia ativo: {config.notificationTypes.midday ? 'Sim' : 'Não'}</p>
+          </div>
+        </div>
       </CardContent>
     </Card>
   );

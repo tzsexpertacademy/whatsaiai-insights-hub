@@ -1,5 +1,5 @@
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { usePersonalAssistant } from './usePersonalAssistant';
 import { useWPPConnect } from './useWPPConnect';
@@ -20,6 +20,12 @@ interface WhatsAppNotificationConfig {
     afternoon: string;
     evening: string;
   };
+  schedules: {
+    morning: string;
+    midday: string;
+    afternoon: string;
+    evening: string;
+  };
 }
 
 const defaultMessages = {
@@ -27,6 +33,13 @@ const defaultMessages = {
   midday: '☀️ Como está sendo sua manhã? Me conte o que você já conseguiu fazer hoje!',
   afternoon: '🌤️ Boa tarde! Como foi sua manhã? Está na hora de fazer uma pausa e me contar como está seu dia.',
   evening: '🌙 Boa noite! Como foi seu dia? Vamos refletir juntos sobre as conquistas de hoje.'
+};
+
+const defaultSchedules = {
+  morning: '06:00',
+  midday: '12:00',
+  afternoon: '18:00',
+  evening: '21:00'
 };
 
 export function useWhatsAppNotifications() {
@@ -46,9 +59,12 @@ export function useWhatsAppNotifications() {
         evening: true,
         custom: false
       },
-      customMessages: defaultMessages
+      customMessages: defaultMessages,
+      schedules: defaultSchedules
     };
   });
+
+  const [activeIntervals, setActiveIntervals] = useState<Set<NodeJS.Timeout>>(new Set());
 
   const saveConfig = useCallback((newConfig: WhatsAppNotificationConfig) => {
     setConfig(newConfig);
@@ -136,26 +152,52 @@ export function useWhatsAppNotifications() {
     type: keyof typeof config.customMessages
   ) => {
     const [hours, minutes] = time.split(':').map(Number);
-    const now = new Date();
-    const scheduledTime = new Date();
-    scheduledTime.setHours(hours, minutes, 0, 0);
-    
-    // Se já passou do horário hoje, agendar para amanhã
-    if (scheduledTime <= now) {
-      scheduledTime.setDate(scheduledTime.getDate() + 1);
-    }
-    
-    const timeUntilNotification = scheduledTime.getTime() - now.getTime();
     
     console.log(`⏰ [WA-NOTIFICATION] Agendando notificação ${type} para ${time}`);
     
-    setTimeout(() => {
-      sendWhatsAppNotification(type);
+    // Função para calcular próximo horário
+    const getNextScheduledTime = () => {
+      const now = new Date();
+      const scheduledTime = new Date();
+      scheduledTime.setHours(hours, minutes, 0, 0);
       
-      // Reagendar para o próximo dia
-      scheduleNotification(time, type);
-    }, timeUntilNotification);
-  }, [sendWhatsAppNotification]);
+      // Se já passou do horário hoje, agendar para amanhã
+      if (scheduledTime <= now) {
+        scheduledTime.setDate(scheduledTime.getDate() + 1);
+      }
+      
+      return scheduledTime;
+    };
+    
+    const scheduleNext = () => {
+      const nextTime = getNextScheduledTime();
+      const timeUntilNotification = nextTime.getTime() - Date.now();
+      
+      console.log(`⏰ [WA-NOTIFICATION] Próxima notificação ${type} em ${Math.round(timeUntilNotification / 1000)} segundos`);
+      
+      const timeout = setTimeout(() => {
+        if (config.enabled && config.notificationTypes[type]) {
+          console.log(`🔔 [WA-NOTIFICATION] Disparando notificação ${type} agendada para ${time}`);
+          sendWhatsAppNotification(type);
+        }
+        
+        // Reagendar para o próximo dia
+        scheduleNext();
+      }, timeUntilNotification);
+      
+      setActiveIntervals(prev => new Set(prev).add(timeout));
+      
+      return timeout;
+    };
+    
+    return scheduleNext();
+  }, [config, sendWhatsAppNotification]);
+
+  const clearAllIntervals = useCallback(() => {
+    console.log('🛑 [WA-NOTIFICATION] Limpando todos os agendamentos');
+    activeIntervals.forEach(interval => clearTimeout(interval));
+    setActiveIntervals(new Set());
+  }, [activeIntervals]);
 
   const startScheduledNotifications = useCallback(() => {
     if (!config.enabled) {
@@ -164,13 +206,16 @@ export function useWhatsAppNotifications() {
     }
 
     console.log('🚀 [WA-NOTIFICATION] Iniciando agendamento de notificações');
+    
+    // Limpar agendamentos anteriores
+    clearAllIntervals();
 
-    // Agendar notificações nos horários padrão
+    // Agendar notificações nos horários configurados
     const schedules = [
-      { time: '06:00', type: 'morning' as const },
-      { time: '12:00', type: 'midday' as const },
-      { time: '18:00', type: 'afternoon' as const },
-      { time: '21:00', type: 'evening' as const }
+      { time: config.schedules.morning, type: 'morning' as const },
+      { time: config.schedules.midday, type: 'midday' as const },
+      { time: config.schedules.afternoon, type: 'afternoon' as const },
+      { time: config.schedules.evening, type: 'evening' as const }
     ];
 
     schedules.forEach(({ time, type }) => {
@@ -181,10 +226,26 @@ export function useWhatsAppNotifications() {
 
     toast({
       title: "Notificações agendadas! ⏰",
-      description: "Você receberá lembretes automáticos no WhatsApp",
+      description: "Você receberá lembretes automáticos no WhatsApp nos horários configurados",
       duration: 5000
     });
-  }, [config, scheduleNotification, toast]);
+  }, [config, scheduleNotification, clearAllIntervals, toast]);
+
+  // Limpar intervalos quando o componente for desmontado
+  useEffect(() => {
+    return () => {
+      clearAllIntervals();
+    };
+  }, [clearAllIntervals]);
+
+  // Reagendar quando a configuração mudar
+  useEffect(() => {
+    if (config.enabled) {
+      startScheduledNotifications();
+    } else {
+      clearAllIntervals();
+    }
+  }, [config.enabled, config.schedules, config.notificationTypes]);
 
   return {
     config,
@@ -192,6 +253,7 @@ export function useWhatsAppNotifications() {
     sendWhatsAppNotification,
     testWhatsAppNotification,
     startScheduledNotifications,
+    clearAllIntervals,
     defaultMessages
   };
 }
