@@ -1,410 +1,73 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
-import { useClientConfig } from '@/contexts/ClientConfigContext';
-import { AssistantSelector } from '@/components/AssistantSelector';
-import { useAssistantsConfig } from '@/hooks/useAssistantsConfig';
-import { AnalysisChatbot } from './AnalysisChatbot';
-import { AnalysisHistoryViewer } from './AnalysisHistoryViewer';
-import { useAnalysisHistory } from '@/hooks/useAnalysisHistory';
-import { 
-  Brain, 
-  MessageSquare, 
-  Send, 
-  Sparkles, 
-  FileText, 
-  TrendingUp,
-  RefreshCw,
-  CheckCircle,
-  Clock,
-  AlertCircle,
-  Info,
-  MessageCircle,
-  History
-} from 'lucide-react';
+import { MessageCircle, Bot, Clock, Sparkles, Download, RefreshCw } from 'lucide-react';
+import type { Database } from '@/integrations/supabase/types';
 
-interface ConversationAnalysisProps {
-  conversation: {
-    id: string;
-    chat_id: string;
-    contact_name: string;
-    contact_phone: string;
-    analysis_status: string;
-    priority: string;
-    marked_at: string;
-    last_analyzed_at?: string;
-    analysis_results?: any;
-  };
-  onAnalysisComplete: () => void;
+type ConversationRecord = Database['public']['Tables']['conversations']['Row'];
+
+interface IndividualConversationAnalysisProps {
+  conversation: ConversationRecord;
+  onAnalysisUpdate?: (conversationId: string, results: any) => void;
 }
 
-export function IndividualConversationAnalysis({ conversation, onAnalysisComplete }: ConversationAnalysisProps) {
-  const { user } = useAuth();
-  const { config } = useClientConfig();
-  const { toast } = useToast();
-  const { assistants } = useAssistantsConfig();
-  const { saveAnalysisToHistory } = useAnalysisHistory();
+export function IndividualConversationAnalysis({ 
+  conversation, 
+  onAnalysisUpdate 
+}: IndividualConversationAnalysisProps) {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [analysisPrompt, setAnalysisPrompt] = useState('');
-  const [selectedAnalysisType, setSelectedAnalysisType] = useState<'behavioral' | 'commercial' | 'custom'>('behavioral');
-  const [selectedAssistant, setSelectedAssistant] = useState(assistants.length > 0 ? assistants[0].id : 'oracle');
-  const [debugInfo, setDebugInfo] = useState<any>(null);
+  const [customPrompt, setCustomPrompt] = useState('');
+  const { toast } = useToast();
 
-  // Helper function to safely get analysis results as array
+  // Helper function to safely get analysis results
   const getAnalysisResults = () => {
-    if (!conversation.analysis_results) return [];
-    if (Array.isArray(conversation.analysis_results)) return conversation.analysis_results;
-    // If it's a JSON string, try to parse it
-    if (typeof conversation.analysis_results === 'string') {
-      try {
-        const parsed = JSON.parse(conversation.analysis_results);
-        return Array.isArray(parsed) ? parsed : [];
-      } catch {
-        return [];
+    if (!conversation.analysis_results) return null;
+    
+    try {
+      if (typeof conversation.analysis_results === 'string') {
+        return JSON.parse(conversation.analysis_results);
       }
+      return conversation.analysis_results;
+    } catch {
+      return null;
     }
-    // If it's an object, convert to array
-    if (typeof conversation.analysis_results === 'object' && conversation.analysis_results !== null) {
-      return [conversation.analysis_results];
-    }
-    return [];
   };
 
   const analysisResults = getAnalysisResults();
 
-  const getAnalysisPrompt = () => {
-    const selectedAssistantData = assistants.find(a => a.id === selectedAssistant);
-    const assistantPrompt = selectedAssistantData?.prompt || '';
-
-    switch (selectedAnalysisType) {
-      case 'behavioral':
-        return `${assistantPrompt}
-
-You are a behavioral analyst. Analyze this WhatsApp conversation in detail:
-
-## INSTRUCTIONS FOR ANALYSIS:
-1. **Emotional Profile**: Identify emotional patterns, emotional states, and reactions
-2. **Communication Style**: How the person expresses themselves, frequency, tone, language
-3. **Needs and Motivations**: What drives this person, their priorities, and desires
-4. **Points of Attention**: Concerns, anxieties, or important questions
-5. **Recommendations**: How to best relate and communicate with this person
-
-**Contact**: ${conversation.contact_name}
-**Phone**: ${conversation.contact_phone}
-
-Be detailed, specific, and profound in the psychological analysis. Use examples from the conversation.`;
-
-      case 'commercial':
-        return `${assistantPrompt}
-
-You are a commercial analyst. Analyze this WhatsApp conversation from a sales perspective:
-
-## INSTRUCTIONS FOR ANALYSIS:
-1. **Customer Profile**: Type of customer, purchasing power, urgency of decision
-2. **Interest and Intent**: Level of interest, purchase signals, funnel moment
-3. **Objections and Reservations**: Main barriers identified
-4. **Opportunities**: Ideal moments for commercial approach
-5. **Recommended Strategy**: Next steps, arguments, specific offers
-
-**Contact**: ${conversation.contact_name}
-**Phone**: ${conversation.contact_phone}
-
-Focus on practical commercial insights and real business opportunities.`;
-
-      case 'custom':
-        return `${assistantPrompt}
-
-${analysisPrompt || 'Analyze this WhatsApp conversation as requested...'}
-
-**Contact**: ${conversation.contact_name}
-**Phone**: ${conversation.contact_phone}`;
-    }
-  };
-
-  const handleAnalyzeConversation = async () => {
-    console.log('🚀 Starting individual analysis');
+  const handleReAnalysis = async () => {
+    if (!conversation.id) return;
     
-    if (!user?.id) {
-      toast({
-        title: "❌ Error",
-        description: "User not authenticated",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (!config?.openai?.apiKey) {
-      console.error('❌ Missing OpenAI config');
-      toast({
-        title: "❌ OpenAI configuration required",
-        description: "Configure your OpenAI API Key in Settings before running analysis",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (!config.openai.apiKey.startsWith('sk-')) {
-      console.error('❌ Invalid OpenAI API key');
-      toast({
-        title: "❌ Invalid API Key",
-        description: "OpenAI API Key must start with 'sk-'",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (selectedAnalysisType === 'custom' && !analysisPrompt.trim()) {
-      toast({
-        title: "⚠️ Prompt required",
-        description: "Enter a custom prompt for analysis",
-        variant: "destructive"
-      });
-      return;
-    }
-
     setIsAnalyzing(true);
-    setDebugInfo(null);
-    const startTime = Date.now();
     
-    console.log('📋 Analysis configuration:', {
-      conversationId: conversation.id,
-      analysisType: selectedAnalysisType,
-      assistantId: selectedAssistant,
-      chatId: conversation.chat_id,
-      contactPhone: conversation.contact_phone
-    });
-
     try {
-      // Update status to processing
-      const { error: updateError } = await supabase
-        .from('whatsapp_conversations_analysis')
-        .update({ 
-          analysis_status: 'processing',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', conversation.id);
-
-      if (updateError) {
-        throw new Error(`Failed to update status: ${updateError.message}`);
-      }
-
-      // Search for conversation data with multiple strategies
-      console.log('🔍 Searching for conversation data with multiple strategies...');
-      
-      // Strategy 1: Search by contact_phone
-      let { data: conversationData, error: searchError } = await supabase
-        .from('whatsapp_conversations')
-        .select('messages, contact_name, contact_phone')
-        .eq('user_id', user.id)
-        .eq('contact_phone', conversation.contact_phone)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      // Strategy 2: If no data found, search by chat_id
-      if (!conversationData && conversation.chat_id) {
-        console.log('🔍 Trying search by chat_id...');
-        const { data: chatData, error: chatError } = await supabase
-          .from('whatsapp_conversations')
-          .select('messages, contact_name, contact_phone')
-          .eq('user_id', user.id)
-          .ilike('id', `%${conversation.chat_id}%`)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        
-        if (chatData) {
-          conversationData = chatData;
-          searchError = chatError;
+      const { data, error } = await supabase.functions.invoke('analyze-conversation', {
+        body: {
+          conversationId: conversation.id,
+          customPrompt: customPrompt || undefined
         }
-      }
-
-      // Strategy 3: Search by contact name
-      if (!conversationData && conversation.contact_name) {
-        console.log('🔍 Trying search by contact_name...');
-        const { data: nameData, error: nameError } = await supabase
-          .from('whatsapp_conversations')
-          .select('messages, contact_name, contact_phone')
-          .eq('user_id', user.id)
-          .ilike('contact_name', `%${conversation.contact_name}%`)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        
-        if (nameData) {
-          conversationData = nameData;
-          searchError = nameError;
-        }
-      }
-
-      // Strategy 4: Get any recent conversation for this user if still no data
-      if (!conversationData) {
-        console.log('🔍 Trying to get any recent conversation...');
-        const { data: anyData, error: anyError } = await supabase
-          .from('whatsapp_conversations')
-          .select('messages, contact_name, contact_phone')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        
-        if (anyData) {
-          conversationData = anyData;
-          searchError = anyError;
-          console.log('📝 Using fallback conversation data');
-        }
-      }
-
-      if (searchError || !conversationData?.messages || !Array.isArray(conversationData.messages) || conversationData.messages.length === 0) {
-        console.error('❌ No valid conversation data found:', { searchError, conversationData });
-        
-        // Generate sample messages for analysis if no real data is found
-        const sampleMessages = [
-          {
-            id: 'sample_1',
-            text: `Olá, ${conversation.contact_name || 'contato'}! Como você está?`,
-            fromMe: true,
-            timestamp: Date.now() - 3600000
-          },
-          {
-            id: 'sample_2', 
-            text: 'Oi! Estou bem, obrigado por perguntar. E você?',
-            fromMe: false,
-            timestamp: Date.now() - 3000000
-          },
-          {
-            id: 'sample_3',
-            text: 'Estou ótimo! Gostaria de conversar sobre alguns projetos interessantes.',
-            fromMe: true,
-            timestamp: Date.now() - 1800000
-          },
-          {
-            id: 'sample_4',
-            text: 'Claro! Sempre interessado em ouvir sobre novos projetos. Pode me contar mais?',
-            fromMe: false,
-            timestamp: Date.now() - 900000
-          },
-          {
-            id: 'sample_5',
-            text: 'Perfeito! Vou te explicar tudo em detalhes. É uma oportunidade muito boa.',
-            fromMe: true,
-            timestamp: Date.now() - 300000
-          }
-        ];
-
-        console.log('📝 Using sample messages for demonstration');
-        conversationData = {
-          messages: sampleMessages,
-          contact_name: conversation.contact_name,
-          contact_phone: conversation.contact_phone
-        };
-      }
-
-      console.log('✅ Conversation found:', { 
-        messageCount: conversationData.messages.length,
-        contactName: conversationData.contact_name
       });
 
-      // Prepare analysis payload
-      const analysisPayload = {
-        conversation_id: conversation.id,
-        messages: conversationData.messages,
-        analysis_prompt: getAnalysisPrompt(),
-        analysis_type: selectedAnalysisType,
-        assistant_id: selectedAssistant,
-        contact_info: {
-          name: conversation.contact_name,
-          phone: conversation.contact_phone
-        },
-        openai_config: {
-          apiKey: config.openai.apiKey,
-          model: config.openai.model || 'gpt-4o-mini',
-          temperature: config.openai.temperature || 0.7,
-          maxTokens: config.openai.maxTokens || 2000
-        }
-      };
-
-      console.log('🚀 Calling edge function...');
-      const { data: analysisResult, error: analysisError } = await supabase.functions.invoke('analyze-conversation', {
-        body: analysisPayload
-      });
-
-      if (analysisError) {
-        throw new Error(`Analysis error: ${analysisError.message}`);
-      }
-
-      if (!analysisResult?.success) {
-        throw new Error(analysisResult?.error || 'Analysis failed');
-      }
-
-      const processingTime = Date.now() - startTime;
-
-      // Save to main analysis table
-      const { error: finalUpdateError } = await supabase
-        .from('whatsapp_conversations_analysis')
-        .update({ 
-          analysis_status: 'completed',
-          analysis_results: analysisResult?.insights || [],
-          last_analyzed_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', conversation.id);
-
-      if (finalUpdateError) {
-        console.warn('Analysis completed but could not save to database');
-      }
-
-      // Save to analysis history
-      const selectedAssistantData = assistants.find(a => a.id === selectedAssistant);
-      await saveAnalysisToHistory({
-        conversation_analysis_id: conversation.id,
-        analysis_type: selectedAnalysisType,
-        assistant_id: selectedAssistant,
-        assistant_name: selectedAssistantData?.name || selectedAssistant,
-        analysis_results: analysisResult?.insights || [],
-        analysis_prompt: getAnalysisPrompt(),
-        messages_analyzed: conversationData.messages.length,
-        tokens_used: analysisResult?.tokensUsed || 0,
-        cost_estimate: analysisResult?.costEstimate || 0,
-        processing_time_ms: processingTime
-      });
+      if (error) throw error;
 
       toast({
-        title: "✅ Analysis completed",
-        description: "Conversation analyzed successfully!"
+        title: "Análise atualizada! 🎯",
+        description: "A conversa foi re-analisada com sucesso"
       });
 
-      onAnalysisComplete();
+      if (onAnalysisUpdate) {
+        onAnalysisUpdate(conversation.id, data);
+      }
 
     } catch (error) {
-      console.error('💥 Analysis error:', error);
-      
-      try {
-        await supabase
-          .from('whatsapp_conversations_analysis')
-          .update({ 
-            analysis_status: 'failed',
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', conversation.id);
-      } catch (updateError) {
-        console.error('Error updating status to failed:', updateError);
-      }
-
-      setDebugInfo({
-        error: error.message,
-        timestamp: new Date().toISOString()
-      });
-
+      console.error('Erro na re-análise:', error);
       toast({
-        title: "❌ Analysis error",
-        description: error.message || "Could not analyze conversation",
+        title: "Erro na análise",
+        description: "Não foi possível re-analisar a conversa",
         variant: "destructive"
       });
     } finally {
@@ -412,228 +75,206 @@ ${analysisPrompt || 'Analyze this WhatsApp conversation as requested...'}
     }
   };
 
+  const exportAnalysis = () => {
+    if (!analysisResults) return;
+    
+    const exportData = {
+      conversation: {
+        contact: conversation.contact_name,
+        date: conversation.created_at,
+        messageCount: conversation.message_count
+      },
+      analysis: analysisResults
+    };
+    
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { 
+      type: 'application/json' 
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `analise-${conversation.contact_name}-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const formatAnalysisDate = (dateString: string) => {
+    return new Date(dateString).toLocaleString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <MessageSquare className="h-5 w-5 text-blue-500" />
-            <div>
-              <CardTitle className="text-lg">{conversation.contact_name}</CardTitle>
-              <p className="text-sm text-gray-500">{conversation.contact_phone}</p>
-              <p className="text-xs text-gray-400">
-                Marked at: {new Date(conversation.marked_at).toLocaleString('pt-BR')}
-              </p>
+    <div className="space-y-6">
+      {/* Cabeçalho da Conversa */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <MessageCircle className="h-6 w-6 text-blue-600" />
+              <div>
+                <h2 className="text-xl font-bold">{conversation.contact_name}</h2>
+                <p className="text-sm text-gray-600 font-normal">
+                  {conversation.message_count} mensagens • {formatAnalysisDate(conversation.created_at)}
+                </p>
+              </div>
             </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Badge variant="outline" className={
-              conversation.priority === 'high' ? 'border-red-200 text-red-700 bg-red-50' :
-              conversation.priority === 'medium' ? 'border-yellow-200 text-yellow-700 bg-yellow-50' :
-              'border-blue-200 text-blue-700 bg-blue-50'
-            }>
-              {conversation.priority}
-            </Badge>
-            
-            <div className="flex items-center gap-1">
-              {conversation.analysis_status === 'completed' && <CheckCircle className="h-4 w-4 text-green-500" />}
-              {conversation.analysis_status === 'processing' && <RefreshCw className="h-4 w-4 text-blue-500 animate-spin" />}
-              {conversation.analysis_status === 'failed' && <AlertCircle className="h-4 w-4 text-red-500" />}
-              {conversation.analysis_status === 'pending' && <Clock className="h-4 w-4 text-yellow-500" />}
-              <Badge variant="outline">
-                {conversation.analysis_status === 'completed' && 'Completed'}
-                {conversation.analysis_status === 'processing' && 'Processing'}
-                {conversation.analysis_status === 'failed' && 'Failed'}
-                {conversation.analysis_status === 'pending' && 'Pending'}
-              </Badge>
-            </div>
-          </div>
-        </div>
-      </CardHeader>
-
-      <CardContent>
-        {(!config?.openai?.apiKey || !config.openai.apiKey.startsWith('sk-')) && (
-          <Card className="mb-4 bg-red-50 border-red-200">
-            <CardContent className="p-3">
-              <div className="flex items-start gap-2">
-                <AlertCircle className="h-4 w-4 text-red-500 mt-0.5" />
-                <div className="text-sm">
-                  <p className="font-medium text-red-900">OpenAI configuration required</p>
-                  <p className="text-red-700">Configure your OpenAI API Key in Settings before running analysis.</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {debugInfo && (
-          <Card className="mb-4 bg-blue-50 border-blue-200">
-            <CardContent className="p-3">
-              <div className="flex items-start gap-2">
-                <Info className="h-4 w-4 text-blue-500 mt-0.5" />
-                <div className="text-sm">
-                  <p className="font-medium text-blue-900">Debug Info:</p>
-                  <pre className="text-xs bg-white p-2 rounded mt-1 overflow-auto max-h-32">
-                    {JSON.stringify(debugInfo, null, 2)}
-                  </pre>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        <Tabs defaultValue="analyze" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="analyze">
-              <Brain className="h-4 w-4 mr-2" />
-              Analyze
-            </TabsTrigger>
-            <TabsTrigger value="results" disabled={conversation.analysis_status !== 'completed'}>
-              <FileText className="h-4 w-4 mr-2" />
-              Results ({analysisResults.length})
-            </TabsTrigger>
-            <TabsTrigger value="history">
-              <History className="h-4 w-4 mr-2" />
-              History
-            </TabsTrigger>
-            <TabsTrigger value="chat" disabled={conversation.analysis_status !== 'completed'}>
-              <MessageCircle className="h-4 w-4 mr-2" />
-              Chat
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="analyze" className="space-y-4">
-            <div className="space-y-3">
-              <h4 className="font-medium flex items-center gap-2">
-                <Sparkles className="h-4 w-4" />
-                Assistant for Analysis
-              </h4>
-              
-              <AssistantSelector
-                selectedAssistant={selectedAssistant}
-                onAssistantChange={setSelectedAssistant}
-                className="mb-4"
-              />
-              
-              <h4 className="font-medium flex items-center gap-2">
-                <TrendingUp className="h-4 w-4" />
-                Analysis Type
-              </h4>
-              
-              <div className="grid grid-cols-3 gap-2">
+            <div className="flex items-center gap-2">
+              {analysisResults && (
                 <Button
-                  variant={selectedAnalysisType === 'behavioral' ? 'default' : 'outline'}
+                  onClick={exportAnalysis}
+                  variant="outline"
                   size="sm"
-                  onClick={() => setSelectedAnalysisType('behavioral')}
                 >
-                  Behavioral
+                  <Download className="h-4 w-4 mr-2" />
+                  Exportar
                 </Button>
-                <Button
-                  variant={selectedAnalysisType === 'commercial' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setSelectedAnalysisType('commercial')}
-                >
-                  Commercial
-                </Button>
-                <Button
-                  variant={selectedAnalysisType === 'custom' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setSelectedAnalysisType('custom')}
-                >
-                  Custom
-                </Button>
-              </div>
-
-              {selectedAnalysisType === 'custom' && (
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Custom Prompt:</label>
-                  <Textarea
-                    placeholder="Enter your custom analysis prompt..."
-                    value={analysisPrompt}
-                    onChange={(e) => setAnalysisPrompt(e.target.value)}
-                    rows={4}
-                  />
-                </div>
               )}
-            </div>
-
-            <div className="pt-4 border-t">
-              <Button 
-                onClick={handleAnalyzeConversation}
-                disabled={isAnalyzing || conversation.analysis_status === 'processing' || !config?.openai?.apiKey}
-                className="w-full"
+              <Button
+                onClick={handleReAnalysis}
+                disabled={isAnalyzing}
+                variant="outline"
+                size="sm"
               >
                 {isAnalyzing ? (
                   <>
                     <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                    Analyzing...
+                    Analisando...
                   </>
                 ) : (
                   <>
-                    <Send className="h-4 w-4 mr-2" />
-                    Analyze Conversation
+                    <Bot className="h-4 w-4 mr-2" />
+                    Re-analisar
                   </>
                 )}
               </Button>
             </div>
-          </TabsContent>
-
-          <TabsContent value="results" className="space-y-4">
-            {analysisResults.length > 0 ? (
-              <div className="space-y-3">
-                {analysisResults.map((result, index) => (
-                  <Card key={index} className="bg-blue-50 border-blue-200">
-                    <CardContent className="p-4">
-                      <div className="flex items-start gap-2">
-                        <Brain className="h-4 w-4 text-blue-500 mt-1" />
-                        <div className="flex-1">
-                          <h5 className="font-medium text-blue-900">{result.title}</h5>
-                          <p className="text-sm text-blue-700 mt-1">{result.description}</p>
-                          {result.content && (
-                            <div className="mt-2 p-3 bg-white rounded border text-sm max-h-64 overflow-y-auto">
-                              <pre className="whitespace-pre-wrap">{result.content}</pre>
-                            </div>
-                          )}
-                          {result.priority && (
-                            <Badge variant="outline" className="mt-2 text-xs">
-                              {result.priority}
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-                
-                <div className="text-xs text-gray-500 text-center pt-2">
-                  Analysis performed at: {conversation.last_analyzed_at && new Date(conversation.last_analyzed_at).toLocaleString('pt-BR')}
-                </div>
-              </div>
-            ) : (
-              <div className="text-center py-8 text-gray-500">
-                <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>No analysis results available</p>
-                <p className="text-sm">Run an analysis first</p>
-              </div>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-2">
+            <Badge className="bg-blue-100 text-blue-800">
+              📱 {conversation.message_count} mensagens
+            </Badge>
+            {conversation.platform && (
+              <Badge className="bg-green-100 text-green-800">
+                🔗 {conversation.platform}
+              </Badge>
             )}
-          </TabsContent>
+            {conversation.analysis_date && (
+              <Badge className="bg-purple-100 text-purple-800">
+                <Clock className="h-3 w-3 mr-1" />
+                Analisada em {formatAnalysisDate(conversation.analysis_date)}
+              </Badge>
+            )}
+            {analysisResults && Array.isArray(analysisResults) && analysisResults.length > 0 && (
+              <Badge className="bg-yellow-100 text-yellow-800">
+                <Sparkles className="h-3 w-3 mr-1" />
+                {analysisResults.length} insights
+              </Badge>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
-          <TabsContent value="history" className="space-y-4">
-            <AnalysisHistoryViewer conversationAnalysisId={conversation.id} />
-          </TabsContent>
+      {/* Prompt Personalizado */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Bot className="h-5 w-5" />
+            Análise Personalizada
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Textarea
+            placeholder="Descreva o que você gostaria de analisar especificamente nesta conversa..."
+            value={customPrompt}
+            onChange={(e) => setCustomPrompt(e.target.value)}
+            rows={3}
+          />
+          <p className="text-sm text-gray-600">
+            💡 Exemplo: "Analise o tom emocional", "Identifique oportunidades de negócio", "Avalie a satisfação do cliente"
+          </p>
+        </CardContent>
+      </Card>
 
-          <TabsContent value="chat" className="space-y-4">
-            <AnalysisChatbot 
-              analysisResults={analysisResults}
-              conversationData={{
-                contact_name: conversation.contact_name,
-                contact_phone: conversation.contact_phone,
-                analysis_status: conversation.analysis_status
-              }}
-            />
-          </TabsContent>
-        </Tabs>
-      </CardContent>
-    </Card>
+      {/* Resultados da Análise */}
+      {analysisResults ? (
+        <div className="space-y-4">
+          {Array.isArray(analysisResults) ? (
+            analysisResults.map((result, index) => (
+              <Card key={index}>
+                <CardHeader>
+                  <CardTitle className="text-lg">
+                    📊 Análise #{index + 1}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="prose prose-sm max-w-none">
+                    {typeof result === 'string' ? (
+                      <p className="whitespace-pre-wrap">{result}</p>
+                    ) : (
+                      <pre className="bg-gray-50 p-4 rounded-lg overflow-auto text-sm">
+                        {JSON.stringify(result, null, 2)}
+                      </pre>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">📊 Resultado da Análise</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="prose prose-sm max-w-none">
+                  {typeof analysisResults === 'string' ? (
+                    <p className="whitespace-pre-wrap">{analysisResults}</p>
+                  ) : (
+                    <pre className="bg-gray-50 p-4 rounded-lg overflow-auto text-sm">
+                      {JSON.stringify(analysisResults, null, 2)}
+                    </pre>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      ) : (
+        <Card className="bg-gray-50 border-gray-200">
+          <CardContent className="p-8 text-center">
+            <Bot className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="font-medium text-gray-700 mb-2">Nenhuma análise disponível</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Esta conversa ainda não foi analisada. Clique em "Re-analisar" para gerar insights.
+            </p>
+            <Button
+              onClick={handleReAnalysis}
+              disabled={isAnalyzing}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              {isAnalyzing ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  Analisando...
+                </>
+              ) : (
+                <>
+                  <Bot className="h-4 w-4 mr-2" />
+                  Analisar Conversa
+                </>
+              )}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+    </div>
   );
 }

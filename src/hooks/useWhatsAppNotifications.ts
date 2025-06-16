@@ -64,7 +64,7 @@ export function useWhatsAppNotifications() {
     };
   });
 
-  const [activeIntervals, setActiveIntervals] = useState<Set<NodeJS.Timeout>>(new Set());
+  const [activeTimeouts, setActiveTimeouts] = useState<Map<string, NodeJS.Timeout>>(new Map());
 
   const saveConfig = useCallback((newConfig: WhatsAppNotificationConfig) => {
     setConfig(newConfig);
@@ -85,10 +85,15 @@ export function useWhatsAppNotifications() {
     type: keyof typeof config.customMessages,
     customMessage?: string
   ): Promise<boolean> => {
-    console.log('📱 [WA-NOTIFICATION] Enviando notificação WhatsApp:', { type, targetNumber: config.targetNumber });
+    console.log('📱 [WA-NOTIFICATION] Enviando notificação WhatsApp:', { 
+      type, 
+      targetNumber: config.targetNumber,
+      enabled: config.enabled,
+      typeEnabled: config.notificationTypes[type]
+    });
 
     if (!config.enabled) {
-      console.log('🔇 [WA-NOTIFICATION] Notificações WhatsApp desabilitadas');
+      console.log('🔇 [WA-NOTIFICATION] Notificações WhatsApp desabilitadas globalmente');
       return false;
     }
 
@@ -110,7 +115,7 @@ export function useWhatsAppNotifications() {
     const message = customMessage || config.customMessages[type];
     
     try {
-      console.log('📤 [WA-NOTIFICATION] Enviando mensagem:', message);
+      console.log('📤 [WA-NOTIFICATION] Enviando mensagem:', { message, number: config.targetNumber });
       const success = await sendMessage(config.targetNumber, message);
       
       if (success) {
@@ -118,7 +123,7 @@ export function useWhatsAppNotifications() {
         
         toast({
           title: "Notificação enviada! 📱",
-          description: `Lembrete enviado para ${config.targetNumber}`,
+          description: `Lembrete ${type} enviado para ${config.targetNumber}`,
           duration: 5000
         });
         
@@ -147,68 +152,82 @@ export function useWhatsAppNotifications() {
     return await sendWhatsAppNotification('morning', testMessage);
   }, [sendWhatsAppNotification]);
 
+  const calculateNextScheduledTime = useCallback((timeString: string) => {
+    const [hours, minutes] = timeString.split(':').map(Number);
+    const now = new Date();
+    const scheduledTime = new Date();
+    
+    scheduledTime.setHours(hours, minutes, 0, 0);
+    
+    // Se já passou do horário hoje, agendar para amanhã
+    if (scheduledTime <= now) {
+      scheduledTime.setDate(scheduledTime.getDate() + 1);
+    }
+    
+    return scheduledTime;
+  }, []);
+
   const scheduleNotification = useCallback((
-    time: string,
-    type: keyof typeof config.customMessages
+    type: keyof typeof config.customMessages,
+    timeString: string
   ) => {
-    const [hours, minutes] = time.split(':').map(Number);
-    
-    console.log(`⏰ [WA-NOTIFICATION] Agendando notificação ${type} para ${time}`);
-    
-    // Função para calcular próximo horário
-    const getNextScheduledTime = () => {
-      const now = new Date();
-      const scheduledTime = new Date();
-      scheduledTime.setHours(hours, minutes, 0, 0);
-      
-      // Se já passou do horário hoje, agendar para amanhã
-      if (scheduledTime <= now) {
-        scheduledTime.setDate(scheduledTime.getDate() + 1);
-      }
-      
-      return scheduledTime;
-    };
+    console.log(`⏰ [WA-NOTIFICATION] Agendando notificação ${type} para ${timeString}`);
     
     const scheduleNext = () => {
-      const nextTime = getNextScheduledTime();
+      const nextTime = calculateNextScheduledTime(timeString);
       const timeUntilNotification = nextTime.getTime() - Date.now();
       
-      console.log(`⏰ [WA-NOTIFICATION] Próxima notificação ${type} em ${Math.round(timeUntilNotification / 1000)} segundos`);
+      console.log(`⏰ [WA-NOTIFICATION] Próxima notificação ${type} em ${Math.round(timeUntilNotification / 1000)}s (${nextTime.toLocaleString('pt-BR')})`);
       
-      const timeout = setTimeout(() => {
-        if (config.enabled && config.notificationTypes[type]) {
-          console.log(`🔔 [WA-NOTIFICATION] Disparando notificação ${type} agendada para ${time}`);
-          sendWhatsAppNotification(type);
+      const timeout = setTimeout(async () => {
+        // Verificar se ainda está habilitado no momento da execução
+        const currentConfig = JSON.parse(localStorage.getItem('whatsapp_notifications_config') || '{}');
+        
+        if (currentConfig.enabled && currentConfig.notificationTypes?.[type]) {
+          console.log(`🔔 [WA-NOTIFICATION] Disparando notificação ${type} agendada para ${timeString}`);
+          await sendWhatsAppNotification(type);
+        } else {
+          console.log(`🔇 [WA-NOTIFICATION] Notificação ${type} cancelada - desabilitada`);
         }
         
         // Reagendar para o próximo dia
         scheduleNext();
       }, timeUntilNotification);
       
-      setActiveIntervals(prev => new Set(prev).add(timeout));
+      // Armazenar o timeout para poder cancelar depois
+      setActiveTimeouts(prev => {
+        const newMap = new Map(prev);
+        const oldTimeout = newMap.get(type);
+        if (oldTimeout) {
+          clearTimeout(oldTimeout);
+        }
+        newMap.set(type, timeout);
+        return newMap;
+      });
       
       return timeout;
     };
     
     return scheduleNext();
-  }, [config, sendWhatsAppNotification]);
+  }, [calculateNextScheduledTime, sendWhatsAppNotification]);
 
-  const clearAllIntervals = useCallback(() => {
+  const clearAllTimeouts = useCallback(() => {
     console.log('🛑 [WA-NOTIFICATION] Limpando todos os agendamentos');
-    activeIntervals.forEach(interval => clearTimeout(interval));
-    setActiveIntervals(new Set());
-  }, [activeIntervals]);
+    activeTimeouts.forEach(timeout => clearTimeout(timeout));
+    setActiveTimeouts(new Map());
+  }, [activeTimeouts]);
 
   const startScheduledNotifications = useCallback(() => {
     if (!config.enabled) {
       console.log('🔇 [WA-NOTIFICATION] Agendamento desabilitado');
+      clearAllTimeouts();
       return;
     }
 
     console.log('🚀 [WA-NOTIFICATION] Iniciando agendamento de notificações');
     
     // Limpar agendamentos anteriores
-    clearAllIntervals();
+    clearAllTimeouts();
 
     // Agendar notificações nos horários configurados
     const schedules = [
@@ -218,34 +237,43 @@ export function useWhatsAppNotifications() {
       { time: config.schedules.evening, type: 'evening' as const }
     ];
 
+    let scheduledCount = 0;
+    
     schedules.forEach(({ time, type }) => {
-      if (config.notificationTypes[type]) {
-        scheduleNotification(time, type);
+      if (config.notificationTypes[type] && time) {
+        scheduleNotification(type, time);
+        scheduledCount++;
+        console.log(`✅ [WA-NOTIFICATION] ${type} agendado para ${time}`);
+      } else {
+        console.log(`⏭️ [WA-NOTIFICATION] ${type} pulado - desabilitado ou sem horário`);
       }
     });
 
-    toast({
-      title: "Notificações agendadas! ⏰",
-      description: "Você receberá lembretes automáticos no WhatsApp nos horários configurados",
-      duration: 5000
-    });
-  }, [config, scheduleNotification, clearAllIntervals, toast]);
+    if (scheduledCount > 0) {
+      toast({
+        title: "Notificações agendadas! ⏰",
+        description: `${scheduledCount} lembretes configurados nos horários definidos`,
+        duration: 5000
+      });
+    }
+  }, [config, scheduleNotification, clearAllTimeouts, toast]);
 
-  // Limpar intervalos quando o componente for desmontado
+  // Limpar timeouts quando o componente for desmontado
   useEffect(() => {
     return () => {
-      clearAllIntervals();
+      clearAllTimeouts();
     };
-  }, [clearAllIntervals]);
+  }, [clearAllTimeouts]);
 
   // Reagendar quando a configuração mudar
   useEffect(() => {
+    console.log('🔄 [WA-NOTIFICATION] Configuração alterada, reagendando...');
     if (config.enabled) {
       startScheduledNotifications();
     } else {
-      clearAllIntervals();
+      clearAllTimeouts();
     }
-  }, [config.enabled, config.schedules, config.notificationTypes]);
+  }, [config.enabled, config.schedules, config.notificationTypes, startScheduledNotifications, clearAllTimeouts]);
 
   return {
     config,
@@ -253,7 +281,8 @@ export function useWhatsAppNotifications() {
     sendWhatsAppNotification,
     testWhatsAppNotification,
     startScheduledNotifications,
-    clearAllIntervals,
-    defaultMessages
+    clearAllTimeouts,
+    defaultMessages,
+    activeTimeouts: activeTimeouts.size
   };
 }
