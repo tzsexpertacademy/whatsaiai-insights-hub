@@ -1,3 +1,4 @@
+
 import { Brain, BarChart3, MessageSquare, Target, Zap, Clock, Heart, Users, Settings, User, Bell, Lightbulb } from 'lucide-react';
 import {
   Sidebar,
@@ -38,16 +39,8 @@ export function AppSidebar() {
     { title: 'Perfil', icon: User, url: '/dashboard/profile' },
   ];
 
-  const mainNavItems = [
-    { title: 'Dashboard Geral', icon: BarChart3, url: '/dashboard' },
-    { title: 'Análise de Conversas', icon: MessageSquare, url: '/dashboard/conversation-analysis' },
-    {
-      title: "WhatsApp API Hub",
-      url: "/whatsapp-api-hub",
-      icon: Zap,
-      badge: "NOVO",
-      badgeVariant: "default" as const
-    },
+  const whatsappItems = [
+    { title: 'WhatsApp API Hub', icon: Zap, url: '/whatsapp-api-hub' },
   ];
 
   return (
@@ -70,6 +63,17 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu className="space-y-1">
               {mainAnalysisItems.map((item) => (
+                <SidebarNavItem key={item.url} {...item} />
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel className="text-xs sm:text-sm px-2 py-2">WhatsApp</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu className="space-y-1">
+              {whatsappItems.map((item) => (
                 <SidebarNavItem key={item.url} {...item} />
               ))}
             </SidebarMenu>

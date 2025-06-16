@@ -12,6 +12,7 @@ import { AdminDashboard } from './admin/AdminDashboard';
 import AdminMaster from '@/pages/AdminMaster';
 import { AdminRoute } from './AdminRoute';
 import { TrialExpirationReminder } from './TrialExpirationReminder';
+import { WhatsAppAPIHubPage } from '@/components/WhatsAppAPIHubPage';
 
 export function AppRouter() {
   const { isAuthenticated, isLoading, user } = useAuth();
@@ -96,6 +97,10 @@ export function AppRouter() {
               <Navigate to="/auth" replace />
             )
           } 
+        />
+        <Route 
+          path="/whatsapp-api-hub" 
+          element={isAuthenticated ? <WhatsAppAPIHubPage /> : <Navigate to="/auth" replace />} 
         />
         <Route 
           path="/dashboard/*" 
