@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
@@ -6,7 +7,7 @@ import { Dashboard } from './components/Dashboard';
 import { Settings } from './components/Settings';
 import { WhatsAppConnection } from './components/WhatsAppConnection';
 import { ChatInterface } from './components/ChatInterface';
-import { QueryClient, QueryClientProvider } from 'react-query';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from "@/components/ui/toaster"
 import { ConversationAnalysisDashboard } from '@/components/whatsapp/ConversationAnalysisDashboard';
 import { WhatsAppAPIHubPage } from '@/components/WhatsAppAPIHubPage';

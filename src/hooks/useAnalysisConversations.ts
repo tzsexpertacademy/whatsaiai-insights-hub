@@ -15,6 +15,9 @@ interface AnalysisConversation {
   last_analyzed_at?: string;
   analysis_results: any[];
   marked_for_analysis: boolean;
+  created_at: string;
+  updated_at: string;
+  user_id: string;
 }
 
 export function useAnalysisConversations() {
@@ -95,7 +98,10 @@ export function useAnalysisConversations() {
           marked_at: item.marked_at,
           last_analyzed_at: item.last_analyzed_at || undefined,
           analysis_results: Array.isArray(item.analysis_results) ? item.analysis_results : [],
-          marked_for_analysis: item.marked_for_analysis
+          marked_for_analysis: item.marked_for_analysis,
+          created_at: item.created_at || new Date().toISOString(),
+          updated_at: item.updated_at || new Date().toISOString(),
+          user_id: item.user_id || user.id
         };
       });
       

@@ -1,7 +1,10 @@
 
 import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Smartphone, Settings, Zap, Globe, Server, Wifi, Brain } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Smartphone, Settings, Zap, Globe, Server, Wifi, Brain, CheckCircle } from 'lucide-react';
 import { WhatsAppPlatformConfig } from './WhatsAppPlatformConfig';
 import { WhatsAppConnectionStatus } from './WhatsAppConnectionStatus';
 import { MakeConfig } from './MakeConfig';
