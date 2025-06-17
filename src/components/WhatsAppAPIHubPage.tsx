@@ -1,9 +1,11 @@
 
 import React from 'react';
 import { PageLayout } from '@/components/layout/PageLayout';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RealWhatsAppHub } from './whatsapp/RealWhatsAppHub';
+import { WhatsAppMultiClientAdmin } from './whatsapp/WhatsAppMultiClientAdmin';
 import { Badge } from "@/components/ui/badge";
-import { Zap, ArrowLeft } from 'lucide-react';
+import { Zap, ArrowLeft, Users, Server } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export function WhatsAppAPIHubPage() {
@@ -18,18 +20,37 @@ export function WhatsAppAPIHubPage() {
       </Link>
       <Badge className="bg-green-100 text-green-800 text-xs sm:text-sm flex items-center gap-1">
         <Zap className="h-3 w-3" />
-        API Real
+        API Hub Completo
       </Badge>
     </div>
   );
 
   return (
     <PageLayout
-      title="WhatsApp API Hub Real"
-      description="Conecte seu WhatsApp usando APIs reais - WPPConnect, Green API, Baileys e mais"
+      title="WhatsApp API Hub Completo"
+      description="Soluções integradas de WhatsApp - APIs reais e sistema multi-cliente SaaS"
       headerActions={headerActions}
     >
-      <RealWhatsAppHub />
+      <Tabs defaultValue="multicliente" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="multicliente" className="flex items-center gap-2">
+            <Users className="h-4 w-4" />
+            Multi-Cliente SaaS
+          </TabsTrigger>
+          <TabsTrigger value="apis" className="flex items-center gap-2">
+            <Server className="h-4 w-4" />
+            APIs Externas
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="multicliente">
+          <WhatsAppMultiClientAdmin />
+        </TabsContent>
+
+        <TabsContent value="apis">
+          <RealWhatsAppHub />
+        </TabsContent>
+      </Tabs>
     </PageLayout>
   );
 }
