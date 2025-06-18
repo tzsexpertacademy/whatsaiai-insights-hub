@@ -1,4 +1,3 @@
-
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
@@ -710,11 +709,12 @@ io.on('connection', (socket) => {
 });
 
 // Iniciar servidor
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 WhatsApp Multi-Cliente Server rodando na porta ${PORT}`);
   console.log(`📚 API Swagger: http://localhost:${PORT}/api-docs`);
   console.log(`🌐 Painel Admin: http://localhost:${PORT}`);
   console.log(`📁 Sessões salvas em: ${SESSIONS_DIR}`);
+  console.log(`🌍 Acesso externo: http://0.0.0.0:${PORT}`);
 });
 
 // Graceful shutdown
