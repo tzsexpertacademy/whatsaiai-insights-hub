@@ -18,7 +18,7 @@ const io = socketIo(server, {
 });
 
 // Configurações
-const PORT = process.env.PORT || 3010;
+const PORT = process.env.PORT || 8080; // Mudando para 8080 temporariamente
 const SESSIONS_DIR = path.join(__dirname, '..', 'whatsapp-sessions');
 
 // Middleware
@@ -714,7 +714,7 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`📚 API Swagger: http://localhost:${PORT}/api-docs`);
   console.log(`🌐 Painel Admin: http://localhost:${PORT}`);
   console.log(`📁 Sessões salvas em: ${SESSIONS_DIR}`);
-  console.log(`🌍 Acesso externo: http://0.0.0.0:${PORT}`);
+  console.log(`🌍 Acesso externo: http://146.59.227.148:${PORT}`);
 });
 
 // Graceful shutdown
